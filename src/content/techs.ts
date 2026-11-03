@@ -11,6 +11,8 @@ export type TechKey =
   | 'windCF'
   | 'batteryMWh'
   | 'batteryCost'
+  | 'solarCost'
+  | 'windCost'
   | 'gasFuel'
   | 'gasCO2'
   | 'interconnect'

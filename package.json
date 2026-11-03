@@ -1,7 +1,7 @@
 {
   "name": "kardashev-project",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A cozy-but-real pixel-art management sim about the AI boom: guide Earth up the Kardashev scale.",
   "type": "module",
   "scripts": {
@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "gen:map": "node tools/gen-worldmap.mjs"
+    "gen:map": "node tools/gen-worldmap.mjs",
+    "gen:assets": "tsx tools/gen-assets.ts",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "dependencies": {
     "pixi.js": "^8.22.0",
@@ -19,11 +23,15 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@preact/preset-vite": "^2.10.6",
+    "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^24.19.2",
     "topojson-client": "^3.1.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.1.0",
+    "workbox-window": "^7.4.1",
     "world-atlas": "^2.0.2"
   }
 }

@@ -5,7 +5,7 @@ import { SITES } from '../src/content/sites';
 import { routeBetween } from '../src/world/routing';
 import { renderTerrain } from '../src/render/worldMap/terrain';
 import { C } from '../src/render/palette';
-import { pixelCanvasToPng } from './helpers/png';
+import { pixelCanvasToPng } from '../tools/lib/png';
 import { loadWorld } from './helpers/world';
 
 describe('sea routing', () => {

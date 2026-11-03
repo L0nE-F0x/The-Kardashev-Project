@@ -23,7 +23,7 @@ export function TopBar() {
   const marginCls = st.margin >= 0.25 ? 'good' : st.margin >= 0 ? '' : st.margin >= -0.5 ? 'warn' : 'bad';
   return (
     <div class="topbar">
-      <div class="speed frame">
+      <div class="speed frame" data-tut="speed">
         {speeds.map(([sp, icon, tip]) => (
           <button key={sp} class={`btn small ${game.speed === sp ? 'active' : ''}`} onClick={() => game.setSpeed(sp)} data-tip={tip} aria-label={tip}>
             <Icon name={icon} size="sm" />
@@ -35,7 +35,7 @@ export function TopBar() {
         <span class="label">{s.company.name}</span>
         <span class="d">{fmtDate(s.day)}</span>
       </div>
-      <div class="stats frame">
+      <div class="stats frame" data-tut="stats">
         <div class="stat" data-tip={`Cash on hand.\nRevenue ${fmtMoney(st.revenueMonth)}/mo · running costs ${fmtMoney(st.costMonth)}/mo.\nRound: ${s.finance.round === 'seed' ? 'Seed' : 'Series ' + s.finance.round}`}>
           <Icon name="cash" />
           <div class="col">
@@ -74,7 +74,7 @@ export function TopBar() {
           </div>
         </div>
       </div>
-      <div class="kmeter frame" data-tip={`Kardashev scale: K = (log₁₀ watts − 6) / 10.\nCivilisation uses ${st.worldTW.toFixed(2)} TW.\nNext milestone: K ${next.k.toFixed(2)} — ${next.label}.\nType I = 10 PW = K 1.00.`}>
+      <div class="kmeter frame" data-tut="kmeter" data-tip={`Kardashev scale: K = (log₁₀ watts − 6) / 10.\nCivilisation uses ${st.worldTW.toFixed(2)} TW.\nNext milestone: K ${next.k.toFixed(2)} — ${next.label}.\nType I = 10 PW = K 1.00.`}>
         <Icon name="k" />
         <div class="col" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <span class="kv">K {st.K.toFixed(5)}</span>

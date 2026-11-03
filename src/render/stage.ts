@@ -1,4 +1,4 @@
-import { autoDetectRenderer, Container, RenderTexture, Sprite, TextureSource, type Renderer } from 'pixi.js';
+import { autoDetectRenderer, Container, RenderTexture, Sprite, Texture, TextureSource, type Renderer } from 'pixi.js';
 import { C, hex } from './palette';
 
 TextureSource.defaultOptions.scaleMode = 'nearest';
@@ -46,6 +46,9 @@ export class PixelStage {
   height = 360;
   /** Extra user zoom multiplier on top of the automatic scale (1 or 2). */
   zoomBoost = 1;
+  /** 0..1 black fade over the whole picture (scene transitions). */
+  fade = 0;
+  private fadeSprite!: Sprite;
   private rt!: RenderTexture;
   private sceneHolder = new Container();
   private screenRoot = new Container();
@@ -69,7 +72,10 @@ export class PixelStage {
     host.appendChild(this.canvas);
     this.rt = RenderTexture.create({ width: this.width + MARGIN * 2, height: this.height + MARGIN * 2, scaleMode: 'nearest' });
     this.screenSprite = new Sprite(this.rt);
-    this.screenRoot.addChild(this.screenSprite);
+    this.fadeSprite = new Sprite(Texture.WHITE);
+    this.fadeSprite.tint = 0x05050c;
+    this.fadeSprite.alpha = 0;
+    this.screenRoot.addChild(this.screenSprite, this.fadeSprite);
     this.sceneHolder.position.set(MARGIN, MARGIN);
     this.layout();
     window.addEventListener('resize', () => this.layout());
@@ -134,6 +140,10 @@ export class PixelStage {
     this.renderer.render({ container: this.sceneHolder, target: this.rt, clear: true, clearColor: [0.04, 0.04, 0.07, 1] });
     const sub = scene ? scene.subpixel() : { x: 0, y: 0 };
     this.screenSprite.position.set(Math.round(-(MARGIN + sub.x) * this.scale), Math.round(-(MARGIN + sub.y) * this.scale));
+    this.fadeSprite.alpha = this.fade;
+    this.fadeSprite.visible = this.fade > 0.001;
+    this.fadeSprite.width = this.renderer.width;
+    this.fadeSprite.height = this.renderer.height;
     this.renderer.render({ container: this.screenRoot });
   }
 

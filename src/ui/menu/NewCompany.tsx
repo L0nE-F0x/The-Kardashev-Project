@@ -1,0 +1,131 @@
+import { useState } from 'preact/hooks';
+import { Choice, Icon, Toggle, Window, useGame } from '../components';
+import { HOME_SITES } from '../../content/sites';
+import { REGIONS } from '../../content/regions';
+import { DIFFICULTIES, EVENT_RATES, FOUNDERS, RIVAL_PACES, type Difficulty, type EventRate, type FounderId, type RivalPace } from '../../content/difficulty';
+import { fmtMoney } from '../../sim/core';
+import { sitePreviewUrl } from '../sitePreview';
+
+const randomSeed = () => Math.floor(Math.random() * 900000) + 100000;
+
+export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
+  const game = useGame();
+  const [name, setName] = useState('Little Sun Labs');
+  const [home, setHome] = useState(HOME_SITES[0].id);
+  const [difficulty, setDifficulty] = useState<Difficulty>('standard');
+  const [founder, setFounder] = useState<FounderId>('classic');
+  const [tutorial, setTutorial] = useState(tutorialDefault ?? (!game.settings.tutorialOffered || game.slots().length === 0));
+  const [advanced, setAdvanced] = useState(false);
+  const [cash, setCash] = useState<number | null>(null);
+  const [eventRate, setEventRate] = useState<EventRate>('normal');
+  const [rivalPace, setRivalPace] = useState<RivalPace>('normal');
+  const [seed, setSeed] = useState<number>(randomSeed());
+  const lod = game.world.lods[1];
+  const startCash = (cash ?? DIFFICULTIES[difficulty].cash) + FOUNDERS[founder].cash;
+
+  const found = () => {
+    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial });
+  };
+
+  return (
+    <Window title="New company" icon="hq" wide onClose={() => game.openMenuScreen('main')}>
+      <div class="row wrap" style={{ gap: '12px', alignItems: 'flex-end' }}>
+        <label class="grow" style={{ minWidth: '220px' }}>
+          <span class="label">Company name</span>
+          <input type="text" value={name} maxLength={28} onInput={(e) => setName((e.target as HTMLInputElement).value)} style={{ width: '100%' }} />
+        </label>
+        <div style={{ minWidth: '240px' }}>
+          <Toggle label="Bit shows me around" hint="A guided first ten minutes." value={tutorial} onChange={setTutorial} />
+        </div>
+      </div>
+
+      <h4 class="section">Where is your garage?</h4>
+      <div class="cardgrid four">
+        {HOME_SITES.map((s) => (
+          <button key={s.id} class={`btn pickcard ${home === s.id ? 'active' : ''}`} onClick={() => setHome(s.id)} aria-pressed={home === s.id}>
+            <img class="preview" src={sitePreviewUrl(lod, s.id)} alt="" draggable={false} />
+            <span class="n">{s.name}</span>
+            <span class="b">{REGIONS[s.region].name}</span>
+            <span class="b">
+              Talent ×{s.talent.toFixed(1)} · grid ${Math.round(REGIONS[s.region].gridPrice * s.priceMult)}/MWh
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <h4 class="section">Difficulty</h4>
+      <div class="cardgrid three">
+        {(Object.keys(DIFFICULTIES) as Difficulty[]).map((id) => {
+          const d = DIFFICULTIES[id];
+          return (
+            <button key={id} class={`btn pickcard ${difficulty === id ? 'active' : ''}`} onClick={() => setDifficulty(id)} aria-pressed={difficulty === id}>
+              <span class="n">{d.name}</span>
+              <span class="b">{d.blurb}</span>
+              <span class="b gold">{fmtMoney(d.cash, 0)} seed</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <h4 class="section">Founders</h4>
+      <div class="cardgrid five">
+        {(Object.keys(FOUNDERS) as FounderId[]).map((id) => {
+          const f = FOUNDERS[id];
+          return (
+            <button key={id} class={`btn pickcard ${founder === id ? 'active' : ''}`} onClick={() => setFounder(id)} aria-pressed={founder === id}>
+              <span class="n">
+                <Icon name={f.icon} size="sm" /> {f.name}
+              </span>
+              <span class="b">{f.tagline}</span>
+              {id !== 'classic' && (
+                <>
+                  <span class="b good">+ {f.perk}</span>
+                  <span class="b warn">− {f.flaw}</span>
+                </>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <button class="btn small section" onClick={() => setAdvanced(!advanced)} aria-expanded={advanced}>
+        {advanced ? '▾' : '▸'} Custom start
+      </button>
+      {advanced && (
+        <div class="custom">
+          <label class="setting slider">
+            <span class="txt">
+              <span class="l">Seed money</span>
+              <span class="h">Overrides the difficulty’s seed round.</span>
+            </span>
+            <input type="range" min={100e6} max={2e9} step={50e6} value={cash ?? DIFFICULTIES[difficulty].cash} onInput={(e) => setCash(Number((e.target as HTMLInputElement).value))} aria-label="Seed money" />
+            <span class="val">{fmtMoney(cash ?? DIFFICULTIES[difficulty].cash, 0)}</span>
+          </label>
+          <Choice<EventRate> label="Random events" value={eventRate} options={(Object.keys(EVENT_RATES) as EventRate[]).map((k) => [k, EVENT_RATES[k].name])} onChange={setEventRate} />
+          <Choice<RivalPace> label="Rival labs" hint="How fast Meridian, Lattice and Open Orchard improve." value={rivalPace} options={(Object.keys(RIVAL_PACES) as RivalPace[]).map((k) => [k, RIVAL_PACES[k].name])} onChange={setRivalPace} />
+          <div class="setting opt">
+            <span class="txt">
+              <span class="l">World seed</span>
+              <span class="h">Same seed + same choices = same world. Share it with a friend.</span>
+            </span>
+            <div class="row" style={{ gap: '4px' }}>
+              <input type="text" inputMode="numeric" value={String(seed)} onInput={(e) => setSeed(Number((e.target as HTMLInputElement).value.replace(/\D/g, '')) || 1)} style={{ width: '110px' }} />
+              <button class="btn small" onClick={() => setSeed(randomSeed())} aria-label="Random seed">
+                🎲
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div class="row between wrap section" style={{ gap: '8px' }}>
+        <span class="small muted">
+          {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {fmtMoney(Math.max(10e6, startCash), 0)} to start
+        </span>
+        <button class="btn primary big" onClick={found} disabled={game.slotsFull()} data-tip={game.slotsFull() ? 'All 5 slots are in use — delete a company first.' : undefined}>
+          <Icon name="play" size="sm" /> Found the company
+        </button>
+      </div>
+    </Window>
+  );
+}

@@ -1,0 +1,26 @@
+[package]
+name = "kardashev-project"
+version = "0.2.0"
+description = "The Kardashev Project: a cozy-but-real pixel-art sim of the AI boom"
+authors = ["Lone Fox"]
+repository = "https://github.com/L0nE-F0x/The-Kardashev-Project"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "kardashev_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = [] }
+
+# small, fast release binaries
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

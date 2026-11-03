@@ -107,6 +107,9 @@ export class DioramaScene implements Scene {
   private hoverPlot: Plot | null = null;
   private down: { x: number; camX: number; moved: boolean } | null = null;
   private timeOffset = 0;
+  /** Menu cinematic: drift slowly across the campus. */
+  autoPan = false;
+  private panDir = 1;
 
   constructor(
     private readonly game: Game,
@@ -151,21 +154,21 @@ export class DioramaScene implements Scene {
   }
 
   private facilitiesHere(): Facility[] {
-    const s = this.game.state;
+    const s = this.game.view;
     if (!s) return [];
     return s.facilities.filter((f) => f.siteId === this.siteId);
   }
 
   /** Company initials for signage ("Little Sun Labs" → "LSL"). */
   private label(): string {
-    const name = this.game.state?.company.name ?? 'Kardashev Project';
+    const name = this.game.view?.company.name ?? 'Kardashev Project';
     const words = name.split(/\s+/).filter(Boolean);
     return (words.length > 1 ? words.map((w) => w[0]).join('') : name).slice(0, 3).toUpperCase();
   }
 
   /** Recreate background bands and facility sprites when the campus changes. */
   private rebuildPlots() {
-    const s = this.game.state;
+    const s = this.game.view;
     const facs = this.facilitiesHere();
     const grid = s ? s.sites[this.siteId].grid.mw + s.sites[this.siteId].grid.pending.length : 0;
     const key = `${this.vw}x${this.vh}|${grid > 0}|${getEra()}|${facs.map((f) => `${f.id}:${f.status}:${f.status === 'building' ? Math.floor((f.progress / f.buildDays) * 8) : ''}`).join(',')}`;
@@ -319,7 +322,8 @@ export class DioramaScene implements Scene {
   }
 
   private pickWeather(): Weather {
-    const s = this.game.state;
+    if (!this.game.settings.weather) return 'clear';
+    const s = this.game.view;
     const day = s?.day ?? 0;
     const r = hash2(Math.floor(day / 3), Math.floor(this.site.lat * 7 + this.site.lon), 17);
     const wet = this.site.backdrop === 'desert' ? 0.05 : this.site.water > 0.7 ? 0.35 : 0.22;
@@ -348,6 +352,12 @@ export class DioramaScene implements Scene {
 
   // ── sky ───────────────────────────────────────────────────────────────────────────────────
   private clock(): Date {
+    if (!this.game.settings.dayNight) {
+      // pin the sun to local noon at this site
+      const now = new Date();
+      const utcNoon = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12) - (this.site.lon / 15) * 3_600_000;
+      return new Date(utcNoon);
+    }
     return new Date(Date.now() + this.timeOffset);
   }
 
@@ -431,8 +441,15 @@ export class DioramaScene implements Scene {
   // ── per-frame ─────────────────────────────────────────────────────────────────────────────
   update(dt: number) {
     this.time += dt;
+    if (this.autoPan && this.sceneW > this.vw) {
+      this.camX += this.panDir * dt * 9;
+      if (this.camX > this.sceneW - this.vw) this.panDir = -1;
+      if (this.camX < 0) this.panDir = 1;
+      this.camX = Math.max(0, Math.min(this.sceneW - this.vw, this.camX));
+    }
     this.rebuildPlots();
     this.updateSky(dt);
+    this.weatherL.visible = this.game.settings.weather && !this.game.settings.reducedMotion;
     const cx = Math.round(this.camX);
     this.world.x = -cx;
     this.glowL.x = -cx;
@@ -459,7 +476,7 @@ export class DioramaScene implements Scene {
       if (p.type === 'gas' && p.points.stack && p.kind === 'facility' && p.facility?.status === 'online') {
         this.smokeTimer -= dt;
         if (this.smokeTimer <= 0) {
-          this.smokeTimer = 0.12;
+          this.smokeTimer = this.game.settings.batterySaver ? 0.3 : 0.12;
           this.spawnSmoke(p.x + p.points.stack[0], this.groundY + 1 - p.h + p.points.stack[1]);
         }
       }

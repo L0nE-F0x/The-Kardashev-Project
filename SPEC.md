@@ -364,8 +364,8 @@ advisor cast, deeper bloc politics.
 **M4: Acts IV–V.** Fusion, HVDC global grid, launch, orbital DCs, space solar, the Moon, the
 thermal budget, the Type I ending.
 
-**M5: Polish and ship.** Sandbox mode (seeds, custom starts, Hard Mode), audio, mobile polish,
-Tauri desktop build.
+**M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds.
+(Custom starts with seeds, Hard difficulty, music and the Tauri desktop build arrived early, in M1.5.)
 
 **Later:** Type II (Mercury mining, Dyson swarm), then a Type III epilogue.
 
@@ -428,3 +428,92 @@ Tauri desktop build.
 
 **Next (M2: Act II, The Scale-Up)**: fabs and packaging partnerships, nuclear, hydro and geothermal,
 fiber, standing orders, the HBM-crunch chain, bigger campuses, Mira and Sol arcs, music.
+
+---
+
+## 16. M1.5 "The Front Door": built (v0.2.0)
+
+Everything a player meets before and around the game: website, menu, onboarding, settings,
+installable apps. Approved 2026-11-03 without the feedback form; built the same day.
+
+### Decisions (locked 2026-11-03)
+
+| Topic | Decision |
+|---|---|
+| Website | Landing page at `/`, the game at `/play/` |
+| Address | https://thekardashevproject.netlify.app (one config value, easy to swap for a custom domain) |
+| Tutorial | Bit-guided walkthrough (skippable, replayable) + Field Guide |
+| Desktop | Tauri 2 now (small installers built by GitHub Actions). Game code stays wrapper-agnostic so a later switch to Electron for Steam is cheap |
+| Signing | Unsigned for now, with a "how to open it" note on the download page |
+| Settings | Gameplay, Display, Audio, Accessibility (+ Controls and Data) |
+| New game | Save slots, difficulty presets, founder perks, custom start/seed |
+| Phones | Landscape only: locked when installed, "rotate your phone" screen otherwise |
+| Menu scene | Cinematic tour: globe fly-overs that cut into real campus dioramas |
+| Extras | What's New, Credits & About. No feedback form for now (revisit when marketing). No analytics |
+| Music | Your theme MP3 on the menu + code-made chiptune ambience in game |
+| App icon | Pixel Earth |
+
+### Numbers (as built; tweak in `content/difficulty.ts`)
+
+**Difficulty**
+| | Relaxed | Standard | Hard |
+|---|---|---|---|
+| Seed money | $600M | $400M | $250M |
+| Random events | every 60–100 days | every 42–72 days | every 30–55 days |
+| Crisis costs / incident risk | ×0.7 | ×1 | ×1.5 |
+| Running out of cash | cheap bridge loan | bridge loan | **bankruptcy ends the company** (game-over screen, retry) |
+
+**Founder perks** (a bonus with a matching flaw)
+- **Safety-First**: safety research ×1.5, trust +5 everywhere / seed money −$50M.
+- **Hardware Nerds**: data centers build 20% faster, PUE −0.05 / research −15%.
+- **Growth Hackers**: inference revenue +20% / alignment −0.25 and trust −5.
+- **Energy Natives**: solar, wind and batteries 15% cheaper, grid connections 25% sooner / training efficiency ×0.85.
+- **Classic**: no perk.
+
+**Custom start**: seed money ($100M–$2B), event frequency (off/low/normal/high), rival pace
+(slow/normal/fast), and a shareable world seed. **Save slots**: up to 5 companies shown as cards
+(name, home, date, K, model, difficulty, founder, playtime).
+
+### What was built
+1. **Site structure.** Multi-page Vite build (`/` landing, `/play/` game). Meta, OG and Twitter
+   tags, canonical URL, robots and sitemap.
+2. **Generated brand assets.** `npm run gen:assets` renders the Pixel Earth icon set (favicon,
+   apple-touch, 192/512, maskable), the desktop icons (ICO/ICNS/PNG, each size drawn natively so
+   nothing is resampled), the logo, the 1200×630 OG image and the hero globe from the game's own
+   pixel code. Real gameplay screenshots live in `public/screenshots/`.
+3. **Landing page.** Hero with a slowly spinning pixel Earth (the real map with a live day/night
+   side, no game engine), Play in browser, Install/Download, feature cards, screenshots, a
+   Kardashev-scale explainer, What's New, credits and footer. Fast and phone-friendly.
+4. **Main menu.** A cinematic tour behind it, save-slot cards with Continue, the New Company
+   setup (name, home with map preview, difficulty, founder perk, custom start), Settings,
+   Field Guide, Tutorial, What's New, Credits, Get the app, and Quit on desktop.
+5. **Tutorial.** 15 steps. Bit highlights the real UI (rent compute → train Bit-1 →
+   allocate → research → pick a site → data center → power → chips) and waits for each action.
+   Skip or replay any time.
+6. **Field Guide.** About 20 short entries on the real concepts behind the game (capacity factor,
+   batteries, grid queues, transformers and turbines, PUE, cooling water, accelerators, HBM, EUV,
+   packaging, chokepoints, training vs inference, scaling laws, alignment, social license, carbon,
+   open weights, export controls, the Kardashev scale). Entries unlock as you meet them, with a
+   "new entry" toast.
+7. **Settings.** Tabbed, from the menu and in game:
+   - Gameplay: event frequency, auto-pause on events, offline progress and rate, autosave,
+     confirm big spends, goal tracker.
+   - Display: pixel scale, UI size, weather, clouds, CRT filter, day/night on/off, battery saver,
+     FPS counter.
+   - Audio: master/music/SFX volume, mute in background.
+   - Accessibility: readable font, colour-blind-safe colours, reduced motion, high contrast.
+   - Controls: shortcut list, scroll-to-zoom or scroll-to-pan.
+   - Data: slots, export/import (code + file), reset.
+8. **Audio.** Music player with fades and a slot for your theme MP3 (code-made theme until you
+   drop one in), plus quiet chiptune ambience in game.
+9. **PWA.** Installable from `/play/` with offline play, landscape orientation, Pixel Earth icons,
+   iOS home-screen support, an "Install" button (or iOS instructions), and an "update ready" prompt.
+10. **Desktop.** `src-tauri/` plus a GitHub Actions workflow. Pushing a `v*` tag builds a Windows
+    installer (NSIS, per-user), a universal macOS `.dmg` (ad-hoc signed) and a Linux AppImage/`.deb`
+    into a **draft** GitHub release; publishing it makes the website's download buttons appear. A
+    local Linux build makes a 2 MB `.deb`.
+11. **Docs.** `CHANGELOG.md` feeds What's New (game and website). CLAUDE.md, README and this spec
+    are updated.
+
+**Deferred:** the feedback form (until marketing), the real theme song (drop it at
+`public/audio/theme.mp3`), code signing.

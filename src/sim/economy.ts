@@ -8,6 +8,7 @@ import { DAYS_PER_MONTH, rentalPrice } from './model';
 import type { PowerResult } from './power';
 import type { ComputeResult } from './ai';
 import { REGION_IDS } from '../content/mapcodes';
+import { FOUNDERS } from '../content/difficulty';
 
 export const emptyLedger = (): Ledger => ({ revenue: 0, rental: 0, power: 0, fuel: 0, opex: 0, staff: 0, capex: 0, chips: 0, shipping: 0, funding: 0, other: 0 });
 
@@ -75,10 +76,11 @@ export function tickLicense(s: GameState, power: PowerResult): void {
     const r = siteDef(id).region;
     strain[r] = (strain[r] ?? 0) + sp.gridUsed;
   }
+  const trustBonus = FOUNDERS[s.meta?.founder ?? 'classic']?.trust ?? 0;
   for (const r of REGION_IDS) {
     const def = REGIONS[r];
     const st = s.regions[r];
-    let d = (def.license0 - st.license) * 0.0015;
+    let d = (def.license0 + trustBonus - st.license) * 0.0015;
     d += Math.min(0.02, (jobs[r] ?? 0) * 0.004) * gain;
     d -= (strain[r] ?? 0) * 0.00035;
     d -= ((power.co2ByRegion[r] ?? 0) / 1000) * def.green * 0.0025;

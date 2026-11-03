@@ -106,6 +106,7 @@ export class MapScene implements Scene {
   private camX = 0;
   private camY = 0;
   private targetX: number | null = null;
+  private cine: { x0: number; y0: number; x1: number; y1: number; t: number; secs: number } | null = null;
   private targetY: number | null = null;
   private lastNight = 0;
   private time = 0;
@@ -137,7 +138,7 @@ export class MapScene implements Scene {
     this.applyLod();
     this.buildClouds();
     // start centred on the player's home, or the Atlantic on the title screen
-    const home = game.state ? siteDef(game.state.company.homeSite) : null;
+    const home = game.view ? siteDef(game.view.company.homeSite) : null;
     this.centreOn(home ? home.lon : -20, home ? home.lat : 25);
     // pre-build the detailed LOD while the player looks around
     setTimeout(() => this.layer(1), 400);
@@ -218,6 +219,41 @@ export class MapScene implements Scene {
   }
 
   // ── camera ────────────────────────────────────────────────────────────────────────────────
+  /** Menu cinematic: glide from one point to another over `secs`, at a given zoom level. */
+  cinematic(from: [number, number], to: [number, number], secs: number, lod: number) {
+    if (lod !== this.lodIndex) {
+      this.lodIndex = Math.max(0, Math.min(this.game.world.lods.length - 1, lod));
+      this.applyLod();
+    }
+    const res = this.lod.res;
+    const x0 = (from[0] + 180) / res - this.vw / 2;
+    const y0 = (90 - from[1]) / res - this.vh / 2;
+    let x1 = (to[0] + 180) / res - this.vw / 2;
+    const y1 = (90 - to[1]) / res - this.vh / 2;
+    const W = this.lod.W;
+    if (x1 - x0 > W / 2) x1 -= W;
+    else if (x0 - x1 > W / 2) x1 += W;
+    this.cine = { x0, y0, x1, y1, t: 0, secs };
+    this.camX = x0;
+    this.camY = y0;
+    this.clampCam();
+  }
+
+  /** Client (CSS px) position of a `site:<id>` marker, for the tutorial spotlight. */
+  locate(target: string): { x: number; y: number } | null {
+    if (!target.startsWith('site:')) return null;
+    const id = target.slice(5);
+    if (!siteDef(id)) return null;
+    const p = this.sitePx(id);
+    const stage = this.game.stage;
+    const rect = stage.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const ix = p.x - this.camX;
+    const iy = p.y - this.camY - 4;
+    if (ix < -20 || iy < -20 || ix > this.vw + 20 || iy > this.vh + 20) return null;
+    return { x: rect.left + (ix * stage.scale) / dpr, y: rect.top + (iy * stage.scale) / dpr };
+  }
+
   centreOn(lon: number, lat: number, animate = false) {
     const x = (lon + 180) / this.lod.res - this.vw / 2;
     const y = (90 - lat) / this.lod.res - this.vh / 2;
@@ -239,8 +275,11 @@ export class MapScene implements Scene {
     const res = this.lod.res;
     const top = (90 - LAT_TOP) / res;
     const bottom = (90 - LAT_BOTTOM) / res;
-    if (bottom - top <= this.vh) this.camY = (top + bottom) / 2 - this.vh / 2;
-    else this.camY = Math.max(top, Math.min(bottom - this.vh, this.camY));
+    const H = this.lod.H;
+    if (bottom - top > this.vh) this.camY = Math.max(top, Math.min(bottom - this.vh, this.camY));
+    // a view taller than the playable band reveals more of the poles before any empty space
+    else if (H > this.vh) this.camY = Math.max(0, Math.min(H - this.vh, (top + bottom) / 2 - this.vh / 2));
+    else this.camY = H / 2 - this.vh / 2;
     const W = this.lod.W;
     if (this.camX < 0 || this.camX >= W) {
       const shift = Math.floor(this.camX / W) * W;
@@ -277,11 +316,18 @@ export class MapScene implements Scene {
   // ── per-frame ─────────────────────────────────────────────────────────────────────────────
   update(dt: number, now: number) {
     this.time += dt;
-    if (this.game.mode === 'title') {
-      // slow cinematic drift behind the title card
-      this.camX += dt * 6;
+    if (this.cine) {
+      // menu cinematic: an eased glide between two points
+      this.cine.t = Math.min(1, this.cine.t + dt / this.cine.secs);
+      const e = this.cine.t * this.cine.t * (3 - 2 * this.cine.t);
+      this.camX = this.cine.x0 + (this.cine.x1 - this.cine.x0) * e;
+      this.camY = this.cine.y0 + (this.cine.y1 - this.cine.y0) * e;
       this.clampCam();
     }
+    const st = this.game.settings;
+    this.cloudL.visible = st.clouds;
+    this.night.sprites.forEach((sp) => (sp.visible = st.dayNight));
+    this.lights.sprites.forEach((sp) => (sp.visible = st.dayNight));
     if (this.targetX !== null && this.targetY !== null) {
       const k = 1 - Math.pow(0.001, dt);
       this.camX += (this.targetX - this.camX) * k;
@@ -337,8 +383,9 @@ export class MapScene implements Scene {
   }
 
   private updateClouds(dt: number) {
+    const still = this.game.settings.reducedMotion;
     for (const c of this.clouds) {
-      c.lon += c.v * dt;
+      if (!still) c.lon += c.v * dt;
       if (c.lon > 180) c.lon -= 360;
       this.placeCloud(c);
     }
@@ -367,16 +414,16 @@ export class MapScene implements Scene {
 
   // ── markers ───────────────────────────────────────────────────────────────────────────────
   private siteFacilities(id: string): { type: FacilityType; building: boolean }[] {
-    const s = this.game.state;
+    const s = this.game.view;
     if (!s) return [];
     return s.facilities.filter((f) => f.siteId === id && f.type !== 'hq').map((f) => ({ type: f.type, building: f.status === 'building' }));
   }
 
   private markerTexture(site: SiteDef, hovered: boolean): Texture {
-    const s = this.game.state;
+    const s = this.game.view;
     if (site.kind === 'supplier') return supplierTexture(SUPPLIER_COLOR[site.supplier ?? 'lumen'] ?? 'ink8');
     if (site.kind === 'cloud') return cloudMarkTexture();
-    if (s && s.company.homeSite === site.id) return homeTexture();
+    if (s && s.company.homeSite === site.id && this.game.mode !== 'title') return homeTexture();
     if (s && (s.facilities.some((f) => f.siteId === site.id) || s.sites[site.id]?.grid.mw > 0 || s.sites[site.id]?.grid.pending.length)) return sitePinTexture('cyn4');
     return candidateTexture(hovered);
   }
@@ -490,7 +537,7 @@ export class MapScene implements Scene {
   }
 
   private updateLinks() {
-    const s = this.game.state;
+    const s = this.game.view;
     const links = s?.links ?? [];
     const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${links.map((l) => l.id + l.status).join(',')}`;
     if (key === this.linkKey) return;
@@ -528,7 +575,7 @@ export class MapScene implements Scene {
   }
 
   private updatePulses(dt: number) {
-    const s = this.game.state;
+    const s = this.game.view;
     if (!s) return;
     for (const p of this.pulses) {
       const l = s.links.find((x) => x.id === p.link);
@@ -553,7 +600,7 @@ export class MapScene implements Scene {
   }
 
   private updateRoutes() {
-    const s = this.game.state;
+    const s = this.game.view;
     const ships = s?.shipments ?? [];
     const sel = this.game.hover?.kind === 'shipment' ? this.game.hover.id : '';
     const key = `${this.lodIndex}|${Math.round(this.camX / 40)}|${ships.map((x) => x.id + x.portDay).join(',')}|${sel}`;
@@ -569,7 +616,7 @@ export class MapScene implements Scene {
   }
 
   private shipPosition(sh: Shipment): { x: number; y: number; dir: number } | null {
-    const s = this.game.state!;
+    const s = this.game.view!;
     const t = s.day + this.game.dayFraction();
     let path: [number, number][];
     let f: number;
@@ -604,7 +651,7 @@ export class MapScene implements Scene {
   }
 
   private updateShips() {
-    const s = this.game.state;
+    const s = this.game.view;
     const ships = s?.shipments ?? [];
     const alive = new Set<string>();
     for (const sh of ships) {
@@ -635,7 +682,7 @@ export class MapScene implements Scene {
   }
 
   private updateChokepoints() {
-    const s = this.game.state;
+    const s = this.game.view;
     const closed = s ? closedChokepoints(s) : new Set<string>();
     for (const c of CHOKEPOINTS) {
       let sp = this.chokeSprites.get(c.id);
@@ -695,7 +742,7 @@ export class MapScene implements Scene {
   }
 
   private hitShipment(px: number, py: number): string | null {
-    const s = this.game.state;
+    const s = this.game.view;
     if (!s) return null;
     const wx = this.camX + px;
     const wy = this.camY + py;
@@ -803,6 +850,10 @@ export class MapScene implements Scene {
   }
 
   wheel(p: PixelPointer, deltaY: number) {
+    if (this.game.settings.wheel === 'pan') {
+      this.pan(0, Math.sign(deltaY) * 14);
+      return;
+    }
     const now = performance.now();
     if (now - this.lastWheel < 220) return;
     this.lastWheel = now;

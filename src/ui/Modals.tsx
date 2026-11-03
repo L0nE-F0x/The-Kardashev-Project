@@ -8,6 +8,7 @@ export function EventModal() {
   const s = game.state!;
   const active = s.events.active;
   if (!active || game.awayReport) return null;
+  if (!game.settings.autoPause && !game.eventOpen) return null;
   const def = EVENT_BY_ID[active.id];
   if (!def) return null;
   const ctx = active.ctx;
@@ -170,6 +171,64 @@ export function ActCompleteModal() {
                 <Icon name="play" size="sm" /> Keep playing (sandbox)
               </span>
               <span class="d">Keep building and training; more acts are coming.</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function GameOverModal() {
+  const game = useGame();
+  const s = game.state;
+  if (!s?.meta.gameOver) return null;
+  const st = s.stats;
+  return (
+    <div class="scrim">
+      <div class="modal frame">
+        <div class="head">
+          <span class="ico">🪦</span>
+          <div class="grow">
+            <div class="label">{fmtDate(s.day, true)}</div>
+            <h2>{s.company.name} has closed</h2>
+          </div>
+        </div>
+        <div class="body">
+          <div class="story">Hard mode is unforgiving: the money ran out. Here’s how far you got.</div>
+          <div class="deltas">
+            <div class="delta">
+              <div class="label">Best model</div>
+              <div class="v">{s.models[s.models.length - 1]?.name ?? '—'}</div>
+            </div>
+            <div class="delta">
+              <div class="label">Compute</div>
+              <div class="v cyan">{st.computeEF.toFixed(1)} EF</div>
+            </div>
+            <div class="delta">
+              <div class="label">Kardashev</div>
+              <div class="v cyan">{st.K.toFixed(5)}</div>
+            </div>
+          </div>
+          <div class="quote">
+            <Portrait id="penny" mood="worried" size={56} />
+            <div class="bubble">
+              <b>Penny · Finance</b>
+              Most startups die of running out of money. We’ll be smarter next time.
+            </div>
+          </div>
+          <div class="choices">
+            <button
+              class="btn primary choice"
+              onClick={() => {
+                game.quitToMenu();
+                game.openMenuScreen('new');
+              }}
+            >
+              <span class="t">Start a new company</span>
+            </button>
+            <button class="btn choice" onClick={() => game.quitToMenu()}>
+              <span class="t">Back to the main menu</span>
             </button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { EVENT_BY_ID, EVENTS } from '../content/events';
+import { DIFFICULTIES, EVENT_RATES } from '../content/difficulty';
 import type { GameState } from './types';
 import { rand, randInt, weightedPick } from './core';
 import { currentCapability, incidentChance } from './model';
@@ -15,7 +16,7 @@ export function tickEvents(s: GameState): void {
   // safety incidents — checked twice a month once a model is in the wild
   const c = currentCapability(s);
   if (c > 0 && s.day % 15 === 0 && s.day - s.safety.lastIncidentDay > 45) {
-    const p = incidentChance(s.stats.margin) / 2;
+    const p = (incidentChance(s.stats.margin) / 2) * DIFFICULTIES[s.meta.difficulty].incident;
     if (rand(s) < p) {
       const major = c >= 2.5 && s.stats.margin < -0.3 && rand(s) < 0.6;
       queueEvent(s, major ? 'incident-major' : 'incident-minor');
@@ -25,11 +26,16 @@ export function tickEvents(s: GameState): void {
   }
 
   // out of money
-  if (s.finance.cash < 0 && (s.events.last['bridge-loan'] ?? -999) < s.day - 60) queueEvent(s, 'bridge-loan');
+  if (s.finance.cash < 0) {
+    if (DIFFICULTIES[s.meta.difficulty].broke === 'bankrupt') queueEvent(s, 'bankruptcy');
+    else if ((s.events.last['bridge-loan'] ?? -999) < s.day - 60) queueEvent(s, 'bridge-loan');
+  }
 
   // the random pool
-  if (s.day >= s.events.nextRoll) {
-    s.events.nextRoll = s.day + randInt(s, 42, 72);
+  const rate = EVENT_RATES[s.meta.eventRate].mult;
+  if (rate > 0 && s.day >= s.events.nextRoll) {
+    const [lo, hi] = DIFFICULTIES[s.meta.difficulty].eventDays;
+    s.events.nextRoll = s.day + Math.round(randInt(s, lo, hi) * rate);
     const candidates: { item: { id: string; ctx: Record<string, string | number> }; weight: number }[] = [];
     for (const def of EVENTS) {
       if (!def.weight) continue;

@@ -11,12 +11,13 @@ export function Dock() {
     ['research', 'research', 'Research (R)', s.research.current ? undefined : 1],
     ['finance', 'finance', 'Finance (F)'],
     ['goals', 'goals', 'Goals (G)'],
+    ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
     ['news', 'news', 'News (N)'],
   ];
   return (
     <div class="dock frame">
       {items.map(([id, icon, tip, badge]) => (
-        <button key={id} class={`btn ${game.panel === id ? 'active' : ''}`} onClick={() => game.openPanel(id)} data-tip={tip} aria-label={tip}>
+        <button key={id} class={`btn ${game.panel === id ? 'active' : ''}`} onClick={() => game.openPanel(id)} data-tip={tip} aria-label={tip} data-tut={`dock-${id}`}>
           <Icon name={icon} size="lg" />
           {badge ? <span class="badge">{badge > 9 ? '9+' : badge}</span> : null}
         </button>

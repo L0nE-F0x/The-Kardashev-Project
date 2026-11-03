@@ -73,3 +73,75 @@ export function KV({ rows }: { rows: [ComponentChildren, ComponentChildren, stri
 export function pct(v: number, digits = 0): string {
   return `${(v * 100).toFixed(digits)}%`;
 }
+
+/** On/off switch with a label and an optional hint. */
+export function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button class={`setting toggle ${value ? 'on' : ''}`} role="switch" aria-checked={value} onClick={() => onChange(!value)}>
+      <span class="sw" aria-hidden="true">
+        <i />
+      </span>
+      <span class="txt">
+        <span class="l">{label}</span>
+        {hint && <span class="h">{hint}</span>}
+      </span>
+    </button>
+  );
+}
+
+/** Labelled slider (0..1 shown as a percentage by default). */
+export function Slider({ label, hint, value, min = 0, max = 1, step = 0.05, format, onChange }: { label: string; hint?: string; value: number; min?: number; max?: number; step?: number; format?: (v: number) => string; onChange: (v: number) => void }) {
+  return (
+    <label class="setting slider">
+      <span class="txt">
+        <span class="l">{label}</span>
+        {hint && <span class="h">{hint}</span>}
+      </span>
+      <input type="range" min={min} max={max} step={step} value={value} onInput={(e) => onChange(Number((e.target as HTMLInputElement).value))} aria-label={label} />
+      <span class="val">{format ? format(value) : `${Math.round(value * 100)}%`}</span>
+    </label>
+  );
+}
+
+/** A row of mutually exclusive options. */
+export function Choice<T extends string | number>({ label, hint, value, options, onChange }: { label: string; hint?: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <div class="setting opt">
+      <span class="txt">
+        <span class="l">{label}</span>
+        {hint && <span class="h">{hint}</span>}
+      </span>
+      <div class="seg">
+        {options.map(([v, name]) => (
+          <button key={String(v)} class={`btn small ${v === value ? 'active' : ''}`} onClick={() => onChange(v)} aria-pressed={v === value}>
+            {name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A centred modal window used by the menu screens. */
+export function Window({ title, icon, onClose, children, wide }: { title: string; icon?: IconName; onClose: () => void; children: ComponentChildren; wide?: boolean }) {
+  return (
+    <div class="scrim menu-scrim" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div class={`modal frame window ${wide ? 'wide' : ''}`} role="dialog" aria-label={title}>
+        <div class="head">
+          {icon && <Icon name={icon} size="lg" />}
+          <h2 class="grow">{title}</h2>
+          <button class="btn ghost small" onClick={onClose} aria-label="Close">
+            <Icon name="close" size="sm" />
+          </button>
+        </div>
+        <div class="body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function fmtPlaytime(sec: number): string {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}

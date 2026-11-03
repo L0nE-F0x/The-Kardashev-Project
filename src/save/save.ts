@@ -1,18 +1,32 @@
 import type { GameState } from '../sim/types';
 import { SAVE_VERSION } from '../sim/state';
+import { dateOf } from '../sim/core';
 
-const SAVE_KEY = 'kardashev.save.v1';
-const SETTINGS_KEY = 'kardashev.settings.v1';
+/**
+ * Saves live in localStorage as numbered slots (up to MAX_SLOTS companies), plus a small index
+ * so the menu can show cards without parsing every save. Works the same in browsers, the
+ * installed PWA and the desktop app (each has its own storage).
+ */
+const INDEX_KEY = 'kardashev.slots.v1';
+const SLOT_PREFIX = 'kardashev.slot.';
+const LEGACY_KEY = 'kardashev.save.v1';
+export const MAX_SLOTS = 5;
 
-export interface Settings {
-  sound: boolean;
-  offline: boolean;
-  /** Extra whole-number pixel zoom (1 = automatic). */
-  zoom: number;
-  tutorialHints: boolean;
+export interface SlotInfo {
+  id: string;
+  name: string;
+  home: string;
+  day: number;
+  dateLabel: string;
+  K: number;
+  model: string;
+  difficulty: string;
+  founder: string;
+  playtime: number;
+  savedAt: number;
+  act1: boolean;
+  gameOver: boolean;
 }
-
-const DEFAULT_SETTINGS: Settings = { sound: true, offline: true, zoom: 1, tutorialHints: true };
 
 function storage(): Storage | null {
   try {
@@ -23,38 +37,122 @@ function storage(): Storage | null {
 }
 
 /** Bring older saves up to the current schema. */
-function migrate(raw: GameState): GameState | null {
+export function migrate(raw: GameState): GameState | null {
   if (!raw || typeof raw !== 'object' || typeof raw.day !== 'number') return null;
   if (raw.version > SAVE_VERSION) return null;
   raw.research.pool ??= 0;
+  raw.meta ??= {
+    difficulty: 'standard',
+    founder: 'classic',
+    eventRate: 'normal',
+    rivalPace: 'normal',
+    startCash: 400e6,
+    playtime: 0,
+    tutorialStep: -1,
+    createdAt: raw.savedAt ?? Date.now(),
+  };
   raw.version = SAVE_VERSION;
   return raw;
 }
 
-export function loadSave(): GameState | null {
+function infoOf(id: string, s: GameState): SlotInfo {
+  const d = dateOf(s.day);
+  return {
+    id,
+    name: s.company.name,
+    home: s.company.homeSite,
+    day: s.day,
+    dateLabel: `${d.getUTCDate()} ${d.toLocaleString('en', { month: 'short', timeZone: 'UTC' })} ${d.getUTCFullYear()}`,
+    K: s.stats.K,
+    model: s.models[s.models.length - 1]?.name ?? 'No model',
+    difficulty: s.meta.difficulty,
+    founder: s.meta.founder,
+    playtime: s.meta.playtime,
+    savedAt: s.savedAt ?? Date.now(),
+    act1: !!s.flags.act1Complete,
+    gameOver: !!s.meta.gameOver,
+  };
+}
+
+function readIndex(): SlotInfo[] {
   try {
-    const txt = storage()?.getItem(SAVE_KEY);
-    if (!txt) return null;
-    return migrate(JSON.parse(txt));
+    const txt = storage()?.getItem(INDEX_KEY);
+    return txt ? (JSON.parse(txt) as SlotInfo[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeIndex(list: SlotInfo[]): void {
+  try {
+    storage()?.setItem(INDEX_KEY, JSON.stringify(list));
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/** One-time move of the pre-slots single save into slot 1. */
+export function migrateLegacySave(): void {
+  const st = storage();
+  if (!st) return;
+  try {
+    const txt = st.getItem(LEGACY_KEY);
+    if (!txt) return;
+    const s = migrate(JSON.parse(txt));
+    if (s && listSlots().length < MAX_SLOTS) writeSlot(newSlotId(), s);
+    st.removeItem(LEGACY_KEY);
+  } catch {
+    /* ignore a corrupt legacy save */
+  }
+}
+
+/** Slots, most recently played first. */
+export function listSlots(): SlotInfo[] {
+  return readIndex().sort((a, b) => b.savedAt - a.savedAt);
+}
+
+export function newSlotId(): string {
+  const used = new Set(readIndex().map((s) => s.id));
+  for (let i = 1; i <= 99; i++) if (!used.has(String(i))) return String(i);
+  return String(Date.now());
+}
+
+export function loadSlot(id: string): GameState | null {
+  try {
+    const txt = storage()?.getItem(SLOT_PREFIX + id);
+    return txt ? migrate(JSON.parse(txt)) : null;
   } catch {
     return null;
   }
 }
 
-export function writeSave(s: GameState): void {
+export function writeSlot(id: string, s: GameState): boolean {
   try {
-    storage()?.setItem(SAVE_KEY, JSON.stringify(s));
+    s.savedAt = Date.now();
+    storage()?.setItem(SLOT_PREFIX + id, JSON.stringify(s));
+    const list = readIndex().filter((x) => x.id !== id);
+    list.push(infoOf(id, s));
+    writeIndex(list);
+    return true;
   } catch {
-    // storage full or blocked — the game keeps running
+    return false; // storage full or blocked — the game keeps running
   }
 }
 
-export function clearSave(): void {
+export function deleteSlot(id: string): void {
   try {
-    storage()?.removeItem(SAVE_KEY);
+    storage()?.removeItem(SLOT_PREFIX + id);
   } catch {
     /* ignore */
   }
+  writeIndex(readIndex().filter((x) => x.id !== id));
+}
+
+export function renameSlot(id: string, name: string): void {
+  const s = loadSlot(id);
+  if (!s) return;
+  s.company.name = name.trim() || s.company.name;
+  writeSlot(id, s);
 }
 
 /** Portable save string for backups or moving between devices. */
@@ -63,26 +161,36 @@ export function exportSave(s: GameState): string {
 }
 
 export function importSave(code: string): GameState | null {
+  const text = code.trim();
   try {
-    return migrate(JSON.parse(decodeURIComponent(escape(atob(code.trim())))));
+    // accept both save codes and raw JSON (from an exported file)
+    const json = text.startsWith('{') ? text : decodeURIComponent(escape(atob(text)));
+    return migrate(JSON.parse(json));
   } catch {
     return null;
   }
 }
 
-export function loadSettings(): Settings {
-  try {
-    const txt = storage()?.getItem(SETTINGS_KEY);
-    return { ...DEFAULT_SETTINGS, ...(txt ? JSON.parse(txt) : {}) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
+/** Download a save as a .json file. */
+export function downloadSave(s: GameState): void {
+  const blob = new Blob([JSON.stringify(s)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${s.company.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'company'}-day${s.day}.kardashev.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-export function saveSettings(s: Settings): void {
-  try {
-    storage()?.setItem(SETTINGS_KEY, JSON.stringify(s));
-  } catch {
-    /* ignore */
+/** Remove every save and setting (Data → reset). */
+export function wipeAllData(): void {
+  const st = storage();
+  if (!st) return;
+  const keys: string[] = [];
+  for (let i = 0; i < st.length; i++) {
+    const k = st.key(i);
+    if (k && k.startsWith('kardashev.')) keys.push(k);
   }
+  keys.forEach((k) => st.removeItem(k));
 }

@@ -267,3 +267,14 @@ export function renderBorders(lod: MapLod, highlight: number | null = null): Pix
   }
   return pc;
 }
+
+const terrainMemo = new WeakMap<MapLod, PixelCanvas>();
+/** Memoised terrain painting for a LOD (used by previews; scenes keep their own textures). */
+export function terrainCanvas(lod: MapLod): PixelCanvas {
+  let pc = terrainMemo.get(lod);
+  if (!pc) {
+    pc = renderTerrain(lod);
+    terrainMemo.set(lod, pc);
+  }
+  return pc;
+}

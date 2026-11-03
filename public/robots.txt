@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://thekardashevproject.netlify.app/sitemap.xml

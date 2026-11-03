@@ -181,3 +181,82 @@ export function LinkHint() {
     </div>
   );
 }
+
+/** Phones play in landscape: ask to rotate when held upright. */
+export function RotateOverlay() {
+  const [portrait, setPortrait] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 900px)');
+    const update = () => setPortrait(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  if (!portrait) return null;
+  return (
+    <div class="rotate interactive">
+      <div class="phone" aria-hidden="true" />
+      <p>Turn your phone sideways to play.</p>
+      <p class="small muted">The Kardashev Project is a landscape game.</p>
+    </div>
+  );
+}
+
+export function FpsCounter() {
+  const game = useGame();
+  if (!game.settings.fps) return null;
+  return <div class="fps">{game.fps} fps</div>;
+}
+
+/** The PWA found a newer version. */
+export function UpdateToast() {
+  const game = useGame();
+  if (!game.updateReady) return null;
+  return (
+    <div class="update frame interactive">
+      <span>A new version is ready.</span>
+      <button class="btn small primary" onClick={() => game.updateReady?.()}>
+        Reload
+      </button>
+    </div>
+  );
+}
+
+/** With auto-pause off, a waiting decision sits here until opened. */
+export function DecisionPill() {
+  const game = useGame();
+  const s = game.state;
+  if (!s?.events.active || game.settings.autoPause || game.eventOpen) return null;
+  return (
+    <button class="decision frame interactive" onClick={() => game.openEvent()}>
+      <Icon name="warn" size="sm" /> Decision waiting — open
+    </button>
+  );
+}
+
+export function ConfirmModal() {
+  const game = useGame();
+  const c = game.confirm;
+  if (!c) return null;
+  return (
+    <div class="scrim">
+      <div class="modal frame" role="alertdialog" aria-label={c.title} style={{ width: 'min(420px, 100%)' }}>
+        <div class="head">
+          <span class="ico">💸</span>
+          <h2 class="grow">{c.title}</h2>
+        </div>
+        <div class="body">
+          <p>{c.detail}</p>
+          <div class="row between">
+            <button class="btn" onClick={() => game.cancelConfirm()}>
+              Cancel
+            </button>
+            <button class="btn primary" onClick={() => c.onYes()}>
+              Yes, spend it
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

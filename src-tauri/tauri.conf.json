@@ -1,0 +1,59 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "The Kardashev Project",
+  "version": "../package.json",
+  "identifier": "com.lonefox.kardashevproject",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://127.0.0.1:5317",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "The Kardashev Project",
+        "url": "play/index.html",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 540,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false,
+        "backgroundColor": "#0b0a12",
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "app", "dmg", "appimage", "deb"],
+    "publisher": "Lone Fox",
+    "copyright": "© 2026 Lone Fox",
+    "category": "SimulationGame",
+    "shortDescription": "A cozy-but-real pixel-art sim of the AI boom",
+    "longDescription": "Build power, chips, compute and supply lines on a real Earth, train your models, weather the crises, and lift civilisation up the Kardashev scale.",
+    "homepage": "https://thekardashevproject.netlify.app",
+    "icon": ["icons/128x128@2x.png", "icons/128x128.png", "icons/64x64.png", "icons/32x32.png", "icons/icon.icns", "icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "macOS": {
+      "signingIdentity": "-",
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "deb": {
+        "section": "games"
+      }
+    }
+  }
+}

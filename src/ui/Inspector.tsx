@@ -168,6 +168,7 @@ function SiteInspector({ id }: { id: string }) {
             return (
               <button
                 key={type}
+                data-tut={`build-${type}`}
                 class="btn buildcard"
                 disabled={!!why}
                 onClick={() => game.build(id, type)}

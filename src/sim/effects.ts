@@ -1,10 +1,11 @@
 import { TECH_BY_ID, type TechKey } from '../content/techs';
+import { FOUNDERS } from '../content/difficulty';
 import type { GameState, Modifier } from './types';
 import { nextId } from './core';
 
-/** Product of every completed tech's multiplier for a key (1 if none). */
+/** Product of every completed tech's (and the founder perk's) multiplier for a key. */
 export function techMult(s: GameState, key: TechKey): number {
-  let m = 1;
+  let m = FOUNDERS[s.meta?.founder ?? 'classic']?.mods[key] ?? 1;
   for (const id of s.research.done) {
     const v = TECH_BY_ID[id]?.mods[key];
     if (v !== undefined) m *= v;

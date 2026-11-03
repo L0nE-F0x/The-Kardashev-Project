@@ -1,0 +1,344 @@
+/* The public home page. Shares fonts, colours, frames and buttons with the game (base.css). */
+
+html {
+  scroll-behavior: smooth;
+}
+body.landing {
+  margin: 0;
+  background-color: #0b0a12;
+  background-image: var(--stars), radial-gradient(ellipse at 70% 0%, #1f2752 0%, #0b0a12 60%);
+  background-size: 640px 480px, 100% 100%;
+  background-attachment: fixed, fixed;
+  image-rendering: pixelated;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: none;
+}
+body.landing * {
+  image-rendering: auto;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+a {
+  color: var(--cyan);
+}
+.small {
+  font-size: 13px;
+}
+.muted {
+  color: var(--muted);
+}
+.link {
+  color: var(--cyan);
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px max(16px, calc((100vw - 1100px) / 2));
+  background: rgb(11 10 18 / 0.88);
+  border-bottom: 2px solid var(--panel-2);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  text-decoration: none;
+  font-family: var(--font-label);
+  font-size: 13px;
+}
+.brand img {
+  image-rendering: pixelated;
+}
+.nav nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 15px;
+}
+.nav nav a:not(.btn) {
+  color: var(--muted);
+  text-decoration: none;
+}
+.nav nav a:not(.btn):hover {
+  color: var(--gold);
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+section {
+  padding: 48px 0;
+}
+h2 {
+  font-size: 22px;
+  color: var(--gold);
+  margin-bottom: 18px;
+}
+h3 {
+  font-size: 15px;
+  color: var(--text);
+  margin: 8px 0 6px;
+}
+
+/* hero */
+.hero {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 32px;
+  align-items: center;
+  min-height: min(78vh, 680px);
+  padding-top: 32px;
+}
+.hero .logo {
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  image-rendering: pixelated;
+}
+.tagline {
+  font-size: 20px;
+  margin: 14px 0 22px;
+  max-width: 34em;
+}
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.btn {
+  text-decoration: none;
+}
+.hero-globe {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+#globe {
+  width: min(100%, 460px);
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+  opacity: 0;
+  transition: opacity 0.8s;
+  filter: drop-shadow(0 0 40px rgb(47 174 155 / 0.18));
+}
+#globe.ready {
+  opacity: 1;
+}
+.hero-globe noscript img {
+  width: min(100%, 460px);
+  image-rendering: pixelated;
+}
+.kbadge {
+  position: absolute;
+  right: 6%;
+  bottom: 8%;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.kbadge b {
+  font-family: var(--font-label);
+  color: var(--cyan);
+  font-size: 16px;
+}
+
+/* cards */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.card {
+  padding: 16px;
+}
+.card p {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--muted);
+}
+.card img.px.lg {
+  width: 36px;
+  height: 36px;
+  image-rendering: pixelated;
+}
+
+/* screenshots */
+.shots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.shots figure {
+  margin: 0;
+}
+.shots img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  image-rendering: pixelated;
+  border: 2px solid #0b0a12;
+  box-shadow: 0 0 0 2px var(--line), 0 8px 0 rgb(0 0 0 / 0.35);
+  background: var(--panel);
+}
+.shots figcaption {
+  font-family: var(--font-label);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+}
+
+/* scale explainer */
+.scalebox {
+  padding: 22px;
+}
+.formula {
+  font-family: var(--font-label);
+  font-size: 22px;
+  color: var(--cyan);
+  text-align: center;
+  margin: 14px 0;
+}
+.kscale {
+  margin: 34px 14px 0;
+}
+.kscale .track {
+  height: 14px;
+  background: #0b0a12;
+  border: 2px solid var(--line);
+  position: relative;
+}
+.kscale .track .now {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3%;
+  background: repeating-linear-gradient(90deg, var(--cyan) 0 4px, var(--c-cyn3, #1c8780) 4px 6px);
+}
+.kscale .track .here {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  font-family: var(--font-label);
+  font-size: 10px;
+  font-weight: normal;
+  color: var(--cyan);
+  text-transform: uppercase;
+}
+.kscale .marks {
+  position: relative;
+  height: 34px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.kscale .marks span {
+  position: absolute;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* downloads */
+.dl-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.unsigned {
+  margin-top: 10px;
+  color: var(--muted);
+}
+.unsigned summary {
+  cursor: pointer;
+  color: var(--text);
+}
+.unsigned ul {
+  padding-left: 18px;
+}
+code {
+  font-size: 13px;
+  background: var(--panel-2);
+  padding: 0 4px;
+}
+
+/* what's new */
+#changelog {
+  display: grid;
+  gap: 12px;
+}
+.release {
+  padding: 14px 16px;
+}
+.release h3 {
+  color: var(--gold);
+  margin: 0;
+}
+.release ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.aboutbox {
+  padding: 20px;
+}
+.foot {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 26px 16px 40px;
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+    min-height: 0;
+  }
+  .hero .logo {
+    margin: 0 auto;
+  }
+  .tagline {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .cta {
+    justify-content: center;
+  }
+  .hero-globe {
+    order: -1;
+  }
+  #globe {
+    width: min(78vw, 360px);
+  }
+  .cards,
+  .shots {
+    grid-template-columns: 1fr;
+  }
+  .nav nav a:not(.btn) {
+    display: none;
+  }
+}

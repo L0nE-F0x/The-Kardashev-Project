@@ -37,6 +37,7 @@ export function ResearchPanel() {
                 <button
                   key={t.id}
                   class={`btn tech ${done ? 'done' : ''} ${current ? 'current' : ''} ${locked ? 'locked' : ''}`}
+                  data-tut={t.id === 'moe' ? 'tech-first' : undefined}
                   disabled={done || locked}
                   onClick={() => game.setResearch(t.id)}
                   data-tip={`${t.blurb}${locked ? `\nRequires: ${(t.requires ?? []).map((r) => TECH_BY_ID[r].name).join(', ')}` : ''}`}

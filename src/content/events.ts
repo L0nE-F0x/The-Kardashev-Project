@@ -6,7 +6,8 @@ import { addModifier, hasTech } from '../sim/effects';
 import { earn, spend } from '../sim/economy';
 import { delayShipmentsThrough } from '../sim/supply';
 import { clamp, fmtMoney, news, pick, rand } from '../sim/core';
-import { currentCapability, frontier, openBest } from '../sim/model';
+import { crisisCost, currentCapability, frontier, openBest } from '../sim/model';
+import { DIFFICULTIES } from './difficulty';
 
 export type Mood = 'neutral' | 'happy' | 'worried' | 'angry' | 'excited';
 export type Ctx = Record<string, string | number>;
@@ -49,6 +50,8 @@ const hasGas = (s: GameState) => s.facilities.some((f) => f.type === 'gas');
 const openOrders = (s: GameState, supplier?: string) => s.orders.filter((o) => !o.done && (!supplier || o.supplier === supplier));
 const openOrderValue = (s: GameState) => openOrders(s).reduce((a, o) => a + (o.qty - o.produced) * o.unitPrice, 0);
 const canAfford = (s: GameState, cost: number): string | false => (s.finance.cash >= cost ? false : `Needs ${fmtMoney(cost)}`);
+/** Crisis price on this difficulty. */
+const cc = (s: GameState, amount: number) => crisisCost(s, amount);
 
 export const EVENTS: EventDef[] = [
   // ════════════════════════════════════════ STORY ════════════════════════════════════════
@@ -116,22 +119,59 @@ export const EVENTS: EventDef[] = [
       { id: 'penny', text: 'I can get a bridge loan. It is not cheap, and it is not a long bridge.', mood: 'worried' },
       { id: 'juno', text: 'Or we pause the cloud rental and live on what we own for a while.', mood: 'neutral' },
     ],
+    choices: (s) => {
+      const relaxed = DIFFICULTIES[s.meta.difficulty].broke === 'cheap-loan';
+      const amount = relaxed ? 200e6 : 150e6;
+      const interest = relaxed ? 1.5e6 : 3e6;
+      return [
+        {
+          label: `Take a ${fmtMoney(amount, 0)} bridge loan`,
+          detail: `+${fmtMoney(amount, 0)} now; ${fmtMoney(interest)}/month interest for 2 years.`,
+          apply: () => {
+            earn(s, 'funding', amount);
+            s.finance.bridgeLoans += 1;
+            addModifier(s, 'cost:monthly', 730, 'Bridge loan interest', { add: interest });
+          },
+        },
+        {
+          label: 'Emergency cuts',
+          detail: 'Cancel all cloud rental; +$40M from selling spare equipment.',
+          apply: () => {
+            s.rental.units = 0;
+            earn(s, 'other', 40e6);
+          },
+        },
+      ];
+    },
+  },
+  {
+    id: 'bankruptcy',
+    category: 'finance',
+    icon: '💸',
+    title: () => 'Out of money — for real',
+    body: (s) => `${s.company.name} can’t make payroll and the bank won’t extend another dollar. On Hard, this is where companies end.\n\nYou can close the doors with your head held high — or swallow your pride and accept a rescue deal (the game switches to Standard difficulty).`,
+    advisors: () => [
+      { id: 'penny', text: 'I’ve run the numbers every way I know. We’re done unless someone bails us out.', mood: 'worried' },
+      { id: 'bit', text: 'Does this mean I get turned off?', mood: 'worried' },
+    ],
     choices: (s) => [
       {
-        label: 'Take a $150M bridge loan',
-        detail: '+$150M now; $3M/month interest for 2 years.',
+        label: 'Close the company',
+        detail: 'Game over. See how far you got and start again.',
         apply: () => {
-          earn(s, 'funding', 150e6);
-          s.finance.bridgeLoans += 1;
-          addModifier(s, 'cost:monthly', 730, 'Bridge loan interest', { add: 3e6 });
+          s.meta.gameOver = true;
+          news(s, `🪦 ${s.company.name} has closed its doors.`, 'bad');
         },
       },
       {
-        label: 'Emergency cuts',
-        detail: 'Cancel all cloud rental; +$40M from selling spare equipment.',
+        label: 'Accept a rescue (switch to Standard)',
+        detail: '+$150M; $3M/month interest for 2 years; difficulty becomes Standard.',
         apply: () => {
-          s.rental.units = 0;
-          earn(s, 'other', 40e6);
+          s.meta.difficulty = 'standard';
+          earn(s, 'funding', 150e6);
+          s.finance.bridgeLoans += 1;
+          addModifier(s, 'cost:monthly', 730, 'Rescue loan interest', { add: 3e6 });
+          news(s, `🛟 ${s.company.name} survives on a rescue loan.`, 'info');
         },
       },
     ],
@@ -153,16 +193,16 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => {
       if (s.flags.heliumRecycling) return [{ label: 'Carry on', detail: 'Our suppliers recycle their helium now.', apply: () => {} }];
-      const premium = Math.max(4e6, openOrderValue(s) * 0.05);
+      const premium = cc(s, Math.max(4e6, openOrderValue(s) * 0.05));
       return [
         { label: `Pay the premium (${fmtMoney(premium)})`, detail: 'Your orders stay on schedule.', disabled: canAfford(s, premium), apply: () => spend(s, 'chips', premium) },
         { label: 'Accept delays', detail: 'Chip output −40% for 2 months.', apply: () => void addModifier(s, 'supplier:*:rate', 60, 'Helium shortage', { mult: 0.6 }) },
         {
-          label: 'Fund helium recycling ($15M)',
+          label: `Fund helium recycling (${fmtMoney(cc(s, 15e6), 0)})`,
           detail: 'Output −15% for 6 weeks; immune to future helium shocks.',
-          disabled: canAfford(s, 15e6),
+          disabled: canAfford(s, cc(s, 15e6)),
           apply: () => {
-            spend(s, 'other', 15e6);
+            spend(s, 'other', cc(s, 15e6));
             addModifier(s, 'supplier:*:rate', 45, 'Helium shortage', { mult: 0.85 });
             s.flags.heliumRecycling = true;
           },
@@ -201,11 +241,11 @@ export const EVENTS: EventDef[] = [
       },
       { label: 'Wait it out', detail: 'Lumen output −60% for ~2.5 months.', apply: () => void addModifier(s, 'supplier:lumen:rate', 75, 'Hsinchu quake', { mult: 0.4 }) },
       {
-        label: 'Fund the recovery ($20M)',
+        label: `Fund the recovery (${fmtMoney(cc(s, 20e6), 0)})`,
         detail: 'Lumen recovers faster (−30%), and gives you +15% allocation for 3 years.',
-        disabled: canAfford(s, 20e6),
+        disabled: canAfford(s, cc(s, 20e6)),
         apply: () => {
-          spend(s, 'other', 20e6);
+          spend(s, 'other', cc(s, 20e6));
           addModifier(s, 'supplier:lumen:rate', 75, 'Hsinchu quake', { mult: 0.7 });
           addModifier(s, 'supplier:lumen:rate', 1095, 'Lumen goodwill', { mult: 1.15 });
         },
@@ -227,11 +267,11 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       {
-        label: 'Reroute via Lombok ($3M)',
+        label: `Reroute via Lombok (${fmtMoney(cc(s, 3e6), 0)})`,
         detail: 'Affected ships +6 days. Strait closed ~5 weeks.',
-        disabled: canAfford(s, 3e6),
+        disabled: canAfford(s, cc(s, 3e6)),
         apply: () => {
-          spend(s, 'shipping', 3e6);
+          spend(s, 'shipping', cc(s, 3e6));
           addModifier(s, 'chokepoint:malacca', 35, 'Malacca closed', { add: 1 });
           delayShipmentsThrough(s, 'malacca', 6);
         },
@@ -261,11 +301,11 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       {
-        label: 'Insure and divert now ($4M)',
+        label: `Insure and divert now (${fmtMoney(cc(s, 4e6), 0)})`,
         detail: 'Ships at sea +10 days. Strait closed ~3 months.',
-        disabled: canAfford(s, 4e6),
+        disabled: canAfford(s, cc(s, 4e6)),
         apply: () => {
-          spend(s, 'shipping', 4e6);
+          spend(s, 'shipping', cc(s, 4e6));
           addModifier(s, 'chokepoint:bab', 90, 'Red Sea closed', { add: 1 });
           delayShipmentsThrough(s, 'bab', 10);
           delayShipmentsThrough(s, 'suez', 10);
@@ -297,11 +337,11 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       {
-        label: 'Buy refurbished transformers ($8M)',
+        label: `Buy refurbished transformers (${fmtMoney(cc(s, 8e6), 0)})`,
         detail: 'Pending grid connections +20 days; new requests +25% for a year.',
-        disabled: canAfford(s, 8e6),
+        disabled: canAfford(s, cc(s, 8e6)),
         apply: () => {
-          spend(s, 'other', 8e6);
+          spend(s, 'other', cc(s, 8e6));
           for (const st of Object.values(s.sites)) st.grid.pending.forEach((p) => (p.readyDay += 20));
           addModifier(s, 'interconnect', 365, 'Transformer shortage', { mult: 1.25 });
         },
@@ -330,11 +370,11 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       {
-        label: 'Buy Stackwell priority ($12M)',
+        label: `Buy Stackwell priority (${fmtMoney(cc(s, 12e6), 0)})`,
         detail: 'Memory tightness hurts your orders only lightly for 4 months.',
-        disabled: canAfford(s, 12e6),
+        disabled: canAfford(s, cc(s, 12e6)),
         apply: () => {
-          spend(s, 'chips', 12e6);
+          spend(s, 'chips', cc(s, 12e6));
           s.market.hbm = Math.min(s.market.hbm, 0.8);
           addModifier(s, 'supplier:*:rate', 120, 'Stackwell priority', { mult: 1.2 });
         },
@@ -359,11 +399,11 @@ export const EVENTS: EventDef[] = [
       const affected = s.shipments.filter((sh) => ['eam', 'stp'].includes(siteDef(sh.dest).region));
       return [
         {
-          label: 'Apply for licences ($2M)',
+          label: `Apply for licences (${fmtMoney(cc(s, 2e6), 0)})`,
           detail: `${affected.length} affected shipment(s) +20 days.`,
-          disabled: canAfford(s, 2e6),
+          disabled: canAfford(s, cc(s, 2e6)),
           apply: () => {
-            spend(s, 'other', 2e6);
+            spend(s, 'other', cc(s, 2e6));
             affected.forEach((sh) => ((sh.arriveDay += 20), (sh.portDay += 20), (sh.delayed = true)));
           },
         },
@@ -392,7 +432,7 @@ export const EVENTS: EventDef[] = [
     choices: (s, ctx) => {
       const r = siteDef(String(ctx.site)).region;
       return [
-        { label: 'Fund bill rebates ($6M)', detail: `Trust in ${regionName(r)} +6.`, disabled: canAfford(s, 6e6), apply: () => (spend(s, 'other', 6e6), addLicense(s, r, 6)) },
+        { label: `Fund bill rebates (${fmtMoney(cc(s, 6e6), 0)})`, detail: `Trust in ${regionName(r)} +6.`, disabled: canAfford(s, cc(s, 6e6)), apply: () => (spend(s, 'other', cc(s, 6e6)), addLicense(s, r, 6)) },
         { label: 'Pledge to bring our own power', detail: `Trust +2 now. (Build generation here to keep your word.)`, apply: () => addLicense(s, r, 2) },
         { label: 'Stay quiet', detail: `Trust in ${regionName(r)} −8.`, apply: () => addLicense(s, r, -8) },
       ];
@@ -467,7 +507,7 @@ export const EVENTS: EventDef[] = [
     choices: (s, ctx) => {
       const hit = hasTech(s, 'liquid-cooling') ? 0.93 : hasTech(s, 'dry-cooling') ? 0.88 : 0.78;
       return [
-        { label: 'Rent emergency chillers ($3M)', detail: 'Compute in the region −5% for 3 weeks.', disabled: canAfford(s, 3e6), apply: () => (spend(s, 'opex', 3e6), addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: Math.max(hit, 0.95) })) },
+        { label: `Rent emergency chillers (${fmtMoney(cc(s, 3e6), 0)})`, detail: 'Compute in the region −5% for 3 weeks.', disabled: canAfford(s, cc(s, 3e6)), apply: () => (spend(s, 'opex', cc(s, 3e6)), addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: Math.max(hit, 0.95) })) },
         { label: 'Throttle and wait', detail: `Compute in the region −${Math.round((1 - hit) * 100)}% for 3 weeks.`, apply: () => void addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: hit }) },
       ];
     },
@@ -489,7 +529,7 @@ export const EVENTS: EventDef[] = [
       { id: 'penny', text: 'Water rights can be bought. Reputations are harder.', mood: 'neutral' },
     ],
     choices: (s, ctx) => [
-      { label: 'Buy water rights ($4M)', detail: 'Grid supply −10% for 2 months; trust −2.', disabled: canAfford(s, 4e6), apply: () => (spend(s, 'other', 4e6), addModifier(s, `region:${ctx.region}:grid`, 60, 'Drought', { mult: 0.9 }), addLicense(s, String(ctx.region), -2)) },
+      { label: `Buy water rights (${fmtMoney(cc(s, 4e6), 0)})`, detail: 'Grid supply −10% for 2 months; trust −2.', disabled: canAfford(s, cc(s, 4e6)), apply: () => (spend(s, 'other', cc(s, 4e6)), addModifier(s, `region:${ctx.region}:grid`, 60, 'Drought', { mult: 0.9 }), addLicense(s, String(ctx.region), -2)) },
       { label: 'Cut water use', detail: 'Grid supply −25% and compute −10% for 2 months; trust +3.', apply: () => (addModifier(s, `region:${ctx.region}:grid`, 60, 'Drought', { mult: 0.75 }), addModifier(s, `region:${ctx.region}:cooling`, 60, 'Water rationing', { mult: 0.9 }), addLicense(s, String(ctx.region), 3)) },
     ],
   },
@@ -507,10 +547,10 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       {
-        label: 'Hedge fuel ($5M)',
+        label: `Hedge fuel (${fmtMoney(cc(s, 5e6), 0)})`,
         detail: 'Gas price impact halved for 4 months.',
-        disabled: hasGas(s) ? canAfford(s, 5e6) : 'No gas plants',
-        apply: () => (spend(s, 'fuel', 5e6), (s.market.gasPrice = Math.max(s.market.gasPrice, 1.3))),
+        disabled: hasGas(s) ? canAfford(s, cc(s, 5e6)) : 'No gas plants',
+        apply: () => (spend(s, 'fuel', cc(s, 5e6)), (s.market.gasPrice = Math.max(s.market.gasPrice, 1.3))),
       },
       {
         label: 'Ride the market',
@@ -536,11 +576,11 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       {
-        label: 'Harden our substations ($3M)',
+        label: `Harden our substations (${fmtMoney(cc(s, 3e6), 0)})`,
         detail: 'Northern grid supply −15% for a week.',
-        disabled: canAfford(s, 3e6),
+        disabled: canAfford(s, cc(s, 3e6)),
         apply: () => {
-          spend(s, 'other', 3e6);
+          spend(s, 'other', cc(s, 3e6));
           for (const r of ['nor', 'stp', 'pac', 'atl']) addModifier(s, `region:${r}:grid`, 7, 'Geomagnetic storm', { mult: 0.85 });
         },
       },
@@ -602,7 +642,7 @@ export const EVENTS: EventDef[] = [
       { id: 'iris', text: s.stats.margin >= 0 ? 'People stay where the mission is real. Ours is.' : 'Hard to sell the mission when our safety margin is slipping.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Pay retention bonuses ($10M)', detail: 'Nobody leaves.', disabled: canAfford(s, 10e6), apply: () => spend(s, 'staff', 10e6) },
+      { label: `Pay retention bonuses (${fmtMoney(cc(s, 10e6), 0)})`, detail: 'Nobody leaves.', disabled: canAfford(s, cc(s, 10e6)), apply: () => spend(s, 'staff', cc(s, 10e6)) },
       { label: 'Pitch the mission', detail: 'Free — works if your safety margin is healthy (≥ 0).', disabled: s.stats.margin >= 0 ? false : 'Safety margin below 0', apply: () => addLicenseAll(s, 0.5) },
       { label: 'Let them go', detail: 'Research −25% for 4 months.', apply: () => void addModifier(s, 'research', 120, 'Researchers poached', { mult: 0.75 }) },
     ],

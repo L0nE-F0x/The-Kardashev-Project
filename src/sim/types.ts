@@ -1,4 +1,5 @@
 import type { RegionId } from '../content/mapcodes';
+import type { Difficulty, EventRate, FounderId, RivalPace } from '../content/difficulty';
 
 export type FacilityType = 'hq' | 'solar' | 'wind' | 'gas' | 'battery' | 'datacenter' | 'lab';
 export type SupplierId = 'lumen' | 'kestrel';
@@ -196,8 +197,26 @@ export interface Stats {
   sitePower: Record<string, SitePower>;
 }
 
+/** How this company was set up, plus bookkeeping that isn't part of the simulation itself. */
+export interface GameMeta {
+  difficulty: Difficulty;
+  founder: FounderId;
+  eventRate: EventRate;
+  rivalPace: RivalPace;
+  startCash: number;
+  /** Seconds of play (menu time excluded). */
+  playtime: number;
+  /** Index of the current tutorial step, or -1 when the tutorial is off or finished. */
+  tutorialStep: number;
+  /** Real-world ms when the company was founded. */
+  createdAt: number;
+  /** Hard mode: the company went bankrupt. */
+  gameOver?: boolean;
+}
+
 export interface GameState {
   version: number;
+  meta: GameMeta;
   seed: number;
   rng: number;
   day: number;

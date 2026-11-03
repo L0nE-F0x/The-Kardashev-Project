@@ -1,13 +1,27 @@
 import { RIVALS_START } from '../content/companies';
+import { DIFFICULTIES, FOUNDERS, type Difficulty, type EventRate, type FounderId, type RivalPace } from '../content/difficulty';
 import { REGION_IDS } from '../content/mapcodes';
 import { REGIONS } from '../content/regions';
 import { SITES } from '../content/sites';
 import type { GameState, Stats } from './types';
 import { monthKey, randInt } from './core';
 import { emptyLedger } from './economy';
-import { kardashev, START_CASH, worldBaselineTW } from './model';
+import { kardashev, worldBaselineTW } from './model';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
+
+export interface NewGameOptions {
+  name: string;
+  homeSite: string;
+  seed?: number;
+  difficulty?: Difficulty;
+  founder?: FounderId;
+  eventRate?: EventRate;
+  rivalPace?: RivalPace;
+  /** Overrides the difficulty's seed money (custom start). */
+  startCash?: number;
+  tutorial?: boolean;
+}
 
 export function emptyStats(): Stats {
   return {
@@ -17,15 +31,28 @@ export function emptyStats(): Stats {
   };
 }
 
-export function newGame(opts: { name: string; homeSite: string; seed?: number }): GameState {
+export function newGame(opts: NewGameOptions): GameState {
   const seed = opts.seed ?? (Math.random() * 2 ** 31) | 0;
+  const difficulty = opts.difficulty ?? 'standard';
+  const founder = FOUNDERS[opts.founder ?? 'classic'];
+  const startCash = Math.max(10e6, (opts.startCash ?? DIFFICULTIES[difficulty].cash) + founder.cash);
   const s: GameState = {
     version: SAVE_VERSION,
+    meta: {
+      difficulty,
+      founder: founder.id,
+      eventRate: opts.eventRate ?? 'normal',
+      rivalPace: opts.rivalPace ?? 'normal',
+      startCash,
+      playtime: 0,
+      tutorialStep: opts.tutorial ? 0 : -1,
+      createdAt: Date.now(),
+    },
     seed,
     rng: seed,
     day: 0,
     company: { name: opts.name.trim() || 'Little Sun Labs', homeSite: opts.homeSite },
-    finance: { cash: START_CASH, round: 'seed', valuation: 80e6, month: emptyLedger(), monthKey: monthKey(0), history: [], bridgeLoans: 0 },
+    finance: { cash: startCash, round: 'seed', valuation: 80e6, month: emptyLedger(), monthKey: monthKey(0), history: [], bridgeLoans: 0 },
     facilities: [{ id: 'f0', type: 'hq', siteId: opts.homeSite, status: 'online', progress: 0, buildDays: 0, startedDay: 0, onlineDay: 0 }],
     sites: {},
     links: [],
@@ -37,7 +64,7 @@ export function newGame(opts: { name: string; homeSite: string; seed?: number })
     models: [],
     research: { current: null, progress: 0, done: [], pool: 0 },
     safety: { cumFlop: 0, incidents: 0, lastIncidentDay: -999 },
-    regions: Object.fromEntries(REGION_IDS.map((r) => [r, { license: REGIONS[r].license0 }])) as GameState['regions'],
+    regions: Object.fromEntries(REGION_IDS.map((r) => [r, { license: Math.max(0, Math.min(100, REGIONS[r].license0 + founder.trust)) }])) as GameState['regions'],
     market: { rivals: [], hbm: 1, gasPrice: 1 },
     modifiers: [],
     events: { active: null, queue: [], history: [], last: {}, nextRoll: 50 },

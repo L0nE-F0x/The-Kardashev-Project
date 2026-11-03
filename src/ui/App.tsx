@@ -1,4 +1,4 @@
-import { GameCtx, useGame } from './components';
+import { GameCtx, Panel, useGame } from './components';
 import type { Game } from '../game/game';
 import { TopBar } from './TopBar';
 import { Dock } from './Dock';
@@ -8,14 +8,17 @@ import { ComputePanel } from './panels/ComputePanel';
 import { OrdersPanel } from './panels/OrdersPanel';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { FinancePanel } from './panels/FinancePanel';
-import { GoalsPanel, NewsPanel, SettingsPanel } from './panels/MiscPanels';
-import { ActCompleteModal, AwayModal, EventModal } from './Modals';
-import { DioramaBar, LinkHint, MapTooltip, Ticker, TipLayer, Toasts } from './Overlays';
-import { TitleScreen } from './TitleScreen';
+import { GoalsPanel, NewsPanel } from './panels/MiscPanels';
+import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
+import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
+import { MainMenu } from './menu/MainMenu';
+import { SettingsBody } from './menu/SettingsScreen';
+import { FieldGuideBody } from './menu/FieldGuide';
+import { TutorialOverlay } from './Tutorial';
 
 function Hud() {
   const game = useGame();
-  if (game.mode === 'title' || !game.state) return <TitleScreen />;
+  if (game.mode === 'title' || !game.state) return <MainMenu />;
   const panel = game.panel;
   return (
     <>
@@ -29,15 +32,28 @@ function Hud() {
       {panel === 'finance' && <FinancePanel />}
       {panel === 'news' && <NewsPanel />}
       {panel === 'goals' && <GoalsPanel />}
-      {panel === 'settings' && <SettingsPanel />}
+      {panel === 'settings' && (
+        <Panel title="Settings" icon="settings" class="wide" onClose={() => game.openPanel(null)}>
+          <SettingsBody />
+        </Panel>
+      )}
+      {panel === 'guide' && (
+        <Panel title="Field Guide" icon="research" class="wide research" onClose={() => game.openPanel(null)}>
+          <FieldGuideBody />
+        </Panel>
+      )}
       <DioramaBar />
       <LinkHint />
+      <DecisionPill />
       <Ticker />
       <Toasts />
       <MapTooltip />
+      <TutorialOverlay />
       <EventModal />
       <AwayModal />
       <ActCompleteModal />
+      <GameOverModal />
+      <ConfirmModal />
     </>
   );
 }
@@ -47,6 +63,9 @@ export function App({ game }: { game: Game }) {
     <GameCtx.Provider value={game}>
       <Hud />
       <TipLayer />
+      <UpdateToast />
+      <FpsCounter />
+      <RotateOverlay />
     </GameCtx.Provider>
   );
 }

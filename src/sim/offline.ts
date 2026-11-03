@@ -45,10 +45,10 @@ export function snapshot(s: GameState): Snapshot {
  * Catch the world up after time away. Production, construction and deliveries keep going;
  * no new crises fire while you're gone (they wait for you).
  */
-export function simulateOffline(s: GameState, ctx: SimContext, awayMs: number): OfflineReport | null {
+export function simulateOffline(s: GameState, ctx: SimContext, awayMs: number, monthsPerHour = 1): OfflineReport | null {
   const hours = awayMs / 3_600_000;
   if (hours * 60 < OFFLINE_MIN_MINUTES) return null;
-  const days = Math.min(OFFLINE_MAX_DAYS, Math.floor(hours * OFFLINE_DAYS_PER_HOUR));
+  const days = Math.min(OFFLINE_MAX_DAYS, Math.floor(hours * OFFLINE_DAYS_PER_HOUR * monthsPerHour));
   if (days < 1) return null;
   const before = snapshot(s);
   s.flags.offline = true;

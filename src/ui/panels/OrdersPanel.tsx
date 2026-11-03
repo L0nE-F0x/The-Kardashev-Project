@@ -90,7 +90,7 @@ export function OrdersPanel() {
                   ['Ships from', siteDef(quote.fromSite).name],
                 ]}
               />
-              <button class="btn gold" disabled={s.finance.cash < quote.total} onClick={() => game.order(supplier, qty, destId!, mode)}>
+              <button class="btn gold" data-tut="order-button" disabled={s.finance.cash < quote.total} onClick={() => game.order(supplier, qty, destId!, mode)}>
                 <Icon name="cash" size="sm" /> Order for {fmtMoney(quote.total)}
               </button>
             </div>

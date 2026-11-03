@@ -47,7 +47,7 @@ export function ComputePanel() {
               <div class="grow" style={{ textAlign: 'center' }}>
                 <b>{s.rental.units.toLocaleString()}</b> <span class="muted small">/ {rentalMax(s).toLocaleString()}</span>
               </div>
-              <button class="btn small" onClick={() => game.setRental(s.rental.units + RENTAL.step)} disabled={s.rental.units >= rentalMax(s)}>
+              <button class="btn small" data-tut="rent-plus" onClick={() => game.setRental(s.rental.units + RENTAL.step)} disabled={s.rental.units >= rentalMax(s)}>
                 +{RENTAL.step}
               </button>
             </div>
@@ -67,6 +67,7 @@ export function ComputePanel() {
                 </span>
                 <input
                   key={`${key}r`}
+                  data-tut={key === 'safety' ? 'alloc-safety' : undefined}
                   type="range"
                   min={0}
                   max={100}
@@ -110,7 +111,7 @@ export function ComputePanel() {
               Next: <b>{plan.name}</b> · {fmtSci(plan.flop)} FLOP · capability ≈ {capabilityOf(plan.flop, algoEff(s)).toFixed(2)}
               <span class="muted"> · ~{Number.isFinite(planDays) ? fmtDays(planDays) : '∞'} at current rate</span>
             </span>
-            <button class="btn primary" onClick={() => game.startTraining()}>
+            <button class="btn primary" data-tut="start-train" onClick={() => game.startTraining()}>
               <Icon name="play" size="sm" /> Start {plan.name}
             </button>
           </div>

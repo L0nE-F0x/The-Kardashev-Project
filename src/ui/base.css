@@ -1,0 +1,179 @@
+/* Shared look for the game UI and the website: fonts, palette vars, frames, buttons. */
+@font-face {
+  font-family: 'Pixelify Sans';
+  src: url('../assets/fonts/pixelify-sans-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Silkscreen';
+  src: url('../assets/fonts/silkscreen-400-latin.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Silkscreen';
+  src: url('../assets/fonts/silkscreen-700-latin.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --px: 3px;
+  --ui: 2px; /* UI pixel unit */
+  --bg: var(--c-ink1, #16141f);
+  --panel: var(--c-ink2, #221e2e);
+  --panel-2: var(--c-ink3, #2f2a3d);
+  --line: var(--c-ink4, #433c52);
+  --text: var(--c-ink9, #e6e0e3);
+  --muted: var(--c-ink7, #9d95a6);
+  --dim: var(--c-ink6, #7a7186);
+  --gold: var(--c-yel0, #fbd46e);
+  --good: var(--c-grn6, #7dae3f);
+  --bad: var(--c-red3, #c23a3f);
+  --warn: var(--c-org1, #f08a46);
+  --cyan: var(--c-cyn5, #5fd3b5);
+  --violet: var(--c-vio4, #a862c4);
+  --blue: var(--c-blu5, #6c9fd2);
+  --font: 'Pixelify Sans', ui-monospace, monospace;
+  --font-label: 'Silkscreen', 'Pixelify Sans', monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img.px {
+  image-rendering: pixelated;
+  width: calc(9px * var(--ui));
+  height: calc(9px * var(--ui));
+  vertical-align: middle;
+  flex: none;
+}
+img.px.sm {
+  width: 18px;
+  height: 18px;
+}
+img.px.lg {
+  width: 27px;
+  height: 27px;
+}
+
+/* ── pixel frames ─────────────────────────────────────────────────────────────── */
+.frame {
+  background: var(--panel);
+  border: 2px solid #0b0a12;
+  box-shadow:
+    inset 2px 2px 0 var(--line),
+    inset -2px -2px 0 var(--c-ink1, #16141f),
+    0 4px 0 rgb(0 0 0 / 0.35);
+  clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+}
+
+.label {
+  font-family: var(--font-label);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+h2,
+h3,
+h4 {
+  font-family: var(--font-label);
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+h2 {
+  font-size: 16px;
+}
+h3 {
+  font-size: 13px;
+  color: var(--gold);
+}
+h4 {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ── buttons ──────────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: var(--font);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 2px solid #0b0a12;
+  padding: 5px 10px 6px;
+  cursor: pointer;
+  box-shadow:
+    inset 2px 2px 0 var(--c-ink5, #5b536a),
+    inset -2px -2px 0 var(--c-ink1, #16141f);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--c-ink4, #433c52);
+}
+.btn:active:not(:disabled) {
+  box-shadow:
+    inset -2px -2px 0 var(--c-ink5, #5b536a),
+    inset 2px 2px 0 var(--c-ink1, #16141f);
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn.primary {
+  background: var(--c-cyn3, #1c8780);
+  box-shadow:
+    inset 2px 2px 0 var(--c-cyn4, #2fae9b),
+    inset -2px -2px 0 var(--c-cyn1, #11474d);
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--c-cyn4, #2fae9b);
+}
+.btn.gold {
+  background: var(--c-snd5, #bb8a4c);
+  color: var(--c-ink0, #0b0a12);
+  box-shadow:
+    inset 2px 2px 0 var(--c-yel0, #fbd46e),
+    inset -2px -2px 0 var(--c-snd3, #7d5232);
+}
+.btn.danger {
+  background: var(--c-red2, #93243a);
+  box-shadow:
+    inset 2px 2px 0 var(--c-red3, #c23a3f),
+    inset -2px -2px 0 var(--c-red1, #64172a);
+}
+.btn.small {
+  font-size: 12px;
+  padding: 3px 7px 4px;
+}
+.btn.ghost {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+}
+.btn.ghost:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+.btn.active {
+  background: var(--c-blu2, #264276);
+  box-shadow:
+    inset 2px 2px 0 var(--c-blu4, #4a7cb6),
+    inset -2px -2px 0 var(--c-blu0, #121c3a);
+}
+
+
+/* the hidden attribute must beat display rules like .btn { display: inline-flex } */
+[hidden] {
+  display: none !important;
+}

@@ -3,6 +3,7 @@ import { REGIONS } from '../content/regions';
 import { siteDef } from '../content/sites';
 import { TECH_BY_ID } from '../content/techs';
 import { RENTAL } from '../content/companies';
+import { RIVAL_PACES } from '../content/difficulty';
 import type { GameState } from './types';
 import { clamp, fmtSci, news, rand } from './core';
 import { modMult, techMult } from './effects';
@@ -143,7 +144,8 @@ export function tickRivals(s: GameState): void {
   for (const r of s.market.rivals) {
     if (s.day < r.nextRelease) continue;
     const interval = 170 + rand(s) * 90;
-    const step = (interval / 365) * (r.open ? 0.62 : 0.55) * (0.8 + rand(s) * 0.4);
+    const pace = RIVAL_PACES[s.meta?.rivalPace ?? 'normal']?.mult ?? 1;
+    const step = (interval / 365) * (r.open ? 0.62 : 0.55) * (0.8 + rand(s) * 0.4) * pace;
     r.capability += step;
     r.modelGen += 1;
     r.nextRelease = s.day + Math.round(interval);

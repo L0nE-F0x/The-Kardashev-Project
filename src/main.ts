@@ -8,6 +8,7 @@ import { Router } from './world/routing';
 import { Game } from './game/game';
 import { MapScene } from './render/worldMap/mapScene';
 import { DioramaScene } from './render/diorama/dioramaScene';
+import { TourDirector } from './game/tour';
 import { App } from './ui/App';
 
 async function boot() {
@@ -22,9 +23,9 @@ async function boot() {
   const game = new Game(stage, { lods, router }, {
     map: (g) => new MapScene(g),
     diorama: (g, siteId) => new DioramaScene(g, siteId),
+    tour: (g) => new TourDirector(g),
   });
-  game.enterMap();
-  game.mode = 'title';
+  game.showMenu();
   render(h(App, { game }), document.getElementById('ui')!);
   status?.remove();
   bindKeys(game);
@@ -80,6 +81,9 @@ function bindKeys(game: Game) {
         break;
       case 'n':
         game.openPanel('news');
+        break;
+      case 'b':
+        game.openPanel('guide');
         break;
       case 'l':
         game.setTool(game.tool ? null : { kind: 'link', from: null });

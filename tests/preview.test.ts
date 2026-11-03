@@ -10,7 +10,7 @@ import { decodeWorldMap } from '../src/world/mapData';
 import { renderBorders, renderTerrain } from '../src/render/worldMap/terrain';
 import { setEra, type Era } from '../src/render/palette';
 import { PixelCanvas } from '../src/render/pixels';
-import { pixelCanvasToPng } from './helpers/png';
+import { pixelCanvasToPng } from '../tools/lib/png';
 
 const dir = process.env.PREVIEW_DIR;
 const crop = (pc: PixelCanvas, x: number, y: number, w: number, h: number) => {

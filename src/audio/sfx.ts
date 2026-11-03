@@ -2,6 +2,8 @@
  * Tiny procedural sound effects with WebAudio — square/triangle blips in a chiptune spirit.
  * No audio files; every sound is a few oscillator notes.
  */
+import { audioCtx, sfxBus } from './engine';
+
 type SoundId =
   | 'click'
   | 'select'
@@ -14,31 +16,8 @@ type SoundId =
   | 'research'
   | 'fanfare'
   | 'whoosh'
-  | 'start';
-
-let ctx: AudioContext | null = null;
-let muted = false;
-let master: GainNode | null = null;
-
-export function setMuted(m: boolean): void {
-  muted = m;
-}
-
-function audio(): AudioContext | null {
-  if (muted) return null;
-  try {
-    if (!ctx) {
-      ctx = new AudioContext();
-      master = ctx.createGain();
-      master.gain.value = 0.16;
-      master.connect(ctx.destination);
-    }
-    if (ctx.state === 'suspended') void ctx.resume();
-    return ctx;
-  } catch {
-    return null;
-  }
-}
+  | 'start'
+  | 'page';
 
 interface Note {
   f: number;
@@ -50,8 +29,9 @@ interface Note {
 }
 
 function play(notes: Note[]): void {
-  const a = audio();
-  if (!a || !master) return;
+  const a = audioCtx();
+  const bus = sfxBus();
+  if (!a || !bus || a.state !== 'running') return;
   const now = a.currentTime + 0.005;
   for (const n of notes) {
     const osc = a.createOscillator();
@@ -64,7 +44,7 @@ function play(notes: Note[]): void {
     g.gain.linearRampToValueAtTime(v, now + n.t + 0.005);
     g.gain.exponentialRampToValueAtTime(0.001, now + n.t + n.d);
     osc.connect(g);
-    g.connect(master);
+    g.connect(bus);
     osc.start(now + n.t);
     osc.stop(now + n.t + n.d + 0.02);
   }
@@ -92,6 +72,7 @@ const SOUNDS: Record<SoundId, Note[]> = {
   ],
   whoosh: [{ f: 300, t: 0, d: 0.25, type: 'triangle', slide: 3, vol: 0.25 }],
   start: [{ f: 262, t: 0, d: 0.12, type: 'triangle' }, { f: 392, t: 0.12, d: 0.12, type: 'triangle' }, { f: 523, t: 0.24, d: 0.25, type: 'triangle' }],
+  page: [{ f: 1200, t: 0, d: 0.025, type: 'triangle', vol: 0.2 }, { f: 1600, t: 0.025, d: 0.03, type: 'triangle', vol: 0.15 }],
 };
 
 export function sfx(id: SoundId): void {

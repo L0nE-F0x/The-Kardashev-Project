@@ -7,7 +7,7 @@ export function Objectives() {
   const game = useGame();
   const [open, setOpen] = useState(true);
   const s = game.state!;
-  if (!game.settings.tutorialHints) return null;
+  if (!game.settings.goalTracker) return null;
   // on phones the inspector and panels share the screen with this card — get out of the way
   if (window.innerWidth <= 820 && (game.selection || game.panel)) return null;
   const list = visibleObjectives(s).slice(0, 3);

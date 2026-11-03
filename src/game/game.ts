@@ -1,22 +1,34 @@
 import type { FacilityType, GameState, SupplierId } from '../sim/types';
 import type { MapLod } from '../world/mapData';
 import type { Router } from '../world/routing';
-import type { PixelStage } from '../render/stage';
+import type { PixelStage, Scene } from '../render/stage';
 import type { RegionId } from '../content/mapcodes';
-import { newGame } from '../sim/state';
+import { newGame, type NewGameOptions } from '../sim/state';
 import { refreshStats, tick } from '../sim/tick';
 import * as A from '../sim/actions';
 import { resolveEvent } from '../sim/events';
 import { simulateOffline, type OfflineReport } from '../sim/offline';
+import { buildCost, linkCost } from '../sim/model';
+import { siteDistanceKm } from '../content/sites';
+import { fmtMoney } from '../sim/core';
 import { getEra, setEra, syncCssVars, type Era } from '../render/palette';
-import { loadSave, writeSave, clearSave, loadSettings, saveSettings, type Settings } from '../save/save';
-import { sfx, setMuted } from '../audio/sfx';
+import { deleteSlot, listSlots, loadSlot, migrateLegacySave, newSlotId, writeSlot, MAX_SLOTS, type SlotInfo } from '../save/save';
+import { applyCssSettings, loadSettings, saveSettings, type Settings } from '../save/settings';
+import { guideUnseen, unlockGuide } from '../save/guide';
+import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
+import { sfx } from '../audio/sfx';
+import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
+import { musicUnlocked, playMusic } from '../audio/music';
+import { canPromptInstall, initInstallPrompt, onInstallChange, registerServiceWorker } from '../platform/platform';
 import { kardashev } from '../sim/model';
+import { TUTORIAL, PLAY_STEP } from './tutorial';
+import type { TourDirector } from './tour';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | null;
 export type Tool = { kind: 'link'; from: string | null } | null;
 export type Mode = 'title' | 'map' | 'diorama';
+export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install';
 export type Hover =
   | { kind: 'site'; id: string; clientX: number; clientY: number }
   | { kind: 'region'; id: RegionId; clientX: number; clientY: number }
@@ -34,20 +46,29 @@ export interface Toast {
   at: number;
 }
 
+export interface ConfirmRequest {
+  title: string;
+  detail: string;
+  onYes: () => void;
+}
+
 export interface SceneFactory {
-  map(game: Game): import('../render/stage').Scene;
-  diorama(game: Game, siteId: string): import('../render/stage').Scene;
+  map(game: Game): Scene;
+  diorama(game: Game, siteId: string): Scene;
+  tour(game: Game): TourDirector;
 }
 
 const SPEEDS = [0, 1, 2, 4, 8] as const;
 export type Speed = (typeof SPEEDS)[number];
 
-/** Owns the simulation, the clock, the scenes and the UI-facing state. */
+/** Owns the simulation, the clock, the scenes, saves and the UI-facing state. */
 export class Game {
   state: GameState | null = null;
+  slotId: string | null = null;
   mode: Mode = 'title';
+  menuScreen: MenuScreen = 'main';
   speed: Speed = 1;
-  /** Speed to restore when an event card closes. */
+  /** Speed to restore when a blocking card closes. */
   private resumeSpeed: Speed = 1;
   selection: Selection = null;
   panel: PanelId = null;
@@ -59,8 +80,18 @@ export class Game {
   toasts: Toast[] = [];
   awayReport: OfflineReport | null = null;
   showActComplete = false;
+  /** With auto-pause off, event cards wait behind a pill until opened. */
+  eventOpen = false;
+  confirm: ConfirmRequest | null = null;
   settings: Settings = loadSettings();
   eraOverride: Era | null = null;
+  updateReady: (() => void) | null = null;
+  installAvailable = false;
+  /** Demo world shown behind the main menu. */
+  showcase: GameState | null = null;
+  tour: TourDirector | null = null;
+  tourCaption = '';
+  fps = 0;
   version = 0;
 
   private listeners = new Set<() => void>();
@@ -71,34 +102,40 @@ export class Game {
   private lastObjectiveSeen: string | number | boolean | undefined;
   private lastNewsSeen = 0;
   private hiddenAt = 0;
+  private frameCount = 0;
+  private fpsTime = 0;
+  private fpsFrames = 0;
 
   constructor(
     readonly stage: PixelStage,
     readonly world: { lods: MapLod[]; router: Router },
     private readonly scenes: SceneFactory,
   ) {
-    setMuted(!this.settings.sound);
+    migrateLegacySave();
+    applyCssSettings(this.settings);
+    setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx });
     this.stage.setZoomBoost(this.settings.zoom);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        this.hiddenAt = Date.now();
-        this.save();
-      } else if (this.hiddenAt && this.state && this.mode !== 'title' && this.settings.offline) {
-        const away = Date.now() - this.hiddenAt;
-        this.hiddenAt = 0;
-        const report = simulateOffline(this.state, this.ctx, away);
-        if (report) {
-          refreshStats(this.state);
-          this.awayReport = report;
-          this.notify();
-        }
-      }
-    });
+    document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
+    unlockOnGesture(() => musicUnlocked());
+    initInstallPrompt();
+    onInstallChange(() => {
+      this.installAvailable = canPromptInstall();
+      this.notify();
+    });
+    void registerServiceWorker((apply) => {
+      this.updateReady = apply;
+      this.notify();
+    });
   }
 
   get ctx() {
     return { router: this.world.router };
+  }
+
+  /** The world the scenes draw: your company in game, the showcase behind the menu. */
+  get view(): GameState | null {
+    return this.mode === 'title' ? this.showcase : this.state;
   }
 
   // ── subscription ──────────────────────────────────────────────────────────────────────────
@@ -118,56 +155,133 @@ export class Game {
     });
   }
 
-  // ── lifecycle ─────────────────────────────────────────────────────────────────────────────
-  hasSave(): boolean {
-    return loadSave() !== null;
+  // ── slots & lifecycle ─────────────────────────────────────────────────────────────────────
+  slots(): SlotInfo[] {
+    return listSlots();
   }
 
-  startNew(name: string, homeSite: string): void {
-    clearSave();
-    this.state = newGame({ name, homeSite });
+  slotsFull(): boolean {
+    return listSlots().length >= MAX_SLOTS;
+  }
+
+  startNew(opts: NewGameOptions): boolean {
+    if (this.slotsFull()) {
+      this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
+      return false;
+    }
+    this.state = newGame(opts);
+    this.slotId = newSlotId();
     refreshStats(this.state);
     this.awayReport = null;
-    this.selection = { kind: 'site', id: homeSite };
-    this.enterMap();
+    this.showActComplete = false;
+    this.selection = { kind: 'site', id: opts.homeSite };
+    this.lastObjectiveSeen = undefined;
+    this.lastNewsSeen = 0;
     this.speed = 0;
-    this.resumeSpeed = 1;
+    this.resumeSpeed = opts.tutorial ? 0 : 1;
+    if (opts.tutorial && !this.settings.tutorialOffered) this.updateSettings({ tutorialOffered: true });
+    this.enterMap();
     this.save();
     sfx('start');
+    return true;
   }
 
-  continueSaved(): boolean {
-    const saved = loadSave();
-    if (!saved) return false;
+  continueSlot(id: string): boolean {
+    const saved = loadSlot(id);
+    if (!saved) {
+      this.toast('That save could not be loaded.', 'bad');
+      return false;
+    }
     this.state = saved;
+    this.slotId = id;
     const away = saved.savedAt ? Date.now() - saved.savedAt : 0;
-    if (this.settings.offline && away > 0) {
-      const report = simulateOffline(saved, this.ctx, away);
+    this.awayReport = null;
+    if (this.settings.offline && away > 0 && !saved.meta.gameOver) {
+      const report = simulateOffline(saved, this.ctx, away, this.settings.offlineRate);
       if (report) this.awayReport = report;
     }
     refreshStats(saved);
     this.lastObjectiveSeen = saved.flags.lastObjective;
     this.lastNewsSeen = saved.news[0]?.day ?? 0;
+    this.selection = null;
+    this.showActComplete = false;
     this.enterMap();
-    this.speed = this.awayReport || saved.events.active ? 0 : 1;
+    this.speed = this.awayReport || saved.events.active || saved.meta.tutorialStep >= 0 ? 0 : 1;
+    this.resumeSpeed = 1;
     sfx('start');
     return true;
   }
 
-  quitToTitle(): void {
-    this.save();
-    this.state = null;
-    this.mode = 'title';
-    this.dioramaSite = null;
-    this.stage.setScene(this.scenes.map(this));
+  /** Load a company from a save code or file into a free slot. */
+  importCompany(s: GameState): boolean {
+    if (this.slotsFull()) {
+      this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
+      return false;
+    }
+    s.savedAt = Date.now(); // an import is not time away
+    const id = newSlotId();
+    writeSlot(id, s);
+    return this.continueSlot(id);
+  }
+
+  deleteCompany(id: string): void {
+    deleteSlot(id);
+    if (this.slotId === id) {
+      this.slotId = null;
+      this.state = null;
+    }
     this.notify();
   }
 
+  quitToMenu(): void {
+    this.save();
+    this.state = null;
+    this.slotId = null;
+    this.mode = 'title';
+    this.menuScreen = 'main';
+    this.panel = null;
+    this.tool = null;
+    this.selection = null;
+    this.hover = null;
+    this.dioramaSite = null;
+    this.confirm = null;
+    this.stage.setZoomBoost(this.settings.zoom);
+    this.startTour();
+    playMusic('menu');
+    this.notify();
+  }
+
+  /** Called once at boot: show the menu with the cinematic tour behind it. */
+  showMenu(): void {
+    this.mode = 'title';
+    this.menuScreen = 'main';
+    this.startTour();
+    playMusic('menu');
+    this.notify();
+  }
+
+  makeMapScene(): Scene {
+    return this.scenes.map(this);
+  }
+
+  makeDioramaScene(siteId: string): Scene {
+    return this.scenes.diorama(this, siteId);
+  }
+
+  private startTour(): void {
+    this.tour?.stop();
+    this.tour = this.scenes.tour(this);
+    this.tour.start();
+  }
+
   enterMap(): void {
+    this.tour?.stop();
+    this.tour = null;
     this.mode = 'map';
     this.dioramaSite = null;
     this.stage.setZoomBoost(this.settings.zoom);
     this.stage.setScene(this.scenes.map(this));
+    playMusic('game');
     this.notify();
   }
 
@@ -183,17 +297,61 @@ export class Game {
   }
 
   save(): void {
-    if (!this.state) return;
-    this.state.savedAt = Date.now();
-    writeSave(this.state);
+    if (!this.state || !this.slotId) return;
+    writeSlot(this.slotId, this.state);
     this.lastAutosave = performance.now();
   }
 
+  private onVisibility(): void {
+    if (document.visibilityState === 'hidden') {
+      this.hiddenAt = Date.now();
+      this.save();
+      if (this.settings.muteInBackground) suspendAudio();
+      return;
+    }
+    resumeAudio();
+    if (this.hiddenAt && this.state && this.mode !== 'title' && this.settings.offline && !this.state.meta.gameOver) {
+      const away = Date.now() - this.hiddenAt;
+      const report = simulateOffline(this.state, this.ctx, away, this.settings.offlineRate);
+      if (report) {
+        refreshStats(this.state);
+        this.awayReport = report;
+        this.notify();
+      }
+    }
+    this.hiddenAt = 0;
+  }
+
   // ── main loop ─────────────────────────────────────────────────────────────────────────────
-  frame(dt: number, now: number): void {
+  /** True while something on screen must be answered before time moves on. */
+  get blocked(): boolean {
     const s = this.state;
-    if (s && this.mode !== 'title') {
-      const blocked = !!s.events.active || !!this.awayReport || this.showActComplete;
+    if (!s) return true;
+    return (
+      (!!s.events.active && (this.settings.autoPause || this.eventOpen)) ||
+      !!this.awayReport ||
+      this.showActComplete ||
+      !!s.meta.gameOver ||
+      !!this.confirm
+    );
+  }
+
+  frame(dt: number, now: number): void {
+    this.frameCount++;
+    this.fpsFrames++;
+    this.fpsTime += dt;
+    if (this.fpsTime >= 0.5) {
+      this.fps = Math.round(this.fpsFrames / this.fpsTime);
+      this.fpsFrames = 0;
+      this.fpsTime = 0;
+      if (this.settings.fps) this.notify();
+    }
+    const s = this.state;
+    if (this.mode === 'title') {
+      this.tour?.update(dt);
+    } else if (s) {
+      s.meta.playtime += dt;
+      const blocked = this.blocked;
       if (blocked && this.speed !== 0) {
         this.resumeSpeed = this.speed;
         this.speed = 0;
@@ -207,22 +365,25 @@ export class Game {
           this.acc -= 1;
           n++;
           tick(s, this.ctx);
-          if (s.events.active) {
+          if (s.events.active && this.settings.autoPause) {
             this.acc = 0;
             break;
           }
+          if (s.meta.gameOver) break;
         }
         if (n) this.afterTick();
       }
-      if (now - this.lastAutosave > 20_000) this.save();
+      this.tutorialCheck();
+      if (now - this.lastAutosave > this.settings.autosaveSec * 1000) this.save();
     }
     this.updateEra();
-    this.stage.frame(dt, now);
+    // battery saver: draw every other frame (~30 fps)
+    if (!this.settings.batterySaver || this.frameCount % 2 === 0) this.stage.frame(this.settings.batterySaver ? dt * 2 : dt, now);
   }
 
   /** Fraction of the current day elapsed — used to interpolate moving things. */
   dayFraction(): number {
-    return this.acc;
+    return this.mode === 'title' ? (this.tour?.dayFraction() ?? 0) : this.acc;
   }
 
   private afterTick(): void {
@@ -230,7 +391,7 @@ export class Game {
     if (s.flags.lastObjective !== this.lastObjectiveSeen) {
       this.lastObjectiveSeen = s.flags.lastObjective;
       const news = s.news.find((n) => n.text.startsWith('✅'));
-      if (news) this.toast(news.text.replace('✅ ', ''), 'good', String(s.flags.lastObjectiveAdvisor ?? 'bit'));
+      if (news && s.meta.tutorialStep < 0) this.toast(news.text.replace('✅ ', ''), 'good', String(s.flags.lastObjectiveAdvisor ?? 'bit'));
       sfx('objective');
     }
     for (const n of s.news) {
@@ -246,11 +407,28 @@ export class Game {
       this.showActComplete = true;
       sfx('fanfare');
     }
+    if (s.events.active && !this.settings.autoPause && !s.flags[`seen:${s.events.active.id}:${s.events.active.day}`]) {
+      s.flags[`seen:${s.events.active.id}:${s.events.active.day}`] = true;
+      sfx('alert');
+    }
+    this.checkGuide();
     this.notify();
   }
 
+  private checkGuide(): void {
+    const fresh = unlockGuide(unlockedFor(this.state));
+    for (const id of fresh.slice(0, 2)) {
+      const e = GUIDE_BY_ID[id];
+      if (e && e.unlock !== 'start') this.toast(`New Field Guide entry: ${e.title}`, 'info', 'bit');
+    }
+  }
+
+  guideBadge(): number {
+    return guideUnseen();
+  }
+
   private updateEra(): void {
-    const target: Era = this.eraOverride ?? this.eraForK(this.state?.stats.K ?? kardashev(19.6e12));
+    const target: Era = this.eraOverride ?? this.eraForK(this.view?.stats.K ?? kardashev(19.6e12));
     if (target !== getEra()) {
       setEra(target);
       syncCssVars();
@@ -264,9 +442,61 @@ export class Game {
     return 3;
   }
 
+  // ── tutorial ──────────────────────────────────────────────────────────────────────────────
+  get tutorialStep(): number {
+    return this.state?.meta.tutorialStep ?? -1;
+  }
+
+  tutorialCheck(): void {
+    const s = this.state;
+    if (!s || s.meta.tutorialStep < 0 || s.events.active || this.awayReport) return;
+    const step = TUTORIAL[s.meta.tutorialStep];
+    if (!step) {
+      s.meta.tutorialStep = -1;
+      this.notify();
+      return;
+    }
+    if (step.done?.(this)) this.tutorialNext();
+  }
+
+  tutorialNext(): void {
+    const s = this.state;
+    if (!s || s.meta.tutorialStep < 0) return;
+    s.meta.tutorialStep += 1;
+    if (s.meta.tutorialStep >= TUTORIAL.length) {
+      s.meta.tutorialStep = -1;
+      this.toast('Tutorial complete — the goal card takes it from here.', 'good', 'bit');
+    } else {
+      TUTORIAL[s.meta.tutorialStep].enter?.(this);
+      sfx('page');
+    }
+    this.notify();
+  }
+
+  tutorialSkip(): void {
+    if (!this.state) return;
+    this.state.meta.tutorialStep = -1;
+    if (this.speed === 0 && !this.blocked) this.setSpeed(1);
+    this.notify();
+  }
+
+  tutorialRestart(): void {
+    if (!this.state) return;
+    this.state.meta.tutorialStep = 0;
+    this.panel = null;
+    TUTORIAL[0].enter?.(this);
+    this.notify();
+  }
+
+  /** Client position of a site marker (tutorial spotlight). */
+  locate(target: string): { x: number; y: number } | null {
+    const scene = this.stage.getScene() as (Scene & { locate?: (t: string) => { x: number; y: number } | null }) | null;
+    return scene?.locate?.(target) ?? null;
+  }
+
   // ── UI state ──────────────────────────────────────────────────────────────────────────────
   setSpeed(speed: Speed): void {
-    if (this.state?.events.active || this.awayReport) return;
+    if (this.blocked && speed > 0) return;
     this.speed = speed;
     if (speed > 0) this.resumeSpeed = speed;
     sfx('click');
@@ -285,6 +515,12 @@ export class Game {
 
   openPanel(panel: PanelId): void {
     this.panel = this.panel === panel ? null : panel;
+    sfx('click');
+    this.notify();
+  }
+
+  openMenuScreen(screen: MenuScreen): void {
+    this.menuScreen = screen;
     sfx('click');
     this.notify();
   }
@@ -315,14 +551,9 @@ export class Game {
   updateSettings(patch: Partial<Settings>): void {
     this.settings = { ...this.settings, ...patch };
     saveSettings(this.settings);
-    setMuted(!this.settings.sound);
-    if (patch.zoom !== undefined) this.stage.setZoomBoost(this.settings.zoom * (this.mode === 'diorama' ? 2 : 1));
-    this.notify();
-  }
-
-  toggleTimelapse(): void {
-    this.dioramaTimelapse = !this.dioramaTimelapse;
-    sfx('click');
+    applyCssSettings(this.settings);
+    setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx });
+    if (patch.zoom !== undefined) this.stage.setZoomBoost(this.settings.zoom * (this.mode === 'diorama' || this.tour?.inCampus() ? 2 : 1));
     this.notify();
   }
 
@@ -332,9 +563,16 @@ export class Game {
     this.notify();
   }
 
+  toggleTimelapse(): void {
+    this.dioramaTimelapse = !this.dioramaTimelapse;
+    sfx('click');
+    this.notify();
+  }
+
   dismissAway(): void {
     this.awayReport = null;
-    this.speed = this.state?.events.active ? 0 : this.resumeSpeed || 1;
+    const holdForTutorial = !!this.state && this.state.meta.tutorialStep >= 0 && this.state.meta.tutorialStep <= PLAY_STEP;
+    this.speed = this.blocked || holdForTutorial ? 0 : this.resumeSpeed || 1;
     this.notify();
   }
 
@@ -344,7 +582,36 @@ export class Game {
     this.notify();
   }
 
+  openEvent(): void {
+    this.eventOpen = true;
+    this.notify();
+  }
+
   // ── actions (wrap the sim, refresh, give feedback) ─────────────────────────────────────────
+  /** Run an action, asking first when it costs more than the player's confirm threshold. */
+  private guarded(cost: number, title: string, run: () => void): void {
+    const limit = this.settings.confirmSpend;
+    if (limit > 0 && cost >= limit) {
+      this.confirm = {
+        title,
+        detail: `This costs ${fmtMoney(cost)}. You have ${fmtMoney(this.state?.finance.cash ?? 0)}.`,
+        onYes: () => {
+          this.confirm = null;
+          run();
+        },
+      };
+      sfx('alert');
+      this.notify();
+      return;
+    }
+    run();
+  }
+
+  cancelConfirm(): void {
+    this.confirm = null;
+    this.notify();
+  }
+
   private after(r: A.Result, okSound: Parameters<typeof sfx>[0] = 'confirm'): A.Result {
     if (!this.state) return r;
     if (r.ok) {
@@ -358,8 +625,9 @@ export class Game {
     return r;
   }
 
-  build(siteId: string, type: FacilityType) {
-    return this.after(A.build(this.state!, siteId, type), 'build');
+  build(siteId: string, type: FacilityType): void {
+    const s = this.state!;
+    this.guarded(buildCost(s, type), 'Build this?', () => void this.after(A.build(s, siteId, type), 'build'));
   }
 
   requestGrid(siteId: string, mw: number) {
@@ -375,13 +643,20 @@ export class Game {
       this.notify();
       return;
     }
-    const r = this.after(A.buildLink(this.state!, tool.from, siteId));
-    if (r.ok) this.tool = null;
-    this.notify();
+    const from = tool.from;
+    const why = A.canLink(this.state!, from, siteId);
+    const cost = why ? 0 : linkCost(siteDistanceKm(from, siteId));
+    this.guarded(cost, 'Build this power line?', () => {
+      const r = this.after(A.buildLink(this.state!, from, siteId));
+      if (r.ok) this.tool = null;
+      this.notify();
+    });
   }
 
-  order(supplier: SupplierId, qty: number, dest: string, mode: 'sea' | 'air') {
-    return this.after(A.placeOrder(this.state!, this.ctx, supplier, qty, dest, mode), 'cash');
+  order(supplier: SupplierId, qty: number, dest: string, mode: 'sea' | 'air'): void {
+    const s = this.state!;
+    const quote = A.quoteOrder(s, this.ctx, supplier, qty, dest, mode);
+    this.guarded(quote.total, 'Place this order?', () => void this.after(A.placeOrder(s, this.ctx, supplier, qty, dest, mode), 'cash'));
   }
 
   setRental(units: number): void {
@@ -409,7 +684,11 @@ export class Game {
     if (resolveEvent(s, index)) {
       refreshStats(s);
       sfx('confirm');
-      if (!s.events.active) this.speed = this.resumeSpeed || 1;
+      if (!s.events.active) {
+        this.eventOpen = false;
+        const holdForTutorial = s.meta.tutorialStep >= 0 && s.meta.tutorialStep <= PLAY_STEP;
+        this.speed = s.meta.gameOver || holdForTutorial ? 0 : this.resumeSpeed || 1;
+      }
       this.notify();
     } else sfx('error');
   }

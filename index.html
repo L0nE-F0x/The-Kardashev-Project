@@ -2,29 +2,173 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>The Kardashev Project — a pixel-art sim of the AI boom</title>
+    <meta name="description" content="A cozy-but-real pixel-art management sim about the AI boom. Build power, chips, compute and supply lines on a real Earth, and lift civilisation up the Kardashev scale. Free to play in your browser." />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
     <meta name="theme-color" content="#0b0a12" />
-    <meta name="description" content="A cozy-but-real pixel-art management sim about the AI boom. Build power, chips and compute, and guide Earth up the Kardashev scale." />
-    <title>The Kardashev Project</title>
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <style>
-      #boot {
-        position: fixed;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        color: #9d95a6;
-        background: #0b0a12;
-        font: 14px ui-monospace, monospace;
-        letter-spacing: 1px;
-        z-index: 10;
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="The Kardashev Project" />
+    <meta property="og:title" content="The Kardashev Project" />
+    <meta property="og:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute on a real Earth — and climb the Kardashev scale." />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A pixel-art Earth at dusk beside a data center campus, with the Kardashev Project logo." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="The Kardashev Project" />
+    <meta name="twitter:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute — and climb the Kardashev scale." />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+
+    <link rel="icon" href="./favicon.ico" sizes="48x48" />
+    <link rel="icon" href="./icons/icon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kardashev" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "The Kardashev Project",
+        "url": "%VITE_SITE_URL%/",
+        "image": "%VITE_SITE_URL%/og-image.png",
+        "description": "A cozy-but-real pixel-art management sim about the AI boom: energy, chips, compute and supply lines on a real Earth.",
+        "genre": ["Simulation", "Strategy", "Management"],
+        "gamePlatform": ["Web browser", "Windows", "macOS", "Linux", "Android", "iOS"],
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "author": { "@type": "Person", "name": "Lone Fox" },
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
       }
-    </style>
+    </script>
   </head>
-  <body>
-    <div id="game"></div>
-    <div id="ui"></div>
-    <div id="boot">BOOTING THE KARDASHEV PROJECT…</div>
-    <script type="module" src="/src/main.ts"></script>
+  <body class="landing">
+    <header class="nav">
+      <a class="brand" href="./">
+        <img src="./icons/icon-32.png" width="24" height="24" alt="" />
+        <span>The Kardashev Project</span>
+      </a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#download">Get it</a>
+        <a href="#news">What’s new</a>
+        <a class="btn small primary" href="./play/">Play</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-text">
+          <h1 class="sr-only">The Kardashev Project</h1>
+          <img class="logo" src="./logo.png" width="484" height="164" alt="The Kardashev Project" />
+          <p class="tagline">A cozy-but-real pixel sim of the AI boom. Build power, chips and compute on a real Earth — and lift civilisation up the Kardashev scale.</p>
+          <div class="cta">
+            <a class="btn primary big" href="./play/">▶ Play in your browser</a>
+            <a class="btn big" href="#download" id="cta-get">Install / download</a>
+          </div>
+          <p class="small muted">Free · Act I available now · desktop, phones (landscape) and installable as an app.</p>
+        </div>
+        <div class="hero-globe">
+          <canvas id="globe" width="200" height="200" aria-label="A spinning pixel Earth with the real night side"></canvas>
+          <noscript><img src="./globe.png" alt="A pixel-art Earth" /></noscript>
+          <div class="kbadge frame"><span class="label">Earth today</span><b id="kval">K 0.729</b></div>
+        </div>
+      </section>
+
+      <section id="features" class="features">
+        <h2>Run the whole AI stack</h2>
+        <div class="cards">
+          <article class="card frame"><img class="px lg" data-icon="power" alt="" /><h3>Power the boom</h3><p>Solar, wind, batteries, gas and grid connections — real capacity factors, real interconnect queues, turbines back-ordered for years.</p></article>
+          <article class="card frame"><img class="px lg" data-icon="ship" alt="" /><h3>Chips &amp; supply lines</h3><p>Order accelerators and watch them sail through Malacca, Suez and Panama — and reroute when a strait closes.</p></article>
+          <article class="card frame"><img class="px lg" data-icon="brain" alt="" /><h3>Train your models</h3><p>Split compute between training, revenue, research and safety while rival labs keep shipping.</p></article>
+          <article class="card frame"><img class="px lg" data-icon="globe" alt="" /><h3>A real Earth</h3><p>Natural Earth coastlines, twelve regional blocs, a live day/night line and 36 build sites from the Atacama to Luleå.</p></article>
+          <article class="card frame"><img class="px lg" data-icon="shield" alt="" /><h3>Crises with trade-offs</h3><p>Quakes, export controls, heatwaves, memory crunches and AI incidents — and your advisors don’t always agree.</p></article>
+          <article class="card frame"><img class="px lg" data-icon="datacenter" alt="" /><h3>Cozy campus views</h3><p>Zoom into any site: chillers spin, turbines turn, rain falls and the lights come on at night.</p></article>
+        </div>
+      </section>
+
+      <section class="shots" aria-label="Screenshots">
+        <figure><img src="./screenshots/map.png" loading="lazy" alt="The pixel world map with the night side and city lights" /><figcaption>The world at night</figcaption></figure>
+        <figure><img src="./screenshots/campus-day.png" loading="lazy" alt="A data center campus with solar, batteries and wind" /><figcaption>A campus by day</figcaption></figure>
+        <figure><img src="./screenshots/campus-night.png" loading="lazy" alt="The same campus at night with lights on" /><figcaption>…and by night</figcaption></figure>
+        <figure><img src="./screenshots/map-zoom.png" loading="lazy" alt="A zoomed-in map with campuses, power lines and cargo ships" /><figcaption>Supply lines across the Pacific</figcaption></figure>
+      </section>
+
+      <section class="scale">
+        <div class="frame scalebox">
+          <h2>What is the Kardashev scale?</h2>
+          <p>In 1964 astronomer Nikolai Kardashev ranked civilisations by the power they command. Carl Sagan made it continuous:</p>
+          <p class="formula">K = (log₁₀ P − 6) / 10</p>
+          <p>Humanity runs on about <b>19.6 terawatts</b> — <b>K 0.729</b>. A <b>Type I</b> civilisation harnesses <b>10 petawatts</b>, around five hundred times more. AI is how you climb; energy is how you’re measured.</p>
+          <!-- axis runs K 0.70 → 1.00; positions are (K − 0.70) / 0.30 -->
+          <div class="kscale" aria-hidden="true">
+            <div class="track"><i class="now" style="width: 9.7%"></i><b class="here" style="left: 9.7%">today</b></div>
+            <div class="marks">
+              <span style="left: 0%">0.70<br />10 TW</span>
+              <span style="left: 33.33%">0.80<br />100 TW</span>
+              <span style="left: 66.67%">0.90<br />1 PW</span>
+              <span style="left: 100%">1.00<br />Type I</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" class="download">
+        <h2>Play anywhere</h2>
+        <div class="cards three">
+          <article class="card frame">
+            <h3>In your browser</h3>
+            <p>No install. Chrome, Edge, Firefox and Safari on desktop; phones in landscape.</p>
+            <a class="btn primary" href="./play/">▶ Play now</a>
+          </article>
+          <article class="card frame" id="install-card">
+            <h3>As an app</h3>
+            <p>Its own icon, full screen and offline play — on Android, iPhone/iPad and desktop.</p>
+            <button class="btn" id="install-btn" hidden>Install the app</button>
+            <div id="install-help" class="small"></div>
+          </article>
+          <article class="card frame" id="desktop-card">
+            <h3>Desktop download</h3>
+            <p>Windows, macOS and Linux builds.</p>
+            <div id="desktop-links" class="dl-links"><span class="muted small">Checking for the latest release…</span></div>
+            <details class="small unsigned">
+              <summary>“Unknown publisher”? How to open it</summary>
+              <p>The builds aren’t code-signed yet, so your computer will ask before running them.</p>
+              <ul>
+                <li><b>Windows:</b> on the SmartScreen notice, click <i>More info → Run anyway</i>.</li>
+                <li><b>macOS:</b> right-click the app → <i>Open</i>, or System Settings → Privacy &amp; Security → <i>Open Anyway</i>.</li>
+                <li><b>Linux:</b> make the AppImage executable (<code>chmod +x</code>) and run it, or install the .deb.</li>
+              </ul>
+            </details>
+          </article>
+        </div>
+      </section>
+
+      <section id="news" class="news">
+        <h2>What’s new</h2>
+        <div id="changelog"></div>
+      </section>
+
+      <section id="about" class="about">
+        <div class="frame aboutbox">
+          <h2>About</h2>
+          <p>The Kardashev Project is a hobby game by <b>Lone Fox</b>, built with Claude. Companies, people and events are fictional; the geography and the physics are real.</p>
+          <p class="small muted">Map data: Natural Earth (public domain). Fonts: Pixelify Sans and Silkscreen (SIL Open Font License). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot small muted">
+      <span>© 2026 Lone Fox</span>
+      <span id="foot-version"></span>
+      <a href="./play/">Play</a>
+    </footer>
+    <script type="module" src="/src/landing/main.ts"></script>
   </body>
 </html>

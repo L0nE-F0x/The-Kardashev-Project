@@ -3,6 +3,7 @@
  * can preview exactly what the simulation will do.
  */
 import { CHIP_SUPPLIERS, RENTAL } from '../content/companies';
+import { DIFFICULTIES, FOUNDERS } from '../content/difficulty';
 import { FACILITIES } from '../content/facilities';
 import { REGIONS } from '../content/regions';
 import { siteDef } from '../content/sites';
@@ -52,6 +53,8 @@ export function buildCost(s: GameState, type: FacilityType): number {
   const drift = Math.pow(def.yearly, yearsElapsed(s.day));
   let cost = def.capex * learning * drift;
   if (type === 'battery') cost *= techMult(s, 'batteryCost');
+  if (type === 'solar') cost *= techMult(s, 'solarCost');
+  if (type === 'wind') cost *= techMult(s, 'windCost');
   return cost * modMult(s, `cost:${type}`);
 }
 
@@ -158,8 +161,14 @@ export function currentCapability(s: GameState): number {
 export const BASELINE_ALIGNMENT = 1.2;
 
 export function alignmentOf(s: GameState): number {
-  if (s.safety.cumFlop <= 0) return BASELINE_ALIGNMENT;
-  return Math.max(BASELINE_ALIGNMENT, Math.log10(s.safety.cumFlop * techMult(s, 'safetyEff')) - 22);
+  const offset = FOUNDERS[s.meta?.founder ?? 'classic']?.alignment ?? 0;
+  if (s.safety.cumFlop <= 0) return BASELINE_ALIGNMENT + offset;
+  return Math.max(BASELINE_ALIGNMENT, Math.log10(s.safety.cumFlop * techMult(s, 'safetyEff')) - 22) + offset;
+}
+
+/** What crises cost on this difficulty (event prices are written for Standard). */
+export function crisisCost(s: GameState, amount: number): number {
+  return amount * (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1);
 }
 
 /** Monthly probability of a safety incident at a given margin. */
