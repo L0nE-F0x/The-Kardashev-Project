@@ -4,8 +4,9 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M2 "The Scale-Up" is built** (v0.3.0) on top of M1 "First Light" and M1.5 "The Front Door":
-Acts I and II are playable end to end. Section 17 is the Act II plan with as-built notes. Section 13 lists the
+Status: **M2 "The Scale-Up" is built and shipped** (v0.3.0) on top of M1 "First Light" and M1.5 "The Front Door":
+Acts I and II are playable end to end. Section 17 is the Act II plan with as-built notes. **M3, Act III — The Charter,
+is planned in section 18** (being built for v0.4.0). Section 13 lists the
 locked decisions and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
 
 ---
@@ -365,7 +366,8 @@ advisor cast, deeper bloc politics.
 **M4: Acts IV–V.** Fusion, HVDC global grid, launch, orbital DCs, space solar, the Moon, the
 thermal budget, the Type I ending.
 
-**M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds.
+**M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds. **The balance pass
+happens here**: a full playthrough plus beta testers, then rebalancing across all acts before launch and marketing.
 (Custom starts with seeds, Hard difficulty, music and the Tauri desktop build arrived early, in M1.5.)
 
 **Later:** Type II (Mercury mining, Dyson swarm), then a Type III epilogue.
@@ -801,5 +803,228 @@ Everything above is in, with these numbers and adjustments from the balance bot 
 - **The Crunch** starts when the IPO checklist is done, or by 1 July 2034 at the latest (after at least 180 days of
   phase 3). Finale fronts lose pressure from batteries, firm power, stockpiles, your own fab, HBM/packaging deals,
   a healthy safety margin, treaty membership and good relations, plus event choices.
-- **Open balance question:** the bot is a cautious, single-campus player and reaches the IPO via the 2034 deadline
-  (~5.6 years). A human who spreads out and grows chip supply should beat the deadline; tune with playtests.
+- **Balance (deferred by decision, 2026-11-04):** the bot is a cautious, single-campus player and reaches the IPO via
+  the 2034 deadline (~5.6 years). We are building every act first; balance, full playthroughs and tuning happen in the
+  pre-launch beta (see M5). Until then the bots are guard rails only: each act must be completable without stalls.
+
+### Hooks left for Act III (The Charter)
+- **Charter Standing** (`finale.standing`, 0–3 fronts held in The Crunch) should set your seat and leverage at the Charter.
+- **IPO choices:** `flags.dualClass` (you kept control) vs one share, one vote; `capital.ipo` (valuation, cash raised).
+- **Story flags:** `flags.broker` (you ran the Geneva channel between the Atlantic bloc and Mainland East Asia),
+  `flags.investorSeat` (a Meridian-friendly investor sits on your board), `flags.bitDispatch` (Bit already runs dispatch).
+- **Long builds that finish in Act III:** large reactors (8–10 years), co-funded fab and HBM lines, own subsea cables.
+- **Cast and art ready to use:** Kip (Launch & Space advisor, defined but unused), CEO portraits for Meridian, Lattice,
+  Orchard, Kestrel, Little Sun, Veldt and the board chair (`ceoPortraitUrl`), rival campuses on the map.
+- **The cliffhanger:** the Act II complete screen ends with the blocs calling an emergency summit and asking who could
+  coordinate power, chips and compute for the whole planet.
+
+---
+
+## 18. M3 "The Charter": plan (v0.4.0)
+
+Act III, about 2035–44. After the Crunch, the blocs found **The Kardashev Project** in Geneva and make you its
+**Steward**. You now wear two hats: you run the Charter (a planetary consortium with its own treasury, a Council of
+twelve blocs and every company on Earth as a partner) *and* your own company, which is now one bidder among many.
+The world's energy finally moves: Charter megaprojects add terawatts and Kardashev 0.75 is in reach. Planned
+2026-11-04 in two Q&A rounds; the user approved building straight through overnight (plan → build → ship).
+
+### Decisions (locked 2026-11-04)
+
+| Topic | Decision |
+|---|---|
+| Your role | **Two hats + a blind trust.** You run the Charter and your company. Your company bids on Charter contracts like any member; favouring it costs Legitimacy (conflict-of-interest events). At any time you can put it in a blind trust: your advisors run it on standing orders, you can't touch it, Legitimacy rises |
+| Contracts | **Post → bid → award → build** (2–4 companies bid a price and a timeline shaped by their traits; the winner builds it on the map, with overruns and scandals), **missions made of contracts** (big Charter missions open chains of contracts and pay off with permanent world-wide boosts), and **partner relationships** (awards, cancellations and penalties move them; burned companies lobby against you, loyal ones give discounts and favours). *Not* subsidies or price signals |
+| Act goal | All four: **Kardashev 0.75**, a **Charter Mandate** checklist, a multi-front **finale crisis**, then a **renewal vote** and a cliffhanger into Act IV |
+| AI & safety | All four: a **Charter safety regime** (licensing, compute caps, global evals, a world safety margin across every lab), **the race goes on** inside the Charter (defection and cheating events), **Bit grows up** (a co-advisor who can run Charter desks as trust builds), **open vs closed weights** policy |
+| Politics | All four: **the Council votes** (12 weighted seats, resolutions, lobbying, favours, concessions), **dues and the budget** (blocs pay by economy and trust; unhappy ones pay late, cut dues or walk out), **factions and flashpoints** (Atlantic, Eastern, Non-aligned; sanctions; a rival project), **access and fairness** (a compute-access meter per bloc; the Mandate needs it) |
+| Space | **Seeds of space:** Kip joins with an arc — a launch complex, an orbital compute test satellite, a space-solar demo. The big orbital systems wait for Act IV; the cliffhanger is Kip's first real orbital launch |
+| World & art | All four: **megaprojects on the map** (region-scale builds that grow in stages, in the builder's colours), **world energy + a carbon budget** (every bloc's generation, clean share and emissions; overshoot makes heatwaves and droughts likelier), **first intercontinental HVDC links**, **Charter HQ + new dioramas** (Geneva, megaprojects, Kip's launch pad) and the **Solarpunk Bloom** palette from the start of the act |
+| Shipping | One big release, **v0.4.0 "The Charter"**, built overnight and shipped end to end (commit, push, tag, publish) |
+
+**Calls I made inside those decisions (change any):**
+- **Act III phases live in `s.charter.phase`**; `s.phase` stays 5 so every Act II gate stays open. Act II systems keep running for your company.
+- **The Charter has its own treasury**, separate from your company's cash. Contract prices are the Charter's *share* of a
+  much bigger project (partners and private capital raise the rest); the full project value is in the tooltip.
+- **K moves two ways:** Charter-built clean energy adds directly, and every completed project and mission speeds up the
+  world's own growth (spillovers: cheaper kit, trained crews, better grids). World energy becomes a stateful system in
+  Act III (Acts I–II keep the old formula, so they are unchanged).
+- **Legitimacy** (0–100) is the blocs' confidence in your stewardship — the Charter's Board Confidence. **Political capital**
+  is the Council currency (tabling resolutions, whipping votes, emergency sessions). Charter Standing from the Crunch sets
+  the starting Legitimacy and capital; `dualClass`, `broker`, `investorSeat` and `bitDispatch` each tweak the start.
+- **Conflict of interest:** awarding your own company costs Legitimacy unless its bid is clearly the best, more with
+  dual-class shares; journalists may dig. In the blind trust the cost is small, your advisors (plus a trustee that
+  expands halls, picks research and takes safe contracts) run the company, and the company buttons are locked.
+- **Megaprojects are places:** twelve megaproject sites, one per bloc, each suited to its resource (Sahara Solar Belt,
+  North Sea Wind, Gobi Wind & Storage, Pacific Reactor Fleet…). Every energy contract is built at one; the site grows
+  through three stages as gigawatts complete.
+- **New cast:** partner CEOs for Halcyon, Brightwater, Sunforge, Spanwire (HVDC), Tidewater, Deepvein, Saltflat, Lumen,
+  Stackwell, Hanbit, Bondline, Cumulus, Stratum, Parabola and Kármán, plus three faction delegates. Kip finally speaks.
+- **Charter HQ is in Geneva** (the old "Geneva channel" from Act II pays off if you ran it).
+
+### How the act unfolds
+
+| Phase | Roughly | What opens | Gate to the next phase |
+|---|---|---|---|
+| **1 · The Founding** | Year 1 | The founding chain (summit, your seat, the first budget), the Charter panel (treasury, contracts, missions, partners), the Council, the blind trust, Kip joins, missions *Clean Power for All* and *Compute for Everyone* | First contract awarded, first resolution passed (or 360 days) |
+| **2 · The Build-Out** | Years 2–4 | *The Chip Commons*, HVDC links (*The Global Backbone*), the World screen and the carbon budget, factions and flashpoints, Kip's launch complex (*First Steps Off-World*), Charter desk jobs | 6 contracts completed and K ≥ 0.738 (or 900 days) |
+| **3 · The Frontier** | Years 4–7 | *A Safe Frontier* (compute caps, licensing, open-weights policy), Bit's co-pilot desk, the rival project threat, the Oracle race, the orbital test and space-solar demo | The Mandate checklist is met, or 1 Jan 2044 arrives (after ≥ 365 days of phase 3) |
+| **4 · The Threshold** | 120 days | The finale on three fronts | Finale resolved |
+| **5 · Renewal** | Days | The Council votes on renewing the Charter with planetary powers → the cliffhanger → Act III complete | — |
+
+**The Charter Mandate (Act III goals):** reach **K 0.75** · complete *Clean Power for All* · complete *The Chip Commons* ·
+every bloc's compute access ≥ 40 · a working safety regime (licensing in force, an evals programme done, world safety
+margin ≥ 0) · Legitimacy ≥ 50 · Kip's orbital compute test · come through The Threshold · the renewal vote.
+
+### Systems
+
+**1. The treasury.** Dues come in monthly from each bloc: its economy share × the dues level × its willingness
+(relations, Legitimacy, walkouts, arrears). Founding budget ~$25B; standard dues ~$12B/month in 2035, growing with
+the world economy. Spending: contract payments (20% on award, the rest spread over the build), mission programmes,
+favours and concessions. If the treasury can't pay, contracts fall into arrears: they slow down and partners sour.
+Your company can donate to the Charter (Legitimacy up). Monthly Charter ledger with history.
+
+**2. Partners.** Every company is a partner with five traits (Reliability · Speed · Cost · Ambition · Ethics, 1–5),
+a quirk, a CEO, sectors it bids in, a home bloc, a capacity (concurrent contracts, from Ambition) and a
+relationship (0–100). Cheap partners bid low; fast ones bid short; unreliable ones overrun; low-Ethics ones cause
+scandals; ambitious ones over-promise. Relationship moves with awards (+), on-time payments (+), being passed over
+when best (−), penalties (−), cancellations (−−). Below 30 they stop bidding and lobby their home bloc against you;
+above 70 they discount (−8%) and offer favours (events). Your own company bids too, in the sectors it knows.
+
+**3. Contracts.** Post a contract from a menu, choose where (a megaproject site, a bloc, an HVDC route, a launch site)
+and a size (S/M/L). A tender stays open 21 days while eligible partners bid; award any bid. The builder's project
+appears on the map and progresses daily; monthly trouble rolls (delay, overrun, scandal, strike) come from its traits.
+Actions: award, expedite (+25% price, −20% time left), claim damages on a late project, cancel (refund, relationship
+and Legitimacy hit). Kinds (value per unit, Charter share, typical build):
+- **Energy** at megaproject sites: solar & storage park, wind field, reactor fleet, pumped hydro, enhanced
+  geothermal (S/M/L ≈ 25/75/200 GW average for solar; ~$2/W-average and falling). Adds world power and clean share.
+- **HVDC link** on one of six intercontinental routes (Sahara–Europe, Outback–Asia, Gobi–Fab Belt, North Sea–Nordic
+  ring, Gulf–Subcontinent, Plains–Pacific). Megaprojects behind it deliver more; cheaper, cleaner grid power at both ends.
+- **Chips:** logic fab line (Lumen, Kestrel), HBM line (Stackwell, Hanbit), packaging line (Bondline), EUV tool line
+  (Veldt, who names its price). Raise everyone's chip pools (yours included), soften export frictions, raise access.
+- **Access:** public compute campus (Cumulus, Stratum, the labs, your company), open subsea cable. Raise a bloc's access.
+- **Safety:** frontier evals programme, interpretability consortium (Lattice, Meridian, Orchard, your company). Raise
+  world alignment.
+- **Space (Kip):** launch complex, orbital compute test, space-solar demonstrator (Parabola, Kármán).
+- **Fusion:** a pilot-plant grant to Sunforge (Act IV hook; feeds the cliffhanger).
+
+**4. Missions.** Six missions, each a chain of contract goals with a permanent world-wide reward:
+*Clean Power for All* (Charter clean energy at three megaprojects → cleaner, cheaper grids everywhere, faster world
+growth), *The Chip Commons* (fab, HBM and packaging lines in three blocs → bigger chip pools, softer shortages),
+*Compute for Everyone* (every bloc's access ≥ 50 → new markets, Global South goodwill), *A Safe Frontier* (licensing,
+evals and interpretability, a positive world margin for a year → incidents less severe everywhere, Bit's co-pilot),
+*The Global Backbone* (two HVDC links → megaprojects deliver more, softer grid emergencies), *First Steps Off-World*
+(launch complex, orbital test, space-solar demo → Act IV hooks).
+
+**5. World energy and the carbon budget.** Each bloc has generation (TW), a clean share and emissions. The world grows
+1.6%/yr on its own, faster as Charter energy, missions and HVDC links pile up (capped ~5%/yr). New energy gets
+cleaner as missions complete. A 2°C carbon budget (~500 Gt CO₂ in 2035) burns down with emissions; past zero,
+heatwaves and droughts are likelier and the finale's grid front starts harder. The World screen shows all of it,
+plus K's progress to 0.75.
+
+**6. The Council.** Twelve seats with weighted votes (ATL 12, EAM 11, EUR 10, SAS 8, PAC 7, FAB 7, LAT 6, SEO 6, MENA 6,
+SSA 6, STP 5, NOR 4). Sessions every 90 days vote on up to three tabled resolutions; you table with political capital
+and see each bloc's forecast vote. Before a session you can whip a leaning bloc (capital), offer a favour (treasury)
+or a concession. Resolutions (pass/fail, some repealable): raise dues, dues relief for developing blocs, frontier compute
+cap, frontier run licensing, three open-weights policies (open / staged / closed, mutually exclusive), export-rule
+harmony, no new fossil power, the Access Pledge, emergency powers, the orbital commons protocol, mandatory incident
+reporting, an AI windfall levy (your company pays too). A bloc's vote comes from the resolution's appeal to its
+stance, faction and wealth, plus relations, Legitimacy, whips and favours.
+
+**7. Factions and flashpoints.** Atlantic (ATL, PAC, EUR, NOR, FAB), Eastern (EAM, STP), Non-aligned (LAT, SSA, SAS, SEO,
+MENA). Tension rises when votes go against a faction, when Charter spending skips it, and with flashpoint events
+(a Fab Belt standoff, sanctions, a contested HVDC link); it falls with concessions, projects and harmony resolutions.
+High tension → a member bloc walks out (no dues, no vote) until a demand is met; very high → the rival
+*Concord Initiative* forms and pulls dues away.
+
+**8. Access and fairness.** Each bloc's compute access (0–100) starts unequal (SSA ~12, the Atlantic ~80). Public compute,
+cables, megaprojects, HVDC endpoints and your own halls there raise it; the Access Pledge speeds it up. Projects in
+poorer blocs earn extra relations and Legitimacy.
+
+**9. The safety regime.** A **world safety margin** = world alignment − the frontier (the best model of any lab,
+yours included). World alignment grows with Charter evals and interpretability programmes, your company's safety
+research, licensing and the labs' own work. Below zero, rival labs have incidents that dent Legitimacy and trust.
+The compute cap slows every lab (yours too: runs above the cap need a Charter licence — the evals route takes 90 days,
+the fast track costs Legitimacy). Licence requests, inspections, a lab running a secret run, a lab threatening to
+move to a non-member bloc, whistleblowers. Open-weights policy shifts Orchard, research, access and incident risk.
+**Bit grows up:** Bit-5 (Architect) and Bit-6 (Oracle) sprites, an arc about what Bit is, and a co-pilot desk once
+your margin and the world's are healthy (the Act IV autopilot seed).
+
+**10. Two hats.** Your company runs on as in Act II. The **blind trust** toggle hands it to your advisors (all jobs
+on) plus a trustee; company buttons lock; conflicts cost much less and Legitimacy drifts up. Leaving it costs
+Legitimacy and has a one-year cooldown. Conflict-of-interest events: a journalist's exposé, a rival's complaint,
+an ethics probe, the investor on your board leaking tender details to Meridian.
+
+**11. Charter desk (delegation).** Standing orders for the Charter in the Team panel: Mira's tender desk (awards the
+best-value bid, never your own company), Juno's project oversight (expedites late projects), Sol's Council whip
+(spends capital on leaning votes for what you tabled), Penny's treasury reserve, and Bit's co-pilot (posts the next
+mission contract and awards it; needs trust).
+
+**12. Kip and space.** Kip's arc: the pitch → a launch complex contract at one of five candidate sites (Guiana coast,
+Gulf coast, Malindi, the Steppe, the Arctic) → the orbital compute test (a satellite crosses the map) → the space-solar
+demo → the heavy lifter. The orbital commons protocol resolution smooths the later steps.
+
+**13. The finale: The Threshold.** 120 days, three fronts, each *holding / at risk / lost*:
+- **The Grid** ("The Long Summer"): a planetary heatwave. Pressure from the carbon budget, low firm clean power and
+  storage; relief from HVDC links, megaprojects, emergency powers and your company lending power.
+- **The Frontier**: a lab's model approaches superintelligence and fails an eval. Pressure from a negative world
+  margin and missing licensing; relief from evals, a trusted Bit, halting the run, safety pledges.
+- **The Council**: a faction walks out and threatens the Concord Initiative. Pressure from tension, low Legitimacy,
+  arrears and access gaps; relief from concessions, emergency sessions and access projects.
+Fronts held (0–3) become the **Planetary Mandate** carried into Act IV.
+
+**14. Renewal and the ending.** The Council votes on renewing the Charter with planetary powers. Every bloc's vote
+comes from relations, Legitimacy, access, fronts held and walkouts, plus a closing speech you choose. ≥ ⅔: *the
+Planetary Charter*; > ½: *renewed with limits*; otherwise *a caretaker term* (no game over). Then the cliffhanger:
+Parabola's heavy lifter carries the first orbital compute module, and Sunforge reports ignition if you funded it →
+the Act III complete screen (K, year, renewal, fronts, Legitimacy, missions, clean share, carbon budget) → sandbox.
+
+### Visuals and audio
+- **Era:** Solarpunk Bloom from the start of Act III (the act's era or K's, whichever is later).
+- **Map:** the Charter HQ marker in Geneva, twelve megaproject sites that grow in stages with cranes in the builder's
+  colours, glowing HVDC links with flowing pulses, launch-site candidates and the launch complex, public compute
+  campuses in the blocs, the orbital test satellite crossing the map.
+- **Dioramas:** the Charter HQ (a Council hall with twelve bloc banners, a secretariat, a lakeside plaza, the Alps), the
+  megaprojects (a solar sea to the horizon, an onshore and an offshore wind field, a reactor fleet, a pumped-hydro
+  reservoir, geothermal well pads, storage yards), and Kip's launch complex (pad, tower, rocket, assembly hall).
+- **Characters:** Kip in events, fifteen partner CEOs, three faction delegates, Bit-5/6/7 sprites. CEOs speak on event
+  cards and appear on partner cards.
+- **Audio:** an Act III ambience variant; sounds for awards, votes and launches.
+
+### UI
+- **Charter** panel (tabs: Overview · Contracts · Missions · Partners · World) and **Council** panel (Agenda · Blocs &
+  factions). Team panel gains the **Charter desk**. Top bar gains the treasury and Legitimacy in Act III.
+- Site inspector for the Charter HQ, megaproject and launch sites. **Threshold tracker** for the finale.
+- Act III goal tracker and Goals panel, the Solarpunk Bloom title card, the Act III complete screen.
+- `data-tut` targets on everything the briefings point at; phone layout and keyboard shortcuts.
+
+### Entry and onboarding
+- A finished Act II save rolls into Act III after the Act II complete screen (v0.3 saves in the post-IPO sandbox too).
+- **New Company → "Start at Act III"**: a ready-made public company in early 2035 (gigawatt campus, ~1.5 GW of IT,
+  its own clean power, Bit-4, ~$25B, Act II techs) with Charter Standing 2.
+- **Briefings** for the Charter, contracts, the Council, the blind trust, missions, the World screen, the safety regime,
+  Kip and the Charter desk. **About 14 new Field Guide entries** (consortia, procurement, conflicts of interest,
+  megaprojects, supergrids, the carbon budget, energy access, compute governance, frontier evals, open weights, launch
+  economics, space solar, orbital data centres, fusion).
+
+### Under the hood
+- **New sim modules:** `charter.ts` (treasury, partners, contracts, missions, access, desk jobs), `world.ts` (world energy,
+  clean share, carbon budget), `council.ts` (resolutions, sessions, votes, factions, walkouts, the rival project),
+  `frontier.ts` (world safety margin, caps, licensing, open weights), `trustee.ts` (blind trust), `act3.ts` (founding,
+  phases, the preset), `threshold.ts` (finale, renewal). The sim stays pure and runs in Node.
+- **State:** `charter` (phase, treasury and ledger, Legitimacy, capital, partners, tenders, projects, missions, access,
+  desk jobs, blind trust), `world` (TW, growth, blocs, carbon), `council` (resolutions, agenda, next session, factions,
+  walkouts), `frontierRegime` (alignment, caps, licences). **SAVE_VERSION 4** with a migration.
+- **Content first:** partners, contract kinds, megaprojects, HVDC routes, launch sites, missions, resolutions, factions,
+  techs, events (`events3.ts`), objectives, briefings and Field Guide entries are all data.
+- **Tests:** an Act III bot from the "Start at Act III" preset to the renewal vote (no stalls, no NaNs, within the
+  deadline); the Act I and Act II bots unchanged; determinism; migrating a v3 save; routing for the new sites.
+
+### Build order (inside the one release)
+1. SPEC, types, content and view helpers (the contract the art agents code against).
+2. Two background art agents with disjoint files: dioramas (`render/diorama/*`) and map + portraits + icons
+   (`render/worldMap/*`, `render/sprites/*`, `ui/icons.ts`).
+3. Sim: act framework and preset, treasury, partners and contracts, missions, world energy, council, frontier, trustee,
+   desk jobs, finale and renewal.
+4. Events and arcs, objectives, techs.
+5. UI: panels, top bar, inspector, tracker, modals, New Company, briefings, Field Guide.
+6. Tests and the Act III bot; browser QA (desktop and phone); docs; release v0.4.0.

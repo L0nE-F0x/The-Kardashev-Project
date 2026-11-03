@@ -394,6 +394,206 @@ export interface FinaleState {
   standing?: number;
 }
 
+// ── Act III: the Charter ────────────────────────────────────────────────────────────────────
+/** What a Charter contract builds. */
+export type ContractKind =
+  | 'solar' | 'wind' | 'nuclear' | 'hydro' | 'geo'
+  | 'hvdc'
+  | 'fab' | 'hbm' | 'pkg' | 'euv'
+  | 'compute' | 'cable'
+  | 'evals' | 'interp'
+  | 'launch' | 'orbital' | 'spacesolar'
+  | 'fusion';
+
+/** S / M / L. */
+export type ContractSize = 1 | 2 | 3;
+
+/** A partner's offer on a tender. `partner` is a partner id, or 'you' for your own company. */
+export interface Bid {
+  partner: string;
+  /** The Charter's share the partner asks for ($). */
+  price: number;
+  /** Promised build time (days). */
+  days: number;
+  pitch: string;
+}
+
+/** A contract you posted that partners are bidding on. */
+export interface Tender {
+  id: string;
+  kind: ContractKind;
+  size: ContractSize;
+  /** Where it is built: a megaproject or launch site id, a region id, an HVDC route id, or 'global'. */
+  where: string;
+  region: RegionId;
+  /** Total project value (partners and private capital raise everything above the Charter's share). */
+  value: number;
+  postedDay: number;
+  closesDay: number;
+  bids: Bid[];
+  /** Partners still working on a bid, and the day it arrives. */
+  pending: { partner: string; day: number }[];
+}
+
+/** An awarded contract being built (or finished). */
+export interface Project {
+  id: string;
+  kind: ContractKind;
+  size: ContractSize;
+  where: string;
+  region: RegionId;
+  /** Partner id, or 'you'. */
+  builder: string;
+  value: number;
+  /** The Charter's share as agreed (grows with overruns). */
+  price: number;
+  paid: number;
+  /** Payments that fell due but the treasury couldn't cover. */
+  arrears: number;
+  startDay: number;
+  /** Days of work needed (grows with delays). */
+  days: number;
+  /** Days the builder promised (for lateness and damages). */
+  promised: number;
+  /** Days of work done. */
+  progress: number;
+  status: 'building' | 'done' | 'cancelled';
+  doneDay?: number;
+  troubles: number;
+  /** Damages already claimed on this project. */
+  claimed?: boolean;
+  /** Energy projects: average GW delivered once online. */
+  gw?: number;
+}
+
+export interface PartnerState {
+  /** Relationship with the Charter (0..100). */
+  rel: number;
+  won: number;
+  done: number;
+  /** Times this partner was the cheapest bid and lost (it remembers). */
+  snubs: number;
+}
+
+export interface CharterLedger {
+  dues: number;
+  /** Donations, levies, refunds. */
+  income: number;
+  payments: number;
+  programmes: number;
+  favours: number;
+  other: number;
+}
+
+export interface CharterMonth extends CharterLedger {
+  label: string;
+  budgetEnd: number;
+}
+
+export type FactionId = 'atlantic' | 'eastern' | 'nonaligned';
+
+export interface CouncilState {
+  /** Resolutions in force. */
+  passed: string[];
+  /** Tabled for the next session. */
+  agenda: string[];
+  nextSession: number;
+  sessions: number;
+  /** Vote boosts bought for the next session (whips, favours), per bloc. */
+  sway: Partial<Record<RegionId, number>>;
+  factions: Record<FactionId, { tension: number }>;
+  /** Blocs that walked out: since when, and the concession that brings them back. */
+  walkouts: Partial<Record<RegionId, { since: number; demand: string }>>;
+  /** Blocs paying late (arrears, $). */
+  late: Partial<Record<RegionId, number>>;
+  /** The rival Concord Initiative, if it formed. */
+  concord: { formed: number; members: RegionId[] } | null;
+  history: { day: number; id: string; passed: boolean; yes: number; no: number }[];
+}
+
+export interface WorldBloc {
+  /** Average power used (TW), Charter projects excluded. */
+  tw: number;
+  /** Clean fraction of it. */
+  clean: number;
+}
+
+export interface WorldState {
+  /** Baseline world power (TW avg) without Charter projects or your own plants. */
+  tw: number;
+  /** Current annual growth rate of the baseline. */
+  growth: number;
+  /** Charter clean energy online (TW average). */
+  charterTW: number;
+  blocs: Record<RegionId, WorldBloc>;
+  /** What is left of the 2 °C carbon budget (Gt CO₂). */
+  carbonGt: number;
+  /** Emissions this year (Gt CO₂ / yr). */
+  co2Gt: number;
+  /** Clean share of newly built energy worldwide. */
+  newClean: number;
+}
+
+export interface FrontierRegime {
+  /** World alignment: how well the field as a whole can check its strongest models. */
+  alignment: number;
+  /** Days in a row the world safety margin has been ≥ 0. */
+  marginDays: number;
+  /** Your own training licence above the cap: the generation it covers and when it is ready. */
+  ownLicence: { gen: number; readyDay: number } | null;
+  incidents: number;
+  lastIncident: number;
+}
+
+export type ThresholdFront = 'grid' | 'frontier' | 'council';
+
+export interface ThresholdState {
+  startDay: number;
+  endDay: number;
+  fronts: Record<ThresholdFront, { pressure: number; lost: boolean }>;
+  /** The lab whose model nears the threshold. */
+  lab: string;
+  /** The faction that walks out. */
+  faction: FactionId;
+  done: boolean;
+  /** Fronts held at the end (0..3) — the Planetary Mandate. */
+  held?: number;
+}
+
+export interface CharterState {
+  /** 1 Founding · 2 Build-Out · 3 Frontier · 4 Threshold · 5 Renewal · 6 done. */
+  phase: number;
+  founded: number;
+  budget: number;
+  month: CharterLedger;
+  monthKey: number;
+  history: CharterMonth[];
+  /** Dues level: 0.7 low, 1 standard, 1.4 high (resolutions move it). */
+  dues: number;
+  legitimacy: number;
+  /** Political capital: the Council currency. */
+  capital: number;
+  /** Charter Standing carried over from the Crunch (0..3). */
+  standing: number;
+  partners: Record<string, PartnerState>;
+  tenders: Tender[];
+  projects: Project[];
+  /** Mission id → day completed. */
+  missions: Record<string, number>;
+  /** Compute access per bloc (0..100). */
+  access: Record<RegionId, number>;
+  blindTrust: boolean;
+  /** Day the blind trust started or ended (cooldowns). */
+  trustDay: number;
+  /** Charter desk jobs (delegation). */
+  desk: Partial<Record<AdvisorId, Job>>;
+  world: WorldState;
+  council: CouncilState;
+  regime: FrontierRegime;
+  threshold: ThresholdState | null;
+  renewal: { day: number; yes: number; no: number; outcome: 'planetary' | 'limited' | 'caretaker' } | null;
+}
+
 export interface ScheduledEvent {
   id: string;
   day: number;
@@ -455,6 +655,8 @@ export interface GameMeta {
   briefings?: string[];
   /** Started from the "Start at Act II" preset. */
   act2Start?: boolean;
+  /** Started from the "Start at Act III" preset. */
+  act3Start?: boolean;
 }
 
 export interface GameState {
@@ -497,7 +699,7 @@ export interface GameState {
   nextId: number;
   savedAt?: number;
   // ── Act II ─────────────────────────────────────────────────────────────────────────────
-  /** 1 = The Garage, 2 = The Scale-Up. */
+  /** 1 = The Garage, 2 = The Scale-Up, 3 = The Charter. */
   act: number;
   /** Act II phase: 1 Gigawatts · 2 The Stack · 3 The Race · 4 The Crunch · 5 done. */
   phase: number;
@@ -512,4 +714,7 @@ export interface GameState {
   startups: { offers: StartupOffer[]; bought: string[]; nextOffer: number };
   jobs: Partial<Record<AdvisorId, Job>>;
   finale: FinaleState | null;
+  // ── Act III ────────────────────────────────────────────────────────────────────────────
+  /** The Kardashev Project (null until Act III begins). */
+  charter: CharterState | null;
 }

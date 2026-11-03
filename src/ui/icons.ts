@@ -79,6 +79,27 @@ const ICONS = {
   copper: [g('.........', '.........', '..aaaaa..', '.abccbba.', 'abbbbbbba', 'abbbbbbba', 'aaaaaaaaa', '.........', '.........'), { a: 'red1', b: 'org0', c: 'org2' }],
   helium: [g('..aaaa...', '.abbbba..', 'abcbbbba.', 'abbbbbba.', 'abbbbbba.', '.abbbba..', '..abba...', '...aa....', '....d....'), { a: 'blu2', b: 'sky4', c: 'white', d: 'ink7' }],
   neon: [g('.........', '.a....a..', 'aba..aba.', 'abba.aba.', 'ababaaba.', 'aba.abba.', 'aba..aba.', '.a....a..', '.........'), { a: 'pnk0', b: 'white' }],
+  // ── Act III (placeholders — redrawn by the art pass) ──
+  charter: [g('...aaa...', '.aabbbaa.', '.abcbcba.', 'abbbcbbba', 'abcccccba', 'abbbcbbba', '.abcbcba.', '.aabbbaa.', '...aaa...'), { a: 'snd3', b: 'yel0', c: 'sea6' }],
+  council: [g('....a....', '...aba...', '..abbba..', '.aaaaaaa.', '.a.a.a.a.', '.a.a.a.a.', '.a.a.a.a.', 'aaaaaaaaa', 'abbbbbbba'), { a: 'ink8', b: 'yel0' }],
+  mission: [g('....a....', '...aba...', '...aba...', '..abcba..', '..abcba..', '.abbcbba.', '.abbbbba.', 'aa.a.a.aa', '...ddd...'), { a: 'ink8', b: 'blu4', c: 'sky4', d: 'org1' }],
+  partner: [g('.aa...aa.', 'abba.abba', 'abba.abba', '.aa...aa.', '.........', 'aaaa.aaaa', 'abbbabbba', 'abbbabbba', 'aaaa.aaaa'), { a: 'ink6', b: 'cyn4' }],
+  world: [g('...aaa...', '.aabbcaa.', '.abccbba.', 'abbcbbcba', 'acccbbbba', 'abbbbccba', '.abbbcca.', '.aabbbaa.', '...aaa...'), { a: 'sea2', b: 'sea6', c: 'grn6' }],
+  legit: [g('aaaaaaaaa', 'abbbbbbba', 'abccbccba', 'abbbbbbba', 'abccccbba', 'abbbbbbba', '.abbbbba.', '..abbba..', '...aaa...'), { a: 'snd3', b: 'yel1', c: 'snd4' }],
+  capital: [g('.........', '...aaa...', '..abbba..', '.abbcbba.', '.abcccba.', '.abbcbba.', '..abbba..', '...aaa...', '.........'), { a: 'vio1', b: 'vio4', c: 'yel0' }],
+  access: [g('....a....', '...aaa...', '..a.a.a..', '....a....', '.a..a..a.', 'aaa.a.aaa', '.a..a..a.', '...aaa...', '..aaaaa..'), { a: 'cyn4' }],
+  vote: [g('.........', '.aaaaaaa.', '.abbbbba.', '.abcbcba.', '.abbbbba.', 'aaaaaaaaa', 'addddddda', 'addddddda', 'aaaaaaaaa'), { a: 'ink7', b: 'white', c: 'grn6', d: 'blu3' }],
+  hvdc: [g('a.......a', 'aa.....aa', '.aa...aa.', '..abbba..', '..bcccb..', '..abbba..', '.aa...aa.', 'aa.....aa', 'a.......a'), { a: 'ink6', b: 'org1', c: 'yel1' }],
+  launch: [g('....a....', '...aba...', '...aba...', '...aba...', '..abbba..', '..abbba..', '.aa.a.aa.', '...cdc...', '....c....'), { a: 'ink8', b: 'white', c: 'org1', d: 'yel0' }],
+  satellite: [g('.........', 'aa.....aa', 'aab...baa', 'aa.bbb.aa', '...bcb...', 'aa.bbb.aa', 'aab...baa', 'aa.....aa', '.........'), { a: 'blu4', b: 'ink8', c: 'cyn5' }],
+  fusion: [g('...aaa...', '.aa...aa.', 'a..bbb..a', 'a.bcccb.a', 'a.bcdcb.a', 'a.bcccb.a', 'a..bbb..a', '.aa...aa.', '...aaa...'), { a: 'vio3', b: 'pnk0', c: 'yel1', d: 'white' }],
+  lock: [g('...aaa...', '..a...a..', '..a...a..', '.aaaaaaa.', '.abbbbba.', '.abbcbba.', '.abbcbba.', '.abbbbba.', '.aaaaaaa.'), { a: 'ink7', b: 'snd5', c: 'snd2' }],
+  threshold: [g('....a....', '...aba...', '...aba...', '..abcba..', '..abcba..', '.abbcbba.', '.abbbbba.', 'abbbcbbba', 'aaaaaaaaa'), { a: 'red2', b: 'org1', c: 'yel1' }],
+  mega: [g('.........', '.a.a.a.a.', 'aaaaaaaaa', 'abababab.', 'aaaaaaaaa', 'abababab.', 'aaaaaaaaa', '.c.c.c.c.', 'ccccccccc'), { a: 'blu2', b: 'sky4', c: 'snd4' }],
+  evals: [g('.aaaaaaa.', 'abbbbbbba', 'ab.....ba', 'ab.c.c.ba', 'ab..c..ba', 'ab.c.c.ba', 'ab.....ba', 'abbbbbbba', '.aaaaaaa.'), { a: 'blu1', b: 'blu4', c: 'grn6' }],
+  tender: [g('aaaaaa...', 'abbbbaa..', 'abccbaba.', 'abbbbaaaa', 'abccccbba', 'abbbbbbba', 'abccccbba', 'abbbbbbba', 'aaaaaaaaa'), { a: 'ink6', b: 'ink9', c: 'ink5' }],
+  desk: [g('.........', '..aaaaa..', '..abbba..', '..aaaaa..', 'aaaaaaaaa', 'acccccccc', 'a.c...c.c', 'a.c...c.c', '..c...c..'), { a: 'ink7', b: 'cyn4', c: 'snd3' }],
+  faction: [g('a........', 'abbbb....', 'abbbbcc..', 'abbbbccc.', 'a...ccccc', 'a........', 'a........', 'a........', 'aa.......'), { a: 'ink8', b: 'blu4', c: 'red3' }],
 } satisfies Record<string, Grid>;
 
 export type IconName = keyof typeof ICONS;

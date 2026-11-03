@@ -8,7 +8,7 @@ import { monthKey, randInt } from './core';
 import { emptyLedger } from './economy';
 import { kardashev, worldBaselineTW } from './model';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface NewGameOptions {
   name: string;
@@ -50,6 +50,8 @@ export function ensureAct2State(s: GameState): GameState {
   s.startups ??= { offers: [], bought: [], nextOffer: 0 };
   s.jobs ??= {};
   s.finale ??= null;
+  // Act III (created when the act begins)
+  s.charter ??= null;
   s.finance.month.debt ??= 0;
   for (const h of s.finance.history) h.debt ??= 0;
   s.talent ??= Object.fromEntries(REGION_IDS.map((r) => [r, 1])) as GameState['talent'];

@@ -142,6 +142,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 ## Known gaps / next (see SPEC §12, §16, §17)
 
-Acts III–V (the Charter role pivot, companies bidding on contracts, fusion, orbit), Kip's space arc, Act II balance
-from real playtests (the bot is a weak player; the mid-2034 deadline always ends the act), the real theme song,
-code signing (Windows/macOS), a feedback form (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
+**Next: Act III, The Charter** (SPEC §12 M3; Act II's hooks for it are at the end of SPEC §17). Then Acts IV–V
+(fusion, orbit, Type I), Kip's space arc, the real theme song, code signing (Windows/macOS), a feedback form (deferred
+until marketing), Electron/Steam wrapper if the game goes to Steam.
+
+**Balance is deliberately deferred** to a pre-launch beta (full playthrough + beta testers, then a rebalancing pass
+across all acts). Until then, balance bots are guard rails only: every act must be completable with no stalls or NaNs,
+and Act I must stay unchanged. Don't spend milestone time tuning numbers.

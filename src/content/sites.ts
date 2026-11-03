@@ -1,5 +1,5 @@
 import type { RegionId } from './mapcodes';
-import type { SupplierId } from '../sim/types';
+import type { ContractKind, SupplierId } from '../sim/types';
 
 export type Backdrop = 'desert' | 'coast' | 'temperate' | 'boreal' | 'plains' | 'tropical' | 'mountain' | 'volcanic' | 'savanna';
 
@@ -9,7 +9,8 @@ export interface SiteDef {
   region: RegionId;
   lat: number;
   lon: number;
-  kind: 'build' | 'supplier' | 'cloud' | 'landing' | 'mine';
+  /** Act III adds the Charter HQ, megaproject sites and launch-complex candidates (all view-only). */
+  kind: 'build' | 'supplier' | 'cloud' | 'landing' | 'mine' | 'charter' | 'mega' | 'launch';
   blurb: string;
   backdrop: Backdrop;
   /** Seaport used for deliveries, [lat, lon] (must sit on the world ocean). */
@@ -45,6 +46,11 @@ export interface SiteDef {
   /** Act needed before the site appears (megasites, restart sites). */
   act?: number;
   phase?: number;
+  // ── Act III ──
+  /** Megaproject sites: the energy contract kinds that can be built here. */
+  mega?: ContractKind[];
+  /** Charter phase needed before the site appears (Act III). */
+  cphase?: number;
 }
 
 const build = (d: Omit<SiteDef, 'kind'>): SiteDef => ({ ...d, kind: 'build' });
@@ -57,6 +63,18 @@ const mine = (id: string, name: string, region: RegionId, lat: number, lon: numb
   id, name, region, lat, lon, port, kind: 'mine', act: 2, backdrop, blurb,
   solarCF: 0, windCF: 0, water: 0, climateC: 20, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
 });
+
+const megaSite = (id: string, name: string, region: RegionId, lat: number, lon: number, port: [number, number], backdrop: Backdrop, kinds: ContractKind[], blurb: string, solarCF = 0.25, windCF = 0.3): SiteDef => ({
+  id, name, region, lat, lon, port, kind: 'mega', act: 3, backdrop, blurb, mega: kinds,
+  solarCF, windCF, water: 0.3, climateC: 18, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
+});
+const launchSite = (id: string, name: string, region: RegionId, lat: number, lon: number, port: [number, number], backdrop: Backdrop, blurb: string): SiteDef => ({
+  id, name, region, lat, lon, port, kind: 'launch', act: 3, cphase: 2, backdrop, blurb,
+  solarCF: 0, windCF: 0, water: 0.5, climateC: 20, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
+});
+
+/** The Charter's headquarters (Act III). */
+export const CHARTER_HQ = 'charter-hq';
 
 export const SITES: SiteDef[] = [
   // ── Pacific Coast ───────────────────────────────────────────────────────────────────────
@@ -150,17 +168,46 @@ export const SITES: SiteDef[] = [
   mine('mine-copperbelt', 'Deepvein Minerals · Copperbelt', 'ssa', -12.5, 27.85, [-6.8, 39.6], 'savanna', 'Copper and cobalt from some of the richest ore bodies on Earth.'),
   mine('mine-helium', 'Ras Laffan Helium', 'mena', 25.9, 51.55, [26.2, 52.2], 'desert', 'Helium stripped from natural gas — a third of the world’s supply, one coastline.'),
   mine('mine-neon', 'Clearair Gases · Tangshan', 'eam', 39.6, 118.2, [38.9, 118.2], 'temperate', 'Neon purified from steel-mill air separation units. Lasers in every fab depend on it.'),
+
+  // ── Act III: the Charter's headquarters ─────────────────────────────────────────────────
+  {
+    id: CHARTER_HQ, name: 'Charter HQ · Geneva', region: 'eur', lat: 46.2, lon: 6.15, kind: 'charter', act: 3, backdrop: 'mountain', port: [42.9, 4.8],
+    blurb: 'Where the Kardashev Project meets: a Council hall for twelve blocs, a secretariat and a lakeside plaza under the Alps.',
+    solarCF: 0, windCF: 0, water: 1, climateC: 11, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
+  },
+  // ── Act III: megaproject sites (one per bloc) ───────────────────────────────────────────
+  megaSite('mega-cascadia', 'Cascadia Geothermal', 'pac', 43.7, -121.3, [46.2, -124.6], 'volcanic', ['geo', 'solar'], 'Hot dry rock under the high desert east of the Cascades: enhanced geothermal on a regional scale.', 0.24, 0.25),
+  megaSite('mega-plains', 'Great Plains Wind', 'atl', 38.5, -99.5, [28.8, -94.6], 'plains', ['wind', 'nuclear', 'solar'], 'The windiest farmland on the continent, with room for a reactor fleet on the rivers.', 0.22, 0.45),
+  megaSite('mega-patagonia', 'Patagonian Wind', 'lat', -50.3, -70.8, [-51.7, -68.5], 'plains', ['wind', 'hydro'], 'Roaring-forties wind over empty steppe, and glacial rivers for storage.', 0.15, 0.55),
+  megaSite('mega-northsea', 'North Sea Wind', 'eur', 55.0, 3.5, [55.0, 3.5], 'coast', ['wind'], 'Shallow banks in the middle of the North Sea: the world’s great offshore wind field.', 0.1, 0.5),
+  megaSite('mega-nordic', 'Nordic Hydro Battery', 'nor', 64.3, 13.8, [63.6, 8.0], 'mountain', ['hydro', 'wind'], 'Mountain reservoirs turned into a continental battery: pump uphill when it is windy, generate when it isn’t.', 0.08, 0.33),
+  megaSite('mega-siberia', 'Yenisei Power', 'stp', 60.0, 92.0, [42.6, 132.0], 'boreal', ['hydro', 'nuclear', 'wind'], 'The Yenisei carries more water than almost any river on Earth — and the taiga has room for reactors.', 0.1, 0.28),
+  megaSite('mega-sahara', 'Sahara Solar Belt', 'mena', 27.5, 8.5, [37.2, 8.0], 'desert', ['solar'], 'A belt of panels and storage across the deep Sahara, wired north to Europe and south to the Sahel.', 0.32, 0.25),
+  megaSite('mega-kalahari', 'Kalahari Sun', 'ssa', -22.5, 22.5, [-23.0, 13.9], 'desert', ['solar'], 'Red sand, clear skies and a continent that needs the power more than anywhere.', 0.31, 0.22),
+  megaSite('mega-deccan', 'Deccan Solar Arc', 'sas', 18.0, 76.5, [18.9, 72.3], 'plains', ['solar', 'wind', 'nuclear'], 'A crescent of solar parks across the Deccan plateau, feeding a billion people’s evening peak.', 0.25, 0.3),
+  megaSite('mega-gobi', 'Gobi Wind & Storage', 'eam', 43.0, 95.5, [38.9, 118.2], 'desert', ['wind', 'solar'], 'Wind and sun at the edge of the Gobi, with storage halls the size of towns.', 0.28, 0.38),
+  megaSite('mega-pacific', 'Pacific Reactor Fleet', 'fab', 35.8, 136.2, [36.0, 135.6], 'coast', ['nuclear', 'wind'], 'Reactor parks along the Sea of Japan coast, built to a single certified design.', 0.13, 0.3),
+  megaSite('mega-outback', 'Outback Sun', 'seo', -26.5, 124.5, [-32.0, 115.3], 'desert', ['solar', 'wind'], 'The Great Victoria Desert: sun, space and a cable’s length from Asia.', 0.31, 0.3),
+  // ── Act III: launch-complex candidates (Kip) ────────────────────────────────────────────
+  launchSite('launch-guiana', 'Guiana Space Coast', 'eur', 5.2, -52.8, [5.6, -52.3], 'tropical', 'Five degrees from the equator, where the planet’s spin gives every rocket a free push.'),
+  launchSite('launch-gulf', 'Gulf Coast Spaceport', 'atl', 26.6, -97.6, [27.0, -96.6], 'coast', 'Tidal flats, a heavy-lift factory next door and the whole Gulf of Mexico as a range.'),
+  launchSite('launch-malindi', 'Malindi Equatorial Pad', 'ssa', -3.0, 39.9, [-3.3, 40.6], 'savanna', 'An equatorial coast with an old range offshore and a young workforce onshore.'),
+  launchSite('launch-steppe', 'Steppe Cosmodrome', 'stp', 45.9, 63.3, [44.7, 37.9], 'plains', 'The oldest spaceport on Earth: pads, rails and seventy years of habit.'),
+  launchSite('launch-arctic', 'Arctic Polar Pad', 'nor', 69.2, 17.0, [69.6, 16.5], 'boreal', 'A fjord-side pad for polar orbits, where satellites see every inch of the Earth.'),
 ];
 
 export const SITE_BY_ID: Record<string, SiteDef> = Object.fromEntries(SITES.map((s) => [s.id, s]));
 export const BUILD_SITES = SITES.filter((s) => s.kind === 'build');
 export const LANDING_SITES = SITES.filter((s) => s.kind === 'landing');
 export const MINE_SITES = SITES.filter((s) => s.kind === 'mine');
+export const MEGA_SITES = SITES.filter((s) => s.kind === 'mega');
+export const LAUNCH_SITES = SITES.filter((s) => s.kind === 'launch');
 
-/** Whether a site exists yet in this game (Act II sites appear as the act unfolds). */
-export function siteOpen(site: SiteDef, act: number, phase: number): boolean {
+/** Whether a site exists yet in this game (Act II and III sites appear as the acts unfold). */
+export function siteOpen(site: SiteDef, act: number, phase: number, cphase = 0): boolean {
   if ((site.act ?? 1) > act) return false;
   if (site.phase && act === 2 && phase < site.phase) return false;
+  if (site.cphase && act >= 3 && cphase < site.cphase) return false;
   return true;
 }
 export const HOME_SITES = SITES.filter((s) => s.home);
