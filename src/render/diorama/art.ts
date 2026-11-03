@@ -13,6 +13,7 @@ import { drawText, measureText } from '../font';
 import { crawlerCrane, facadeShade, revealFrom, scaffold, towerCrane, transformerYard, windowGrid } from './draw';
 import { campus, fab, geothermal, hydro, packaging, reactor, restart, smr } from './plants';
 import { clampTier, facilitySize, type ArtType } from './sizes';
+import type { LaunchSpec } from './launch';
 
 export { facilitySize, maxTier, type ArtType } from './sizes';
 
@@ -22,7 +23,8 @@ export { facadeShade } from './draw';
 export interface Emitter {
   x: number;
   y: number;
-  kind: 'smoke' | 'steam' | 'vapor' | 'mist';
+  /** 'exhaust' is a rocket's plume: big, slow, long-lived puffs. */
+  kind: 'smoke' | 'steam' | 'vapor' | 'mist' | 'exhaust';
   /** Particles per second. */
   rate: number;
   /** Horizontal spread of spawn positions (px). */
@@ -50,6 +52,8 @@ export interface RotorSpec {
   y: number;
   size: number;
   col: number;
+  /** 'big': tapered blades in finer steps that turn slower (the giant turbines of Act III). */
+  style?: 'big';
 }
 
 export interface FacilityArt {
@@ -62,6 +66,10 @@ export interface FacilityArt {
   rotors?: RotorSpec[];
   /** Animation speed in frames per second (0 = static). */
   fps?: number;
+  /** Frames advance in step with every other synced sprite (aviation lights blink together). */
+  sync?: boolean;
+  /** A rocket standing on this pad (Act III launch complex); the scene animates the launch. */
+  launch?: LaunchSpec;
 }
 
 // ── data center ────────────────────────────────────────────────────────────────────────────
@@ -340,6 +348,50 @@ export function rotorFrames(size: number, col: number): PixelCanvas[] {
       pc.line(c + Math.cos(a + 0.12) * 2, c + Math.sin(a + 0.12) * 2, c + Math.cos(a) * size * 0.55, c + Math.sin(a) * size * 0.55, col);
     }
     pc.rect(c - 1, c - 1, 3, 3, C.ink7);
+    frames.push(pc);
+  }
+  return frames;
+}
+
+/**
+ * Rotor frames for a giant turbine: tapered blades (thick at the root, a lit leading edge) in
+ * 16 steps over 120°, so long blades turn smoothly — and, at the same frame rate, half as fast.
+ */
+const bigRotors = new Map<string, PixelCanvas[]>();
+
+export function bigRotorFrames(size: number, col: number): PixelCanvas[] {
+  const key = `${size}|${col}`;
+  const hit = bigRotors.get(key);
+  if (hit) return hit;
+  const frames: PixelCanvas[] = [];
+  bigRotors.set(key, frames);
+  const S = size * 2 + 3;
+  const c = size + 1;
+  const shade = col === C.white ? C.ink8 : C.ink7;
+  for (let f = 0; f < 16; f++) {
+    const pc = new PixelCanvas(S, S);
+    for (let b = 0; b < 3; b++) {
+      const a = ((f / 16) * 120 + b * 120 - 90) * (Math.PI / 180);
+      const dx = Math.cos(a);
+      const dy = Math.sin(a);
+      // trailing-edge side of the blade (perpendicular, clockwise)
+      const px = -dy;
+      const py = dx;
+      const n = Math.ceil(size * 1.5);
+      for (let i = 2; i <= n; i++) {
+        const t = i / n;
+        const x = c + dx * t * size;
+        const y = c + dy * t * size;
+        pc.set(Math.round(x), Math.round(y), col);
+        // a chord near the root that tapers toward the tip
+        if (t < 0.55) pc.set(Math.round(x + px * 0.9), Math.round(y + py * 0.9), t < 0.3 ? col : shade);
+        if (t < 0.25 && size >= 20) pc.set(Math.round(x + px * 1.8), Math.round(y + py * 1.8), shade);
+      }
+    }
+    // hub and spinner
+    pc.rect(c - 1, c - 1, 3, 3, col);
+    pc.set(c + 1, c + 1, shade);
+    pc.set(c, c, C.ink7);
     frames.push(pc);
   }
   return frames;
@@ -1126,8 +1178,12 @@ export function backlot(w: number, h: number, seed: number, density: number): { 
   return { base: pc, glow: g };
 }
 
-/** Ground strip with a road. With `beachFrom`, the land gives way to sand and surf. */
-export function groundStrip(b: Backdrop, w: number, h: number, opts: { beachFrom?: number; cableX?: number } = {}): PixelCanvas {
+/**
+ * Ground strip with a road. With `beachFrom`, the land gives way to sand and surf; with
+ * `lakeFrom` (Geneva), the promenade ends at a stone quay and the lake begins.
+ */
+export function groundStrip(b: Backdrop, w: number, h: number, opts: { beachFrom?: number; cableX?: number; lakeFrom?: number } = {}): PixelCanvas {
+  if (opts.lakeFrom !== undefined) return lakeShore(groundStrip(b, w, h, { cableX: opts.cableX }), opts.lakeFrom);
   const bio = BIOMES[b];
   const pc = new PixelCanvas(w, h);
   const roadY = 14;
@@ -1176,16 +1232,54 @@ export function groundStrip(b: Backdrop, w: number, h: number, opts: { beachFrom
   return pc;
 }
 
-/** Foreground lip (darker grass / fence) for depth. */
-export function foreground(b: Backdrop, w: number, h: number): PixelCanvas {
+/** The Geneva waterfront: a paved promenade, a stone quay and the lake (over a ground strip). */
+function lakeShore(pc: PixelCanvas, from: number): PixelCanvas {
+  const { w, h } = pc;
+  const roadY = 14;
+  for (let y = 0; y < h; y++) {
+    for (let x = Math.max(0, from - 60); x < w; x++) {
+      if (x >= from) {
+        // the lake: light near the quay, ripples, the odd glint
+        const t = y / h;
+        let c = t < 0.12 ? C.sea6 : ditherAt(x, y, t * 1.3) ? C.sea4 : C.sea5;
+        if ((x * 3 + y * 17 + Math.floor(hash2(y, 3, 5) * 50)) % 29 < 3) c = t < 0.5 ? C.sea7 : C.sea6;
+        if (hash2(x, y, 41) < 0.01) c = C.foam;
+        // the quay wall's reflection right under it
+        if (x - from < 3 && y > 1) c = C.sea4;
+        pc.set(x, y, c);
+      } else if (x >= from - 3) {
+        pc.set(x, y, x === from - 1 ? C.ink6 : y % 3 === 0 ? C.ink7 : C.ink8);
+      } else if (y < roadY || y >= roadY + 7) {
+        // promenade paving in front of the plaza
+        pc.set(x, y, y < 2 ? C.ink9 : (x >> 2) % 2 === ((y >> 1) & 1) ? C.ink8 : C.ink7);
+      }
+    }
+  }
+  // the road ends in a row of bollards before the quay
+  for (let y = roadY; y < roadY + 7; y++) for (let x = from - 10; x < from - 3; x++) pc.set(x, y, (x >> 2) % 2 === ((y >> 1) & 1) ? C.ink8 : C.ink7);
+  for (let k = 0; k < 3; k++) {
+    pc.vline(from - 12 + k * 3, roadY + 1, 3, C.ink5);
+    pc.set(from - 12 + k * 3, roadY, C.ink8);
+  }
+  return pc;
+}
+
+/** Foreground lip (darker grass / fence) for depth. With `lakeFrom`, deep water from there on. */
+export function foreground(b: Backdrop, w: number, h: number, opts: { lakeFrom?: number } = {}): PixelCanvas {
   const bio = BIOMES[b];
   const pc = new PixelCanvas(w, h);
+  const lake = opts.lakeFrom ?? Infinity;
   for (let x = 0; x < w; x++) {
     const top = Math.round(3 + (fbm(x / 13, 77) - 0.5) * 4);
+    if (x >= lake) {
+      const wt = Math.round(5 + Math.sin(x / 7) * 1.2);
+      for (let y = wt; y < h; y++) pc.set(x, y, y === wt ? C.sea5 : y - wt < 2 ? C.sea3 : C.sea2);
+      continue;
+    }
     for (let y = top; y < h; y++) pc.set(x, y, y - top < 1 ? bio.ground[0] : C.ink1);
     if (hash2(x, 1, 61) < 0.25) pc.set(x, top - 1, bio.ground[0]);
   }
-  for (let x = 6; x < w; x += 23) {
+  for (let x = 6; x < Math.min(w, lake - 2); x += 23) {
     pc.vline(x, 0, h, C.snd2);
     pc.set(x, 0, C.snd3);
   }

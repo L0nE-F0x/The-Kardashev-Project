@@ -8,10 +8,13 @@ import { bayer, hash2, PixelCanvas } from '../pixels';
 import { cachedTexture, releaseTexture, textureOf } from '../textures';
 import { pixelTexture } from '../sprites/mapIcons';
 import { subsolar, sunAltitude, localSolarHour } from '../../world/sun';
-import { backlot, emptyPlotArt, farRidge, foreground, groundStrip, midBand, personFrames, rotorFrames, surfFrames, truckArt, truckVariant, type Emitter, type Mover } from './art';
+import { bigRotorFrames, emptyPlotArt, personFrames, rotorFrames, surfFrames, truckArt, truckVariant, type Emitter, type Mover, type RotorSpec } from './art';
 import { bloomOf, puffArt } from './draw';
 import { bands, campusLayout, itemTop, PARALLAX, type CampusLayout, type LayoutItem } from './layout';
 import { bucket, itemArt } from './campusArt';
+import { act3Key } from './act3Pieces';
+import { sceneBands, type BandProp, type SceneBands } from './scenery';
+import { launchFlash, rocketPose, type LaunchSpec } from './launch';
 
 interface Plot {
   item: LayoutItem;
@@ -31,8 +34,37 @@ interface Plot {
   emitters: { e: Emitter; timer: number }[];
   points: Record<string, [number, number]>;
   fps: number;
+  /** Frames advance in step with other synced plots (no per-plot offset). */
+  sync: boolean;
   /** Running (not a construction site). */
   live: boolean;
+  /** A rocket on its pad (launch complex). */
+  rocket?: Rocket;
+  /** Textures baked for this plot only (released when it goes). */
+  own: Texture[];
+}
+
+interface Rocket {
+  spec: LaunchSpec;
+  sprite: Sprite;
+  glow: Sprite;
+  bloom: Sprite;
+  frames: Texture[];
+  glowFrames: Texture[];
+  bloomFrames: Texture[];
+  /** The flame lighting up the pad and its cloud at night (additive). */
+  flash: Sprite;
+  vent: number;
+  trail: number;
+}
+
+interface PropSprite {
+  prop: BandProp;
+  sprite: Sprite;
+  frames: Texture[];
+  glow?: Sprite;
+  glowFrames: Texture[];
+  x: number;
 }
 
 type PuffKind = Emitter['kind'];
@@ -48,6 +80,8 @@ interface Particle {
   max: number;
   size: number;
   r: number;
+  /** Horizontal drag (the rocket's ground cloud spreads, then slows). */
+  drag: number;
 }
 
 interface Walker {
@@ -74,6 +108,7 @@ export class DioramaScene implements Scene {
   private readonly farL = new Container();
   private readonly cloudL = new Container();
   private readonly midL = new Container();
+  private readonly midGlowL = new Container(); // lights across the lake (parallax 0.55, untinted)
   private readonly backL = new Container(); // distant skyline (parallax 0.75)
   private readonly backGlowL = new Container();
   private readonly world = new Container(); // ground, plots, actors (parallax 1)
@@ -102,6 +137,11 @@ export class DioramaScene implements Scene {
   private pool: Sprite[] = [];
   private rain: Sprite[] = [];
   private surf: { sprite: Sprite; frames: Texture[] } | null = null;
+  private seaAnim: { sprite: Sprite; frames: Texture[]; fps: number }[] = [];
+  private props: PropSprite[] = [];
+  private backRotors: { sprite: Sprite; frames: Texture[]; phase: number }[] = [];
+  private backGlow: { sprite: Sprite; bloom: Sprite; frames: Texture[]; bloomFrames: Texture[] } | null = null;
+  private bandsInfo: SceneBands | null = null;
   private clouds: { sprite: Sprite; x: number; v: number }[] = [];
   private truck: { sprite: Sprite; x: number; target: number; wait: number } | null = null;
   private skySprite = new Sprite();
@@ -134,7 +174,7 @@ export class DioramaScene implements Scene {
     private readonly siteId: string,
   ) {
     this.site = siteDef(siteId);
-    this.root.addChild(this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
+    this.root.addChild(this.skyL, this.farL, this.cloudL, this.midL, this.midGlowL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
     this.skyL.addChild(this.skySprite, this.stars, this.sun, this.moon, this.haze);
     this.world.addChild(this.groundL, this.plotL, this.actorL, this.fxL, this.fgL);
     this.bloomL.blendMode = 'add';
@@ -242,7 +282,7 @@ export class DioramaScene implements Scene {
   /** Everything that changes what the campus looks like (cheap to compute every frame). */
   private stateKey(s: GameState | null): string {
     if (!s) return 'none';
-    if (this.viewOnly) return 'view';
+    if (this.viewOnly) return `view|${act3Key(s, this.site)}`;
     const ss = s.sites[this.siteId];
     const grid = ss ? ss.grid.mw + ss.grid.pending.length : 0;
     let k = `${grid > 0}|${ss?.extraSlots ?? 0}|`;
@@ -270,6 +310,13 @@ export class DioramaScene implements Scene {
       p.bloom?.destroy();
       p.rotors.forEach((r) => r.sprite.destroy());
       p.movers.forEach((m) => m.sprite.destroy());
+      if (p.rocket) {
+        p.rocket.sprite.destroy();
+        p.rocket.glow.destroy();
+        p.rocket.bloom.destroy();
+        p.rocket.flash.destroy();
+      }
+      for (const t of p.own) releaseTexture(t);
     }
     this.plots = [];
     this.hoverPlot = null;
@@ -307,9 +354,25 @@ export class DioramaScene implements Scene {
     if (!ia) return null;
     const art = ia.art;
     const top = itemTop(item, this.groundY);
-    const frames = art.base.map((pc, i) => cachedTexture(`dio:${ia.key}:${i}`, () => pc));
-    const glowFrames = ia.building ? [] : art.glow.map((pc, i) => cachedTexture(`dio:${ia.key}:g${i}`, () => pc));
-    const bloomFrames = ia.building ? [] : art.glow.map((pc, i) => cachedTexture(`dio:${ia.key}:b${i}`, () => bloomOf(pc)));
+    const own: Texture[] = [];
+    // per-scene textures for transient pieces; identical frames share one texture
+    const bake = (pcs: PixelCanvas[], key: string, map: (pc: PixelCanvas) => PixelCanvas = (pc) => pc): Texture[] => {
+      if (!ia.transient) return pcs.map((pc, i) => cachedTexture(`dio:${ia.key}:${key}${i}`, () => map(pc)));
+      const out: Texture[] = [];
+      pcs.forEach((pc, i) => {
+        const same = pcs.findIndex((q, j) => j < i && (q === pc || sameCanvas(q, pc)));
+        if (same >= 0) out.push(out[same]);
+        else {
+          const t = textureOf(map(pc));
+          own.push(t);
+          out.push(t);
+        }
+      });
+      return out;
+    };
+    const frames = bake(art.base, '');
+    const glowFrames = ia.building ? [] : bake(art.glow, 'g');
+    const bloomFrames = ia.building ? [] : bake(art.glow, 'b', bloomCached);
     const sprite = new Sprite(frames[0]);
     sprite.position.set(item.x, top);
     this.plotL.addChild(sprite);
@@ -327,7 +390,7 @@ export class DioramaScene implements Scene {
     const rotors: Plot['rotors'] = [];
     if (live) {
       (art.rotors ?? []).forEach((r, i) => {
-        const fr = rotorFrames(r.size, r.col).map((pc, k) => cachedTexture(`dio:rotor:${r.size}:${r.col}:${k}`, () => pc));
+        const fr = rotorTextures(r);
         const sp = new Sprite(fr[0]);
         sp.position.set(item.x + r.x - r.size - 1, top + r.y - r.size - 1);
         this.plotL.addChild(sp);
@@ -351,6 +414,24 @@ export class DioramaScene implements Scene {
       });
     }
     const emitters = live ? (art.emitters ?? []).map((e) => ({ e, timer: hash2(e.x, e.y, item.x) / Math.max(0.1, e.rate) })) : [];
+    let rocket: Rocket | undefined;
+    if (live && art.launch) {
+      const L = art.launch;
+      const frames = L.frames.map((pc, k) => cachedTexture(`dio:rocket:${ia.key}:${k}`, () => pc));
+      const gf = L.glow.map((pc, k) => cachedTexture(`dio:rocket:${ia.key}:g${k}`, () => pc));
+      const bf = L.glow.map((pc, k) => cachedTexture(`dio:rocket:${ia.key}:b${k}`, () => bloomOf(pc)));
+      const rs = new Sprite(frames[0]);
+      this.plotL.addChild(rs);
+      const rg = new Sprite(gf[0]);
+      this.glowL.addChild(rg);
+      const rb = new Sprite(bf[0]);
+      this.bloomL.addChild(rb);
+      const flash = new Sprite(cachedTexture('dio:launchflash', () => launchFlash()));
+      flash.blendMode = 'add';
+      flash.visible = false;
+      this.glowL.addChild(flash);
+      rocket = { spec: L, sprite: rs, glow: rg, bloom: rb, flash, frames, glowFrames: gf, bloomFrames: bf, vent: 0, trail: 0 };
+    }
     return {
       item,
       kind: item.kind,
@@ -369,54 +450,98 @@ export class DioramaScene implements Scene {
       emitters,
       points: art.points,
       fps: art.fps ?? 0,
+      sync: !!art.sync,
       live,
+      rocket,
+      own,
     };
   }
 
-  /** Parallax bands sized to the scene. */
+  /** Parallax bands sized to the scene (see scenery.ts: the preview composites the same canvases). */
   private rebuildBands() {
     for (const t of this.ownTextures) releaseTexture(t);
     this.ownTextures = [];
     this.farL.removeChildren();
     this.midL.removeChildren();
+    this.midGlowL.removeChildren();
     this.backL.removeChildren();
     this.backGlowL.removeChildren();
     this.groundL.removeChildren();
     this.fgL.removeChildren();
     const L = this.layout!;
     const b = bands(this.vw, this.vh, this.sceneW);
-    const seed = Math.floor(hash2(this.site.lat * 10, this.site.lon * 10, 3) * 1000);
-    const far = textureOf(farRidge(this.site.backdrop, b.farW, b.farH, seed));
-    const mid = textureOf(midBand(this.site.backdrop, b.midW, b.midH, seed, L.beachFrom !== undefined ? L.beachFrom + 10 : undefined));
-    const ground = textureOf(groundStrip(this.site.backdrop, this.sceneW, b.groundH, { beachFrom: L.beachFrom, cableX: L.cableX }));
-    const fg = textureOf(foreground(this.site.backdrop, this.sceneW + 40, b.fgH));
-    this.ownTextures.push(far, mid, ground, fg);
-    const farS = new Sprite(far);
+    const sb = sceneBands(this.site, L, this.vw, this.vh);
+    this.bandsInfo = sb;
+    const own = (pc: PixelCanvas) => {
+      const t = textureOf(pc);
+      this.ownTextures.push(t);
+      return t;
+    };
+    const farS = new Sprite(own(sb.far));
     farS.y = b.farY;
     this.farL.addChild(farS);
-    const midS = new Sprite(mid);
+    const midS = new Sprite(own(sb.mid));
     midS.y = b.midY;
     this.midL.addChild(midS);
-    if (L.skyline > 0) {
-      const bl = backlot(b.backW, b.backH, seed, L.skyline);
-      const bt = textureOf(bl.base);
-      const gt = textureOf(bl.glow);
-      const bb = textureOf(bloomOf(bl.glow));
-      this.ownTextures.push(bt, gt, bb);
-      const bs = new Sprite(bt);
-      bs.y = b.backY;
-      this.backL.addChild(bs);
-      const gs = new Sprite(gt);
-      gs.y = b.backY;
-      const bbs = new Sprite(bb);
-      bbs.y = b.backY;
-      bbs.blendMode = 'add';
-      bbs.alpha = 0.5;
-      this.backGlowL.addChild(gs, bbs);
+    if (sb.midGlow) {
+      const mg = new Sprite(own(sb.midGlow));
+      mg.y = b.midY;
+      this.midGlowL.addChild(mg);
     }
-    const gS = new Sprite(ground);
-    gS.y = this.groundY;
-    this.groundL.addChild(gS);
+    // band props: the Jet d'Eau, sailboats
+    this.props = sb.midProps.map((p) => {
+      const frames = p.frames.map(own);
+      const sprite = new Sprite(frames[0]);
+      sprite.position.set(p.x, p.y);
+      this.midL.addChild(sprite);
+      const glowFrames = (p.glow ?? []).map(own);
+      let glow: Sprite | undefined;
+      if (glowFrames.length) {
+        glow = new Sprite(glowFrames[0]);
+        glow.position.set(p.x, p.y);
+        this.midGlowL.addChild(glow);
+      }
+      return { prop: p, sprite, frames, glow, glowFrames, x: p.x };
+    });
+    // the back lot: a distant skyline, or the megaproject running to the horizon
+    this.backRotors = [];
+    this.backGlow = null;
+    if (sb.back) {
+      const back = sb.back;
+      const bs = new Sprite(own(back.base));
+      bs.y = back.y;
+      this.backL.addChild(bs);
+      const glowFrames = back.glow.map(own);
+      const bloomFrames = back.glow.map((g) => own(bloomOf(g)));
+      const gs = new Sprite(glowFrames[0]);
+      gs.y = back.y;
+      const bbs = new Sprite(bloomFrames[0]);
+      bbs.y = back.y;
+      bbs.blendMode = 'add';
+      bbs.alpha = back.bloom;
+      this.backGlowL.addChild(gs, bbs);
+      this.backGlow = { sprite: gs, bloom: bbs, frames: glowFrames, bloomFrames };
+      back.rotors.forEach((r, i) => {
+        const fr = rotorTextures(r);
+        const sp = new Sprite(fr[0]);
+        sp.position.set(r.x - r.size - 1, back.y + r.y - r.size - 1);
+        this.backL.addChild(sp);
+        this.backRotors.push({ sprite: sp, frames: fr, phase: i * 1.37 });
+      });
+    }
+    // ground (animated at sea)
+    this.seaAnim = [];
+    if (sb.groundFrames) {
+      const fr = sb.groundFrames.map(own);
+      const gS = new Sprite(fr[0]);
+      gS.y = this.groundY;
+      this.groundL.addChild(gS);
+      this.seaAnim.push({ sprite: gS, frames: fr, fps: 2.5 });
+    } else {
+      const gS = new Sprite(own(sb.ground));
+      gS.y = this.groundY;
+      this.groundL.addChild(gS);
+    }
     // rolling surf at landing stations
     this.surf = null;
     if (L.beachFrom !== undefined) {
@@ -427,12 +552,19 @@ export class DioramaScene implements Scene {
       this.groundL.addChild(sp);
       this.surf = { sprite: sp, frames: fr };
     }
-    const fgS = new Sprite(fg);
-    fgS.y = this.vh - b.fgH + 2;
-    this.fgL.addChild(fgS);
+    if (sb.fgFrames) {
+      const fr = sb.fgFrames.map(own);
+      const fgS = new Sprite(fr[0]);
+      fgS.y = this.vh - b.fgH + 2;
+      this.fgL.addChild(fgS);
+      this.seaAnim.push({ sprite: fgS, frames: fr, fps: 1.5 });
+    } else {
+      const fgS = new Sprite(own(sb.fg));
+      fgS.y = this.vh - b.fgH + 2;
+      this.fgL.addChild(fgS);
+    }
     // street lamps along the road
-    for (let x = 40; x < this.sceneW; x += 90) {
-      if (L.beachFrom !== undefined && x > L.beachFrom - 10) break;
+    for (const x of sb.lamps) {
       const post = new Sprite(cachedTexture('dio:lamp', () => PixelCanvas.from(`aa.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\naaa`, { a: 'ink6' })));
       post.position.set(x, this.groundY + 4);
       this.groundL.addChild(post);
@@ -454,16 +586,24 @@ export class DioramaScene implements Scene {
     this.buildWeather();
   }
 
+  /** Walkers stay on dry land (the HQ's promenade ends at the quay). */
+  private walkLimit(): number {
+    const L = this.layout;
+    return Math.max(40, (L?.lakeFrom ?? L?.beachFrom ?? this.sceneW + 20) - 20);
+  }
+
   private spawnWalkers() {
     this.walkers.forEach((w) => w.sprite.destroy());
     this.walkers = [];
+    if (this.bandsInfo?.walkers === false) return;
     const solid = this.plots.filter((p) => p.kind !== 'empty').length;
     const count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
+    const limit = Math.min(this.sceneW - 20, this.walkLimit());
     for (let i = 0; i < count; i++) {
       const frames = personFrames(i).map((pc, k) => cachedTexture(`dio:person:${i % 12}:${k}`, () => pc));
       const sp = new Sprite(frames[0]);
       this.actorL.addChild(sp);
-      const x = 20 + hash2(i, 1, 9) * (this.sceneW - 40);
+      const x = 20 + hash2(i, 1, 9) * (limit - 20);
       this.walkers.push({ sprite: sp, frames, x, target: x, speed: 6 + hash2(i, 2, 9) * 6, pause: hash2(i, 3, 9) * 3 });
     }
   }
@@ -579,8 +719,9 @@ export class DioramaScene implements Scene {
     const lightsOn = Math.max(0, Math.min(1, (this.darkness - 0.25) * 2.4));
     this.glowL.alpha = lightsOn;
     this.backGlowL.alpha = lightsOn;
+    this.midGlowL.alpha = lightsOn;
     this.bloomL.alpha = lightsOn * 0.55;
-    this.glowL.visible = this.backGlowL.visible = lightsOn > 0.01;
+    this.glowL.visible = this.backGlowL.visible = this.midGlowL.visible = lightsOn > 0.01;
     this.bloomL.visible = lightsOn > 0.01 && !this.game.settings.batterySaver;
   }
 
@@ -596,7 +737,7 @@ export class DioramaScene implements Scene {
     this.glowL.x = -cx;
     this.bloomL.x = -cx;
     this.farL.x = -Math.round(this.camX * PARALLAX.far);
-    this.midL.x = -Math.round(this.camX * PARALLAX.mid);
+    this.midL.x = this.midGlowL.x = -Math.round(this.camX * PARALLAX.mid);
     this.backL.x = this.backGlowL.x = -Math.round(this.camX * PARALLAX.back);
     for (const c of this.clouds) {
       c.x += c.v * dt;
@@ -605,9 +746,13 @@ export class DioramaScene implements Scene {
     }
     const windSpeed = Math.max(0.25, this.site.windCF) * 2.4;
     const saver = this.game.settings.batterySaver;
+    // wide Act III scenes: only plots near the camera puff (the particle budget goes where you look)
+    const cull = this.layout?.scenery !== undefined;
+    const viewL = this.camX - this.vw * 0.5;
+    const viewR = this.camX + this.vw * 1.5;
     for (const p of this.plots) {
       if (p.frames.length > 1 && p.fps > 0) {
-        const fi = Math.floor(this.time * p.fps + p.x) % p.frames.length;
+        const fi = Math.floor(this.time * p.fps + (p.sync ? 0 : p.x)) % p.frames.length;
         p.sprite.texture = p.frames[fi];
         if (p.glow && p.glowFrames[fi]) p.glow.texture = p.glowFrames[fi];
         if (p.bloom && p.bloomFrames[fi]) p.bloom.texture = p.bloomFrames[fi];
@@ -619,11 +764,35 @@ export class DioramaScene implements Scene {
         if (em.timer > 0) continue;
         em.timer += (saver ? 2.2 : 1) / Math.max(0.1, em.e.rate);
         const e = em.e;
+        if (cull && (p.x + e.x < viewL || p.x + e.x > viewR)) continue;
         const sx = p.x + e.x + (e.spread ? (Math.random() - 0.5) * 2 * e.spread : 0);
         this.spawnPuff(e.kind, sx, p.top + e.y, e.size);
       }
     }
     if (this.surf) this.surf.sprite.texture = this.surf.frames[Math.floor(this.time * 3) % this.surf.frames.length];
+    for (const a of this.seaAnim) a.sprite.texture = a.frames[Math.floor(this.time * a.fps) % a.frames.length];
+    for (const pr of this.props) {
+      if (pr.prop.drift) {
+        const wrap = pr.prop.wrap ?? this.vw;
+        pr.x += pr.prop.drift * dt;
+        if (pr.x > wrap) pr.x -= wrap + 20;
+        if (pr.x < -20) pr.x += wrap + 20;
+        pr.sprite.x = Math.round(pr.x);
+      }
+      if (pr.frames.length > 1 && pr.prop.fps > 0) {
+        const fi = Math.floor(this.time * pr.prop.fps) % pr.frames.length;
+        pr.sprite.texture = pr.frames[fi];
+        if (pr.glow && pr.glowFrames[fi]) pr.glow.texture = pr.glowFrames[fi];
+      }
+    }
+    for (const r of this.backRotors) r.sprite.texture = r.frames[Math.floor((this.time + r.phase) * 8 * windSpeed) % r.frames.length];
+    if (this.backGlow && this.backGlow.frames.length > 1) {
+      // aviation lights across the whole field blink together
+      const fi = Math.floor(this.time) % this.backGlow.frames.length;
+      this.backGlow.sprite.texture = this.backGlow.frames[fi];
+      this.backGlow.bloom.texture = this.backGlow.bloomFrames[fi];
+    }
+    for (const p of this.plots) if (p.rocket) this.updateRocket(p, p.rocket, dt);
     // hover highlight
     for (const p of this.plots) {
       if (p.kind === 'empty') p.sprite.texture = cachedTexture(`dio:empty:${p.w}:${p === this.hoverPlot}`, () => emptyPlotArt(p.w, p === this.hoverPlot));
@@ -705,7 +874,7 @@ export class DioramaScene implements Scene {
     mv.sprite.position.set(p.x + Math.round(px) - Math.floor(fw / 2) + (dir < 0 ? fw : 0), p.top + Math.round(py) - fh);
   }
 
-  private spawnPuff(kind: PuffKind, x: number, y: number, size?: number) {
+  private spawnPuff(kind: PuffKind, x: number, y: number, size?: number, v?: { vx: number; vy: number; life: number; drag?: number }) {
     if (this.particles.length >= MAX_PARTICLES) return;
     const sp = this.pool.pop() ?? new Sprite();
     sp.visible = true;
@@ -735,6 +904,12 @@ export class DioramaScene implements Scene {
         max = 2 + Math.random();
         maxR = size ?? 2;
         break;
+      case 'exhaust':
+        vx = (Math.random() - 0.5) * 4;
+        vy = -1 - Math.random() * 2;
+        max = 5 + Math.random() * 2;
+        maxR = size ?? 5;
+        break;
       default:
         // spray / cold mist: drifts and falls back
         vx = (Math.random() - 0.5) * 10;
@@ -742,7 +917,12 @@ export class DioramaScene implements Scene {
         max = 0.6 + Math.random() * 0.6;
         maxR = size ?? 1;
     }
-    this.particles.push({ sprite: sp, kind, x, y, vx, vy, life: 0, max, size: maxR, r: -1 });
+    if (v) {
+      vx = v.vx;
+      vy = v.vy;
+      max = v.life;
+    }
+    this.particles.push({ sprite: sp, kind, x, y, vx, vy, life: 0, max, size: maxR, r: -1, drag: v?.drag ?? (kind === 'exhaust' ? 0.6 : 0) });
   }
 
   private updateParticles(dt: number) {
@@ -758,9 +938,10 @@ export class DioramaScene implements Scene {
       const k = p.life / p.max;
       if (p.kind === 'mist') p.vy += 18 * dt;
       else p.vy *= 1 - dt * 0.35;
+      if (p.drag) p.vx *= Math.max(0, 1 - dt * p.drag);
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      const r = p.kind === 'mist' ? 1 : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
+      const r = p.kind === 'mist' ? 1 : p.kind === 'exhaust' ? Math.min(p.size, 2 + Math.floor(k * p.size * 1.6)) : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
       if (r !== p.r) {
         p.r = r;
         p.sprite.texture = cachedTexture(`dio:puff:${p.kind}:${r}`, () => puffArt(r, p.kind));
@@ -770,6 +951,63 @@ export class DioramaScene implements Scene {
       this.particles[n++] = p;
     }
     this.particles.length = n;
+  }
+
+  /**
+   * The launch cycle: venting on the pad, ignition (a cloud bursts out of the flame trench),
+   * liftoff with a trail of exhaust, then a fresh rocket rolls out (fades in) for the next one.
+   */
+  private updateRocket(p: Plot, r: Rocket, dt: number) {
+    const S = r.spec;
+    const t = this.time + 6;
+    const pose = rocketPose(t, S.period);
+    const fw = r.frames[0].width;
+    const x = p.x + S.x - Math.floor(fw / 2);
+    const y = p.top + S.y - S.body + pose.dy;
+    const visible = pose.phase !== 'gone';
+    const u = S.period > 0 ? ((t % S.period) + S.period) % S.period : 99;
+    const alpha = Math.min(1, u / 0.8);
+    for (const sp of [r.sprite, r.glow, r.bloom]) {
+      sp.visible = visible;
+      sp.position.set(x, y);
+      sp.alpha = alpha;
+    }
+    r.sprite.texture = r.frames[pose.frame];
+    r.glow.texture = r.glowFrames[pose.frame];
+    r.bloom.texture = r.bloomFrames[pose.frame];
+    const padX = p.x + S.x;
+    const padY = p.top + S.y;
+    // the burn floods the pad (and the cloud) with orange light; it fades as the rocket climbs
+    const fl = r.flash;
+    const lit = pose.phase === 'ignite' ? pose.burn : pose.phase === 'flight' ? Math.max(0, 1 + (pose.dy + 30) / 160) : 0;
+    fl.visible = lit > 0.02;
+    fl.alpha = lit * (0.75 + Math.sin(this.time * 31) * 0.12);
+    fl.position.set(padX - Math.floor(fl.width / 2), padY - Math.floor(fl.height * 0.62));
+    if (pose.phase === 'pad') {
+      r.vent -= dt;
+      if (r.vent <= 0) {
+        r.vent = 0.35 + Math.random() * 0.3;
+        for (const [dx, dy] of S.vents) this.spawnPuff('vapor', padX + dx, padY + dy, 2);
+      }
+      return;
+    }
+    if (pose.phase === 'gone') return;
+    const cam = padX > this.camX - this.vw && padX < this.camX + this.vw * 2;
+    if (!cam) return;
+    r.trail -= dt;
+    if (r.trail > 0) return;
+    r.trail = 0.045;
+    if (pose.phase === 'ignite' || pose.dy > -40) {
+      // the ground cloud: steam and exhaust bursting sideways out of the flame trench
+      for (const side of [-1, 1]) {
+        const sp = 18 + Math.random() * 30;
+        this.spawnPuff('exhaust', padX + side * 22, padY + 6, 5 + Math.floor(Math.random() * 2), { vx: side * sp, vy: -1 - Math.random() * 8, life: 5 + Math.random() * 2.5, drag: 0.65 });
+      }
+    }
+    if (pose.phase === 'flight') {
+      const ny = y + S.body + 14;
+      this.spawnPuff('exhaust', padX + (Math.random() - 0.5) * 3, ny, 3 + Math.floor(Math.random() * 3), { vx: (Math.random() - 0.5) * 5, vy: -1 + Math.random() * 3, life: 4 + Math.random() * 2.5, drag: 0.4 });
+    }
   }
 
   private updateWalkers(dt: number) {
@@ -783,9 +1021,10 @@ export class DioramaScene implements Scene {
         w.x += dir * w.speed * dt;
         if (Math.abs(w.target - w.x) < 1) {
           w.pause = 1 + Math.random() * 4;
-          const plots = this.plots.filter((p) => p.kind !== 'empty');
+          const limit = this.walkLimit();
+          const plots = this.plots.filter((p) => p.kind !== 'empty' && p.x < limit);
           const p = plots[Math.floor(Math.random() * Math.max(1, plots.length))];
-          w.target = p ? p.x + p.w * (0.2 + Math.random() * 0.6) : 20 + Math.random() * (this.sceneW - 40);
+          w.target = Math.min(limit, p ? p.x + p.w * (0.2 + Math.random() * 0.6) : 20 + Math.random() * (this.sceneW - 40));
         }
         w.sprite.texture = w.frames[Math.floor(this.time * 6 + w.x) % 2];
         w.sprite.scale.x = dir < 0 ? -1 : 1;
@@ -823,8 +1062,9 @@ export class DioramaScene implements Scene {
     else if (t.wait > 0) t.wait -= dt;
     else t.x += 28 * dt;
     t.sprite.position.set(Math.round(t.x), this.groundY + 8);
-    const end = this.layout?.beachFrom ?? this.sceneW;
-    if (t.x > end + 30 || (this.layout?.beachFrom !== undefined && t.x > end - 20)) {
+    const shore = this.layout?.beachFrom ?? this.layout?.lakeFrom;
+    const end = shore ?? this.sceneW;
+    if (t.x > end + 30 || (shore !== undefined && t.x > end - 20)) {
       t.sprite.destroy();
       this.truck = null;
       this.truckTimer = 10 + Math.random() * 15;
@@ -919,10 +1159,37 @@ export class DioramaScene implements Scene {
   destroy() {
     if (this.wheelX) this.game.stage?.canvas?.removeEventListener('wheel', this.wheelX);
     for (const t of this.ownTextures) releaseTexture(t);
+    for (const p of this.plots) for (const t of p.own) releaseTexture(t);
     for (const t of [this.skyTex, this.starTex, this.hazeTex]) if (t) releaseTexture(t);
     for (const sp of this.pool) sp.destroy();
     this.root.destroy({ children: true });
   }
+}
+
+/** Bloom is the slow part of baking a piece: keep it alongside the (cached) art it belongs to. */
+const blooms = new WeakMap<PixelCanvas, PixelCanvas>();
+function bloomCached(glow: PixelCanvas): PixelCanvas {
+  let b = blooms.get(glow);
+  if (!b) {
+    b = bloomOf(glow);
+    blooms.set(glow, b);
+  }
+  return b;
+}
+
+/** Two canvases with the same pixels (animation frames that don't change share a texture). */
+function sameCanvas(a: PixelCanvas, b: PixelCanvas): boolean {
+  if (a.w !== b.w || a.h !== b.h) return false;
+  const da = a.data;
+  const db = b.data;
+  for (let i = 0; i < da.length; i++) if (da[i] !== db[i]) return false;
+  return true;
+}
+
+/** Rotor frames for a turbine (giant ones get the tapered, finer-stepped set). */
+function rotorTextures(r: RotorSpec): Texture[] {
+  if (r.style === 'big') return bigRotorFrames(r.size, r.col).map((pc, k) => cachedTexture(`dio:brotor:${r.size}:${r.col}:${k}`, () => pc));
+  return rotorFrames(r.size, r.col).map((pc, k) => cachedTexture(`dio:rotor:${r.size}:${r.col}:${k}`, () => pc));
 }
 
 /** Dithered pixel halo for lamps (additive). */

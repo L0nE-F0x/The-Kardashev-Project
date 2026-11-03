@@ -4,6 +4,7 @@
  * build slots. Rival campuses are data halls in the owner's colours with a flag and logo.
  */
 import type { SiteDef } from '../../content/sites';
+import type { GameState } from '../../sim/types';
 import { C } from '../palette';
 import { bayer, ditherAt, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
@@ -26,8 +27,9 @@ import {
   towerCrane,
   transformerYard,
 } from './draw';
+import { act3PieceArt, act3Plan, isAct3Piece, pieceKeyOf, type Act3PieceKind } from './act3Pieces';
 
-export type PieceKind =
+type LegacyPieceKind =
   | 'logicFab'
   | 'memFab'
   | 'euvHall'
@@ -45,6 +47,9 @@ export type PieceKind =
   | 'cableHut'
   | 'manhole';
 
+/** Set-piece kinds: suppliers, mines, landing stations, plus Act III's Charter HQ, megaprojects and launch sites. */
+export type PieceKind = LegacyPieceKind | Act3PieceKind;
+
 export interface PieceSpec {
   kind: PieceKind;
   /** Sign text (company name). */
@@ -53,6 +58,23 @@ export interface PieceSpec {
   accentHi: number;
   /** Variant flag (copper vs lithium pit, helium vs neon works…). */
   variant?: string;
+  // ── Act III pieces ──
+  /** A count or size class (unit number, contract size). */
+  n?: number;
+  /** Construction progress bucket 0..1. */
+  p?: number;
+  /** Small variety seed (alternating tiles). */
+  seed?: number;
+  /** Space after this piece in the row (default GAP). */
+  gap?: number;
+  /** The site's backdrop (ground colours under the kit). */
+  backdrop?: string;
+  /** Partner id building it (colours, signs). */
+  builder?: string;
+  /** Width of stretchable pieces (survey land). */
+  w?: number;
+  /** Built out at sea. */
+  offshore?: boolean;
 }
 
 /** Brand colours per supplier (match the world-map marker colours). */
@@ -67,7 +89,8 @@ const BRAND: Record<string, { name: string; accent: number; accentHi: number }> 
 };
 
 /** The set pieces a non-build site shows, left to right. */
-export function sitePieces(site: SiteDef): PieceSpec[] {
+export function sitePieces(site: SiteDef, s: GameState | null = null): PieceSpec[] {
+  if (site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch') return act3Plan(s, site, 0).pieces;
   const b = BRAND[site.supplier ?? ''] ?? { name: site.name.split(/[ ·]/)[0].toUpperCase(), accent: C.cyn4, accentHi: C.cyn5 };
   const p = (kind: PieceKind, variant?: string, label = b.name): PieceSpec => ({ kind, label, accent: b.accent, accentHi: b.accentHi, variant });
   if (site.kind === 'landing') return [p('cableHut', undefined, 'CLS'), p('manhole')];
@@ -105,7 +128,7 @@ export function sitePieces(site: SiteDef): PieceSpec[] {
   }
 }
 
-const PIECE_SIZE: Record<PieceKind, [number, number]> = {
+const PIECE_SIZE: Record<LegacyPieceKind, [number, number]> = {
   logicFab: [272, 92],
   memFab: [244, 86],
   euvHall: [196, 72],
@@ -132,22 +155,30 @@ export function pieceSize(spec: PieceSpec): [number, number] {
 const pieceCache = new Map<string, FacilityArt>();
 
 export function pieceArt(spec: PieceSpec): FacilityArt {
-  const key = `${spec.kind}|${spec.label}|${spec.accent}|${spec.variant ?? ''}`;
+  const key = pieceKey(spec);
   let art = pieceCache.get(key);
   if (!art) {
     art = makePiece(spec);
+    pieceCache.set(key, art);
+    // megaproject construction steps churn as projects progress: keep the cache bounded
+    if (pieceCache.size > 240) pieceCache.delete(pieceCache.keys().next().value as string);
+  } else if (isAct3Piece(spec.kind)) {
+    // recently used pieces stay (Map order = insertion order)
+    pieceCache.delete(key);
     pieceCache.set(key, art);
   }
   return art;
 }
 
 export function pieceKey(spec: PieceSpec): string {
-  return `${spec.kind}|${spec.label}|${spec.accent}|${spec.variant ?? ''}`;
+  return isAct3Piece(spec.kind) ? pieceKeyOf(spec) : `${spec.kind}|${spec.label}|${spec.accent}|${spec.variant ?? ''}`;
 }
 
 function makePiece(spec: PieceSpec): FacilityArt {
-  const [W, H] = PIECE_SIZE[spec.kind];
-  switch (spec.kind) {
+  if (isAct3Piece(spec.kind)) return act3PieceArt(spec);
+  const kind = spec.kind as LegacyPieceKind;
+  const [W, H] = PIECE_SIZE[kind];
+  switch (kind) {
     case 'logicFab':
       return fab('', { W, H, accent: spec.accent, accentHi: spec.accentHi, sign: spec.label });
     case 'memFab':

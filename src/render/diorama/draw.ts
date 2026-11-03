@@ -289,36 +289,49 @@ export function bloomOf(glow: PixelCanvas): PixelCanvas {
   const { w, h } = glow;
   const src = glow.data;
   const tone = (c: number): number => BLOOM_TONE.get(c) ?? C.ink4;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (src[y * w + x]) continue;
-      let best = 0;
-      let bc = 0;
+  // Splat each lit pixel's halo into its neighbours (glows are sparse: this is far cheaper than
+  // scanning every pixel's 5×5 neighbourhood). Per output pixel keep the strongest neighbour,
+  // ties going to the first one in raster order — exactly what a full scan would pick.
+  const best = new Uint8Array(w * h);
+  const bestIdx = new Uint8Array(w * h);
+  const bestCol = new Uint8Array(w * h);
+  for (let ly = 0; ly < h; ly++) {
+    for (let lx = 0; lx < w; lx++) {
+      const c = src[ly * w + lx];
+      if (!c) continue;
       for (let dy = -2; dy <= 2; dy++) {
-        const yy = y + dy;
-        if (yy < 0 || yy >= h) continue;
+        const y = ly - dy;
+        if (y < 0 || y >= h) continue;
         for (let dx = -2; dx <= 2; dx++) {
-          const xx = x + dx;
-          if (xx < 0 || xx >= w) continue;
-          const c = src[yy * w + xx];
-          if (!c) continue;
+          const x = lx - dx;
+          if (x < 0 || x >= w) continue;
+          const o = y * w + x;
+          if (src[o]) continue;
           const d = Math.abs(dx) + Math.abs(dy);
-          const s = d <= 1 ? 3 : d === 2 ? 2 : 1;
-          if (s > best) {
-            best = s;
-            bc = c;
+          const sc = d <= 1 ? 3 : d === 2 ? 2 : 1;
+          const idx = (dy + 2) * 5 + (dx + 2);
+          if (sc > best[o] || (sc === best[o] && idx < bestIdx[o])) {
+            best[o] = sc;
+            bestIdx[o] = idx;
+            bestCol[o] = c;
           }
         }
       }
-      if (!best) continue;
-      const level = best === 3 ? 13 : best === 2 ? 7 : 2;
-      if (bayer(x, y) < level) out.set(x, y, tone(bc));
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const o = y * w + x;
+      const s = best[o];
+      if (!s) continue;
+      const level = s === 3 ? 13 : s === 2 ? 7 : 2;
+      if (bayer(x, y) < level) out.set(x, y, tone(bestCol[o]));
     }
   }
   return out;
 }
 
-const BLOOM_TONE = new Map<number, number>([
+export const BLOOM_TONE = new Map<number, number>([
   [C.yel2, C.org1],
   [C.yel1, C.org0],
   [C.yel0, C.org0],
@@ -420,12 +433,20 @@ export function coolingCells(pc: PixelCanvas, x: number, baseY: number, cells: n
 /** Text width helper re-export (for callers that only import draw). */
 export { measureText, drawText };
 
-/** A round puff of steam/smoke/spray (radius 1..4) lit from the upper left. */
-export function puffArt(r: number, kind: 'steam' | 'smoke' | 'vapor' | 'mist'): PixelCanvas {
+/** A round puff of steam/smoke/spray (radius 1..6) lit from the upper left. */
+export function puffArt(r: number, kind: 'steam' | 'smoke' | 'vapor' | 'mist' | 'exhaust'): PixelCanvas {
   const s = r * 2 + 1;
   const pc = new PixelCanvas(s, s);
   const [hi, mid, lo] =
-    kind === 'smoke' ? [C.ink8, C.ink7, C.ink6] : kind === 'vapor' ? [C.ice3, C.ice2, C.ice1] : kind === 'mist' ? [C.white, C.foam, C.ice2] : [C.white, C.ice3, C.ice2];
+    kind === 'smoke'
+      ? [C.ink8, C.ink7, C.ink6]
+      : kind === 'vapor'
+        ? [C.ice3, C.ice2, C.ice1]
+        : kind === 'mist'
+          ? [C.white, C.foam, C.ice2]
+          : kind === 'exhaust'
+            ? [C.white, C.ink9, C.ink8]
+            : [C.white, C.ice3, C.ice2];
   for (let y = 0; y < s; y++) {
     for (let x = 0; x < s; x++) {
       const dx = x - r;

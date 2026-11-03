@@ -6,6 +6,7 @@
 import type { FacilityType } from '../../sim/types';
 import { constructionArt, emptyPlotArt, facilityArt, upgradeArt, type FacilityArt } from './art';
 import { pieceArt, pieceKey, rivalArt, rivalConstructionArt } from './industry';
+import { isAct3Piece } from './act3Pieces';
 import type { LayoutItem } from './layout';
 
 export interface ItemArt {
@@ -13,6 +14,11 @@ export interface ItemArt {
   art: FacilityArt;
   /** Construction site (no lights, no effects). */
   building: boolean;
+  /**
+   * Bake per scene and free on leaving (Act III's wide, state-dependent set pieces), instead of
+   * keeping the textures for the whole session.
+   */
+  transient?: boolean;
 }
 
 const still = (pc: FacilityArt['base'][number]): FacilityArt => ({ base: [pc], glow: [], points: {} });
@@ -40,7 +46,7 @@ export function itemArt(item: LayoutItem, label: string, day: number): ItemArt |
       return { key: 'substation', art: facilityArt('substation', label), building: false };
     case 'piece': {
       const p = item.piece!;
-      return { key: `piece:${pieceKey(p)}`, art: pieceArt(p), building: false };
+      return { key: `piece:${pieceKey(p)}`, art: pieceArt(p), building: false, transient: isAct3Piece(p.kind) };
     }
     case 'rival': {
       const b = item.rival!;

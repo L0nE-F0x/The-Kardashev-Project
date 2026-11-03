@@ -12,6 +12,7 @@ import type { Facility, GameState, RivalBuild } from '../../sim/types';
 import { facilitySize, type ArtType } from './sizes';
 import { EMPTY_H } from './art';
 import { pieceSize, rivalSize, sitePieces, type PieceSpec } from './industry';
+import { act3Plan, type Scenery } from './act3Pieces';
 
 export const GAP = 10;
 export const EMPTY_W = 70;
@@ -45,6 +46,13 @@ export interface CampusLayout {
   cableX?: number;
   /** x of the fence between your land and a rival's. */
   propertyLine?: number;
+  // ── Act III ──
+  /** What the bands behind the pieces show (Geneva, a megaproject to the horizon, a launch site). */
+  scenery?: Scenery;
+  /** Charter HQ: the promenade ends at a quay and Lake Geneva begins at this x. */
+  lakeFrom?: number;
+  /** Offshore megaproject: open sea instead of land (no road, no lamps, no walkers). */
+  offshore?: boolean;
 }
 
 export const tierOf = (f: Facility) => f.tier ?? 1;
@@ -58,6 +66,7 @@ export const plotsOf = (f: Facility) => (f.type === 'hq' ? 0 : FACILITIES[f.type
 /** Layout for a site as seen in `state` (null state = empty site). */
 export function campusLayout(s: GameState | null, siteId: string, viewW: number): CampusLayout {
   const site = siteDef(siteId);
+  if (site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch') return act3Layout(s, site, viewW);
   if (site.kind !== 'build') return viewOnlyLayout(site, viewW);
   const items: LayoutItem[] = [];
   let x = EDGE;
@@ -130,6 +139,25 @@ function viewOnlyLayout(site: SiteDef, viewW: number): CampusLayout {
   if (site.kind === 'supplier' && (site.supplier === 'lumen' || site.supplier === 'hanbit')) out.skyline = 2;
   else if (site.kind === 'supplier' || site.kind === 'cloud') out.skyline = 1;
   return out;
+}
+
+/** Act III view-only sites: a planned row of pieces with their own gaps (see act3Pieces.ts). */
+function act3Layout(s: GameState | null, site: SiteDef, viewW: number): CampusLayout {
+  const plan = act3Plan(s, site, viewW);
+  const items: LayoutItem[] = [];
+  const sizes = plan.pieces.map((p) => pieceSize(p));
+  const total = sizes.reduce((a, [w], i) => a + w + (i < sizes.length - 1 ? plan.pieces[i].gap ?? GAP : 0), 0);
+  let x = Math.max(plan.start, Math.round((viewW - total) / 2));
+  let lakeFrom: number | undefined;
+  plan.pieces.forEach((p, i) => {
+    const [w, h] = sizes[i];
+    if (i === plan.lakeAt) lakeFrom = x;
+    items.push({ kind: 'piece', piece: p, x, w, h, tier: 1 });
+    x += w + (p.gap ?? GAP);
+  });
+  const last = items[items.length - 1];
+  const width = Math.max(viewW, last ? last.x + last.w + plan.tail : viewW);
+  return { items, width, viewOnly: true, skyline: 0, scenery: plan.scenery, lakeFrom, offshore: plan.offshore };
 }
 
 /** Vertical layout of the parallax bands for a viewport. */
