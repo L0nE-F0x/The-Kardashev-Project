@@ -1,8 +1,10 @@
 import { Icon, KV, Panel, useGame } from '../components';
+import { BoardSection } from './Act2Panels';
 import { fmtMoney } from '../../sim/core';
 import type { Ledger } from '../../sim/types';
 
 const COST_KEYS: [keyof Ledger, string][] = [
+  ['debt', 'Loan payments'],
   ['rental', 'Cloud rental'],
   ['power', 'Grid power'],
   ['fuel', 'Gas fuel'],
@@ -26,7 +28,7 @@ export function FinancePanel() {
   const H = 60;
   const path = points.map((v, i) => `${(i / Math.max(1, points.length - 1)) * W},${H - ((v - min) / (max - min || 1)) * H}`).join(' ');
   const m = f.month;
-  const spent = COST_KEYS.reduce((a, [k]) => a + (m[k] as number), 0);
+  const spent = COST_KEYS.reduce((a, [k]) => a + ((m[k] as number) || 0), 0);
   return (
     <Panel title="Finance" icon="finance" class="wide" onClose={() => game.openPanel(null)}>
       <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
@@ -35,7 +37,7 @@ export function FinancePanel() {
           <KV
             rows={[
               ['Cash', <b class="gold">{fmtMoney(f.cash)}</b>],
-              ['Round', f.round === 'seed' ? 'Seed' : `Series ${f.round}`],
+              ['Round', f.round === 'seed' ? 'Seed' : f.round === 'IPO' ? 'Public (IPO)' : `Series ${f.round}`],
               ['Valuation', fmtMoney(f.valuation)],
               ['Revenue (run-rate)', <span class="good">{fmtMoney(s.stats.revenueMonth)}/mo</span>],
               ['Running costs', <span class="bad">{fmtMoney(s.stats.costMonth)}/mo</span>],
@@ -54,12 +56,13 @@ export function FinancePanel() {
           <KV rows={[['Revenue', <span class="good">{fmtMoney(m.revenue)}</span>], ...(m.funding ? [['Funding', <span class="good">{fmtMoney(m.funding)}</span>] as [string, preact.ComponentChildren]] : []), ...COST_KEYS.filter(([k]) => Math.abs(m[k] as number) > 1).map(([k, label]) => [label, fmtMoney(m[k] as number)] as [string, string]), ['Total spent', <b>{fmtMoney(spent)}</b>]]} />
         </div>
       </div>
+      <BoardSection />
       {hist.length > 0 && (
         <div class="section">
           <h4>Monthly history</h4>
           <div style={{ maxHeight: '160px', overflowY: 'auto' }}>
             {[...hist].reverse().map((h) => {
-              const costs = COST_KEYS.reduce((a, [k]) => a + (h[k] as number), 0);
+              const costs = COST_KEYS.reduce((a, [k]) => a + ((h[k] as number) || 0), 0);
               return (
                 <div class="row between small" key={h.label}>
                   <span class="muted">{h.label}</span>

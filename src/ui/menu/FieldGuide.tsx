@@ -37,6 +37,11 @@ export function FieldGuideBody() {
         <p class="small muted">
           {unlocked.size}/{GUIDE.length} discovered
         </p>
+        {(game.state?.act ?? 1) >= 2 && game.mode !== 'title' && (
+          <button class="btn small" onClick={() => game.replayBriefings()} data-tip="Show the advisors’ Act II briefings again as their systems come up.">
+            Replay Act II briefings
+          </button>
+        )}
       </nav>
       <article class="guide-entry">
         {open ? (

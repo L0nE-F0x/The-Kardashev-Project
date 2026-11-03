@@ -4,8 +4,9 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M1 "First Light" is built**: Act I is playable end to end. Section 13 lists the locked
-decisions and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
+Status: **M2 "The Scale-Up" is built** (v0.3.0) on top of M1 "First Light" and M1.5 "The Front Door":
+Acts I and II are playable end to end. Section 17 is the Act II plan with as-built notes. Section 13 lists the
+locked decisions and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
 
 ---
 
@@ -356,7 +357,7 @@ rasteriser, save system, sim tick and clock.
 6. Train Bit-2 → Series A → Act I complete.
 
 **M2: Act II, The Scale-Up.** Nuclear, hydro, geothermal, packaging plants, mines, fiber, export
-controls, the HBM crunch event chain, more dioramas, standing orders.
+controls, the HBM crunch event chain, more dioramas, standing orders. **Full plan: section 17.**
 
 **M3: Act III, The Charter.** The role pivot, companies bidding on contracts, the rest of the
 advisor cast, deeper bloc politics.
@@ -517,3 +518,288 @@ installable apps. Approved 2026-11-03 without the feedback form; built the same 
 
 **Deferred:** the feedback form (until marketing), the real theme song (drop it at
 `public/audio/theme.mp3`), code signing.
+
+---
+
+## 17. M2 "The Scale-Up": built (v0.3.0)
+
+Act II, about 2029–34. You go from a Series-A startup to a hyperscaler: gigawatt campuses, your own
+firm power, a hand on the chip pipeline, bloc politics, a race with Meridian and a board to answer to.
+The act ends in a crisis on every front at once ("The Crunch"), then the IPO, then a cliffhanger
+into the Charter. Planned 2026-11-03 in four Q&A rounds.
+
+### Decisions (locked 2026-11-03)
+
+| Topic | Decision |
+|---|---|
+| Feel | An even blend of empire builder, supply-chain chess, and story and crises |
+| Shipping | **One big release (v0.3.0)**. Every system is in before it ships |
+| Act goal | All four combined: an IPO checklist, a frontier race with Meridian, the multi-step finale crisis "The Crunch" whose outcome sets up Act III, and a cliffhanger into the Charter |
+| Finale | "The Crunch": heat-dome grid emergencies, a strait blockade that halts chips, and a rival's safety incident, all within about 90 days. Each front you hold earns standing for the Charter |
+| Chips | All four layers: three capacity pools (logic, HBM, packaging), supply deals, your own packaging plant plus a fab joint venture, and raw materials with mine stakes |
+| Scale | All four: facility tiers, buying land for slots, new megasites, and a late-act Gigawatt Campus |
+| Nuclear | Three paths on three timescales: restart a retired reactor (an event deal, about 2 years), order SMRs (a 4–5-year queue), or start a big reactor (8+ years, finishes in Act III) |
+| Automation | Delegate to advisors: each advisor runs one job, with a toggle and a slider, and reports in the news |
+| Money | All four: Series B and IPO with a board, project finance and debt, enterprise compute contracts, and government and bloc deals |
+| Fiber | All three: regional inference markets, fiber and subsea cables you draw, and cable landing stations that can be cut |
+| Rivals | Physical rivals that build on the map, talent wars, and acquisitions (including a takeover attempt before the IPO) |
+| Visuals | All four: a gigawatt campus skyline, set-piece plants, a busier map, and dioramas for supplier sites |
+| Entry | Finished Act I saves continue into Act II, plus a **"Start at Act II"** option in New Company |
+| Onboarding | Unlock briefings: the advisor who owns a system gives a 1–3-step spotlight tour when it unlocks, plus new Field Guide entries |
+| Pacing | About 5 game years (2029–34), roughly 2–3 hours of play. A balance bot checks it |
+| Politics | Bloc relations and export rules, **plus a Blocs diplomacy screen** (treaties, lobbying, summits, elections) |
+
+**Calls I made inside those decisions (change any):**
+- **Two meters per bloc.** *Trust* (today's Social License: local people, permits, NIMBY) and a new
+  *Relations* meter (the bloc government: export licences, nuclear approval, sovereign deals). Both
+  appear side by side on the Blocs screen.
+- **The era palette follows the act as well as K.** Act II won't move K much (a few GW against about
+  20 TW of world power), so the world re-grades to *Grid Rush* when Act II starts. The rule is
+  "the act's era or K's era, whichever is later".
+- **Rivals share the supply pools with you.** When Meridian orders 200k chips, everyone's queue grows.
+  Rival capability depends partly on the compute they actually build, so outbuilding them slows them down.
+- **The capability curve gets retuned.** Rivals currently gain about +0.55 per year and would reach
+  "Superintelligence" by 2034. Act II slows the drift, extends the model plan (Bit-3 … Bit-6) and
+  checks that the tiers land sensibly: Bit-4 is "Scientist" at about the end of the act.
+- **The v0.2.0 follow-ups ship in v0.3.0** (fullscreen counted as installed; fallback to the Releases
+  link when the GitHub API fails), unless you want them sooner as a quick fix.
+
+### How the act unfolds
+
+| Phase | Roughly | What opens | Gate to the next phase |
+|---|---|---|---|
+| **1 · Gigawatts** | Year 1 after the Series A | Tier-2 facilities, buying land, hydro and geothermal, regional markets and fiber, the Blocs screen, Juno's and Mira's jobs, the first chain events | 250 MW of IT online, Bit-3 trained, $150M/month → **Series B** |
+| **2 · The Stack** | Years 2–3 | The three supply pools in the UI, supply deals, packaging plant, fab JV, mines, export rules, SMR orders, the board, project finance, enterprise contracts, sovereign deals, all advisor jobs | Board formed, first deals signed |
+| **3 · The Race** | Years 3–4 | Meridian announces the race, tier-3 facilities, megasites, the Gigawatt Campus, big reactors, acquisitions, the talent wars heat up, summits | The IPO checklist (below) is met, or mid-2034 arrives |
+| **4 · The Crunch** | About 90 days | The finale on three fronts | Finale resolved → **IPO** → act complete and the cliffhanger |
+
+**Act II goals (the IPO checklist):** raise the Series B · 1 GW of IT capacity online · 1 GW of your
+own generation, at least 60% carbon-free · train Bit-4 · $1B/month revenue · reach the frontier (at
+least match Meridian) at least once · safety margin ≥ −0.25 with no major incident in the last
+12 months · come through The Crunch. All numbers are first guesses for the balance bot to tune.
+
+### Systems
+
+**1. Scale.** Facilities gain **tiers**. An upgrade is a construction overlay: the old capacity keeps
+running and the new capacity switches on when the upgrade finishes. Proposed sizes (2029 prices, before
+learning-curve discounts):
+
+| Facility | Tier 1 → 2 → 3 | Notes |
+|---|---|---|
+| Data Hall | 10 → 50 → 200 MW IT | Tier 3 needs liquid cooling |
+| Solar | 50 → 250 → 1,000 MW | |
+| Wind | 50 → 200 → 600 MW | |
+| Battery | 100 → 400 → 1,600 MWh | |
+| Gas | 60 → 300 (CCGT) → 600 MW | |
+| Research Lab | 50 → 200 → 500 researchers | Talent-limited per region (see Rivals) |
+| **Gigawatt Campus** (new) | 1 GW IT, takes 4 slots, ~30 months | Late act, needs a tech and the Series B |
+
+**Buy land:** +1 slot per purchase at a site, at most +3, each costing ×1.6 more and gated by trust.
+**Megasites:** 6–8 new big, empty sites that open in phase 3, with 10 slots, lots of grid headroom and
+long interconnect queues. Candidates: Wyoming High Plains, Patagonia Wind, Rub' al Khali, Lapland,
+Gobi Edge, Northern Territory, Rajasthan Solar Park, Pampas.
+
+**2. Firm power.** These plants run ahead of gas in the power stack.
+
+| Plant | Size, capacity factor | Build | Where |
+|---|---|---|---|
+| Hydro | 150 MW, CF ~0.5 (seasonal, cut by drought) | ~3 yr | River sites only (new `hydroMW` site trait): Columbia Gorge, Paraná, Fjords, Luleå, Siberian Hydro, Copperbelt, Guizhou |
+| Geothermal | 50 MW, CF ~0.9 | ~2.5 yr | Volcanic and rift sites (Reykjanes, Kenyan Rift, Kyushu). The *Enhanced Geothermal* tech opens hot-rock sites |
+| Reactor restart | ~800 MW, CF 0.92 | ~2 yr | Event deal at 3–4 retired-reactor markers on the map. Needs Relations ≥ 50 |
+| SMR pack (Little Sun Reactors) | 300 MW, CF 0.93 | 4–5 yr supplier queue | Any site with water ≥ 0.4 and Trust ≥ 55 |
+| Large reactor | 1.1 GW | 8–10 yr, ~$10B | Usually financed with project debt. Finishes in Act III |
+
+**3. The chip stack.** An accelerator order is produced at the slowest of three pools:
+**logic** (Lumen/Kestrel wafers), **HBM** (Stackwell/Hanbit) and **packaging** (Bondline, or your own
+plant). The Orders panel shows three bars per supplier, and the bottleneck glows. The existing `market.hbm`
+number becomes the HBM pool, and the pools are shared with rivals.
+- **Deals (Mira):** reserve capacity (pay up front for a guaranteed share and a locked price), co-fund
+  a new line (about $1–3B, extra capacity for you after ~18 months), HBM allocation contracts, and
+  Bondline packaging slots.
+- **Packaging plant** (new facility): about 2 years to build. It adds packaging capacity that only you
+  use, and you can sell what you don't need.
+- **Fab JV with Kestrel:** about $8B over ~4 years, at a site with water, firm power (~200 MW) and
+  talent. It needs EUV tools from Veldt, which have their own queue and fall under export rules. Your
+  own chips at cost arrive near the end of the act.
+- **Raw materials:** lithium (battery costs), copper (every build, transmission), and helium and neon
+  (fab output) become market prices with shocks. A **mine stake** (Atacama and Pilbara lithium,
+  Copperbelt copper, Gulf helium) shields you from part of the price swings and pays a little income.
+  No mine logistics.
+
+**4. Regional markets and fiber.** Inference demand lives in regions, sized by each region's existing
+`demand` weight and growing over time. A data center serves its own region at full quality. To sell
+into other regions it needs **fiber**: overland fiber is drawn like power lines (cheap, quick to build),
+and **subsea cables** run between about 10 **cable landing stations** (Virginia Beach, Cornwall,
+Marseille, Mumbai, Singapore, Fortaleza, Sydney, Tokyo Bay, Djibouti, Los Angeles). You can lease
+capacity on an existing cable or lay your own (~$1B, ~2 years). Serving across an ocean costs about 30%
+in latency. Anchor-drag and sabotage events can **cut a cable**, and having a second route pays off.
+Training doesn't care where it runs, so "train in the cold north, serve near users" happens on its own.
+Cumulus rentals serve everywhere.
+
+**5. Advisor jobs (standing orders).** A new **Team** panel. Each advisor has one job with a toggle and
+one or two sliders, and reports in the news with their portrait:
+- **Mira:** keeps N months of chips on order for free rack space (preferred supplier, monthly budget cap).
+- **Juno:** keeps power headroom ≥ X% at your sites (clean-first or cheapest-first) and requests grid connections.
+- **Penny:** holds a cash floor. Below it, discretionary automatic spending pauses and she can draw on credit lines.
+- **Sol:** renews licences and accepts routine community deals.
+- **Iris:** keeps the safety margin above a target by shifting the compute split.
+- **Bit:** starts the next training run when one finishes. Bit's job needs a safety margin ≥ 0
+  (*you can only automate what you trust*).
+
+**6. Money.**
+- **Series B** at the end of phase 1 (about +$8B at roughly a $60B valuation). A **board** forms: quarterly
+  revenue and burn targets and a **Board Confidence** meter (0–100). Misses bring pressure events
+  (growth over safety, cost cuts, a CEO-review scare); hits raise the IPO valuation.
+- **Project finance:** borrow against power plants and campuses (up to 70% of their value) at 6–9%
+  depending on the bloc. Covenants (cash floor, coverage ratio) trigger events if you breach them.
+- **Enterprise contracts:** offers on a contract board ("a pharma group wants 20k accelerators' worth
+  of serving in ATL for 24 months"). Guaranteed monthly revenue, with an SLA penalty if outages or
+  shortages leave you under-delivering.
+- **Sovereign deals:** a bloc offers subsidies, cheap power or fast permits if you build X MW there,
+  with strings attached (data residency, local hiring, model access).
+- **IPO** at the end of the act. The valuation comes from revenue, growth, frontier position, Board
+  Confidence, safety record and how the finale went. It is shown as a headline number on the
+  act-complete screen.
+
+**7. Blocs, export rules and the diplomacy screen (Sol).** A new **Blocs** screen with one card per
+bloc: stance, Relations, Trust, active export rules, election countdown and open offers.
+- **Export rules** block some supplier→region flows (for example leading-edge accelerators into
+  Mainland East Asia, HBM caps to the Steppe, Veldt EUV tools needing a licence). Ways around them:
+  a licence (time plus Relations), building locally, or transshipment through a third bloc, which risks
+  seizure, fines and a hit to Relations.
+- **Elections** every ~4 years per bloc. Stances can flip. Polls are shown in advance, and lobbying
+  can nudge them (with a risk of scandal).
+- **Lobbying** spends cash to raise Relations.
+- **Treaties:** sign onto accords such as a safety-evaluation pact or a compute-sharing accord.
+  Each comes with modifiers and obligations.
+- **Summits:** periodic events where you take positions (safety commitments, compute caps, open
+  weights) that shift Relations with several blocs at once. A preview of the Charter.
+
+**8. Rivals.**
+- **On the map:** Meridian, Lattice and Orchard get headquarters and campuses that take slots and grid
+  headroom at real sites, order chips from the shared pools and show up as markers in their own colours.
+  A small build AI per rival with its own preferences: Meridian builds big and fast, Lattice goes where
+  the talent is, Orchard is cheap and anywhere.
+- **The race:** in phase 3 Meridian publicly races you to the next tier. Being at or above the frontier
+  when Bit-4 ships boosts the IPO. Falling behind isn't fatal, it just costs revenue and valuation.
+- **Talent wars:** each region has a talent pool that rival labs draw down. Poaching events cut a lab's
+  output unless you pay retention. Labs in crowded regions slow down.
+- **Acquisitions:** startups show up for sale (a cooling startup that brings a tech, a small lab that
+  brings talent and a slot, a grid-software outfit that speeds up interconnects). Late in the act,
+  Meridian attempts a **takeover** before your IPO, as a board-vote event chain.
+
+**9. Story: event chains, arcs and the finale.** Events gain follow-ups: a choice can schedule the next
+step N days later. There are about 20 new random events, plus advisor arcs of 3–4 steps:
+- **Mira, "The HBM Crunch":** a Hanbit yield problem → an allocation war → Stackwell's expansion offer → the outcome.
+- **Sol, "Lines on the Map":** new export rules → a licence fight → a summit → a treaty.
+- **Juno, "The Restart":** bringing a retired reactor back, from the town hall to first power.
+- **Penny, "The Board":** board targets → a CEO-review scare → the takeover attempt → IPO prep.
+- **Iris, "Race Dynamics":** the race pushes corner-cutting → an evals pact → a whistleblower choice.
+- **Bit:** grows up (Bit-3 and Bit-4 sprites) and starts asking bigger questions.
+
+**The Crunch** starts once the rest of the checklist is met (or by mid-2034 at the latest). It is a
+90-day crisis on three fronts:
+- **Grid:** a heat dome over two or more of your regions brings grid emergencies and derating.
+- **Supply:** a blockade in the Fab Belt halts chips and HBM.
+- **Safety:** a rival's rushed model causes an incident, and the blocs vote on a pause.
+
+Each front shows *holding / at risk / lost*. You triage with cash, compute, batteries, stockpiles
+and Relations. The number of fronts you hold (0–3) becomes **Charter Standing**, which sets your
+seat in Act III and feeds the IPO.
+
+**Ending:** the IPO event → the Act II complete screen (IPO valuation, Charter Standing, year) → the
+cliffhanger: the blocs call an emergency summit and ask who could run the whole thing.
+
+### Visuals and audio
+- **Gigawatt campus skyline:** campus dioramas widen and scroll as a site tiers up, with rows of halls,
+  substations, cooling towers, cranes during construction, and a sea of lights at night.
+- **Set-piece plants:** an SMR cluster, a big reactor with steaming cooling towers, a dam with its
+  spillway, geothermal vents and pipework, the packaging plant, the fab (cleanroom block and exhaust
+  stacks), and a mine pit with haul trucks.
+- **Busier map:** animated power flows and fiber glow along links, subsea cable lines and landing
+  stations, rival campus markers, more cargo traffic (rival and supplier ships), and construction cranes
+  on map icons.
+- **Supplier dioramas:** Lumen's fab, Veldt's cleanroom, Bondline's lines, the Stackwell and Hanbit HBM
+  fabs, mines, and Cumulus. You can visit them but not build there.
+- **Characters:** Bit-3 and Bit-4 sprites, plus CEO portraits for Meridian, Lattice, Orchard, Kestrel,
+  Little Sun and Veldt (for deals and rival events) and a board chair.
+- **Era:** the Grid Rush grading starts with Act II.
+- **Audio:** Act II in-game ambience gets a fuller variant, plus new sounds for upgrades, deals and
+  cable cuts. The theme MP3 is still yours to drop in.
+
+### UI
+- **New panels:** **Team** (advisor jobs), **Deals** (tabs: Supply · Customers · Companies),
+  **Blocs** (the diplomacy screen), and a **Board** section in Finance (confidence, targets, debt).
+- **Map tools:** a fiber tool next to the power-line tool. Upgrade and buy-land buttons in the site
+  inspector. Pool bars in Orders.
+- **Act II goal tracker and Goals panel** (phase-aware), and a Grid Rush title card at the start of Act II.
+- Keyboard shortcuts and phone layout for all of it (the dock gets an overflow on phones).
+  `data-tut` targets on everything the briefings point at.
+
+### Entry and onboarding
+- A finished Act I save rolls into Act II after the Act I complete screen.
+- **New Company → "Start at Act II"**: a ready-made company (Series A closed, a home campus with two
+  data halls, solar, batteries and a grid connection, Bit-2, about $2B, a handful of techs). It works
+  with every difficulty and founder.
+- **Unlock briefings:** a 1–3-step spotlight tour from the owning advisor the first time each system
+  opens, using the tutorial engine. Briefings can be skipped and replayed from the Field Guide.
+- **About 15 new Field Guide entries:** reactor restarts, SMRs, large reactors, hydro, geothermal and
+  EGS, advanced packaging, fab construction, critical minerals, subsea cables and landing stations,
+  latency, PPAs and project finance, boards and IPOs, export controls, sovereign AI, talent markets.
+
+### Under the hood
+- **New sim modules:** `stack.ts` (pools, deals, materials), `network.ts` (fiber, cables, regional
+  demand), `politics.ts` (Relations, rules, elections, treaties), `capital.ts` (board, debt,
+  contracts, IPO), `rivals.ts` (rival builds, talent, acquisitions), `delegation.ts` (advisor jobs),
+  `finale.ts`. The tick order grows to cover them. The sim stays pure and runs in Node.
+- **State:** `act`, facility `tier`, new facility types (`hydro`, `geothermal`, `restart`, `smr`,
+  `reactor`, `packaging`, `fab`, `campus`), land purchases, fiber links, cable leases, pools, deals,
+  stakes, bloc Relations, rules, elections and treaties, the board, debt, contracts, rival facilities,
+  talent, chain schedules and finale state. **SAVE_VERSION bump** with a migration from v0.2 saves.
+- **Content first:** facilities, megasites, cable stations, techs (~15 new ones: tier unlocks, EGS,
+  campus design, the reactor techs, packaging, EUV licensing and more), events and chains, deals,
+  startups and treaties are all data in `src/content/`.
+- **Tests:** an Act II bot plays from the "Start at Act II" preset to the IPO and should take 4–6
+  game years. The Act I bot must still pass. Also determinism with the new systems, migrating a v0.2
+  save, and routing checks for the new sites and cable stations.
+
+### Build order (inside the one release)
+1. Foundations: state and migration, act framework and goals, "Start at Act II", event chains with
+   delayed follow-ups, the briefing engine.
+2. Scale and firm power: tiers, land, megasites, the campus, hydro, geothermal and the three nuclear paths.
+3. Regional markets, fiber, cables and landing stations.
+4. The chip stack: pools, deals, packaging plant, fab JV, materials and stakes.
+5. Blocs: Relations, export rules, elections, treaties, summits, and the Blocs screen.
+6. Money: Series B, the board, project finance, contracts, sovereign deals, the IPO.
+7. Rivals: map builds, the race, talent, acquisitions, the takeover.
+8. Advisor jobs (Team panel).
+9. Story: arcs, the new events, The Crunch, Act II complete and the cliffhanger.
+10. Visuals: skyline, set pieces, busier map, supplier dioramas, Bit-3/4 and CEO portraits, Grid Rush.
+11. Onboarding: briefings, Field Guide, tutorial targets.
+12. Balance with the bot, QA in the browser (desktop and phone), docs (CHANGELOG, CLAUDE.md, README,
+    this spec), and the v0.2 follow-ups.
+
+**Release:** v0.3.0 "The Scale-Up". As always: ask before pushing `main`, before tagging, and
+before publishing the draft release.
+
+### As built (2026-11-04)
+
+Everything above is in, with these numbers and adjustments from the balance bot (`tests/act2.test.ts`):
+- **Series B gate** lowered to 100 MW of IT, Bit-3 and $75M/month (from 150 MW / $100M). Model plan: Bit-3 10²⁷,
+  Bit-4 2×10²⁸, Bit-5 2×10²⁹, Bit-6 1.5×10³⁰ FLOP. Capability tiers now run to 9 (… Polymath, Architect, Oracle,
+  Superintelligence) so Act II tops out around Polymath.
+- **Rivals in Act II** improve at ~0.18–0.27 capability a year (0.32× the Act I pace, up to +50% from campuses they
+  actually build), so Bit-4 lands within reach of Meridian around 2033.
+- **Chip allocations** are 4× bigger in Act II (you're a real customer now), shrinking as rival campuses compete.
+  The packaging pool only exists in Act II, so Act I is unchanged (the Act I bot still finishes on day 812).
+- **Inference prices** fall 20% a year in Act II as everyone's chips get faster; contracts are priced the same way.
+- **Mineral Counter-Controls** became a 15% slowdown for every fab outside Mainland East Asia, not a ban.
+- **Penny's credit line** is open from phase 1; project finance lends up to 70% of what you own.
+- **Juno** provisions power for your halls' full capacity (not just the chips installed), builds quick renewables
+  first, tops batteries up to ~8 hours behind solar, then grid requests and land.
+- **Act I crisis prices** scale ×2.5 at the start of Act II and grow 40% a year; Act II events are priced at Act II scale.
+- **The Crunch** starts when the IPO checklist is done, or by 1 July 2034 at the latest (after at least 180 days of
+  phase 3). Finale fronts lose pressure from batteries, firm power, stockpiles, your own fab, HBM/packaging deals,
+  a healthy safety margin, treaty membership and good relations, plus event choices.
+- **Open balance question:** the bot is a cautious, single-campus player and reaches the IPO via the 2034 deadline
+  (~5.6 years). A human who spreads out and grows chip supply should beat the deadline; tune with playtests.

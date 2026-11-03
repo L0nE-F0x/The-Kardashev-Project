@@ -115,6 +115,7 @@ export function ActCompleteModal() {
   const game = useGame();
   const s = game.state!;
   if (!game.showActComplete) return null;
+  if (s.flags.act2Complete) return <Act2CompleteModal />;
   const st = s.stats;
   const model = s.models[s.models.length - 1];
   return (
@@ -162,15 +163,15 @@ export function ActCompleteModal() {
             <Portrait id="juno" mood="excited" size={56} />
             <div class="bubble">
               <b>Juno · Engineering</b>
-              Next: gigawatt campuses, our own power plants, maybe a fab partnership. Act II — The Scale-Up — is on the drawing board.
+              Next: gigawatt campuses, our own power plants, maybe a fab partnership. Act II — The Scale-Up — starts now.
             </div>
           </div>
           <div class="choices">
             <button class="btn primary choice" onClick={() => game.dismissActComplete()}>
               <span class="t">
-                <Icon name="play" size="sm" /> Keep playing (sandbox)
+                <Icon name="play" size="sm" /> On to Act II
               </span>
-              <span class="d">Keep building and training; more acts are coming.</span>
+              <span class="d">The Scale-Up: from megawatts to gigawatts.</span>
             </button>
           </div>
         </div>
@@ -229,6 +230,77 @@ export function GameOverModal() {
             </button>
             <button class="btn choice" onClick={() => game.quitToMenu()}>
               <span class="t">Back to the main menu</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Act2CompleteModal() {
+  const game = useGame();
+  const s = game.state!;
+  const st = s.stats;
+  const model = s.models[s.models.length - 1];
+  const standing = s.finale?.standing ?? 0;
+  const seat = standing >= 3 ? 'a founding seat' : standing === 2 ? 'a strong voice' : standing === 1 ? 'a seat at the back' : 'an observer’s badge';
+  return (
+    <div class="scrim">
+      <div class="modal frame">
+        <div class="head">
+          <span class="ico">🔔</span>
+          <div class="grow">
+            <div class="label">{fmtDate(s.day, true)}</div>
+            <h2>Act II complete — The Scale-Up</h2>
+          </div>
+        </div>
+        <div class="body">
+          <div class="story">
+            {s.company.name} rang the bell at {fmtMoney(s.capital.ipo?.valuation ?? s.finance.valuation)}. Gigawatt campuses, power you own, chips you can count on — and you came through the Crunch holding {standing} of 3 fronts.
+          </div>
+          <div class="deltas">
+            <div class="delta">
+              <div class="label">IPO</div>
+              <div class="v gold">{fmtMoney(s.capital.ipo?.valuation ?? 0)}</div>
+              <div class="small muted">raised {fmtMoney(s.capital.ipo?.raised ?? 0)}</div>
+            </div>
+            <div class="delta">
+              <div class="label">Model</div>
+              <div class="v">{model?.name}</div>
+              <div class="small muted">{CAPABILITY_TIERS[tierOf(st.capability)]} · {st.capability.toFixed(2)}</div>
+            </div>
+            <div class="delta">
+              <div class="label">IT capacity</div>
+              <div class="v cyan">{fmtMW(st.itMW)}</div>
+            </div>
+            <div class="delta">
+              <div class="label">Your generation</div>
+              <div class="v">{fmtMW(st.genAvgMW)}</div>
+              <div class="small muted">{Math.round((st.cleanGenMW / Math.max(1, st.genAvgMW)) * 100)}% clean</div>
+            </div>
+            <div class="delta">
+              <div class="label">Charter standing</div>
+              <div class={`v ${standing >= 2 ? 'good' : 'warn'}`}>{standing} / 3</div>
+            </div>
+            <div class="delta">
+              <div class="label">Kardashev</div>
+              <div class="v cyan">{st.K.toFixed(5)}</div>
+            </div>
+          </div>
+          <div class="quote">
+            <Portrait id="sol" mood="excited" size={56} />
+            <div class="bubble">
+              <b>Sol · Diplomacy</b>
+              The blocs have called an emergency summit. After the Crunch, they want someone to coordinate power, chips and compute for the whole planet — and they keep saying our name. We’d have {seat}. Act III — The Charter — is on the drawing board.
+            </div>
+          </div>
+          <div class="choices">
+            <button class="btn primary choice" onClick={() => game.dismissActComplete()}>
+              <span class="t">
+                <Icon name="play" size="sm" /> Keep playing (sandbox)
+              </span>
+              <span class="d">Keep growing toward Type I; Act III is coming.</span>
             </button>
           </div>
         </div>

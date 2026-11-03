@@ -134,7 +134,93 @@ Wind farms reach 35–45% on good sites. Gas and nuclear plants can run above 90
   {
     id: 'export-controls', title: 'Export controls', cat: 'world', icon: 'warn', unlock: (s) => happened(s, 'export-controls') || s.facilities.some((f) => ['inner-mongolia', 'guizhou', 'pearl-delta', 'kazakh-steppe', 'bratsk', 'caspian'].includes(f.siteId)),
     body: `Governments restrict which advanced chips and chipmaking tools can be sold where, treating compute as a strategic resource. Licences, paperwork and outright bans shape where AI infrastructure can be built.`,
-    game: 'Shipments into controlled regions can be delayed or held at customs.',
+    game: 'In Act II, export rules block some supplier→region chip flows until Sol wins a licence. Fabs in some blocs need a licence for EUV tools.',
+  },
+  // ═══════════════════════════════════════ ACT II ═══════════════════════════════════════
+  {
+    id: 'reactor-restart', title: 'Restarting a reactor', cat: 'energy', icon: 'restart', unlock: (s) => (s.act ?? 1) >= 2 && (has(s, 'restart') || happened(s, 'restart-1')),
+    body: `Several nuclear plants were shut for economic or political reasons while still physically sound. Restarting one means new fuel, re-certified safety systems, rehired staff and a regulator's sign-off — but the concrete, the turbine hall and the grid connection already exist.
+
+In the mid-2020s tech companies signed deals to bring shuttered reactors back specifically to power data centers: hundreds of megawatts of firm, carbon-free power in a couple of years instead of a decade.`,
+    game: 'Three sites have a retired reactor (look for the reactor trait). A restart takes about two years and needs government relations ≥ 50 in that bloc.',
+  },
+  {
+    id: 'smr', title: 'Small modular reactors', cat: 'energy', icon: 'smr', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 2,
+    body: `Small modular reactors (SMRs) are reactors of tens to a few hundred megawatts designed to be built in a factory and shipped, rather than poured on site. The promise: repeatable designs, faster licensing after the first unit, and lower cost through volume — Wright's law for nuclear.
+
+The catch is that the first ones take years, and order books fill up fast.`,
+    game: 'Order an SMR pack from Little Sun: 300 MW, a 4–5 year queue, no emissions, about 93% availability. It needs cooling water and local trust ≥ 55.',
+  },
+  {
+    id: 'big-nuclear', title: 'Large reactors', cat: 'energy', icon: 'reactor', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 3,
+    body: `A gigawatt-class reactor runs for sixty years or more at over 90% capacity factor, on a fuel bill that barely matters. But building one takes most of a decade and tens of billions of dollars, and the financing costs of all that waiting dominate the price.`,
+    game: 'The Nuclear Plant (1.1 GW) takes 8–10 years — start it in Act II and it powers Act III. Project finance helps pay for it.',
+  },
+  {
+    id: 'hydro', title: 'Hydropower', cat: 'energy', icon: 'hydro', unlock: (s) => (s.act ?? 1) >= 2,
+    body: `Falling water spins a turbine: hydropower is the largest source of clean electricity on Earth. New big dams are rare now, but adding turbines to existing dams and rivers is common. Output follows the rain: droughts can halve it.`,
+    game: 'Hydro plants only go at river sites (river ×N trait). Firm and cheap to run, but droughts cut their output.',
+  },
+  {
+    id: 'geothermal', title: 'Geothermal & EGS', cat: 'energy', icon: 'geothermal', unlock: (s) => (s.act ?? 1) >= 2,
+    body: `Where hot rock sits close to the surface — Iceland, Kenya's Rift Valley, Japan's volcanic islands — steam from deep wells drives turbines around the clock.
+
+Enhanced geothermal systems (EGS) borrow drilling techniques from the oil and gas industry to crack open hot dry rock and circulate water through it, making geothermal possible in far more places.`,
+    game: 'Geothermal runs at ~90% capacity factor with no fuel. Volcanic sites work from the start; hot-rock sites need Enhanced Geothermal research.',
+  },
+  {
+    id: 'packaging', title: 'Advanced packaging', cat: 'chips', icon: 'packaging', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 2,
+    body: `A modern AI accelerator isn't one chip. A logic die sits on a silicon interposer next to several stacks of high-bandwidth memory, all bonded together with thousands of microscopic connections. This "2.5D" packaging is a specialised process of its own — and for years it was the tightest bottleneck in AI hardware.`,
+    game: 'Chips flow at the rate of the slowest of three pools: wafers, HBM and packaging. Build a packaging plant or book Bondline slots so packaging shortages don’t hit you.',
+  },
+  {
+    id: 'fab', title: 'Building a fab', cat: 'chips', icon: 'fab', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 2,
+    body: `A leading-edge chip factory costs $20 billion or more and takes three to four years. It needs ultrapure water by the million litres a day, enough power for a small city, and lithography machines that only one company on Earth can make — each one shipped in dozens of crates and assembled on site.`,
+    game: 'The Kestrel joint-venture fab takes four years, needs plenty of water and firm power, and stalls halfway if export rules block Veldt’s EUV tools. Once online, its chips cost a third of the market price.',
+  },
+  {
+    id: 'minerals', title: 'Critical minerals', cat: 'chips', icon: 'lithium', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 2,
+    body: `Batteries need lithium; every cable, transformer and motor needs copper; fabs need helium for cooling and neon for their lasers. A handful of mines and plants supply most of the world, so a single outage or export ban moves prices everywhere.`,
+    game: 'Lithium, copper, helium and neon prices swing with events. A stake in a mine pays a dividend and shields you from part of the swing.',
+  },
+  {
+    id: 'subsea', title: 'Subsea cables', cat: 'world', icon: 'cable', unlock: (s) => (s.act ?? 1) >= 2,
+    body: `About 99% of intercontinental internet traffic runs through fibre-optic cables on the sea floor — a few hundred of them, each about as thick as a garden hose. They come ashore at landing stations, often on quiet beaches.
+
+Every year ships dragging anchors cut dozens of them. Repair ships are few, so redundancy matters.`,
+    game: 'Lease capacity on a cable (or lay your own) to join two regions into your private network. Cables get cut; a second route keeps you online.',
+  },
+  {
+    id: 'latency', title: 'Latency & regional markets', cat: 'compute', icon: 'fiber', unlock: (s) => (s.act ?? 1) >= 2,
+    body: `Light in fibre travels about 200 km per millisecond. A request served from the other side of the planet takes noticeably longer than one served nearby — fine for training, painful for interactive products. That is why inference capacity is built close to users, while training can go wherever power is cheap.`,
+    game: 'Inference demand lives in regions. Halls serve their own region best; your fiber and cables let them sell further at low latency. The public internet works too, at a cost.',
+  },
+  {
+    id: 'project-finance', title: 'Project finance', cat: 'scale', icon: 'finance', unlock: (s) => (s.act ?? 1) >= 2 && (s.capital.loans.length > 0 || s.phase >= 2),
+    body: `Big infrastructure is mostly built with borrowed money. Lenders fund a specific power plant or campus, secured on the asset itself and repaid from its revenue. Cheap debt is why capital-intensive industries can grow faster than their profits alone would allow — and why interest rates matter so much to them.`,
+    game: 'Borrow up to 70% of what your plants, halls and chips are worth. Repayments come out monthly. Penny can draw a credit line automatically to hold your cash floor.',
+  },
+  {
+    id: 'boards-ipos', title: 'Boards & IPOs', cat: 'scale', icon: 'ipo', unlock: (s) => (s.act ?? 1) >= 2 && !!s.capital.board,
+    body: `Venture investors buy board seats along with their shares. A board hires and fires the CEO and approves big decisions; at growth-stage companies it usually wants quarterly progress.
+
+An initial public offering (IPO) sells shares to the public. Founders sometimes use dual-class shares to keep voting control after listing.`,
+    game: 'After the Series B, the board reviews revenue growth every quarter. Its confidence affects your loan rates, takeover defence and IPO valuation.',
+  },
+  {
+    id: 'sovereign-ai', title: 'Sovereign AI', cat: 'world', icon: 'blocs', unlock: (s) => (s.act ?? 1) >= 2 && s.capital.sovereign.length > 0,
+    body: `Governments increasingly see compute as national infrastructure. Many now subsidise domestic data centers and "sovereign" models in exchange for local jobs, data kept in-country, or priority access for public services.`,
+    game: 'Blocs offer grants, cheap power or fast permits if you build a set amount of IT capacity there by a deadline. Each offer has strings attached.',
+  },
+  {
+    id: 'talent', title: 'The talent market', cat: 'world', icon: 'talent', unlock: (s) => (s.act ?? 1) >= 2 && Object.values(s.talent).some((v) => v < 0.85),
+    body: `There are only a few thousand people in the world who have trained frontier models. Labs compete for them with eye-watering pay, compute budgets and mission. Hubs form where talent already lives — and drain as rivals move in.`,
+    game: 'Each region has a talent pool. Rival labs drain it; your labs there produce less as it runs dry. Pools refill slowly.',
+  },
+  {
+    id: 'hvdc', title: 'HVDC transmission', cat: 'energy', icon: 'link', unlock: (s) => (s.act ?? 1) >= 2 && (s.research.done.includes('hvdc') || s.links.length >= 2),
+    body: `Alternating current loses energy quickly over long distances. High-voltage direct current lines lose far less — around 3% per 1,000 km — so they carry power from remote deserts, rivers and offshore wind farms to the cities and campuses that need it.`,
+    game: 'With HVDC research, power lines reach 2.5× further and lose 60% less on the way.',
   },
 ];
 

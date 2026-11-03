@@ -58,7 +58,7 @@ export default defineConfig({
         name: 'The Kardashev Project',
         short_name: 'Kardashev',
         description: pkg.description,
-        start_url: '/play/',
+        start_url: '/play/?app=1',
         scope: '/',
         display: 'fullscreen',
         display_override: ['fullscreen', 'standalone'],
@@ -83,6 +83,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallback: null,
+        // the installed app opens /play/?app=1 — serve the cached page for it offline
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^app$/],
       },
       devOptions: { enabled: false },
     }),

@@ -6,38 +6,57 @@ import { sampleRegionCode } from '../../world/mapData';
 import { CHOKEPOINTS } from '../../world/routing';
 import { REGION_BY_CODE, CODE_BY_REGION } from '../../content/mapcodes';
 import { REGIONS } from '../../content/regions';
-import { SITES, siteDef, type SiteDef } from '../../content/sites';
-import type { FacilityType, Shipment } from '../../sim/types';
+import { SITES, siteDef } from '../../content/sites';
+import type { Shipment } from '../../sim/types';
 import { closedChokepoints } from '../../sim/effects';
-import { C, hex, type ColorKey } from '../palette';
+import { C, hex } from '../palette';
 import { PixelCanvas } from '../pixels';
-import { labelTexture, refreshTexture, textureOf } from '../textures';
+import { cachedTexture, labelTexture, refreshTexture, textureOf } from '../textures';
 import { renderBorders, renderTerrain } from './terrain';
 import { lightPoints, renderLights, renderNight, type LightPoint } from './night';
 import {
-  candidateTexture,
+  cableShipTexture,
+  cargoShipTexture,
   chokepointTexture,
-  cloudMarkTexture,
   cloudTexture,
+  cutMarkTexture,
   facilityIconTexture,
-  homeTexture,
   pixelTexture,
   planeTexture,
+  rivalCampusTexture,
   selectionTexture,
   shipTexture,
-  sitePinTexture,
-  supplierTexture,
 } from '../sprites/mapIcons';
 import { hash2 } from '../pixels';
+import {
+  actOf,
+  cableDraws,
+  LANES,
+  lanePath,
+  laneShip,
+  paintNetwork,
+  rivalsAt,
+  seaPath,
+  siteGlyphs,
+  siteMarker,
+  siteTrack,
+  siteVisible,
+  trackAt,
+  trackPixels,
+  type CableDraw,
+  type Px,
+} from './act2Layers';
 
-const SUPPLIER_COLOR: Record<string, ColorKey> = {
-  lumen: 'cyn4',
-  kestrel: 'org1',
-  stackwell: 'vio4',
-  hanbit: 'pnk0',
-  veldt: 'yel0',
-  bondline: 'grn6',
-};
+/** The map tools this scene draws previews for ('fiber' arrives with Act II). */
+type AnyTool = { kind: string; from: string | null } | null;
+
+/** Act II network layer (cables + fiber) per LOD, painted into a full-map canvas. */
+interface NetLayer {
+  pc: PixelCanvas;
+  tex: Texture;
+  key: string;
+}
+const NET_CACHE: (NetLayer | null)[] = [null, null];
 
 /** Per-LOD textures, built lazily. */
 interface LodLayer {
@@ -86,6 +105,10 @@ export class MapScene implements Scene {
   private readonly overlayL = new Container();
   private readonly cloudL = new Container();
   private readonly linkG = new Graphics();
+  /** Act II: cables + fiber (full-map texture), cut cables blinking, pulses along them. */
+  private readonly netL = new Container();
+  private readonly cutG = new Graphics();
+  private readonly netPulseL = new Container();
   private readonly routeG = new Graphics();
   private readonly pulseL = new Container();
   private readonly chokeL = new Container();
@@ -111,10 +134,20 @@ export class MapScene implements Scene {
   private lastNight = 0;
   private time = 0;
   private clouds: { lon: number; lat: number; v: number; sprite: Sprite; shadow: Sprite }[] = [];
-  private markers = new Map<string, { sprite: Sprite; icons: Sprite[]; label: Sprite | null; key: string }>();
+  private markers = new Map<string, { sprite: Sprite; icons: Sprite[]; label: Sprite | null; key: string; lift: boolean }>();
   private chokeSprites = new Map<string, Sprite>();
   private regionLabels: Sprite[] = [];
-  private pulses: { sprite: Sprite; link: string; t: number }[] = [];
+  private pulses: { sprite: Sprite; tail: Sprite | null; link: string; t: number }[] = [];
+  // ── Act II ──
+  private net: WrapSprite | null = null;
+  private tracks = new Map<string, Px[]>();
+  private netPulses: { sprite: Sprite; track: string; t: number; speed: number }[] = [];
+  private netPulseKey = '';
+  private cutKey = '';
+  private rivalSprites = new Map<string, Sprite>();
+  private cutSprites = new Map<string, { mark: Sprite; ship: Sprite }>();
+  private layShips = new Map<string, Sprite>();
+  private traffic: Sprite[] = [];
   private shipSprites = new Map<string, Sprite>();
   private linkKey = '';
   private routeKey = '';
@@ -125,10 +158,12 @@ export class MapScene implements Scene {
   private lastWheel = 0;
   private cursor: { x: number; y: number } | null = null;
   private lastClick = { t: 0, site: '' };
+  /** Sea routes (A*) are worked out lazily, at most one per frame. */
+  private routeBudget = 1;
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.world);
-    this.world.addChild(this.terrainL, this.overlayL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.chokeL, this.markerL, this.shipL, this.previewG, this.selSprite, this.labelL);
+    this.world.addChild(this.terrainL, this.overlayL, this.netL, this.cutG, this.netPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.chokeL, this.markerL, this.shipL, this.previewG, this.selSprite, this.labelL);
     const initial = this.layer(0);
     this.terrain = new WrapSprite(this.terrainL, initial.terrain);
     this.borders = new WrapSprite(this.overlayL, initial.borders, { alpha: 0.32 });
@@ -190,6 +225,10 @@ export class MapScene implements Scene {
     this.linkKey = '';
     this.routeKey = '';
     this.markers.forEach((m) => (m.key = ''));
+    this.tracks.clear();
+    this.netPulseKey = '';
+    this.cutKey = '';
+    if (this.net) this.net.setTexture(this.netLayer().tex, W);
     this.rebuildRegionLabels();
     for (const c of this.clouds) this.placeCloud(c);
   }
@@ -338,11 +377,15 @@ export class MapScene implements Scene {
     this.world.position.set(-Math.floor(this.camX), -Math.floor(this.camY));
     if (now - this.lastNight > 30_000) this.refreshNight(false);
     this.updateClouds(dt);
+    this.routeBudget = 1;
     this.updateHighlight();
     this.updateMarkers();
+    this.updateRivals();
+    this.updateNetwork(dt);
     this.updateLinks();
     this.updateRoutes();
     this.updateShips();
+    this.updateTraffic();
     this.updatePulses(dt);
     this.updateChokepoints();
     this.updateSelection();
@@ -413,58 +456,53 @@ export class MapScene implements Scene {
   }
 
   // ── markers ───────────────────────────────────────────────────────────────────────────────
-  private siteFacilities(id: string): { type: FacilityType; building: boolean }[] {
-    const s = this.game.view;
-    if (!s) return [];
-    return s.facilities.filter((f) => f.siteId === id && f.type !== 'hq').map((f) => ({ type: f.type, building: f.status === 'building' }));
-  }
-
-  private markerTexture(site: SiteDef, hovered: boolean): Texture {
-    const s = this.game.view;
-    if (site.kind === 'supplier') return supplierTexture(SUPPLIER_COLOR[site.supplier ?? 'lumen'] ?? 'ink8');
-    if (site.kind === 'cloud') return cloudMarkTexture();
-    if (s && s.company.homeSite === site.id && this.game.mode !== 'title') return homeTexture();
-    if (s && (s.facilities.some((f) => f.siteId === site.id) || s.sites[site.id]?.grid.mw > 0 || s.sites[site.id]?.grid.pending.length)) return sitePinTexture('cyn4');
-    return candidateTexture(hovered);
-  }
-
   private updateMarkers() {
     const g = this.game;
+    const s = g.view;
+    const act2 = actOf(s).act >= 2;
     const hoveredSite = g.hover?.kind === 'site' ? g.hover.id : null;
     const selectedSite = g.selection?.kind === 'site' ? g.selection.id : null;
+    const tool = g.tool as AnyTool;
     const fine = this.lodIndex >= 1;
     for (const site of SITES) {
       let m = this.markers.get(site.id);
+      if (!siteVisible(site, s)) {
+        // Act II sites stay hidden until the act (and phase) opens them
+        if (m) {
+          m.sprite.visible = false;
+          m.icons.forEach((ic) => ic.destroy());
+          m.icons = [];
+          m.label?.destroy();
+          m.label = null;
+          m.key = '';
+        }
+        continue;
+      }
       if (!m) {
         const sprite = new Sprite();
         this.markerL.addChild(sprite);
-        m = { sprite, icons: [], label: null, key: '' };
+        m = { sprite, icons: [], label: null, key: '', lift: false };
         this.markers.set(site.id, m);
       }
-      const facs = this.siteFacilities(site.id);
+      m.sprite.visible = true;
+      const glyphs = siteGlyphs(s, site.id);
       const hovered = hoveredSite === site.id;
-      const showLabel = hovered || selectedSite === site.id || (fine && facs.length > 0) || (g.tool?.kind === 'link' && g.tool.from === site.id);
-      const key = `${this.lodIndex}|${hovered}|${showLabel}|${facs.map((f) => f.type + (f.building ? 'b' : '')).join(',')}|${g.state?.company.homeSite === site.id}|${g.state?.sites[site.id]?.grid.mw ?? 0}`;
+      const showLabel = hovered || selectedSite === site.id || (fine && glyphs.length > 0) || ((tool?.kind === 'link' || tool?.kind === 'fiber') && tool.from === site.id);
+      const marker = siteMarker(site, s, hovered, g.mode === 'title');
+      const key = `${this.lodIndex}|${hovered}|${showLabel}|${glyphs.map((f) => `${f.type}${f.building ? 'b' : ''}${f.upgrade ? 'u' : ''}${f.tier}`).join(',')}|${marker.key}|${act2}`;
       const p = this.proj(site.lon, site.lat);
       const x = Math.floor(this.wrapX(p.x));
       const y = Math.floor(p.y);
       if (key !== m.key) {
         m.key = key;
-        const tex = this.markerTexture(site, hovered);
-        m.sprite.texture = tex;
+        m.sprite.texture = cachedTexture(marker.key, marker.make);
+        m.lift = marker.lift;
         m.icons.forEach((ic) => ic.destroy());
         m.icons = [];
         if (fine || hovered) {
-          // group facility icons by type
-          const counts = new Map<string, { type: FacilityType; building: boolean; n: number }>();
-          for (const f of facs) {
-            const k = f.type + f.building;
-            const e = counts.get(k) ?? { ...f, n: 0 };
-            e.n++;
-            counts.set(k, e);
-          }
-          for (const e of counts.values()) {
-            const ic = new Sprite(facilityIconTexture(e.type, e.building));
+          for (const e of glyphs) {
+            // Act II shows construction and upgrades with a tiny crane; Act I keeps its hazard tape
+            const ic = new Sprite(facilityIconTexture(e.type, e.building, { upgrade: e.upgrade, tier: e.tier, crane: act2 }));
             this.markerL.addChild(ic);
             m.icons.push(ic);
           }
@@ -479,13 +517,53 @@ export class MapScene implements Scene {
         }
       }
       const tex = m.sprite.texture;
-      m.sprite.position.set(x - Math.floor(tex.width / 2), y - (site.kind === 'build' && tex.height > 6 ? tex.height - 1 : Math.floor(tex.height / 2)));
-      let ix = x - Math.floor((m.icons.length * 8) / 2);
+      m.sprite.position.set(x - Math.floor(tex.width / 2), y - (m.lift ? tex.height - 1 : Math.floor(tex.height / 2)));
+      // facility glyphs in a row under the marker, bottoms aligned (cranes poke up)
+      const total = m.icons.reduce((n, ic) => n + ic.texture.width + 1, 0);
+      let ix = x - Math.floor(total / 2);
       for (const ic of m.icons) {
-        ic.position.set(ix, y + 3);
-        ix += 8;
+        ic.position.set(ix, y + 10 - ic.texture.height);
+        ix += ic.texture.width + 1;
       }
       if (m.label) m.label.position.set(x - Math.floor(m.label.texture.width / 2), m.sprite.y - m.label.texture.height - 1);
+    }
+  }
+
+  /** Rival campuses: small markers in their colours, beside the site's own marker. */
+  private updateRivals() {
+    const s = this.game.view;
+    const alive = new Set<string>();
+    if (s && actOf(s).act >= 2) {
+      const bySite = new Set((s.rivalBuilds ?? []).map((r) => r.siteId));
+      for (const siteId of bySite) {
+        const site = siteDef(siteId);
+        if (!siteVisible(site, s)) continue;
+        const p = this.proj(site.lon, site.lat);
+        const x = Math.floor(this.wrapX(p.x));
+        const y = Math.floor(p.y);
+        const lift = this.markers.get(siteId)?.lift ?? false;
+        let rx = x + (lift ? 5 : 3);
+        const ry = y - (lift ? 10 : 7);
+        for (const r of rivalsAt(s, siteId)) {
+          const k = `${siteId}:${r.owner}`;
+          alive.add(k);
+          let sp = this.rivalSprites.get(k);
+          if (!sp) {
+            sp = new Sprite();
+            this.markerL.addChild(sp);
+            this.rivalSprites.set(k, sp);
+          }
+          sp.texture = rivalCampusTexture(r.owner, r.building);
+          sp.position.set(rx, ry);
+          rx += sp.texture.width - 1;
+        }
+      }
+    }
+    for (const [k, sp] of this.rivalSprites) {
+      if (!alive.has(k)) {
+        sp.destroy();
+        this.rivalSprites.delete(k);
+      }
     }
   }
 
@@ -539,7 +617,8 @@ export class MapScene implements Scene {
   private updateLinks() {
     const s = this.game.view;
     const links = s?.links ?? [];
-    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${links.map((l) => l.id + l.status).join(',')}`;
+    const act2 = actOf(s).act >= 2;
+    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${links.map((l) => l.id + l.status).join(',')}|${act2}`;
     if (key === this.linkKey) return;
     this.linkKey = key;
     this.linkG.clear();
@@ -561,15 +640,26 @@ export class MapScene implements Scene {
       }
     }
     // reset pulses
-    this.pulses.forEach((p) => p.sprite.destroy());
+    this.pulses.forEach((p) => {
+      p.sprite.destroy();
+      p.tail?.destroy();
+    });
     this.pulses = [];
     for (const l of links) {
       if (l.status !== 'online') continue;
-      for (let k = 0; k < 2; k++) {
+      // Act II: three power "comets" per line, a bright head with a warm tail
+      const n = act2 ? 3 : 2;
+      for (let k = 0; k < n; k++) {
+        let tail: Sprite | null = null;
+        if (act2) {
+          tail = new Sprite(pixelTexture());
+          tail.tint = hex(C.yel2);
+          this.pulseL.addChild(tail);
+        }
         const sp = new Sprite(pixelTexture());
         sp.tint = hex(C.white);
         this.pulseL.addChild(sp);
-        this.pulses.push({ sprite: sp, link: l.id, t: k * 0.5 });
+        this.pulses.push({ sprite: sp, tail, link: l.id, t: k / n });
       }
     }
   }
@@ -588,7 +678,253 @@ export class MapScene implements Scene {
       if (bx - a.x > W / 2) bx -= W;
       else if (a.x - bx > W / 2) bx += W;
       p.sprite.position.set(Math.round(a.x + (bx - a.x) * p.t), Math.round(a.y + (b.y - a.y) * p.t));
+      if (p.tail) {
+        const len = Math.max(1, Math.hypot(bx - a.x, b.y - a.y));
+        const tt = Math.max(0, p.t - 1.6 / len);
+        p.tail.position.set(Math.round(a.x + (bx - a.x) * tt), Math.round(a.y + (b.y - a.y) * tt));
+      }
     }
+  }
+
+  // ── Act II network: subsea cables, fiber, cuts, pulses, cosmetic traffic ──────────────────
+  private netLayer(): NetLayer {
+    const i = this.lodIndex;
+    let L = NET_CACHE[i];
+    if (!L) {
+      const pc = new PixelCanvas(this.lod.W, this.lod.H);
+      L = { pc, tex: textureOf(pc), key: '' };
+      NET_CACHE[i] = L;
+    }
+    return L;
+  }
+
+  /** A cable's map pixels, or null until its sea route has been worked out. */
+  private cableTrack(c: { a: string; b: string }): Px[] | null {
+    const id = `cable:${c.a}|${c.b}`;
+    const hit = this.tracks.get(id);
+    if (hit) return hit;
+    const path = seaPath(this.game.world.router, c.a, c.b, undefined, false);
+    if (!path) return null;
+    const t = trackPixels(path, this.lod);
+    this.tracks.set(id, t);
+    return t;
+  }
+
+  private fiberTrack(a: string, b: string): Px[] {
+    const id = `fiber:${a}|${b}`;
+    let t = this.tracks.get(id);
+    if (!t) {
+      t = siteTrack(a, b, this.lod);
+      this.tracks.set(id, t);
+    }
+    return t;
+  }
+
+  private clearNet() {
+    this.netPulses.forEach((p) => p.sprite.destroy());
+    this.netPulses = [];
+    this.netPulseKey = '';
+    this.cutSprites.forEach((e) => {
+      e.mark.destroy();
+      e.ship.destroy();
+    });
+    this.cutSprites.clear();
+    this.layShips.forEach((sp) => sp.destroy());
+    this.layShips.clear();
+    this.cutG.clear();
+    this.cutKey = '';
+  }
+
+  private updateNetwork(dt: number) {
+    const s = this.game.view;
+    const on = !!s && actOf(s).act >= 2;
+    this.netL.visible = on;
+    this.cutG.visible = on;
+    this.netPulseL.visible = on && !this.game.settings.reducedMotion;
+    if (!s || !on) {
+      if (this.netPulses.length || this.cutSprites.size || this.layShips.size) this.clearNet();
+      return;
+    }
+    const cables = cableDraws(s);
+    // fill in one missing sea route per frame
+    for (const c of cables) {
+      if (this.cableTrack(c)) continue;
+      if (this.routeBudget > 0) {
+        this.routeBudget--;
+        seaPath(this.game.world.router, c.a, c.b);
+      }
+      break;
+    }
+    if (!this.net) {
+      this.net = new WrapSprite(this.netL, this.netLayer().tex);
+      this.net.setTexture(this.netLayer().tex, this.lod.W);
+    }
+    const fiber = s.network?.fiber ?? [];
+    const known = cables.filter((c) => this.tracks.has(`cable:${c.a}|${c.b}`)).length;
+    const key = `${known}|${cables.map((c) => `${c.id}:${c.kind}:${Math.floor(c.built * 40)}:${c.cut}`).join(',')}|${fiber.map((f) => f.id + f.status + f.a + f.b).join(',')}`;
+    const L = this.netLayer();
+    // while routes are still being worked out (a frame each), paint once at the start and once at the end
+    if (L.key !== key && (known === cables.length || !L.key)) {
+      L.key = key;
+      L.pc.data.fill(0);
+      paintNetwork(L.pc, this.lod, s, (c) => this.cableTrack(c));
+      refreshTexture(L.tex);
+    }
+    this.updateCuts(cables);
+    this.updateNetPulses(cables, dt, key);
+  }
+
+  /** Cut cables blink bright red over their dark-red line; a cross and a repair ship mark the break. */
+  private updateCuts(cables: CableDraw[]) {
+    const cut = cables.filter((c) => c.cut && this.cableTrack(c));
+    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${cut.map((c) => c.id).join(',')}`;
+    if (key !== this.cutKey) {
+      this.cutKey = key;
+      this.cutG.clear();
+      const W = this.lod.W;
+      for (const c of cut) {
+        const t = this.cableTrack(c)!;
+        const shift = this.wrapX(t[0].x) - t[0].x;
+        for (const off of [-W, 0, W]) for (const p of t) this.cutG.rect(p.x + shift + off, p.y, 1, 1);
+      }
+      if (cut.length) this.cutG.fill(hex(C.red3));
+    }
+    const blinkOn = this.game.settings.reducedMotion || Math.floor(this.time * 2.5) % 2 === 0;
+    this.cutG.alpha = blinkOn ? 1 : 0;
+    const alive = new Set<string>();
+    for (const c of cut) {
+      alive.add(c.id);
+      let e = this.cutSprites.get(c.id);
+      if (!e) {
+        e = { mark: new Sprite(cutMarkTexture()), ship: new Sprite(cableShipTexture()) };
+        this.markerL.addChild(e.ship, e.mark);
+        this.cutSprites.set(c.id, e);
+      }
+      const p = trackAt(this.cableTrack(c)!, 0.5);
+      const x = Math.floor(this.wrapX(p.x));
+      e.mark.position.set(x - 3, p.y - 3);
+      e.mark.alpha = blinkOn ? 1 : 0.55;
+      e.ship.position.set(x + 4, p.y - 2);
+    }
+    for (const [id, e] of this.cutSprites) {
+      if (alive.has(id)) continue;
+      e.mark.destroy();
+      e.ship.destroy();
+      this.cutSprites.delete(id);
+    }
+    // your own cables under construction: the cable ship sits at the end of the laid stretch
+    const laying = new Set<string>();
+    for (const c of cables) {
+      if (c.kind !== 'own' || c.built >= 1 || c.cut) continue;
+      const t = this.cableTrack(c);
+      if (!t) continue;
+      laying.add(c.id);
+      let sp = this.layShips.get(c.id);
+      if (!sp) {
+        sp = new Sprite(cableShipTexture());
+        this.shipL.addChild(sp);
+        this.layShips.set(c.id, sp);
+      }
+      const i = Math.floor(c.built * (t.length - 1));
+      const p = t[i];
+      const ahead = t[Math.min(t.length - 1, i + 3)];
+      const dir = ahead.x >= p.x ? 1 : -1;
+      sp.scale.x = dir;
+      sp.position.set(Math.round(this.wrapX(p.x) - (dir > 0 ? 3 : -3)), p.y - 3);
+    }
+    for (const [id, sp] of this.layShips) {
+      if (laying.has(id)) continue;
+      sp.destroy();
+      this.layShips.delete(id);
+    }
+  }
+
+  /** Data flowing along your leased/own cables and fiber. Hidden with reduced motion. */
+  private updateNetPulses(cables: CableDraw[], dt: number, netKey: string) {
+    const s = this.game.view!;
+    const key = `${this.lodIndex}|${netKey}`;
+    if (key !== this.netPulseKey) {
+      this.netPulseKey = key;
+      this.netPulses.forEach((p) => p.sprite.destroy());
+      this.netPulses = [];
+      const add = (track: string, n: number, color: number, speed: number) => {
+        for (let k = 0; k < n; k++) {
+          const sp = new Sprite(pixelTexture());
+          sp.tint = hex(color);
+          this.netPulseL.addChild(sp);
+          this.netPulses.push({ sprite: sp, track, t: k / n + hash2(k, track.length, 7) * 0.2, speed });
+        }
+      };
+      for (const c of cables) {
+        if (c.cut || !(c.kind === 'leased' || (c.kind === 'own' && c.built >= 1)) || !this.cableTrack(c)) continue;
+        add(`cable:${c.a}|${c.b}`, 3, C.white, 24);
+      }
+      for (const f of s.network?.fiber ?? []) {
+        if (f.status !== 'online') continue;
+        this.fiberTrack(f.a, f.b);
+        add(`fiber:${f.a}|${f.b}`, 2, C.white, 32);
+      }
+    }
+    if (this.game.settings.reducedMotion) return;
+    for (const p of this.netPulses) {
+      const t = this.tracks.get(p.track);
+      if (!t || t.length < 2) {
+        p.sprite.visible = false;
+        continue;
+      }
+      p.t = (p.t + (dt * p.speed) / t.length) % 1;
+      const q = trackAt(t, p.t);
+      p.sprite.visible = true;
+      p.sprite.position.set(Math.floor(this.wrapX(q.x)), q.y);
+    }
+  }
+
+  /** Act II: extra cargo ships plying the busy lanes (cosmetic, not clickable). */
+  private updateTraffic() {
+    const s = this.game.view;
+    if (!s || actOf(s).act < 2) {
+      if (this.traffic.length) {
+        this.traffic.forEach((sp) => sp.destroy());
+        this.traffic = [];
+      }
+      return;
+    }
+    if (!this.traffic.length) {
+      for (const lane of LANES) {
+        const sp = new Sprite(cargoShipTexture(lane.cargo, lane.hull));
+        sp.alpha = 0.9;
+        this.shipL.addChildAt(sp, 0);
+        this.traffic.push(sp);
+      }
+    }
+    const router = this.game.world.router;
+    const closed = closedChokepoints(s);
+    const ck = [...closed].sort().join(',');
+    const days = s.day + this.game.dayFraction();
+    LANES.forEach((lane, i) => {
+      const sp = this.traffic[i];
+      const id = `lane:${lane.a}|${lane.b}|${ck}`;
+      let t = this.tracks.get(id);
+      if (!t) {
+        let path = lanePath(router, lane, closed, false);
+        if (!path && this.routeBudget > 0) {
+          this.routeBudget--;
+          path = lanePath(router, lane, closed, true);
+        }
+        if (path) {
+          t = trackPixels(path, this.lod);
+          this.tracks.set(id, t);
+        }
+      }
+      const pos = t ? laneShip(t, days, lane, this.lod.res * 111) : null;
+      if (!pos) {
+        sp.visible = false;
+        return;
+      }
+      sp.visible = true;
+      sp.scale.x = pos.dir;
+      sp.position.set(Math.round(this.wrapX(pos.p.x) - (pos.dir > 0 ? 3 : -3)), Math.round(pos.p.y - 2));
+    });
   }
 
   private routePixels(path: [number, number][]): { x: number; y: number }[] {
@@ -705,8 +1041,7 @@ export class MapScene implements Scene {
       const tex = selectionTexture(frame);
       this.selSprite.texture = tex;
       const p = this.sitePx(sel.id);
-      const site = siteDef(sel.id);
-      const lift = site.kind === 'build' && this.markers.get(sel.id)?.sprite.texture.height! > 6 ? 4 : 0;
+      const lift = this.markers.get(sel.id)?.lift ? 4 : 0;
       this.selSprite.position.set(Math.floor(p.x) - Math.floor(tex.width / 2), Math.floor(p.y) - Math.floor(tex.height / 2) - lift);
       this.selSprite.visible = true;
     } else this.selSprite.visible = false;
@@ -714,12 +1049,13 @@ export class MapScene implements Scene {
 
   private updatePreview() {
     this.previewG.clear();
-    const tool = this.game.tool;
-    if (tool?.kind !== 'link' || !tool.from || !this.cursor) return;
+    const tool = this.game.tool as AnyTool;
+    if ((tool?.kind !== 'link' && tool?.kind !== 'fiber') || !tool.from || !this.cursor) return;
     const a = this.sitePx(tool.from);
     const wx = this.camX + this.cursor.x;
     const wy = this.camY + this.cursor.y;
-    this.pixelLine(this.previewG, a.x, a.y, wx, wy, hex(C.yel1), 2, 2);
+    // power lines preview in yellow, fiber in its pink glow
+    this.pixelLine(this.previewG, a.x, a.y, wx, wy, hex(tool.kind === 'fiber' ? C.pnk1 : C.yel1), 2, 2);
   }
 
   // ── input ─────────────────────────────────────────────────────────────────────────────────
@@ -728,10 +1064,12 @@ export class MapScene implements Scene {
     const wy = this.camY + py;
     let best: string | null = null;
     let bestD = 7;
+    const s = this.game.view;
     for (const site of SITES) {
+      if (!siteVisible(site, s)) continue;
       const p = this.proj(site.lon, site.lat);
       const x = this.wrapX(p.x);
-      const lift = site.kind === 'build' && (this.markers.get(site.id)?.sprite.texture.height ?? 0) > 6 ? 4 : 0;
+      const lift = this.markers.get(site.id)?.lift ? 4 : 0;
       const d = Math.hypot(x - wx, p.y - lift - wy);
       if (d < bestD) {
         bestD = d;
@@ -825,7 +1163,9 @@ export class MapScene implements Scene {
     this.down = null;
     if (!d || d.moved || this.game.mode !== 'map' || !this.game.state) return;
     const site = this.hitSite(p.x, p.y);
-    if (this.game.tool?.kind === 'link') {
+    const tool = this.game.tool as AnyTool;
+    if (tool?.kind === 'link' || tool?.kind === 'fiber') {
+      // Game.linkClick handles both line tools (power and fiber)
       if (site) this.game.linkClick(site);
       return;
     }

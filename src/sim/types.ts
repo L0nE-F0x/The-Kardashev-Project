@@ -1,8 +1,25 @@
 import type { RegionId } from '../content/mapcodes';
 import type { Difficulty, EventRate, FounderId, RivalPace } from '../content/difficulty';
 
-export type FacilityType = 'hq' | 'solar' | 'wind' | 'gas' | 'battery' | 'datacenter' | 'lab';
-export type SupplierId = 'lumen' | 'kestrel';
+export type FacilityType =
+  | 'hq'
+  | 'solar'
+  | 'wind'
+  | 'gas'
+  | 'battery'
+  | 'datacenter'
+  | 'lab'
+  // ── Act II ──
+  | 'hydro'
+  | 'geothermal'
+  | 'restart'
+  | 'smr'
+  | 'reactor'
+  | 'packaging'
+  | 'fab'
+  | 'campus';
+/** 'own' = accelerators from your fab joint venture (Act II). */
+export type SupplierId = 'lumen' | 'kestrel' | 'own';
 export type TechId = string;
 export type AdvisorId = 'juno' | 'penny' | 'mira' | 'sol' | 'iris' | 'kip' | 'bit';
 
@@ -28,6 +45,12 @@ export interface Facility {
   onlineDay?: number;
   /** Data centers: installed accelerator batches. */
   racks?: Batch[];
+  /** Size tier 1..3 (Act II). Missing = 1. */
+  tier?: number;
+  /** An expansion under way; the facility keeps running at its old tier meanwhile. */
+  upgrade?: { to: number; progress: number; buildDays: number };
+  /** Why construction is paused (e.g. waiting on an export licence for EUV tools). */
+  blocked?: string;
 }
 
 export interface GridConnection {
@@ -40,6 +63,8 @@ export interface SiteState {
   grid: GridConnection;
   /** Delivered accelerators waiting for rack space. */
   inventory: Batch[];
+  /** Plots added by buying land (Act II). */
+  extraSlots?: number;
 }
 
 export interface PowerLink {
@@ -114,6 +139,22 @@ export interface Rival {
   nextRelease: number;
   open: boolean;
   modelGen: number;
+  /** Act II: war chest for building campuses. */
+  cash?: number;
+  /** Act II: next day the rival considers a new campus. */
+  nextBuild?: number;
+}
+
+/** A rival lab's campus on the map (Act II). Takes plots and grid headroom like yours would. */
+export interface RivalBuild {
+  id: string;
+  owner: string;
+  siteId: string;
+  slots: number;
+  itMW: number;
+  status: 'building' | 'online';
+  startDay: number;
+  readyDay: number;
 }
 
 export interface Modifier {
@@ -127,6 +168,8 @@ export interface Modifier {
 
 export interface Ledger {
   revenue: number;
+  /** Loan interest and repayments (Act II). */
+  debt: number;
   rental: number;
   power: number;
   fuel: number;
@@ -160,6 +203,8 @@ export interface SitePower {
   load: number;
   solar: number;
   wind: number;
+  /** Firm clean output (hydro, geothermal, nuclear), average MW. */
+  firm: number;
   gas: number;
   gridUsed: number;
   gasUsed: number;
@@ -170,6 +215,189 @@ export interface SitePower {
   curtailed: number;
   imported: number;
   exported: number;
+}
+
+// ── Act II: networks ────────────────────────────────────────────────────────────────────────
+/** Overland fiber between two of your sites. */
+export interface FiberLink {
+  id: string;
+  a: string;
+  b: string;
+  km: number;
+  status: 'building' | 'online';
+  progress: number;
+  buildDays: number;
+}
+
+/** A subsea cable you laid yourself between two landing stations. */
+export interface OwnCable {
+  id: string;
+  a: string;
+  b: string;
+  status: 'building' | 'online';
+  progress: number;
+  buildDays: number;
+}
+
+export interface NetworkState {
+  fiber: FiberLink[];
+  /** Cable systems (content ids) you lease capacity on. */
+  leases: string[];
+  own: OwnCable[];
+  /** Cable id (content or own) → day the repair ship finishes. */
+  cuts: Record<string, number>;
+}
+
+// ── Act II: the chip stack ──────────────────────────────────────────────────────────────────
+export type DealKind = 'reserve' | 'cofund' | 'hbm' | 'packaging';
+
+export interface SupplyDeal {
+  id: string;
+  kind: DealKind;
+  partner: string;
+  /** Accelerators per month this deal covers. */
+  units: number;
+  startDay: number;
+  /** Day the capacity starts (co-funded lines take time to build). */
+  readyDay: number;
+  endDay: number;
+}
+
+export interface StackState {
+  deals: SupplyDeal[];
+  /** Mine id → your stake (0..1). */
+  stakes: Record<string, number>;
+}
+
+export interface Materials {
+  lithium: number;
+  copper: number;
+  helium: number;
+  neon: number;
+}
+
+// ── Act II: politics ────────────────────────────────────────────────────────────────────────
+export interface BlocState {
+  /** The bloc government's view of you (0..100). Social license stays the people's view. */
+  relation: number;
+  stance: 'accelerate' | 'neutral' | 'cautious';
+  nextElection: number;
+  /** −1..1: which way the next election is leaning (−1 cautious, +1 accelerate). */
+  poll: number;
+  /** Export rules you hold licences for here. */
+  licences: string[];
+  /** Recent lobbying; drives scandal risk. */
+  lobby: number;
+}
+
+export interface PoliticsState {
+  /** Active export rules (content ids). */
+  rules: string[];
+  treaties: string[];
+  pending: { rule: string; region: RegionId; readyDay: number }[];
+  nextSummit: number;
+}
+
+// ── Act II: capital ─────────────────────────────────────────────────────────────────────────
+export interface Loan {
+  id: string;
+  label: string;
+  principal: number;
+  balance: number;
+  /** Annual interest rate. */
+  rate: number;
+  /** Monthly payment (interest + principal). */
+  monthly: number;
+  startDay: number;
+  endDay: number;
+}
+
+export interface ComputeContract {
+  id: string;
+  customer: string;
+  region: RegionId;
+  /** Accelerator-equivalents of serving you guarantee. */
+  units: number;
+  monthly: number;
+  /** Monthly penalty at a 100% shortfall. */
+  penalty: number;
+  months: number;
+  startDay: number;
+  endDay: number;
+  /** Offers only: when the customer walks away. */
+  expires?: number;
+  /** Fraction delivered over the last 30 days (for the UI). */
+  delivered?: number;
+}
+
+export interface SovereignDeal {
+  id: string;
+  def: string;
+  region: RegionId;
+  status: 'offer' | 'active' | 'done' | 'failed';
+  /** MW of IT capacity you must have online in the bloc. */
+  needMW: number;
+  byDay: number;
+  expires: number;
+}
+
+export interface Board {
+  confidence: number;
+  nextReview: number;
+  /** Monthly revenue at the last review. */
+  baseline: number;
+  misses: number;
+  /** Target growth for the current quarter (e.g. 0.15 = +15%). */
+  target: number;
+}
+
+export interface CapitalState {
+  board: Board | null;
+  loans: Loan[];
+  contracts: ComputeContract[];
+  offers: ComputeContract[];
+  sovereign: SovereignDeal[];
+  ipo: { day: number; valuation: number; raised: number } | null;
+}
+
+// ── Act II: rivals, talent, acquisitions ────────────────────────────────────────────────────
+export interface StartupOffer {
+  id: string;
+  def: string;
+  price: number;
+  expires: number;
+}
+
+// ── Act II: advisor jobs ────────────────────────────────────────────────────────────────────
+export interface Job {
+  on: boolean;
+  /** Main slider (meaning depends on the advisor). */
+  a: number;
+  /** Optional second setting. */
+  b?: number;
+  /** Day the job last acted (for reports / pacing). */
+  last?: number;
+}
+
+// ── Act II: the finale ──────────────────────────────────────────────────────────────────────
+export type FrontId = 'grid' | 'supply' | 'safety';
+
+export interface FinaleState {
+  startDay: number;
+  endDay: number;
+  /** 0..100 pressure per front; ≥ 100 means the front is lost. */
+  fronts: Record<FrontId, { pressure: number; lost: boolean }>;
+  regions: RegionId[];
+  rival: string;
+  done: boolean;
+  /** Fronts held at the end (0..3). */
+  standing?: number;
+}
+
+export interface ScheduledEvent {
+  id: string;
+  day: number;
+  ctx: Record<string, string | number>;
 }
 
 /** Derived numbers refreshed every tick for the UI. Saved, but always recomputed. */
@@ -195,6 +423,17 @@ export interface Stats {
   inferDemand: number;
   carbonMtYear: number;
   sitePower: Record<string, SitePower>;
+  // ── Act II ──
+  /** MW of data hall IT capacity online. */
+  itMW: number;
+  /** Your generation nameplate-weighted average MW, and the carbon-free part of it. */
+  genAvgMW: number;
+  cleanGenMW: number;
+  /** Inference accelerator-equivalents served per region (Act II markets). */
+  served: Partial<Record<RegionId, number>>;
+  demandByRegion: Partial<Record<RegionId, number>>;
+  /** Accelerators per month you can get from each supplier right now, and what limits it. */
+  pools: Partial<Record<SupplierId, { logic: number; hbm: number; pkg: number; rate: number }>>;
 }
 
 /** How this company was set up, plus bookkeeping that isn't part of the simulation itself. */
@@ -212,6 +451,10 @@ export interface GameMeta {
   createdAt: number;
   /** Hard mode: the company went bankrupt. */
   gameOver?: boolean;
+  /** Unlock briefings already shown (Act II). */
+  briefings?: string[];
+  /** Started from the "Start at Act II" preset. */
+  act2Start?: boolean;
 }
 
 export interface GameState {
@@ -223,7 +466,7 @@ export interface GameState {
   company: { name: string; homeSite: string };
   finance: {
     cash: number;
-    round: 'seed' | 'A' | 'B';
+    round: 'seed' | 'A' | 'B' | 'IPO';
     valuation: number;
     month: Ledger;
     monthKey: number;
@@ -242,9 +485,9 @@ export interface GameState {
   research: { current: TechId | null; progress: number; done: TechId[]; pool: number };
   safety: { cumFlop: number; incidents: number; lastIncidentDay: number };
   regions: Record<RegionId, { license: number }>;
-  market: { rivals: Rival[]; hbm: number; gasPrice: number };
+  market: { rivals: Rival[]; hbm: number; gasPrice: number; pkg: number; materials: Materials };
   modifiers: Modifier[];
-  events: { active: ActiveEvent | null; queue: ActiveEvent[]; history: { id: string; day: number; choice: number }[]; last: Record<string, number>; nextRoll: number };
+  events: { active: ActiveEvent | null; queue: ActiveEvent[]; history: { id: string; day: number; choice: number }[]; last: Record<string, number>; nextRoll: number; scheduled: ScheduledEvent[] };
   objectives: { done: string[] };
   flags: Record<string, number | boolean | string>;
   news: NewsItem[];
@@ -253,4 +496,20 @@ export interface GameState {
   stats: Stats;
   nextId: number;
   savedAt?: number;
+  // ── Act II ─────────────────────────────────────────────────────────────────────────────
+  /** 1 = The Garage, 2 = The Scale-Up. */
+  act: number;
+  /** Act II phase: 1 Gigawatts · 2 The Stack · 3 The Race · 4 The Crunch · 5 done. */
+  phase: number;
+  network: NetworkState;
+  stack: StackState;
+  blocs: Record<RegionId, BlocState>;
+  politics: PoliticsState;
+  capital: CapitalState;
+  rivalBuilds: RivalBuild[];
+  /** Regional talent pools (0..1, 1 = untapped). */
+  talent: Record<RegionId, number>;
+  startups: { offers: StartupOffer[]; bought: string[]; nextOffer: number };
+  jobs: Partial<Record<AdvisorId, Job>>;
+  finale: FinaleState | null;
 }

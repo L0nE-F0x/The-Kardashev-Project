@@ -4,7 +4,7 @@
  */
 import { audioCtx, musicBus } from './engine';
 
-type Track = 'menu' | 'game' | null;
+type Track = 'menu' | 'game' | 'game2' | null;
 
 const THEME_URL = '../audio/theme.mp3';
 let current: Track = null;
@@ -32,6 +32,7 @@ function switchTo(track: Track) {
   current = track;
   if (track === 'menu') startMenu();
   else if (track === 'game') startSequencer(GAME_SONG);
+  else if (track === 'game2') startSequencer(GAME2_SONG);
 }
 
 function stopAll() {
@@ -135,6 +136,22 @@ const GAME_SONG: Song = {
   arp: true,
   drums: false,
   padLevel: 0.05,
+  sparse: true,
+};
+
+/** Act II: the same calm, but brighter and moving — Grid Rush. */
+const GAME2_SONG: Song = {
+  bpm: 76,
+  chords: [
+    [36, 60, 64, 67, 74],
+    [41, 65, 69, 72, 76],
+    [33, 57, 60, 64, 71],
+    [43, 62, 67, 71, 74],
+  ],
+  melody: [72, null, 74, null, 76, null, 79, null, 76, null, 74, null, 72, null, null, null, 69, null, 72, null, 74, null, 72, null, 71, null, 67, null, null, null, null, null],
+  arp: true,
+  drums: false,
+  padLevel: 0.055,
   sparse: true,
 };
 

@@ -73,7 +73,7 @@ export function MainMenu() {
         {!isStandalone() && item('arrow', canPromptInstall() || game.installAvailable ? 'Install app' : 'Get the app', install)}
         {isDesktopApp && item('close', 'Quit', () => void quitApp())}
         <div class="menu-foot small muted">
-          v{APP_VERSION} · Act I: The Garage
+          v{APP_VERSION} · Acts I–II: The Garage · The Scale-Up
           {!isDesktopApp && (
             <>
               {' · '}
@@ -125,7 +125,7 @@ function LoadGame() {
             </div>
             <div class="small muted">
               K {sl.K.toFixed(5)} · {DIFFICULTIES[sl.difficulty as keyof typeof DIFFICULTIES]?.name ?? sl.difficulty} · {FOUNDERS[sl.founder as keyof typeof FOUNDERS]?.name ?? sl.founder} · {fmtPlaytime(sl.playtime)}
-              {sl.act1 && ' · ✅ Act I'}
+              {sl.act2 ? ' · 🔔 Act II done' : (sl.act ?? 1) >= 2 ? ' · Act II' : sl.act1 ? ' · ✅ Act I' : ''}
             </div>
             <div class="row wrap" style={{ gap: '4px', marginTop: '6px' }}>
               {sl.gameOver ? (

@@ -2,6 +2,8 @@ import { PixelCanvas, toDataUrl } from '../render/pixels';
 import { onEraChange, type ColorKey } from '../render/palette';
 
 type Grid = [string, Record<string, ColorKey>];
+/** One row per argument — easier to read than `\n`-joined strings. */
+const g = (...rows: string[]) => rows.join('\n');
 
 /** 9×9 pixel UI icons. */
 const ICONS = {
@@ -47,6 +49,36 @@ const ICONS = {
   co2: [`.........\n..aaa....\n.abbba...\nabbbbbaa.\nabbbbbbba\n.aaaaaaa.\n.........\n.c.c.c...\n.........`, { a: 'ink5', b: 'ink7', c: 'ink6' }],
   guide: [`.aaa.aaa.\nabbbcbbba\nabddcddba\nabbbcbbba\nabddcddba\nabbbcbbba\nabddcddba\naaaacaaaa\n.........`, { a: 'ink1', b: 'ink9', c: 'cyn4', d: 'ink6' }],
   trust: [`.........\n.aa...aa.\nabba.abba\nabbbabbba\nabbbbbbba\n.abbbbba.\n..abbba..\n...aba...\n....a....`, { a: 'red1', b: 'pnk0' }],
+  // ── Act II ──
+  hydro: [g('....a....', '...aba...', '..abbba..', '.abbbcba.', '.adbcbba.', 'adbcccbba', 'abbbcbbba', '.abcbbba.', '..aaaaa..'), { a: 'sea3', b: 'sea6', c: 'yel1', d: 'sea8' }],
+  geothermal: [g('.b.....b.', 'b.b...b.b', '.b.b.b.b.', '...b.b...', '..aaaaa..', '..acaca..', 'ddddddddd', 'deddedded', 'ddddddddd'), { a: 'rck5', b: 'ice2', c: 'ink3', d: 'snd3', e: 'org0' }],
+  nuclear: [g('..bbbbb..', '.ccbbbcc.', 'cccbbbccc', 'cccbbbccc', 'cccbcbccc', 'bbbbbbbbb', 'bbbcccbbb', '.bbcccbb.', '..ccccc..'), { b: 'yel0', c: 'ink1' }],
+  reactor: [g('.....bbb.', '....bbbbb', '.....bbb.', '....aaacc', '.ddd.acc.', 'deeed.ac.', 'deeed.acc', 'deeedaacc', 'fffffffff'), { a: 'ink8', b: 'white', c: 'ink6', d: 'ink5', e: 'ice2', f: 'ink4' }],
+  smr: [g('.........', '..a...a..', '.aba.aba.', '.aba.aba.', '.aca.aca.', '.aba.aba.', '.aba.aba.', 'ddddddddd', '.........'), { a: 'ink5', b: 'ink9', c: 'yel0', d: 'ink4' }],
+  restart: [g('.b....e..', 'b.b.e.e.e', '.aace.e.e', '..ace...e', '..ac.eee.', '.aacc....', 'aaacc....', 'ddddddddd', '.........'), { a: 'ink8', b: 'white', c: 'ink6', d: 'ink4', e: 'grn6' }],
+  packaging: [g('.........', 'dd.ccc.dd', 'ee.cfc.ee', 'dd.ccc.dd', 'ee.ccc.ee', 'bbbbbbbbb', 'gbbbbbbbg', '.h.h.h.h.', '.........'), { b: 'grn4', c: 'cyn3', d: 'vio2', e: 'vio4', f: 'cyn6', g: 'grn2', h: 'snd6' }],
+  fab: [g('.a.....a.', '.a..a..a.', '.a..a..a.', 'bbbbbbbbb', 'bcccccccb', 'bcdcdcdcb', 'bcccccccb', 'bcdcdcdcb', 'bbbbbbbbb'), { a: 'ink7', b: 'ink5', c: 'ice2', d: 'cyn4' }],
+  campus: [g('.........', '...bbb...', '...bcb...', 'aaabbb...', 'acabcb...', 'aaabbbaaa', 'acabcbaca', 'aaabbbaaa', 'acabcbaca'), { a: 'ink4', b: 'ink2', c: 'yel1' }],
+  mine: [g('.........', '...cd.c..', '..ccdccc.', 'aaaaaaaaa', 'abbbbbbba', '.abbbbba.', '.aaaaaaa.', '..d...d..', '.........'), { a: 'ink2', b: 'ink5', c: 'snd4', d: 'ink8' }],
+  cable: [g('.........', '..aa...aa', 'aa..aaa..', '.........', 'b.......b', '.b.....b.', '..bbbbb..', '.........', 'ccccccccc'), { a: 'sky4', b: 'cyn5', c: 'snd3' }],
+  fiber: [g('c...c...c', '.b..b..b.', '..b.b.b..', '...bbb...', '....b....', '...aaa...', '...aaa...', '...aaa...', '...aaa...'), { a: 'vio2', b: 'pnk0', c: 'white' }],
+  deal: [g('.........', '.....a...', '.....aa..', 'aaaaaaaa.', '.....aa..', '..b..a...', '.bb......', 'bbbbbbbb.', '.bb......'), { a: 'grn6', b: 'org1' }],
+  board: [g('..aaaaa..', '..abbba..', '..abbba..', '..abbba..', '.aaaaaaa.', '.abbbbba.', '..aacaa..', '...ccc...', '..c.c.c..'), { a: 'snd1', b: 'snd3', c: 'ink6' }],
+  blocs: [g('a........', 'abbb.....', 'abbbc....', 'abbbcddd.', 'a...cddd.', 'a...cddd.', 'a...c....', 'a...c....', 'aa..cc...'), { a: 'ink8', b: 'blu4', c: 'ink8', d: 'red3' }],
+  team: [g('.b.....b.', 'bbb.a.bbb', '.b.aaa.b.', '.b..a..b.', 'ccc.d.ccc', 'cccdddccc', 'ccdddddcc', '..ddddd..', '.........'), { a: 'skn5', b: 'skn3', c: 'blu3', d: 'org1' }],
+  contract: [g('aaaaaaa..', 'abbbbbaa.', 'abcccbbba', 'abbbbbbba', 'abcccccba', 'abbbbbbba', 'abccbddba', 'abbbbddda', 'aaaaaaaaa'), { a: 'snd3', b: 'snd8', c: 'ink6', d: 'red3' }],
+  upgrade: [g('....a....', '...aba...', '..abbba..', '.abbbbba.', 'aaabbbaaa', '..abbba..', '..abbba..', '..abbba..', '..aaaaa..'), { a: 'grn2', b: 'grn6' }],
+  land: [g('.....ab..', '.....abb.', '.....a...', 'c.c.cac.c', '.ddddadd.', 'cdddddddc', '.ddddddd.', 'cdddddddc', '.c.c.c.c.'), { a: 'ink8', b: 'red3', c: 'white', d: 'grn5' }],
+  rival: [g('a.......a', '.a.....a.', '..a...a..', '...a.a...', '....a....', '...a.a...', '.cba.abc.', '.dc...cd.', 'd.......d'), { a: 'ink9', b: 'ink6', c: 'org1', d: 'snd3' }],
+  talent: [g('....c....', '...ccc...', '....c....', '...aaa...', '...aaa...', '....a....', '.bbbbbbb.', 'bbbbbbbbb', 'bbbbbbbbb'), { a: 'skn4', b: 'vio4', c: 'yel0' }],
+  treaty: [g('.aaaaaaa.', 'abbbbbbba', '.accccca.', '.adddcca.', '.accccca.', '.addeeea.', '.acceeea.', 'abbbbebba', '.aaaaaaa.'), { a: 'snd3', b: 'snd6', c: 'snd8', d: 'ink6', e: 'blu4' }],
+  startup: [g('....a....', '...aba...', '...aba...', '...aca...', '...aba...', '..faaaf..', '.ff.a.ff.', '....d....', '...ded...'), { a: 'ink5', b: 'white', c: 'cyn4', d: 'org1', e: 'yel1', f: 'red3' }],
+  crunch: [g('.........', '..aaaaa..', '.aggyyra.', 'aggbbbrra', 'agbbbbdra', 'abbbbdbba', 'abbbdbbba', 'aaaaaaaaa', '.........'), { a: 'ink3', b: 'ink9', g: 'grn5', y: 'yel0', r: 'red3', d: 'ink1' }],
+  ipo: [g('....a....', '...aba...', '..abbba..', '..abcba..', '..abbba..', '.abbbbba.', 'aabbbbbaa', 'aaaaaaaaa', '....d....'), { a: 'snd3', b: 'yel0', c: 'yel2', d: 'snd3' }],
+  lithium: [g('.........', '....a....', '...aba...', '...abc.a.', '.a.abcaba', 'abaabcabc', 'abcabcabc', 'abcabcabc', 'aaaaaaaaa'), { a: 'cyn1', b: 'cyn6', c: 'cyn4' }],
+  copper: [g('.........', '.........', '..aaaaa..', '.abccbba.', 'abbbbbbba', 'abbbbbbba', 'aaaaaaaaa', '.........', '.........'), { a: 'red1', b: 'org0', c: 'org2' }],
+  helium: [g('..aaaa...', '.abbbba..', 'abcbbbba.', 'abbbbbba.', 'abbbbbba.', '.abbbba..', '..abba...', '...aa....', '....d....'), { a: 'blu2', b: 'sky4', c: 'white', d: 'ink7' }],
+  neon: [g('.........', '.a....a..', 'aba..aba.', 'abba.aba.', 'ababaaba.', 'aba.abba.', 'aba..aba.', '.a....a..', '.........'), { a: 'pnk0', b: 'white' }],
 } satisfies Record<string, Grid>;
 
 export type IconName = keyof typeof ICONS;
@@ -54,11 +86,18 @@ export type IconName = keyof typeof ICONS;
 const cache = new Map<string, string>();
 onEraChange(() => cache.clear());
 
+/** Raw 9×9 canvas (previews, compositing). */
+export function iconCanvas(name: IconName): PixelCanvas {
+  const [rows, map] = ICONS[name] as Grid;
+  return PixelCanvas.from(rows.replace(/\\n/g, '\n'), map);
+}
+
+export const ICON_NAMES = Object.keys(ICONS) as IconName[];
+
 export function iconUrl(name: IconName): string {
   let u = cache.get(name);
   if (!u) {
-    const [rows, map] = ICONS[name] as Grid;
-    u = toDataUrl(PixelCanvas.from(rows.replace(/\\n/g, '\n'), map));
+    u = toDataUrl(iconCanvas(name));
     cache.set(name, u);
   }
   return u;

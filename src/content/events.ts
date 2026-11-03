@@ -8,6 +8,7 @@ import { delayShipmentsThrough } from '../sim/supply';
 import { clamp, fmtMoney, news, pick, rand } from '../sim/core';
 import { crisisCost, currentCapability, frontier, openBest } from '../sim/model';
 import { DIFFICULTIES } from './difficulty';
+import { ACT2_EVENTS } from './events2';
 
 export type Mood = 'neutral' | 'happy' | 'worried' | 'angry' | 'excited';
 export type Ctx = Record<string, string | number>;
@@ -35,6 +36,12 @@ export interface EventDef {
   cooldown?: number;
   once?: boolean;
   minDay?: number;
+  /** Act needed before it can roll (default 1). */
+  act?: number;
+  /** Act II phase needed. */
+  phase?: number;
+  /** Only rolls in this act. */
+  actOnly?: number;
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -121,8 +128,9 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => {
       const relaxed = DIFFICULTIES[s.meta.difficulty].broke === 'cheap-loan';
-      const amount = relaxed ? 200e6 : 150e6;
-      const interest = relaxed ? 1.5e6 : 3e6;
+      const k = (s.act ?? 1) >= 2 ? 6 : 1;
+      const amount = (relaxed ? 200e6 : 150e6) * k;
+      const interest = (relaxed ? 1.5e6 : 3e6) * k;
       return [
         {
           label: `Take a ${fmtMoney(amount, 0)} bridge loan`,
@@ -754,6 +762,8 @@ export const EVENTS: EventDef[] = [
 function severity(s: GameState): number {
   return s.research.done.includes('evals') ? 0.6 : 1;
 }
+
+EVENTS.push(...ACT2_EVENTS);
 
 export const EVENT_BY_ID: Record<string, EventDef> = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
 export type { RegionDef };

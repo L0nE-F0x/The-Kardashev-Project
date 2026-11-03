@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Portrait, useGame } from './components';
 import { TUTORIAL } from '../game/tutorial';
+import { BRIEFINGS } from '../game/briefings';
+import { ADVISORS } from '../content/advisors';
 
 interface Box {
   x: number;
@@ -85,6 +87,69 @@ export function TutorialOverlay() {
               {step.next}
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Act II unlock briefings: the same spotlight, with the advisor who owns the system. */
+export function BriefingOverlay() {
+  const game = useGame();
+  const s = game.state;
+  const [box, setBox] = useState<Box | null>(null);
+  const b = game.briefing;
+  const def = b ? BRIEFINGS.find((x) => x.id === b.id) : null;
+  const step = def && b ? def.steps[b.step] : null;
+  const hidden = !s || !step || !!s.events.active || game.showActComplete || game.mode !== 'map' || !!game.confirm;
+  useEffect(() => {
+    if (hidden || !step) return;
+    let raf = 0;
+    const loop = () => {
+      const nb = locateTarget(step.target?.(game), game);
+      setBox((prev) => (prev && nb && prev.x === nb.x && prev.y === nb.y && prev.w === nb.w && prev.h === nb.h ? prev : nb));
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => cancelAnimationFrame(raf);
+  }, [hidden, b?.id, b?.step]);
+  if (hidden || !step || !def || !b) return null;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const bubbleW = Math.min(360, vw - 16);
+  let bx = (vw - bubbleW) / 2;
+  let by = vh * 0.6;
+  if (box) {
+    bx = Math.max(8, Math.min(vw - bubbleW - 8, box.x + box.w / 2 - bubbleW / 2));
+    const below = box.y + box.h + 12;
+    by = below + 150 < vh ? below : Math.max(8, box.y - 170);
+    if (box.x < 80 && box.w < 80) {
+      bx = box.x + box.w + 12;
+      by = Math.max(8, Math.min(vh - 180, box.y - 10));
+    }
+  }
+  const last = b.step + 1 >= def.steps.length;
+  return (
+    <div class="tutorial" aria-live="polite">
+      {box && <div class={`spot ${box.round ? 'round' : ''}`} style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }} />}
+      {!box && <div class="spot-dim" />}
+      <div class="tut-bubble frame interactive" style={{ left: `${bx}px`, top: `${by}px`, width: `${bubbleW}px` }}>
+        <div class="row" style={{ alignItems: 'flex-start', gap: '10px' }}>
+          <Portrait id={def.advisor} mood={step.mood ?? 'happy'} size={48} />
+          <div class="grow">
+            <div class="label">
+              {ADVISORS[def.advisor].name.replace(/^Dr\.\s*/, '').split(' ')[0]} · {def.title} {def.steps.length > 1 ? `${b.step + 1}/${def.steps.length}` : ''}
+            </div>
+            <div class="tut-text">{step.text(game)}</div>
+          </div>
+        </div>
+        <div class="row between" style={{ marginTop: '8px' }}>
+          <button class="btn ghost small" onClick={() => game.briefingSkip()}>
+            Skip
+          </button>
+          <button class="btn small primary" onClick={() => game.briefingNext()}>
+            {last ? 'Got it' : 'Next'}
+          </button>
         </div>
       </div>
     </div>

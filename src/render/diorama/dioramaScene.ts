@@ -2,49 +2,52 @@ import { Container, Sprite, type Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
 import type { PixelPointer, Scene } from '../stage';
 import { siteDef, type SiteDef } from '../../content/sites';
-import type { Facility, FacilityType } from '../../sim/types';
-import { C, getEra, hex } from '../palette';
+import type { GameState } from '../../sim/types';
+import { C, getEra } from '../palette';
 import { bayer, hash2, PixelCanvas } from '../pixels';
 import { cachedTexture, releaseTexture, textureOf } from '../textures';
 import { pixelTexture } from '../sprites/mapIcons';
 import { subsolar, sunAltitude, localSolarHour } from '../../world/sun';
-import {
-  constructionArt,
-  emptyPlotArt,
-  facilityArt,
-  facilitySize,
-  farRidge,
-  foreground,
-  groundStrip,
-  midBand,
-  personFrames,
-  rotorFrames,
-  TURBINE_LAYOUT,
-  truckArt,
-} from './art';
+import { backlot, emptyPlotArt, farRidge, foreground, groundStrip, midBand, personFrames, rotorFrames, surfFrames, truckArt, truckVariant, type Emitter, type Mover } from './art';
+import { bloomOf, puffArt } from './draw';
+import { bands, campusLayout, itemTop, PARALLAX, type CampusLayout, type LayoutItem } from './layout';
+import { bucket, itemArt } from './campusArt';
 
 interface Plot {
-  kind: 'facility' | 'empty' | 'substation';
-  facility?: Facility;
-  type?: FacilityType | 'substation';
+  item: LayoutItem;
+  kind: LayoutItem['kind'];
   x: number;
   w: number;
   h: number;
+  top: number;
   sprite: Sprite;
   glow?: Sprite;
+  bloom?: Sprite;
   frames: Texture[];
   glowFrames: Texture[];
+  bloomFrames: Texture[];
   rotors: { sprite: Sprite; frames: Texture[]; phase: number }[];
+  movers: { sprite: Sprite; frames: Texture[]; m: Mover; segs: number[]; len: number; t: number; lastX: number }[];
+  emitters: { e: Emitter; timer: number }[];
   points: Record<string, [number, number]>;
   fps: number;
+  /** Running (not a construction site). */
+  live: boolean;
 }
+
+type PuffKind = Emitter['kind'];
 
 interface Particle {
   sprite: Sprite;
+  kind: PuffKind;
+  x: number;
+  y: number;
   vx: number;
   vy: number;
   life: number;
   max: number;
+  size: number;
+  r: number;
 }
 
 interface Walker {
@@ -58,15 +61,21 @@ interface Walker {
 
 type Weather = 'clear' | 'cloudy' | 'rain' | 'snow' | 'dust';
 
-const GAP = 10;
-const EMPTY_W = 70;
+const MAX_PARTICLES = 420;
 
+/**
+ * Side-view campus diorama. Build sites show your plots (tiered facilities, construction,
+ * upgrades, empty land) and rival campuses; other sites (suppliers, mines, landing stations) are
+ * view-only set pieces. Wide campuses scroll: drag (with fling), wheel / trackpad, arrow keys.
+ */
 export class DioramaScene implements Scene {
   readonly root = new Container();
   private readonly skyL = new Container();
   private readonly farL = new Container();
   private readonly cloudL = new Container();
   private readonly midL = new Container();
+  private readonly backL = new Container(); // distant skyline (parallax 0.75)
+  private readonly backGlowL = new Container();
   private readonly world = new Container(); // ground, plots, actors (parallax 1)
   private readonly groundL = new Container();
   private readonly plotL = new Container();
@@ -74,19 +83,25 @@ export class DioramaScene implements Scene {
   private readonly fxL = new Container();
   private readonly fgL = new Container();
   private readonly weatherL = new Container();
-  private readonly dark = new Sprite();
   private readonly glowL = new Container();
+  private readonly bloomL = new Container();
+  private readonly hintL = new Container();
   private readonly site: SiteDef;
+  private layout: CampusLayout | null = null;
   private vw = 640;
   private vh = 360;
   private camX = 0;
+  private camTarget = 0;
+  private vel = 0;
   private sceneW = 640;
   private groundY = 300;
   private plots: Plot[] = [];
   private plotKey = '';
   private walkers: Walker[] = [];
   private particles: Particle[] = [];
+  private pool: Sprite[] = [];
   private rain: Sprite[] = [];
+  private surf: { sprite: Sprite; frames: Texture[] } | null = null;
   private clouds: { sprite: Sprite; x: number; v: number }[] = [];
   private truck: { sprite: Sprite; x: number; target: number; wait: number } | null = null;
   private skySprite = new Sprite();
@@ -94,19 +109,22 @@ export class DioramaScene implements Scene {
   private sun = new Sprite();
   private moon = new Sprite();
   private haze = new Sprite();
+  private hintL0 = new Sprite();
+  private hintR0 = new Sprite();
   private skyKey = '';
   private skyTex: Texture | null = null;
   private starTex: Texture | null = null;
   private hazeTex: Texture | null = null;
   private ownTextures: Texture[] = [];
   private time = 0;
-  private smokeTimer = 0;
   private truckTimer = 4;
   private weather: Weather = 'clear';
   private darkness = 0;
   private hoverPlot: Plot | null = null;
-  private down: { x: number; camX: number; moved: boolean } | null = null;
+  private down: { x: number; camX: number; moved: boolean; lastX: number; lastT: number } | null = null;
   private timeOffset = 0;
+  private idle = 0;
+  private wheelX: ((e: WheelEvent) => void) | null = null;
   /** Menu cinematic: drift slowly across the campus. */
   autoPan = false;
   private panDir = 1;
@@ -116,11 +134,10 @@ export class DioramaScene implements Scene {
     private readonly siteId: string,
   ) {
     this.site = siteDef(siteId);
-    this.root.addChild(this.skyL, this.farL, this.cloudL, this.midL, this.world, this.weatherL, this.dark, this.glowL);
+    this.root.addChild(this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
     this.skyL.addChild(this.skySprite, this.stars, this.sun, this.moon, this.haze);
     this.world.addChild(this.groundL, this.plotL, this.actorL, this.fxL, this.fgL);
-    this.dark.texture = pixelTexture();
-    this.dark.blendMode = 'multiply';
+    this.bloomL.blendMode = 'add';
     this.sun.texture = cachedTexture('dio:sun', () => {
       const pc = new PixelCanvas(13, 13);
       pc.circle(6.5, 6.5, 6, C.yel0);
@@ -136,14 +153,66 @@ export class DioramaScene implements Scene {
       pc.set(6, 3, C.ice1);
       return pc;
     });
+    // "more this way" chevrons at the screen edges when the campus is wider than the view
+    const chevron = (flip: boolean) =>
+      cachedTexture(`dio:chev:${flip}`, () => {
+        const pc = PixelCanvas.from(`a..\n.a.\n..a\n.a.\na..`, { a: 'white' });
+        const out = new PixelCanvas(pc.w, pc.h);
+        out.blit(pc, 0, 0, flip);
+        return out;
+      });
+    this.hintL0.texture = chevron(true);
+    this.hintR0.texture = chevron(false);
+    this.hintL.addChild(this.hintL0, this.hintR0);
     this.weather = this.pickWeather();
+    // horizontal trackpad swipes (the stage forwards only deltaY to scenes)
+    const canvas = this.game.stage?.canvas;
+    if (canvas) {
+      this.wheelX = (e: WheelEvent) => {
+        if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) this.nudge(e.deltaX * (e.deltaMode === 1 ? 16 : 1) * 0.4);
+      };
+      canvas.addEventListener('wheel', this.wheelX, { passive: true });
+    }
+  }
+
+  // ── public API ────────────────────────────────────────────────────────────────────────────
+  /** Suppliers, mines and landing stations: look, don't build. */
+  get viewOnly(): boolean {
+    return this.site.kind !== 'build';
+  }
+
+  /** Camera position for a DOM scrollbar: x in [0, max], view and scene widths in game pixels. */
+  scrollInfo(): { x: number; max: number; view: number; width: number } {
+    return { x: Math.round(this.camX), max: Math.max(0, this.sceneW - this.vw), view: this.vw, width: this.sceneW };
+  }
+
+  /** Scroll to a fraction 0..1 of the campus (e.g. from a DOM scrollbar). */
+  scrollTo(fraction: number, instant = false) {
+    this.camTarget = Math.max(0, Math.min(1, fraction)) * Math.max(0, this.sceneW - this.vw);
+    this.vel = 0;
+    if (instant) this.camX = this.camTarget;
+  }
+
+  /** Centre the camera on one of your facilities (after building it, or from the inspector). */
+  focusFacility(id: string, instant = false) {
+    this.rebuildPlots();
+    const p = this.plots.find((x) => x.item.facility?.id === id);
+    if (!p) return;
+    this.camTarget = this.clampCam(p.x + p.w / 2 - this.vw / 2);
+    this.vel = 0;
+    if (instant) this.camX = this.camTarget;
+  }
+
+  /** Keyboard / button panning (main.ts calls pan(±12, 0) on arrow keys). */
+  pan(dx: number, _dy = 0) {
+    this.nudge(dx * 2);
   }
 
   // ── layout ────────────────────────────────────────────────────────────────────────────────
   resize(w: number, h: number) {
     this.vw = w;
     this.vh = h;
-    this.groundY = Math.max(90, Math.round(h * 0.8));
+    this.groundY = bands(w, h, w).groundY;
     this.plotKey = '';
     this.skyKey = '';
     this.rebuildPlots();
@@ -153,10 +222,14 @@ export class DioramaScene implements Scene {
     return { x: 0, y: 0 };
   }
 
-  private facilitiesHere(): Facility[] {
-    const s = this.game.view;
-    if (!s) return [];
-    return s.facilities.filter((f) => f.siteId === this.siteId);
+  private clampCam(x: number) {
+    return Math.max(0, Math.min(Math.max(0, this.sceneW - this.vw), x));
+  }
+
+  private nudge(dx: number) {
+    this.camTarget = this.clampCam(this.camTarget + dx);
+    this.vel = 0;
+    this.idle = 0;
   }
 
   /** Company initials for signage ("Little Sun Labs" → "LSL"). */
@@ -166,90 +239,138 @@ export class DioramaScene implements Scene {
     return (words.length > 1 ? words.map((w) => w[0]).join('') : name).slice(0, 3).toUpperCase();
   }
 
+  /** Everything that changes what the campus looks like (cheap to compute every frame). */
+  private stateKey(s: GameState | null): string {
+    if (!s) return 'none';
+    if (this.viewOnly) return 'view';
+    const ss = s.sites[this.siteId];
+    const grid = ss ? ss.grid.mw + ss.grid.pending.length : 0;
+    let k = `${grid > 0}|${ss?.extraSlots ?? 0}|`;
+    for (const f of s.facilities) {
+      if (f.siteId !== this.siteId) continue;
+      k += `${f.id}:${f.status}:${f.tier ?? 1}:${f.status === 'building' ? bucket(f.progress / Math.max(1, f.buildDays)) : ''}:${f.upgrade ? `${f.upgrade.to}@${bucket(f.upgrade.progress / Math.max(1, f.upgrade.buildDays), 6)}` : ''}:${f.blocked ? 1 : 0},`;
+    }
+    for (const b of s.rivalBuilds ?? []) {
+      if (b.siteId !== this.siteId) continue;
+      k += `r${b.id}:${b.status}:${b.status === 'building' ? bucket((s.day - b.startDay) / Math.max(1, b.readyDay - b.startDay)) : ''},`;
+    }
+    return k;
+  }
+
   /** Recreate background bands and facility sprites when the campus changes. */
   private rebuildPlots() {
-    const s = this.game.view;
-    const facs = this.facilitiesHere();
-    const grid = s ? s.sites[this.siteId].grid.mw + s.sites[this.siteId].grid.pending.length : 0;
-    const key = `${this.vw}x${this.vh}|${grid > 0}|${getEra()}|${facs.map((f) => `${f.id}:${f.status}:${f.status === 'building' ? Math.floor((f.progress / f.buildDays) * 8) : ''}`).join(',')}`;
+    const s = this.game.view ?? null;
+    const label = this.label();
+    const key = `${this.vw}x${this.vh}|${getEra()}|${label}|${this.stateKey(s)}`;
     if (key === this.plotKey) return;
     this.plotKey = key;
     for (const p of this.plots) {
       p.sprite.destroy();
       p.glow?.destroy();
+      p.bloom?.destroy();
       p.rotors.forEach((r) => r.sprite.destroy());
+      p.movers.forEach((m) => m.sprite.destroy());
     }
     this.plots = [];
+    this.hoverPlot = null;
     this.plotL.removeChildren();
     this.glowL.removeChildren();
+    this.bloomL.removeChildren();
 
-    // order: substation, HQ, facilities, then empty plots
-    const ordered: (Facility | 'substation' | 'empty')[] = [];
-    if (grid > 0) ordered.push('substation');
-    const hqF = facs.find((f) => f.type === 'hq');
-    if (hqF) ordered.push(hqF);
-    for (const f of facs) if (f.type !== 'hq') ordered.push(f);
-    const used = facs.filter((f) => f.type !== 'hq').length;
-    for (let i = used; i < this.site.slots; i++) ordered.push('empty');
-
-    let x = 24;
-    for (const item of ordered) {
-      const plot = this.makePlot(item, x);
-      this.plots.push(plot);
-      x += plot.w + GAP;
+    const layout = campusLayout(s, this.siteId, this.vw);
+    this.layout = layout;
+    for (const item of layout.items) {
+      const plot = this.makePlot(item, label, s?.day ?? 0);
+      if (plot) this.plots.push(plot);
     }
-    this.sceneW = Math.max(this.vw, x + 24);
-    this.camX = Math.max(0, Math.min(this.camX, this.sceneW - this.vw));
+    if (layout.propertyLine !== undefined) {
+      const pl = new Sprite(cachedTexture('dio:propline', () => {
+        const pc = new PixelCanvas(3, 14);
+        pc.vline(1, 0, 14, C.ink6);
+        pc.set(0, 0, C.ink8);
+        pc.set(2, 0, C.ink8);
+        pc.set(1, 4, C.red3);
+        return pc;
+      }));
+      pl.position.set(layout.propertyLine, this.groundY + 1 - 14);
+      this.plotL.addChildAt(pl, 0);
+    }
+    this.sceneW = layout.width;
+    this.camX = this.clampCam(this.camX);
+    this.camTarget = this.clampCam(this.camTarget);
     this.rebuildBands();
     this.spawnWalkers();
   }
 
-  private makePlot(item: Facility | 'substation' | 'empty', x: number): Plot {
-    const gy = this.groundY + 1;
-    if (item === 'empty') {
-      const tex = cachedTexture(`dio:empty:${EMPTY_W}:false`, () => emptyPlotArt(EMPTY_W, false));
-      const sprite = new Sprite(tex);
-      sprite.position.set(x, gy - 6);
-      this.plotL.addChild(sprite);
-      return { kind: 'empty', x, w: EMPTY_W, h: 10, sprite, frames: [tex], glowFrames: [], rotors: [], points: {}, fps: 0 };
-    }
-    const type: FacilityType | 'substation' = item === 'substation' ? 'substation' : item.type;
-    const [w, h] = facilitySize(type);
-    const label = this.label();
-    let frames: Texture[];
-    let glowFrames: Texture[];
-    let points: Record<string, [number, number]> = {};
-    const building = item !== 'substation' && item.status === 'building';
-    if (building) {
-      const bucket = Math.floor((item.progress / item.buildDays) * 8) / 8;
-      frames = [cachedTexture(`dio:build:${type}:${bucket}:${label}`, () => constructionArt(type as FacilityType, bucket, label))];
-      glowFrames = [];
-    } else {
-      const art = facilityArt(type, label);
-      frames = art.base.map((pc, i) => cachedTexture(`dio:${type}:${label}:${i}`, () => pc));
-      glowFrames = art.glow.map((pc, i) => cachedTexture(`dio:${type}:${label}:g${i}`, () => pc));
-      points = art.points;
-    }
+  private makePlot(item: LayoutItem, label: string, day: number): Plot | null {
+    const ia = itemArt(item, label, day);
+    if (!ia) return null;
+    const art = ia.art;
+    const top = itemTop(item, this.groundY);
+    const frames = art.base.map((pc, i) => cachedTexture(`dio:${ia.key}:${i}`, () => pc));
+    const glowFrames = ia.building ? [] : art.glow.map((pc, i) => cachedTexture(`dio:${ia.key}:g${i}`, () => pc));
+    const bloomFrames = ia.building ? [] : art.glow.map((pc, i) => cachedTexture(`dio:${ia.key}:b${i}`, () => bloomOf(pc)));
     const sprite = new Sprite(frames[0]);
-    sprite.position.set(x, gy - h);
+    sprite.position.set(item.x, top);
     this.plotL.addChild(sprite);
     let glow: Sprite | undefined;
+    let bloom: Sprite | undefined;
     if (glowFrames.length) {
       glow = new Sprite(glowFrames[0]);
       glow.position.copyFrom(sprite.position);
       this.glowL.addChild(glow);
+      bloom = new Sprite(bloomFrames[0]);
+      bloom.position.copyFrom(sprite.position);
+      this.bloomL.addChild(bloom);
     }
+    const live = !ia.building;
     const rotors: Plot['rotors'] = [];
-    if (type === 'wind' && !building) {
-      TURBINE_LAYOUT.forEach((t, i) => {
-        const fr = rotorFrames(t.size, t.col).map((pc, k) => cachedTexture(`dio:rotor:${t.size}:${k}`, () => pc));
+    if (live) {
+      (art.rotors ?? []).forEach((r, i) => {
+        const fr = rotorFrames(r.size, r.col).map((pc, k) => cachedTexture(`dio:rotor:${r.size}:${r.col}:${k}`, () => pc));
         const sp = new Sprite(fr[0]);
-        sp.position.set(x + t.x - t.size - 1, gy - h + t.top - t.size - 1);
+        sp.position.set(item.x + r.x - r.size - 1, top + r.y - r.size - 1);
         this.plotL.addChild(sp);
-        rotors.push({ sprite: sp, frames: fr, phase: i * 2.7 });
+        rotors.push({ sprite: sp, frames: fr, phase: i * 2.7 + item.x * 0.01 });
       });
     }
-    return { kind: item === 'substation' ? 'substation' : 'facility', facility: item === 'substation' ? undefined : item, type, x, w, h, sprite, glow, frames, glowFrames, rotors, points, fps: type === 'datacenter' ? 3 : type === 'battery' || type === 'hq' ? 1.2 : 0 };
+    const movers: Plot['movers'] = [];
+    if (live) {
+      (art.movers ?? []).forEach((m, i) => {
+        const fr = m.frames.map((pc, k) => cachedTexture(`dio:mover:${ia.key}:${i}:${k}`, () => pc));
+        const segs: number[] = [];
+        let len = 0;
+        for (let k = 0; k + 1 < m.path.length; k++) {
+          const d = Math.hypot(m.path[k + 1][0] - m.path[k][0], m.path[k + 1][1] - m.path[k][1]);
+          segs.push(d);
+          len += d;
+        }
+        const sp = new Sprite(fr[0]);
+        this.plotL.addChild(sp);
+        movers.push({ sprite: sp, frames: fr, m, segs, len: Math.max(1, len), t: m.phase, lastX: 0 });
+      });
+    }
+    const emitters = live ? (art.emitters ?? []).map((e) => ({ e, timer: hash2(e.x, e.y, item.x) / Math.max(0.1, e.rate) })) : [];
+    return {
+      item,
+      kind: item.kind,
+      x: item.x,
+      w: item.w,
+      h: item.h,
+      top,
+      sprite,
+      glow,
+      bloom,
+      frames,
+      glowFrames,
+      bloomFrames,
+      rotors,
+      movers,
+      emitters,
+      points: art.points,
+      fps: art.fps ?? 0,
+      live,
+    };
   }
 
   /** Parallax bands sized to the scene. */
@@ -258,41 +379,66 @@ export class DioramaScene implements Scene {
     this.ownTextures = [];
     this.farL.removeChildren();
     this.midL.removeChildren();
+    this.backL.removeChildren();
+    this.backGlowL.removeChildren();
     this.groundL.removeChildren();
     this.fgL.removeChildren();
+    const L = this.layout!;
+    const b = bands(this.vw, this.vh, this.sceneW);
     const seed = Math.floor(hash2(this.site.lat * 10, this.site.lon * 10, 3) * 1000);
-    const farH = Math.round(this.vh * 0.32);
-    const farW = Math.ceil(this.vw + (this.sceneW - this.vw) * 0.25) + 4;
-    const far = textureOf(farRidge(this.site.backdrop, farW, farH, seed));
-    const midH = Math.round(this.vh * 0.2);
-    const midW = Math.ceil(this.vw + (this.sceneW - this.vw) * 0.55) + 4;
-    const mid = textureOf(midBand(this.site.backdrop, midW, midH, seed));
-    const gH = this.vh - this.groundY + 2;
-    const ground = textureOf(groundStrip(this.site.backdrop, this.sceneW, gH));
-    const fgH = 12;
-    const fg = textureOf(foreground(this.site.backdrop, this.sceneW + 40, fgH));
+    const far = textureOf(farRidge(this.site.backdrop, b.farW, b.farH, seed));
+    const mid = textureOf(midBand(this.site.backdrop, b.midW, b.midH, seed, L.beachFrom !== undefined ? L.beachFrom + 10 : undefined));
+    const ground = textureOf(groundStrip(this.site.backdrop, this.sceneW, b.groundH, { beachFrom: L.beachFrom, cableX: L.cableX }));
+    const fg = textureOf(foreground(this.site.backdrop, this.sceneW + 40, b.fgH));
     this.ownTextures.push(far, mid, ground, fg);
     const farS = new Sprite(far);
-    farS.y = this.groundY - farH - Math.round(this.vh * 0.08);
+    farS.y = b.farY;
     this.farL.addChild(farS);
     const midS = new Sprite(mid);
-    midS.y = this.groundY - midH + 2;
+    midS.y = b.midY;
     this.midL.addChild(midS);
+    if (L.skyline > 0) {
+      const bl = backlot(b.backW, b.backH, seed, L.skyline);
+      const bt = textureOf(bl.base);
+      const gt = textureOf(bl.glow);
+      const bb = textureOf(bloomOf(bl.glow));
+      this.ownTextures.push(bt, gt, bb);
+      const bs = new Sprite(bt);
+      bs.y = b.backY;
+      this.backL.addChild(bs);
+      const gs = new Sprite(gt);
+      gs.y = b.backY;
+      const bbs = new Sprite(bb);
+      bbs.y = b.backY;
+      bbs.blendMode = 'add';
+      bbs.alpha = 0.5;
+      this.backGlowL.addChild(gs, bbs);
+    }
     const gS = new Sprite(ground);
     gS.y = this.groundY;
     this.groundL.addChild(gS);
+    // rolling surf at landing stations
+    this.surf = null;
+    if (L.beachFrom !== undefined) {
+      const sw = Math.max(8, this.sceneW - L.beachFrom - 30);
+      const fr = surfFrames(sw).map((pc, i) => cachedTexture(`dio:surf:${sw}:${i}`, () => pc));
+      const sp = new Sprite(fr[0]);
+      sp.position.set(L.beachFrom + 30, this.groundY + 3);
+      this.groundL.addChild(sp);
+      this.surf = { sprite: sp, frames: fr };
+    }
     const fgS = new Sprite(fg);
-    fgS.y = this.vh - fgH + 2;
+    fgS.y = this.vh - b.fgH + 2;
     this.fgL.addChild(fgS);
     // street lamps along the road
     for (let x = 40; x < this.sceneW; x += 90) {
+      if (L.beachFrom !== undefined && x > L.beachFrom - 10) break;
       const post = new Sprite(cachedTexture('dio:lamp', () => PixelCanvas.from(`aa.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\naaa`, { a: 'ink6' })));
       post.position.set(x, this.groundY + 4);
       this.groundL.addChild(post);
       const halo = new Sprite(haloTexture());
       halo.position.set(x - 7, this.groundY - 3);
       halo.blendMode = 'add';
-      (halo as Sprite & { lamp?: boolean }).lamp = true;
       this.glowL.addChild(halo);
     }
     // clouds
@@ -311,7 +457,8 @@ export class DioramaScene implements Scene {
   private spawnWalkers() {
     this.walkers.forEach((w) => w.sprite.destroy());
     this.walkers = [];
-    const count = Math.min(12, 2 + this.plots.filter((p) => p.kind === 'facility').length * 2);
+    const solid = this.plots.filter((p) => p.kind !== 'empty').length;
+    const count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
     for (let i = 0; i < count; i++) {
       const frames = personFrames(i).map((pc, k) => cachedTexture(`dio:person:${i % 12}:${k}`, () => pc));
       const sp = new Sprite(frames[0]);
@@ -353,7 +500,6 @@ export class DioramaScene implements Scene {
   // ── sky ───────────────────────────────────────────────────────────────────────────────────
   private clock(): Date {
     if (!this.game.settings.dayNight) {
-      // pin the sun to local noon at this site
       const now = new Date();
       const utcNoon = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12) - (this.site.lon / 15) * 3_600_000;
       return new Date(utcNoon);
@@ -389,13 +535,11 @@ export class DioramaScene implements Scene {
       if (this.skyTex) releaseTexture(this.skyTex);
       this.skyTex = textureOf(pc);
       this.skySprite.texture = this.skyTex;
-      // stars
       const st = new PixelCanvas(this.vw + 2, Math.round(skyH * 0.7));
       for (let i = 0; i < 90; i++) st.set(Math.floor(hash2(i, 1, 33) * st.w), Math.floor(hash2(i, 2, 33) * st.h), hash2(i, 3, 33) > 0.85 ? C.yel2 : C.ice2);
       if (this.starTex) releaseTexture(this.starTex);
       this.starTex = textureOf(st);
       this.stars.texture = this.starTex;
-      // smog haze in the first era
       const hz = new PixelCanvas(this.vw + 2, 24);
       if (getEra() === 0 && phase !== 'night') for (let y = 0; y < 24; y++) for (let x = 0; x < hz.w; x++) if (bayer(x, y) < (y / 24) * 3.5) hz.set(x, y, C.snd6);
       if (this.hazeTex) releaseTexture(this.hazeTex);
@@ -405,16 +549,15 @@ export class DioramaScene implements Scene {
       this.haze.alpha = 0.55;
     }
     this.stars.alpha = Math.max(0, (this.darkness - 0.45) * 2.2) * (0.85 + Math.sin(this.time * 1.7) * 0.15);
-    // sun & moon along an arc
     const span = this.vw * 0.9;
     const horizon = this.groundY - 10;
     const sx = this.vw * 0.05 + ((hour - 6) / 12) * span;
     this.sun.visible = alt > -4 && this.weather !== 'rain';
-    this.sun.position.set(Math.round(sx - 6), Math.round(horizon - Math.max(-4, alt) / 70 * (horizon - 16) - 6));
+    this.sun.position.set(Math.round(sx - 6), Math.round(horizon - (Math.max(-4, alt) / 70) * (horizon - 16) - 6));
     const mh = (hour + 12) % 24;
     this.moon.visible = alt < -2;
     this.moon.position.set(Math.round(this.vw * 0.05 + ((mh - 6) / 12) * span - 4), Math.round(horizon * 0.35 + Math.abs(mh - 12) * 6));
-    // night tint
+    // night grading: every lit layer is tinted; the glow layers above stay bright
     const night = [0.24, 0.27, 0.5];
     const warm = [1, 0.86, 0.72];
     const d = this.darkness;
@@ -431,95 +574,202 @@ export class DioramaScene implements Scene {
       g *= 0.87;
       b *= 0.92;
     }
-    this.dark.tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
-    this.dark.width = this.vw + 2;
-    this.dark.height = this.vh + 2;
+    const tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+    for (const l of [this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
     const lightsOn = Math.max(0, Math.min(1, (this.darkness - 0.25) * 2.4));
     this.glowL.alpha = lightsOn;
+    this.backGlowL.alpha = lightsOn;
+    this.bloomL.alpha = lightsOn * 0.55;
+    this.glowL.visible = this.backGlowL.visible = lightsOn > 0.01;
+    this.bloomL.visible = lightsOn > 0.01 && !this.game.settings.batterySaver;
   }
 
   // ── per-frame ─────────────────────────────────────────────────────────────────────────────
   update(dt: number) {
     this.time += dt;
-    if (this.autoPan && this.sceneW > this.vw) {
-      this.camX += this.panDir * dt * 9;
-      if (this.camX > this.sceneW - this.vw) this.panDir = -1;
-      if (this.camX < 0) this.panDir = 1;
-      this.camX = Math.max(0, Math.min(this.sceneW - this.vw, this.camX));
-    }
     this.rebuildPlots();
+    this.updateCamera(dt);
     this.updateSky(dt);
     this.weatherL.visible = this.game.settings.weather && !this.game.settings.reducedMotion;
     const cx = Math.round(this.camX);
     this.world.x = -cx;
     this.glowL.x = -cx;
-    this.farL.x = -Math.round(this.camX * 0.25);
-    this.midL.x = -Math.round(this.camX * 0.55);
-    // clouds
+    this.bloomL.x = -cx;
+    this.farL.x = -Math.round(this.camX * PARALLAX.far);
+    this.midL.x = -Math.round(this.camX * PARALLAX.mid);
+    this.backL.x = this.backGlowL.x = -Math.round(this.camX * PARALLAX.back);
     for (const c of this.clouds) {
       c.x += c.v * dt;
       if (c.x > this.vw + 10) c.x = -c.sprite.width - 10;
       c.sprite.x = Math.round(c.x);
     }
-    // facility animation
-    const windSpeed = this.site.windCF * 2.4;
+    const windSpeed = Math.max(0.25, this.site.windCF) * 2.4;
+    const saver = this.game.settings.batterySaver;
     for (const p of this.plots) {
       if (p.frames.length > 1 && p.fps > 0) {
         const fi = Math.floor(this.time * p.fps + p.x) % p.frames.length;
         p.sprite.texture = p.frames[fi];
         if (p.glow && p.glowFrames[fi]) p.glow.texture = p.glowFrames[fi];
+        if (p.bloom && p.bloomFrames[fi]) p.bloom.texture = p.bloomFrames[fi];
       }
-      for (const r of p.rotors) {
-        const fi = Math.floor((this.time + r.phase) * 8 * windSpeed) % r.frames.length;
-        r.sprite.texture = r.frames[fi];
-      }
-      if (p.type === 'gas' && p.points.stack && p.kind === 'facility' && p.facility?.status === 'online') {
-        this.smokeTimer -= dt;
-        if (this.smokeTimer <= 0) {
-          this.smokeTimer = this.game.settings.batterySaver ? 0.3 : 0.12;
-          this.spawnSmoke(p.x + p.points.stack[0], this.groundY + 1 - p.h + p.points.stack[1]);
-        }
+      for (const r of p.rotors) r.sprite.texture = r.frames[Math.floor((this.time + r.phase) * 8 * windSpeed) % r.frames.length];
+      for (const mv of p.movers) this.moveMover(p, mv, dt);
+      for (const em of p.emitters) {
+        em.timer -= dt;
+        if (em.timer > 0) continue;
+        em.timer += (saver ? 2.2 : 1) / Math.max(0.1, em.e.rate);
+        const e = em.e;
+        const sx = p.x + e.x + (e.spread ? (Math.random() - 0.5) * 2 * e.spread : 0);
+        this.spawnPuff(e.kind, sx, p.top + e.y, e.size);
       }
     }
+    if (this.surf) this.surf.sprite.texture = this.surf.frames[Math.floor(this.time * 3) % this.surf.frames.length];
     // hover highlight
     for (const p of this.plots) {
-      if (p.kind === 'empty') p.sprite.texture = cachedTexture(`dio:empty:${EMPTY_W}:${p === this.hoverPlot}`, () => emptyPlotArt(EMPTY_W, p === this.hoverPlot));
+      if (p.kind === 'empty') p.sprite.texture = cachedTexture(`dio:empty:${p.w}:${p === this.hoverPlot}`, () => emptyPlotArt(p.w, p === this.hoverPlot));
       else p.sprite.tint = p === this.hoverPlot ? 0xfff2cc : 0xffffff;
     }
+    // edge hints
+    const max = Math.max(0, this.sceneW - this.vw);
+    this.idle += dt;
+    const pulse = 0.35 + Math.sin(this.time * 3) * 0.15;
+    const show = max > 0 && !this.autoPan ? Math.max(0.25, 1 - Math.max(0, this.idle - 2) * 0.5) * pulse * 1.6 : 0;
+    const hy = Math.round(this.groundY * 0.55);
+    this.hintL0.position.set(3, hy);
+    this.hintR0.position.set(this.vw - 6, hy);
+    this.hintL0.alpha = this.camX > 2 ? show : 0;
+    this.hintR0.alpha = this.camX < max - 2 ? show : 0;
     this.updateWalkers(dt);
     this.updateTruck(dt);
     this.updateParticles(dt);
     this.updateWeather(dt);
   }
 
-  private spawnSmoke(x: number, y: number) {
-    const sp = new Sprite(pixelTexture());
-    sp.tint = hex(hash2(this.time * 100, 1, 1) > 0.5 ? C.ink8 : C.ice2);
-    sp.width = 2;
-    sp.height = 2;
-    sp.position.set(Math.round(x), Math.round(y));
+  private updateCamera(dt: number) {
+    const max = Math.max(0, this.sceneW - this.vw);
+    if (this.autoPan && max > 0) {
+      this.camTarget += this.panDir * dt * 9;
+      if (this.camTarget > max) this.panDir = -1;
+      if (this.camTarget < 0) this.panDir = 1;
+      this.camTarget = this.clampCam(this.camTarget);
+      this.camX = this.camTarget;
+      return;
+    }
+    if (this.down?.moved) return;
+    if (Math.abs(this.vel) > 4) {
+      // fling after a drag
+      this.camX += this.vel * dt;
+      this.vel *= Math.exp(-dt * 4.5);
+      if (this.camX <= 0 || this.camX >= max) this.vel = 0;
+      this.camX = this.clampCam(this.camX);
+      this.camTarget = this.camX;
+      return;
+    }
+    this.vel = 0;
+    const diff = this.camTarget - this.camX;
+    this.camX = Math.abs(diff) < 0.5 ? this.camTarget : this.camX + diff * Math.min(1, dt * 10);
+    this.camX = this.clampCam(this.camX);
+  }
+
+  private moveMover(p: Plot, mv: Plot['movers'][number], dt: number) {
+    const m = mv.m;
+    mv.t = (mv.t + (dt * m.speed) / mv.len) % 1;
+    let u = mv.t;
+    let back = false;
+    if (m.pingpong) {
+      back = u >= 0.5;
+      u = u < 0.5 ? u * 2 : 2 - u * 2;
+    }
+    let d = u * mv.len;
+    let px = m.path[0][0];
+    let py = m.path[0][1];
+    let dir = 1;
+    for (let i = 0; i < mv.segs.length; i++) {
+      const a = m.path[i];
+      const b = m.path[i + 1];
+      if (d <= mv.segs[i] || i === mv.segs.length - 1) {
+        const k = mv.segs[i] ? Math.min(1, d / mv.segs[i]) : 0;
+        px = a[0] + (b[0] - a[0]) * k;
+        py = a[1] + (b[1] - a[1]) * k;
+        dir = Math.sign(b[0] - a[0]) || 1;
+        break;
+      }
+      d -= mv.segs[i];
+    }
+    if (back) dir = -dir;
+    const fw = mv.frames[0].width;
+    const fh = mv.frames[0].height;
+    mv.sprite.texture = mv.frames[Math.floor(this.time * 4) % mv.frames.length];
+    // sprites face right; mirror them when driving left
+    mv.sprite.scale.x = dir < 0 ? -1 : 1;
+    mv.sprite.position.set(p.x + Math.round(px) - Math.floor(fw / 2) + (dir < 0 ? fw : 0), p.top + Math.round(py) - fh);
+  }
+
+  private spawnPuff(kind: PuffKind, x: number, y: number, size?: number) {
+    if (this.particles.length >= MAX_PARTICLES) return;
+    const sp = this.pool.pop() ?? new Sprite();
+    sp.visible = true;
+    sp.alpha = 1;
     this.fxL.addChild(sp);
-    this.particles.push({ sprite: sp, vx: 3 + Math.random() * 4, vy: -6 - Math.random() * 4, life: 0, max: 3.5 });
+    const wind = 2 + Math.max(0.1, this.site.windCF) * 10;
+    let vx: number;
+    let vy: number;
+    let max: number;
+    let maxR: number;
+    switch (kind) {
+      case 'steam':
+        vx = wind * (0.6 + Math.random() * 0.6);
+        vy = -7 - Math.random() * 4;
+        max = 4 + Math.random() * 1.5;
+        maxR = size ?? 4;
+        break;
+      case 'smoke':
+        vx = 3 + Math.random() * 4;
+        vy = -6 - Math.random() * 4;
+        max = 3.5;
+        maxR = size ?? 3;
+        break;
+      case 'vapor':
+        vx = wind * 0.5 + Math.random() * 2;
+        vy = -5 - Math.random() * 3;
+        max = 2 + Math.random();
+        maxR = size ?? 2;
+        break;
+      default:
+        // spray / cold mist: drifts and falls back
+        vx = (Math.random() - 0.5) * 10;
+        vy = -4 - Math.random() * 6;
+        max = 0.6 + Math.random() * 0.6;
+        maxR = size ?? 1;
+    }
+    this.particles.push({ sprite: sp, kind, x, y, vx, vy, life: 0, max, size: maxR, r: -1 });
   }
 
   private updateParticles(dt: number) {
-    this.particles = this.particles.filter((p) => {
+    let n = 0;
+    for (const p of this.particles) {
       p.life += dt;
       if (p.life > p.max) {
-        p.sprite.destroy();
-        return false;
+        p.sprite.visible = false;
+        this.fxL.removeChild(p.sprite);
+        this.pool.push(p.sprite);
+        continue;
       }
-      const sx = p.sprite.x + p.vx * dt;
-      const sy = p.sprite.y + p.vy * dt;
-      (p.sprite as Sprite & { fx?: number }).fx = sx;
-      p.sprite.position.set(sx, sy);
-      const grow = 2 + Math.floor((p.life / p.max) * 4);
-      p.sprite.width = grow;
-      p.sprite.height = grow;
-      p.sprite.alpha = 0.8 * (1 - p.life / p.max);
-      return true;
-    });
-    for (const p of this.particles) p.sprite.position.set(Math.round(p.sprite.x), Math.round(p.sprite.y));
+      const k = p.life / p.max;
+      if (p.kind === 'mist') p.vy += 18 * dt;
+      else p.vy *= 1 - dt * 0.35;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      const r = p.kind === 'mist' ? 1 : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
+      if (r !== p.r) {
+        p.r = r;
+        p.sprite.texture = cachedTexture(`dio:puff:${p.kind}:${r}`, () => puffArt(r, p.kind));
+      }
+      p.sprite.position.set(Math.round(p.x - r), Math.round(p.y - r));
+      p.sprite.alpha = p.kind === 'mist' ? 0.9 : 0.9 * (1 - k * k);
+      this.particles[n++] = p;
+    }
+    this.particles.length = n;
   }
 
   private updateWalkers(dt: number) {
@@ -533,7 +783,6 @@ export class DioramaScene implements Scene {
         w.x += dir * w.speed * dt;
         if (Math.abs(w.target - w.x) < 1) {
           w.pause = 1 + Math.random() * 4;
-          // walk to another facility's door
           const plots = this.plots.filter((p) => p.kind !== 'empty');
           const p = plots[Math.floor(Math.random() * Math.max(1, plots.length))];
           w.target = p ? p.x + p.w * (0.2 + Math.random() * 0.6) : 20 + Math.random() * (this.sceneW - 40);
@@ -545,15 +794,28 @@ export class DioramaScene implements Scene {
     }
   }
 
+  /** Trucks call at loading docks: chips to your halls, wafers and gases at suppliers. */
   private updateTruck(dt: number) {
-    const dc = this.plots.find((p) => p.type === 'datacenter' && p.facility?.status === 'online');
     if (!this.truck) {
       this.truckTimer -= dt;
-      if (this.truckTimer <= 0 && dc) {
-        const sp = new Sprite(cachedTexture('dio:truck', truckArt));
-        this.actorL.addChild(sp);
-        this.truck = { sprite: sp, x: -30, target: dc.x + dc.w - 30, wait: 3 };
+      if (this.truckTimer > 0) return;
+      const docks = this.plots.filter((p) => p.live && p.points.dock && (this.viewOnly || p.item.type === 'datacenter' || p.item.type === 'campus' || p.item.type === 'fab' || p.item.type === 'packaging'));
+      if (!docks.length) {
+        this.truckTimer = 6;
+        return;
       }
+      const dock = docks[Math.floor(Math.random() * docks.length)];
+      let tex: Texture;
+      if (!this.viewOnly) tex = cachedTexture('dio:truck', truckArt);
+      else {
+        const pc = dock.item.piece;
+        const kind = pc?.kind === 'gasWorks' || pc?.kind === 'gasYard' ? 'tanker' : this.site.kind === 'mine' ? 'flatbed' : 'box';
+        const accent = pc?.accent ?? C.blu4;
+        tex = cachedTexture(`dio:truck:${kind}:${accent}`, () => truckVariant(kind, accent));
+      }
+      const sp = new Sprite(tex);
+      this.actorL.addChild(sp);
+      this.truck = { sprite: sp, x: -30, target: dock.x + dock.points.dock[0] - 4, wait: 3 };
       return;
     }
     const t = this.truck;
@@ -561,7 +823,8 @@ export class DioramaScene implements Scene {
     else if (t.wait > 0) t.wait -= dt;
     else t.x += 28 * dt;
     t.sprite.position.set(Math.round(t.x), this.groundY + 8);
-    if (t.x > this.sceneW + 30) {
+    const end = this.layout?.beachFrom ?? this.sceneW;
+    if (t.x > end + 30 || (this.layout?.beachFrom !== undefined && t.x > end - 20)) {
       t.sprite.destroy();
       this.truck = null;
       this.truckTimer = 10 + Math.random() * 15;
@@ -587,14 +850,16 @@ export class DioramaScene implements Scene {
   private plotAt(px: number, py: number): Plot | null {
     const wx = this.camX + px;
     for (const p of this.plots) {
-      const top = p.kind === 'empty' ? this.groundY - 30 : this.groundY + 1 - p.h;
+      const top = p.kind === 'empty' ? this.groundY - 30 : p.top;
       if (wx >= p.x && wx < p.x + p.w && py >= top && py <= this.groundY + 10) return p;
     }
     return null;
   }
 
   pointerDown(p: PixelPointer) {
-    this.down = { x: p.x, camX: this.camX, moved: false };
+    this.down = { x: p.x, camX: this.camX, moved: false, lastX: p.x, lastT: performance.now() };
+    this.vel = 0;
+    this.idle = 0;
   }
 
   pointerMove(p: PixelPointer) {
@@ -602,22 +867,40 @@ export class DioramaScene implements Scene {
       const dx = p.x - this.down.x;
       if (Math.abs(dx) > 3) this.down.moved = true;
       if (this.down.moved) {
-        this.camX = Math.max(0, Math.min(this.sceneW - this.vw, this.down.camX - dx));
+        const now = performance.now();
+        const dtm = Math.max(1, now - this.down.lastT) / 1000;
+        const v = -(p.x - this.down.lastX) / dtm;
+        this.vel = this.vel * 0.6 + v * 0.4;
+        this.down.lastX = p.x;
+        this.down.lastT = now;
+        this.camX = this.clampCam(this.down.camX - dx);
+        this.camTarget = this.camX;
+        this.idle = 0;
+        if (this.hoverPlot) {
+          this.hoverPlot = null;
+          this.game.setHover(null);
+        }
         return;
       }
     }
     const plot = this.plotAt(p.x, p.y);
     this.hoverPlot = plot;
     if (!plot) return this.game.setHover(null);
-    if (plot.kind === 'facility' && plot.facility) this.game.setHover({ kind: 'facility', id: plot.facility.id, clientX: p.clientX, clientY: p.clientY });
-    else if (plot.kind === 'empty') this.game.setHover({ kind: 'slot', siteId: this.siteId, index: this.plots.indexOf(plot), clientX: p.clientX, clientY: p.clientY });
+    if (plot.kind === 'facility' && plot.item.facility) this.game.setHover({ kind: 'facility', id: plot.item.facility.id, clientX: p.clientX, clientY: p.clientY });
+    else if (plot.kind === 'empty') this.game.setHover({ kind: 'slot', siteId: this.siteId, index: plot.item.emptyIndex ?? 0, clientX: p.clientX, clientY: p.clientY });
     else this.game.setHover({ kind: 'site', id: this.siteId, clientX: p.clientX, clientY: p.clientY });
   }
 
   pointerUp(p: PixelPointer) {
     const d = this.down;
     this.down = null;
-    if (!d || d.moved) return;
+    if (!d) return;
+    if (d.moved) {
+      // keep the fling only if the finger was still moving when released
+      if (performance.now() - d.lastT > 80) this.vel = 0;
+      return;
+    }
+    this.vel = 0;
     const plot = this.plotAt(p.x, p.y);
     this.game.select({ kind: 'site', id: this.siteId });
     if (plot?.kind === 'empty') this.game.toast('Pick something to build from the panel on the right →', 'info', 'juno');
@@ -629,16 +912,15 @@ export class DioramaScene implements Scene {
   }
 
   wheel(_p: PixelPointer, deltaY: number) {
-    this.camX = Math.max(0, Math.min(this.sceneW - this.vw, this.camX + Math.sign(deltaY) * 24));
-  }
-
-  pan(dx: number) {
-    this.camX = Math.max(0, Math.min(this.sceneW - this.vw, this.camX + dx));
+    // mouse wheels send ~100 per notch, trackpads a stream of small deltas
+    this.nudge(Math.abs(deltaY) >= 50 ? Math.sign(deltaY) * 36 : deltaY * 0.6);
   }
 
   destroy() {
+    if (this.wheelX) this.game.stage?.canvas?.removeEventListener('wheel', this.wheelX);
     for (const t of this.ownTextures) releaseTexture(t);
     for (const t of [this.skyTex, this.starTex, this.hazeTex]) if (t) releaseTexture(t);
+    for (const sp of this.pool) sp.destroy();
     this.root.destroy({ children: true });
   }
 }

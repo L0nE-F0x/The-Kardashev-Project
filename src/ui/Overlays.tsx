@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon, Portrait, pct, useGame } from './components';
+import { linkMaxKm } from '../sim/model';
 import { SITE_BY_ID } from '../content/sites';
 import { REGIONS, STANCE_LABEL } from '../content/regions';
 import { FACILITIES } from '../content/facilities';
@@ -63,7 +64,13 @@ export function MapTooltip() {
       body = `${REGIONS[site.region].name}\n☀ ${pct(site.solarCF)}  🌬 ${pct(site.windCF)}  💧 ${site.water >= 0.5 ? 'ok' : 'scarce'}  ${site.climateC}°C`;
       if (facs.length) body += `\n${facs.map((f) => `${FACILITIES[f.type].name}${f.status === 'building' ? ' (building)' : ''}`).join(', ')}`;
       if (sp && sp.load > 0) body += `\nPower ${fmtMW(sp.served)} / ${fmtMW(sp.load)}`;
-      body += game.tool?.kind === 'link' ? '\nClick to connect' : '\nClick to inspect · double-click to view';
+      const rivals = (s.rivalBuilds ?? []).filter((b) => b.siteId === h.id);
+      if (rivals.length) body += `\nRivals: ${rivals.map((b) => `${s.market.rivals.find((r) => r.id === b.owner)?.name.split(' ')[0] ?? b.owner} ${fmtMW(b.itMW)}${b.status === 'building' ? ' (building)' : ''}`).join(', ')}`;
+      body += game.tool ? '\nClick to connect' : '\nClick to inspect · double-click to view';
+    } else if (site.kind === 'landing') {
+      body = `Cable landing station · ${REGIONS[site.region].name}\nClick to lease subsea cable capacity`;
+    } else if (site.kind === 'mine') {
+      body = `${REGIONS[site.region].name}\n${site.blurb}\nClick to buy a stake`;
     } else {
       const c = COMPANIES[(site.supplier ?? 'lumen') as keyof typeof COMPANIES];
       body = `${c?.sector ?? ''}\n${site.blurb}`;
@@ -170,11 +177,16 @@ export function DioramaBar() {
 
 export function LinkHint() {
   const game = useGame();
-  if (game.tool?.kind !== 'link' || game.mode !== 'map') return null;
+  if (!game.tool || game.mode !== 'map') return null;
+  const fiber = game.tool.kind === 'fiber';
+  const max = fiber ? '5,000 km' : `${Math.round(linkMaxKm(game.state!)).toLocaleString()} km`;
   return (
     <div class="dioramabar frame interactive">
-      <Icon name="link" size="sm" />
-      <span class="small">{game.tool.from ? `From ${SITE_BY_ID[game.tool.from].name} — click another of your sites (≤1,500 km)` : 'Click the first of two sites to connect'}</span>
+      <Icon name={fiber ? 'fiber' : 'link'} size="sm" />
+      <span class="small">
+        {fiber ? 'Fiber: ' : 'Power line: '}
+        {game.tool.from ? `from ${SITE_BY_ID[game.tool.from].name} — click another of your sites (≤${max})` : 'click the first of two sites to connect'}
+      </span>
       <button class="btn small" onClick={() => game.setTool(null)}>
         Cancel
       </button>

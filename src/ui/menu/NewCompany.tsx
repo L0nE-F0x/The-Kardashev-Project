@@ -20,11 +20,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
   const [eventRate, setEventRate] = useState<EventRate>('normal');
   const [rivalPace, setRivalPace] = useState<RivalPace>('normal');
   const [seed, setSeed] = useState<number>(randomSeed());
+  const [start, setStart] = useState<1 | 2>(1);
   const lod = game.world.lods[1];
   const startCash = (cash ?? DIFFICULTIES[difficulty].cash) + FOUNDERS[founder].cash;
 
   const found = () => {
-    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial });
+    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: start === 1 && tutorial, act2: start === 2 });
   };
 
   return (
@@ -35,11 +36,31 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
           <input type="text" value={name} maxLength={28} onInput={(e) => setName((e.target as HTMLInputElement).value)} style={{ width: '100%' }} />
         </label>
         <div style={{ minWidth: '240px' }}>
-          <Toggle label="Bit shows me around" hint="A guided first ten minutes." value={tutorial} onChange={setTutorial} />
+          {start === 1 ? (
+            <Toggle label="Bit shows me around" hint="A guided first ten minutes." value={tutorial} onChange={setTutorial} />
+          ) : (
+            <span class="small muted">Advisors brief you on each new system as it opens.</span>
+          )}
         </div>
       </div>
 
-      <h4 class="section">Where is your garage?</h4>
+      <h4 class="section">Where do you start?</h4>
+      <div class="cardgrid">
+        <button class={`btn pickcard ${start === 1 ? 'active' : ''}`} onClick={() => setStart(1)} aria-pressed={start === 1}>
+          <span class="n">
+            <Icon name="hq" size="sm" /> Act I · The Garage
+          </span>
+          <span class="b">2027. Three desks, a rented rack and a seed round. The full story.</span>
+        </button>
+        <button class={`btn pickcard ${start === 2 ? 'active' : ''}`} onClick={() => setStart(2)} aria-pressed={start === 2} data-tut="start-act2">
+          <span class="n">
+            <Icon name="campus" size="sm" /> Act II · The Scale-Up
+          </span>
+          <span class="b">Spring 2029. Series A closed, a campus with two data halls, Bit-2 shipping. Straight to gigawatts.</span>
+        </button>
+      </div>
+
+      <h4 class="section">{start === 1 ? 'Where is your garage?' : 'Where is your HQ? (your campus goes to the roomiest site in that region)'}</h4>
       <div class="cardgrid four">
         {HOME_SITES.map((s) => (
           <button key={s.id} class={`btn pickcard ${home === s.id ? 'active' : ''}`} onClick={() => setHome(s.id)} aria-pressed={home === s.id}>
@@ -61,7 +82,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             <button key={id} class={`btn pickcard ${difficulty === id ? 'active' : ''}`} onClick={() => setDifficulty(id)} aria-pressed={difficulty === id}>
               <span class="n">{d.name}</span>
               <span class="b">{d.blurb}</span>
-              <span class="b gold">{fmtMoney(d.cash, 0)} seed</span>
+              <span class="b gold">{start === 1 ? `${fmtMoney(d.cash, 0)} seed` : `${fmtMoney({ relaxed: 2.6e9, standard: 2e9, hard: 1.5e9 }[id] ?? 2e9, 0)} after the Series A`}</span>
             </button>
           );
         })}
@@ -120,7 +141,8 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       <div class="row between wrap section" style={{ gap: '8px' }}>
         <span class="small muted">
-          {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {fmtMoney(Math.max(10e6, startCash), 0)} to start
+          {start === 2 ? 'Act II · ' : ''}
+          {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : 'Series A in the bank'}
         </span>
         <button class="btn primary big" onClick={found} disabled={game.slotsFull()} data-tip={game.slotsFull() ? 'All 5 slots are in use — delete a company first.' : undefined}>
           <Icon name="play" size="sm" /> Found the company

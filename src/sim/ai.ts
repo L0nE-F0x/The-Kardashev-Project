@@ -1,4 +1,6 @@
-import { FACILITIES } from '../content/facilities';
+import { FACILITIES, HALLS } from '../content/facilities';
+import type { RegionId } from '../content/mapcodes';
+import { serveMarkets } from './network';
 import { REGIONS } from '../content/regions';
 import { siteDef } from '../content/sites';
 import { TECH_BY_ID } from '../content/techs';
@@ -16,9 +18,12 @@ import {
   inferDemand,
   inferQuality,
   INFER_REV_PER_ACCEL_MONTH,
+  inferPriceTrend,
   DAYS_PER_MONTH,
+  frontier,
   MFU,
   MODEL_PLAN,
+  tierMult,
   tierOf,
 } from './model';
 
@@ -34,6 +39,12 @@ export interface ComputeResult {
   rpDay: number;
   trainFlopDay: number;
   safetyFlopDay: number;
+  // ── Act II markets ──
+  contractDay: number;
+  penaltyDay: number;
+  served: Partial<Record<RegionId, number>>;
+  demand: Partial<Record<RegionId, number>>;
+  delivered: Record<string, number>;
 }
 
 /** Turn served power + installed racks into compute, then spend it per the allocation. */
@@ -53,8 +64,9 @@ export function computeOutputs(s: GameState, power: PowerResult): ComputeResult 
   let ownedPF = 0;
   let locWeighted = 0;
   let installed = 0;
+  const pfByRegion: Partial<Record<RegionId, number>> = {};
   for (const f of s.facilities) {
-    if (f.type !== 'datacenter' || f.status !== 'online') continue;
+    if (!HALLS.includes(f.type) || f.status !== 'online') continue;
     const frac = power.sites[f.siteId]?.frac ?? 0;
     const site = siteDef(f.siteId);
     const cooling = modMult(s, `site:${f.siteId}:cooling`) * modMult(s, `region:${site.region}:cooling`);
@@ -63,6 +75,7 @@ export function computeOutputs(s: GameState, power: PowerResult): ComputeResult 
       ownedPF += pf;
       installed += r.qty;
       locWeighted += pf * REGIONS[site.region].demand * (site.demand ?? 1);
+      pfByRegion[site.region] = (pfByRegion[site.region] ?? 0) + pf * (site.demand ?? 1);
     }
   }
   const rentedPF = s.rental.units * RENTAL.perf * modMult(s, 'rental:availability');
@@ -83,19 +96,44 @@ export function computeOutputs(s: GameState, power: PowerResult): ComputeResult 
   const demand = inferDemand(s, c);
   const perAccelDay = (INFER_REV_PER_ACCEL_MONTH / DAYS_PER_MONTH) * inferQuality(s, c) * techMult(s, 'inferEff') * modMult(s, 'revenue') * locationFactor;
   const paid = Math.min(accelEq, demand);
-  const revenueDay = c > 0 && !s.flags.inferencePaused ? paid * perAccelDay + Math.max(0, accelEq - demand) * perAccelDay * 0.15 : 0;
+  let revenueDay = c > 0 && !s.flags.inferencePaused ? paid * perAccelDay + Math.max(0, accelEq - demand) * perAccelDay * 0.15 : 0;
+  let contractDay = 0;
+  let penaltyDay = 0;
+  let served: Partial<Record<RegionId, number>> = {};
+  let demandBy: Partial<Record<RegionId, number>> = {};
+  let delivered: Record<string, number> = {};
+
+  // ── Act II: regional markets, contracts ──
+  if ((s.act ?? 1) >= 2) {
+    const supply: Partial<Record<RegionId, number>> = {};
+    for (const [r, pf] of Object.entries(pfByRegion)) supply[r as RegionId] = ((pf ?? 0) * inferShare) / RENTAL.perf;
+    const rentedEq = (rentedPF * inferShare) / RENTAL.perf;
+    const perDay = (INFER_REV_PER_ACCEL_MONTH / DAYS_PER_MONTH) * inferPriceTrend(s) * inferQuality(s, c) * techMult(s, 'inferEff') * modMult(s, 'revenue');
+    if (c > 0 && !s.flags.inferencePaused) {
+      const m = serveMarkets(s, supply, rentedEq, demand, perDay);
+      revenueDay = m.revenueDay + m.contractDay;
+      contractDay = m.contractDay;
+      penaltyDay = m.penaltyDay;
+      served = m.served;
+      demandBy = m.demand;
+      delivered = m.delivered;
+    } else revenueDay = 0;
+  }
 
   // ── research ──
   let talent = 0;
+  const act2 = (s.act ?? 1) >= 2;
   for (const f of s.facilities) {
     if (f.status !== 'online') continue;
-    if (f.type === 'lab') talent += FACILITIES.lab.rp! * siteDef(f.siteId).talent;
-    if (f.type === 'hq') talent += FACILITIES.hq.rp! * Math.sqrt(siteDef(f.siteId).talent);
+    const site = siteDef(f.siteId);
+    const pool = act2 ? 0.55 + 0.45 * (s.talent[site.region] ?? 1) : 1;
+    if (f.type === 'lab') talent += FACILITIES.lab.rp! * site.talent * tierMult(f) * pool * modMult(s, `site:${f.siteId}:lab`);
+    if (f.type === 'hq') talent += FACILITIES.hq.rp! * Math.sqrt(site.talent);
   }
   const researchAccel = (totalPF * a.research) / RENTAL.perf;
   const rpDay = talent * (1 + Math.sqrt(researchAccel / 800)) * (1 + 0.15 * Math.max(0, c - 1)) * techMult(s, 'research') * modMult(s, 'research');
 
-  return { totalPF, ownedPF, rentedPF, locationFactor, installed, revenueDay, rpDay, trainFlopDay, safetyFlopDay };
+  return { totalPF, ownedPF, rentedPF, locationFactor, installed, revenueDay, rpDay, trainFlopDay, safetyFlopDay, contractDay, penaltyDay, served, demand: demandBy, delivered };
 }
 
 /** Unspent research can only be banked so far — labs need a direction. */
@@ -132,6 +170,10 @@ export function releaseModel(s: GameState): void {
   const tier = CAPABILITY_TIERS[tierOf(capability)];
   news(s, `🤖 ${run.name} released! ${fmtSci(run.target)} FLOP → capability ${capability.toFixed(2)} (${tier}).`, 'good');
   s.flags.lastRelease = s.day;
+  if ((s.act ?? 1) >= 2 && capability >= frontier(s) && !s.flags.reachedFrontier) {
+    s.flags.reachedFrontier = s.day;
+    news(s, `🏁 ${run.name} matches the frontier. Meridian is no longer alone at the top.`, 'good');
+  }
 }
 
 export function nextModelPlan(s: GameState) {
@@ -145,15 +187,21 @@ export function tickRivals(s: GameState): void {
     if (s.day < r.nextRelease) continue;
     const interval = 170 + rand(s) * 90;
     const pace = RIVAL_PACES[s.meta?.rivalPace ?? 'normal']?.mult ?? 1;
-    const step = (interval / 365) * (r.open ? 0.62 : 0.55) * (0.8 + rand(s) * 0.4) * pace;
+    let step = (interval / 365) * (r.open ? 0.62 : 0.55) * (0.8 + rand(s) * 0.4) * pace;
+    if ((s.act ?? 1) >= 2) {
+      // the scaling era slows down for everyone; campuses they actually build still help
+      const theirMW = (s.rivalBuilds ?? []).filter((b) => b.owner === r.id && b.status === 'online').reduce((a, b) => a + b.itMW, 0);
+      step *= 0.32 * (1 + Math.min(0.5, theirMW / 2500)) * techMult(s, 'rivalBoost') * modMult(s, `rival:${r.id}:pace`);
+    }
     r.capability += step;
     r.modelGen += 1;
     r.nextRelease = s.day + Math.round(interval);
     const label = r.open ? `${r.name} open-sources Orchard-${r.modelGen}` : `${r.name} launches ${r.name.split(' ')[0]}-${r.modelGen}`;
     news(s, `📣 ${label} (capability ${r.capability.toFixed(2)}).`, r.open ? 'info' : 'info');
   }
-  // slow mean-reverting markets
-  s.market.hbm += (1 - s.market.hbm) * 0.01 + (rand(s) - 0.5) * 0.006;
+  // slow mean-reverting markets (rival campuses under construction tighten memory)
+  const building = (s.act ?? 1) >= 2 ? (s.rivalBuilds ?? []).filter((b) => b.status === 'building').length : 0;
+  s.market.hbm += (1 - 0.03 * building - s.market.hbm) * 0.01 + (rand(s) - 0.5) * 0.006;
   s.market.hbm = clamp(s.market.hbm, 0.4, 1.3);
   s.market.gasPrice += (1 - s.market.gasPrice) * 0.008 + (rand(s) - 0.5) * 0.01;
   s.market.gasPrice = clamp(s.market.gasPrice, 0.5, 3);

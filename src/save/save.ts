@@ -1,5 +1,5 @@
 import type { GameState } from '../sim/types';
-import { SAVE_VERSION } from '../sim/state';
+import { ensureAct2State, SAVE_VERSION } from '../sim/state';
 import { dateOf } from '../sim/core';
 
 /**
@@ -25,6 +25,9 @@ export interface SlotInfo {
   playtime: number;
   savedAt: number;
   act1: boolean;
+  /** Current act (2 = The Scale-Up). */
+  act?: number;
+  act2?: boolean;
   gameOver: boolean;
 }
 
@@ -51,6 +54,7 @@ export function migrate(raw: GameState): GameState | null {
     tutorialStep: -1,
     createdAt: raw.savedAt ?? Date.now(),
   };
+  ensureAct2State(raw);
   raw.version = SAVE_VERSION;
   return raw;
 }
@@ -70,6 +74,8 @@ function infoOf(id: string, s: GameState): SlotInfo {
     playtime: s.meta.playtime,
     savedAt: s.savedAt ?? Date.now(),
     act1: !!s.flags.act1Complete,
+    act: s.act ?? 1,
+    act2: !!s.flags.act2Complete,
     gameOver: !!s.meta.gameOver,
   };
 }

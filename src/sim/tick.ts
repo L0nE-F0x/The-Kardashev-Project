@@ -1,4 +1,14 @@
-import { OBJECTIVES, goalsMetForSeriesA } from '../content/objectives';
+import { actObjectives, goalsMetForSeriesA } from '../content/objectives';
+import { FACILITIES, GENERATORS, HALLS } from '../content/facilities';
+import { tickStack } from './stack';
+import { tickCapital } from './capital';
+import { tickPolitics } from './politics';
+import { tickRivalBuilds } from './rivals';
+import { tickJobs } from './jobs';
+import { tickFinale } from './finale';
+import { tickAct } from './act2';
+import { leaseCost } from './actions';
+import { spend } from './economy';
 import { ADVISORS } from '../content/advisors';
 import type { GameState } from './types';
 import { news } from './core';
@@ -13,10 +23,13 @@ import {
   alignmentOf,
   currentCapability,
   DAYS_PER_MONTH,
+  facilityIT,
+  facilityMW,
   frontier,
   inferDemand,
   inferQuality,
   kardashev,
+  supplierPools,
   worldBaselineTW,
 } from './model';
 import { RENTAL } from '../content/companies';
@@ -24,16 +37,30 @@ import { RENTAL } from '../content/companies';
 /** Advance the world by one day. */
 export function tick(s: GameState, ctx: SimContext): void {
   s.day += 1;
+  const act2 = (s.act ?? 1) >= 2;
   tickConstruction(s);
   tickSupply(s, ctx);
+  if (act2) tickStack(s);
   const power = solvePower(s);
   const compute = tickCompute(s, power);
   const econ = tickEconomy(s, power, compute);
+  if (act2) {
+    const lease = leaseCost(s) / DAYS_PER_MONTH;
+    if (lease) spend(s, 'opex', lease);
+    tickCapital(s, compute);
+    tickPolitics(s);
+    tickRivalBuilds(s);
+  }
   tickLicense(s, power);
   tickRivals(s);
   s.carbon.cumMt += power.co2 / 1e6;
   updateStats(s, power, compute, econ.costs);
+  if (act2) {
+    tickJobs(s, ctx);
+    tickFinale(s);
+  }
   tickObjectives(s);
+  tickAct(s);
   tickEvents(s);
   expireModifiers(s);
 }
@@ -72,10 +99,31 @@ function updateStats(s: GameState, power: PowerResult, compute: ComputeResult, c
   st.inferDemand = inferDemand(s, c) * RENTAL.perf;
   st.carbonMtYear = (power.co2 * 365) / 1e6;
   st.sitePower = power.sites;
+  let it = 0;
+  let gen = 0;
+  let clean = 0;
+  for (const f of s.facilities) {
+    if (f.status !== 'online') continue;
+    if (HALLS.includes(f.type)) it += facilityIT(f);
+    if (GENERATORS.includes(f.type)) {
+      const mw = facilityMW(f);
+      gen += mw;
+      if (FACILITIES[f.type].clean) clean += mw;
+    }
+  }
+  st.itMW = it;
+  st.genAvgMW = gen;
+  st.cleanGenMW = clean;
+  st.served = compute.served ?? {};
+  st.demandByRegion = compute.demand ?? {};
+  if ((s.act ?? 1) >= 2) {
+    st.pools = {};
+    for (const sup of ['lumen', 'kestrel', 'own'] as const) st.pools[sup] = supplierPools(s, sup);
+  }
 }
 
 function tickObjectives(s: GameState): void {
-  for (const o of OBJECTIVES) {
+  for (const o of actObjectives(s)) {
     if (s.objectives.done.includes(o.id)) continue;
     if (!(o.after ?? []).every((a) => s.objectives.done.includes(a))) continue;
     if (!o.done(s)) continue;

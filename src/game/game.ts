@@ -4,11 +4,16 @@ import type { Router } from '../world/routing';
 import type { PixelStage, Scene } from '../render/stage';
 import type { RegionId } from '../content/mapcodes';
 import { newGame, type NewGameOptions } from '../sim/state';
+import { newAct2Game } from '../sim/act2';
+import type { RegionId as Rid } from '../content/mapcodes';
+import type { AdvisorId, Job } from '../sim/types';
 import { refreshStats, tick } from '../sim/tick';
 import * as A from '../sim/actions';
 import { resolveEvent } from '../sim/events';
 import { simulateOffline, type OfflineReport } from '../sim/offline';
-import { buildCost, linkCost } from '../sim/model';
+import { buildCost, landCost, linkCost, upgradeCost } from '../sim/model';
+import { OWN_CABLE_COST } from '../content/network';
+import { DEAL_BY_ID } from '../content/stack';
 import { siteDistanceKm } from '../content/sites';
 import { fmtMoney } from '../sim/core';
 import { getEra, setEra, syncCssVars, type Era } from '../render/palette';
@@ -22,11 +27,12 @@ import { musicUnlocked, playMusic } from '../audio/music';
 import { canPromptInstall, initInstallPrompt, onInstallChange, registerServiceWorker } from '../platform/platform';
 import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
+import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | null;
-export type Tool = { kind: 'link'; from: string | null } | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | null;
+export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
 export type Mode = 'title' | 'map' | 'diorama';
 export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install';
 export type Hover =
@@ -80,6 +86,10 @@ export class Game {
   toasts: Toast[] = [];
   awayReport: OfflineReport | null = null;
   showActComplete = false;
+  /** Act II unlock briefing on screen (UI-only; which ones were seen is saved in meta). */
+  briefing: { id: string; step: number } | null = null;
+  private briefingResume: Speed | null = null;
+  private act2Music = false;
   /** With auto-pause off, event cards wait behind a pill until opened. */
   eventOpen = false;
   confirm: ConfirmRequest | null = null;
@@ -164,12 +174,12 @@ export class Game {
     return listSlots().length >= MAX_SLOTS;
   }
 
-  startNew(opts: NewGameOptions): boolean {
+  startNew(opts: NewGameOptions & { act2?: boolean }): boolean {
     if (this.slotsFull()) {
       this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
       return false;
     }
-    this.state = newGame(opts);
+    this.state = opts.act2 ? newAct2Game(opts) : newGame(opts);
     this.slotId = newSlotId();
     refreshStats(this.state);
     this.awayReport = null;
@@ -281,7 +291,8 @@ export class Game {
     this.dioramaSite = null;
     this.stage.setZoomBoost(this.settings.zoom);
     this.stage.setScene(this.scenes.map(this));
-    playMusic('game');
+    this.act2Music = (this.state?.act ?? 1) >= 2;
+    playMusic(this.act2Music ? 'game2' : 'game');
     this.notify();
   }
 
@@ -407,11 +418,63 @@ export class Game {
       this.showActComplete = true;
       sfx('fanfare');
     }
+    if ((s.act ?? 1) >= 2 && !this.act2Music) {
+      this.act2Music = true;
+      if (this.mode !== 'title') playMusic('game2');
+    }
+    if (s.flags.act2Complete && !s.flags.act2Shown) {
+      s.flags.act2Shown = true;
+      this.showActComplete = true;
+      sfx('fanfare');
+    }
     if (s.events.active && !this.settings.autoPause && !s.flags[`seen:${s.events.active.id}:${s.events.active.day}`]) {
       s.flags[`seen:${s.events.active.id}:${s.events.active.day}`] = true;
       sfx('alert');
     }
     this.checkGuide();
+    this.checkBriefings();
+    this.notify();
+  }
+
+  // ── Act II briefings ────────────────────────────────────────────────────────────────────────
+  private checkBriefings(): void {
+    const s = this.state;
+    if (!s || (s.act ?? 1) < 2 || this.briefing || this.mode !== 'map' || s.events.active || this.awayReport || this.showActComplete || this.confirm) return;
+    if (s.meta.tutorialStep >= 0) return;
+    const seen = (s.meta.briefings ??= []);
+    const next = BRIEFINGS.find((b) => !seen.includes(b.id) && b.when(s));
+    if (!next) return;
+    seen.push(next.id);
+    this.briefing = { id: next.id, step: 0 };
+    this.briefingResume = this.speed || this.resumeSpeed || 1;
+    this.speed = 0;
+    next.steps[0].enter?.(this);
+    sfx('page');
+  }
+
+  briefingNext(): void {
+    const b = this.briefing;
+    if (!b) return;
+    const def = BRIEFINGS.find((x) => x.id === b.id);
+    if (!def || b.step + 1 >= def.steps.length) return this.briefingSkip();
+    this.briefing = { id: b.id, step: b.step + 1 };
+    def.steps[b.step + 1].enter?.(this);
+    sfx('page');
+    this.notify();
+  }
+
+  briefingSkip(): void {
+    this.briefing = null;
+    if (!this.blocked) this.speed = this.briefingResume ?? (this.resumeSpeed || 1);
+    this.briefingResume = null;
+    this.notify();
+  }
+
+  /** Show the Act II briefings again (from the Field Guide). */
+  replayBriefings(): void {
+    if (!this.state) return;
+    this.state.meta.briefings = [];
+    this.panel = null;
     this.notify();
   }
 
@@ -428,7 +491,10 @@ export class Game {
   }
 
   private updateEra(): void {
-    const target: Era = this.eraOverride ?? this.eraForK(this.view?.stats.K ?? kardashev(19.6e12));
+    // the era follows K, or the act, whichever is later (Act II barely moves K but should look like the Grid Rush)
+    const act = this.view?.act ?? 1;
+    const byAct = (act >= 2 ? 1 : 0) as Era;
+    const target: Era = this.eraOverride ?? (Math.max(byAct, this.eraForK(this.view?.stats.K ?? kardashev(19.6e12))) as Era);
     if (target !== getEra()) {
       setEra(target);
       syncCssVars();
@@ -636,14 +702,24 @@ export class Game {
 
   linkClick(siteId: string): void {
     const tool = this.tool;
-    if (!tool || tool.kind !== 'link') return;
+    if (!tool) return;
     if (!tool.from) {
-      this.tool = { kind: 'link', from: siteId };
+      this.tool = { kind: tool.kind, from: siteId };
       sfx('select');
       this.notify();
       return;
     }
     const from = tool.from;
+    if (tool.kind === 'fiber') {
+      const why = A.canFiber(this.state!, from, siteId);
+      const cost = why ? 0 : A.fiberCost(siteDistanceKm(from, siteId));
+      this.guarded(cost, 'Lay this fiber?', () => {
+        const r = this.after(A.buildFiber(this.state!, from, siteId));
+        if (r.ok) this.tool = null;
+        this.notify();
+      });
+      return;
+    }
     const why = A.canLink(this.state!, from, siteId);
     const cost = why ? 0 : linkCost(siteDistanceKm(from, siteId));
     this.guarded(cost, 'Build this power line?', () => {
@@ -651,6 +727,97 @@ export class Game {
       if (r.ok) this.tool = null;
       this.notify();
     });
+  }
+
+  // ── Act II actions ──
+  upgrade(facilityId: string): void {
+    const s = this.state!;
+    const f = s.facilities.find((x) => x.id === facilityId);
+    if (!f) return;
+    this.guarded(upgradeCost(s, f), 'Expand this facility?', () => void this.after(A.upgradeFacility(s, facilityId), 'build'));
+  }
+
+  buyLand(siteId: string): void {
+    const s = this.state!;
+    this.guarded(landCost(s, siteId), 'Buy more land here?', () => void this.after(A.buyLand(s, siteId), 'cash'));
+  }
+
+  leaseCable(id: string) {
+    return this.after(A.leaseCable(this.state!, id), 'cash');
+  }
+
+  dropLease(id: string) {
+    return this.after(A.dropLease(this.state!, id));
+  }
+
+  buildOwnCable(a: string, b: string): void {
+    this.guarded(OWN_CABLE_COST, 'Lay your own subsea cable?', () => void this.after(A.buildOwnCable(this.state!, a, b), 'build'));
+  }
+
+  signDeal(id: string): void {
+    const d = DEAL_BY_ID[id];
+    this.guarded(d?.cost ?? 0, `Sign: ${d?.name}?`, () => void this.after(A.signDeal(this.state!, id), 'cash'));
+  }
+
+  buyStake(mineId: string): void {
+    const s = this.state!;
+    this.guarded(A.stakePrice(s, mineId), 'Buy a 10% stake?', () => void this.after(A.buyStake(s, mineId), 'cash'));
+  }
+
+  lobby(region: Rid) {
+    return this.after(A.lobby(this.state!, region), 'cash');
+  }
+
+  applyLicence(rule: string, region: Rid) {
+    return this.after(A.applyLicence(this.state!, rule, region));
+  }
+
+  signTreaty(id: string) {
+    return this.after(A.signTreaty(this.state!, id), 'objective');
+  }
+
+  leaveTreaty(id: string) {
+    return this.after(A.leaveTreaty(this.state!, id));
+  }
+
+  acceptSovereign(id: string) {
+    return this.after(A.acceptSovereign(this.state!, id), 'objective');
+  }
+
+  declineSovereign(id: string) {
+    return this.after(A.declineSovereign(this.state!, id));
+  }
+
+  borrow(amount: number) {
+    return this.after(A.borrow(this.state!, amount), 'cash');
+  }
+
+  repayLoan(id: string): void {
+    const l = this.state!.capital.loans.find((x) => x.id === id);
+    this.guarded(l?.balance ?? 0, 'Repay this loan early?', () => void this.after(A.repayLoan(this.state!, id), 'cash'));
+  }
+
+  acceptContract(id: string) {
+    return this.after(A.acceptContract(this.state!, id), 'objective');
+  }
+
+  declineContract(id: string) {
+    return this.after(A.declineContract(this.state!, id));
+  }
+
+  buyStartup(id: string): void {
+    const o = this.state!.startups.offers.find((x) => x.id === id);
+    this.guarded(o?.price ?? 0, 'Acquire this company?', () => void this.after(A.buyStartup(this.state!, id), 'objective'));
+  }
+
+  setJob(advisor: AdvisorId, patch: Partial<Job>) {
+    const r = A.setJob(this.state!, advisor, patch);
+    if (!r.ok) {
+      sfx('error');
+      this.toast(r.reason, 'bad');
+    }
+    this.notify();
+    return r;
   }
 
   order(supplier: SupplierId, qty: number, dest: string, mode: 'sea' | 'air'): void {

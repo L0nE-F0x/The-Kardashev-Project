@@ -22,7 +22,7 @@ export function Icon({ name, size, title }: { name: IconName; size?: 'sm' | 'lg'
 
 export function Portrait({ id, mood, size, bitGen }: { id: AdvisorId; mood?: Mood; size?: number; bitGen?: number }) {
   const game = useContext(GameCtx);
-  const gen = bitGen ?? (game?.state ? Math.min(3, game.state.models.length) : 0);
+  const gen = bitGen ?? (game?.state ? Math.min(5, game.state.models.length) : 0);
   return <img class="portrait" src={portraitUrl(id, mood ?? 'neutral', gen)} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={id} draggable={false} />;
 }
 

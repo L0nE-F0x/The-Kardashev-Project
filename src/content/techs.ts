@@ -23,7 +23,18 @@ export type TechKey =
   | 'incidentSeverity'
   | 'research'
   | 'waterPenalty'
-  | 'heatPenalty';
+  | 'heatPenalty'
+  // ── Act II ──
+  | 'pkgEff'
+  | 'nuclearBuild'
+  | 'linkLoss'
+  | 'linkRange'
+  | 'relationGain'
+  | 'licenceDays'
+  | 'rivalReact'
+  | 'rivalBoost'
+  | 'openPressure'
+  | 'smuggleRisk';
 
 export interface TechDef {
   id: string;
@@ -34,6 +45,10 @@ export interface TechDef {
   blurb: string;
   effect: string;
   mods: Partial<Record<TechKey, number>>;
+  /** Act it becomes available in (default 1). */
+  act?: number;
+  /** Act II phase it becomes available in. */
+  phase?: number;
 }
 
 export const TECH_CATEGORIES: Record<TechCategory, { name: string; icon: string }> = {
@@ -69,6 +84,33 @@ export const TECHS: TechDef[] = [
   // ── Policy ──────────────────────────────────────────────────────────────────────────────
   { id: 'fast-track', name: 'Interconnect Fast-Track', cat: 'policy', cost: 45, blurb: 'Pre-studied grid connections and a pile of paperwork done early.', effect: 'Grid connections arrive 40% sooner.', mods: { interconnect: 0.6 } },
   { id: 'community', name: 'Community Benefit Deals', cat: 'policy', cost: 40, blurb: 'Local hiring, rebates and a new school roof.', effect: 'Permits 10% faster; local trust grows 30% faster.', mods: { permit: 0.9, licenseGain: 1.3 } },
+
+  // ════════════════════════════════════ ACT II ════════════════════════════════════════
+  // ── Models ──
+  { id: 'synthetic-data', name: 'Synthetic Data Pipelines', cat: 'ai', cost: 140, act: 2, requires: ['scaling-laws'], blurb: 'When the internet runs out, models write their own textbooks.', effect: 'Algorithmic efficiency ×1.5.', mods: { algoEff: 1.5 } },
+  { id: 'reasoning', name: 'Test-Time Reasoning', cat: 'ai', cost: 160, act: 2, requires: ['agents'], blurb: 'Let the model think longer before it answers.', effect: 'Market demand ×1.3; inference revenue ×1.2.', mods: { demand: 1.3, inferEff: 1.2 } },
+  { id: 'long-context', name: 'Million-Token Context', cat: 'ai', cost: 120, act: 2, requires: ['distillation'], blurb: 'Whole codebases and contracts in a single prompt.', effect: 'Market demand ×1.25.', mods: { demand: 1.25 } },
+  { id: 'auto-research', name: 'Automated Research Labs', cat: 'ai', cost: 240, act: 2, phase: 2, requires: ['ai-researchers'], blurb: 'Your models design, run and write up experiments end to end.', effect: 'Research output ×1.5.', mods: { research: 1.5 } },
+  { id: 'world-models', name: 'World Models', cat: 'ai', cost: 300, act: 2, phase: 3, requires: ['synthetic-data'], blurb: 'Models that learn physics from video and simulation.', effect: 'Algorithmic efficiency ×1.6.', mods: { algoEff: 1.6 } },
+  // ── Hardware ──
+  { id: 'immersion', name: 'Immersion Cooling', cat: 'hardware', cost: 110, act: 2, requires: ['liquid-cooling'], blurb: 'Servers bathe in dielectric fluid. Heatwaves barely register.', effect: 'PUE ×0.93; heatwaves hurt half as much.', mods: { pue: 0.93, heatPenalty: 0.5 } },
+  { id: 'chiplets', name: 'Chiplet Architectures', cat: 'hardware', cost: 120, act: 2, blurb: 'Smaller dies, stitched together: better yields, easier packaging.', effect: 'Packaging goes 25% further; HBM shortages bite 20% less.', mods: { pkgEff: 1.25, hbmExposure: 0.8 } },
+  { id: 'hbm4', name: 'HBM4 Stacks', cat: 'hardware', cost: 130, act: 2, requires: ['hbm-futures'], blurb: 'Taller, wider memory stacks with their own logic base die.', effect: 'HBM shortages bite 30% less.', mods: { hbmExposure: 0.7 } },
+  { id: 'gw-campus', name: 'Gigawatt Campus Design', cat: 'hardware', cost: 180, act: 2, phase: 3, requires: ['modular-dc'], blurb: 'Substations, cooling plants and halls designed as one machine.', effect: 'Unlocks the Gigawatt Campus; data centers build 10% faster.', mods: { dcBuild: 0.9 } },
+  // ── Energy ──
+  { id: 'egs', name: 'Enhanced Geothermal', cat: 'energy', cost: 120, act: 2, blurb: 'Fracking know-how pointed at hot dry rock.', effect: 'Geothermal plants at hot-rock sites, not just volcanic ones.', mods: {} },
+  { id: 'perovskite', name: 'Perovskite Tandems', cat: 'energy', cost: 150, act: 2, requires: ['trackers'], blurb: 'A second solar layer on top of silicon catches more of the spectrum.', effect: 'Solar output +20%; solar 15% cheaper.', mods: { solarCF: 1.2, solarCost: 0.85 } },
+  { id: 'hvdc', name: 'HVDC Lines', cat: 'energy', cost: 130, act: 2, blurb: 'High-voltage direct current: long lines, small losses.', effect: 'Power lines reach 2.5× further and lose 60% less.', mods: { linkRange: 2.5, linkLoss: 0.4 } },
+  { id: 'smr-licensing', name: 'SMR Design Certification', cat: 'energy', cost: 110, act: 2, phase: 2, blurb: 'One approved design, built many times.', effect: 'Nuclear builds 15% faster.', mods: { nuclearBuild: 0.85 } },
+  { id: 'grid-forming', name: 'Grid-Forming Inverters', cat: 'energy', cost: 90, act: 2, blurb: 'Batteries that can hold up a grid on their own.', effect: 'Grid connections 20% sooner; batteries store 15% more.', mods: { interconnect: 0.8, batteryMWh: 1.15 } },
+  // ── Safety ──
+  { id: 'interp-2', name: 'Interpretability II', cat: 'safety', cost: 140, act: 2, requires: ['interp-1'], blurb: 'Trace whole circuits, not just features.', effect: 'Safety research efficiency ×2.', mods: { safetyEff: 2 } },
+  { id: 'oversight', name: 'Scalable Oversight', cat: 'safety', cost: 180, act: 2, requires: ['evals'], blurb: 'Weaker models, carefully arranged, can check stronger ones.', effect: 'Safety efficiency ×1.5; incidents 30% less severe.', mods: { safetyEff: 1.5, incidentSeverity: 0.7 } },
+  { id: 'ai-control', name: 'AI Control Protocols', cat: 'safety', cost: 160, act: 2, phase: 2, requires: ['constitution'], blurb: 'Assume a model might misbehave and design the deployment so it can’t do harm.', effect: 'Incidents 40% less severe; trust grows 20% faster.', mods: { incidentSeverity: 0.6, licenseGain: 1.2 } },
+  // ── Policy ──
+  { id: 'policy-desk', name: 'Policy Desk', cat: 'policy', cost: 80, act: 2, blurb: 'Former diplomats on staff, in every capital.', effect: 'Relations with governments grow 30% faster; licences 25% faster.', mods: { relationGain: 1.3, licenceDays: 0.75 } },
+  { id: 'compliance', name: 'Export Compliance Systems', cat: 'policy', cost: 100, act: 2, phase: 2, requires: ['policy-desk'], blurb: 'Track every chip from wafer to rack.', effect: 'Licences 40% faster; detours half as risky.', mods: { licenceDays: 0.6, smuggleRisk: 0.5 } },
+  { id: 'local-content', name: 'Local Content Programmes', cat: 'policy', cost: 90, act: 2, requires: ['community'], blurb: 'Hire, train and buy locally wherever you build.', effect: 'Permits 10% faster; trust grows 20% faster.', mods: { permit: 0.9, licenseGain: 1.2 } },
 ];
 
 export const TECH_BY_ID: Record<string, TechDef> = Object.fromEntries(TECHS.map((t) => [t.id, t]));

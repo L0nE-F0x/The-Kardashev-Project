@@ -148,7 +148,8 @@ async function desktopLinks() {
         .map(([label, plat, a]) => `<a class="btn ${plat === os ? 'primary' : ''}" href="${a!.browser_download_url}">⬇ ${label} <span class="small">${(a!.size / 1e6).toFixed(0)} MB</span></a>`)
         .join('') + `<a class="small link" href="${rel.html_url}">${escapeHtml(rel.tag_name)} release notes</a>`;
   } catch {
-    box.innerHTML = '<span class="small muted">Desktop builds are on their way — play in the browser or install the app meanwhile.</span>';
+    // the GitHub API is rate-limited (60 requests/hour per address): fall back to the Releases page
+    box.innerHTML = `<a class="btn primary" href="https://github.com/${REPO}/releases/latest">⬇ Download for Windows, macOS or Linux</a><span class="small muted">Opens the latest release on GitHub.</span>`;
   }
 }
 void desktopLinks();

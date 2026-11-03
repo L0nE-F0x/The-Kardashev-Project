@@ -1,8 +1,8 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.2 "The Front Door"** (M1.5) on top of **M1 "First Light"** — Act I (The Garage) is
-playable end to end, with a website, main menu, tutorial, settings, save slots, PWA and desktop builds.
+Current build: **v0.3 "The Scale-Up"** (M2): Acts I (The Garage) and II (The Scale-Up) are playable end to end,
+on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and desktop builds).
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 
 ## Commands
@@ -10,18 +10,20 @@ Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 ```bash
 npm run dev           # Vite dev server → http://127.0.0.1:5317 (landing at /, game at /play/)
 npm run build         # typecheck (tsc 7) + production build → dist/ (both pages + service worker)
-npm test              # vitest: sim determinism, Act I bot, offline, save round-trip, sea routing
+npm test              # vitest: sim determinism, Act I bot, Act II bot (preset → IPO), offline, saves, routing, map scene
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
 npm run gen:assets    # re-render icons, favicon, logo, globe, OG image + src-tauri/icons from game code
 npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
-PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts
-                      # render map / portrait / route previews to PNG without a browser
+PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts
+                      # render map / portrait / route / Act II map / diorama previews to PNG without a browser
 ```
 
 In the browser console, `window.game` is the live `Game` (state, actions, `setEraOverride(0..3)`, `enterDiorama(siteId)`,
-`showMenu()`, `tutorialRestart()`). Gameplay screenshots for the website: in dev, the page can POST a PNG to
-`/__screenshot?name=<name>` (Content-Type `image/png`, same origin only) and it lands in `public/screenshots/`.
+`showMenu()`, `tutorialRestart()`, `replayBriefings()`). To fast-forward in QA, import `/src/sim/tick.ts` in the console and
+call `tick(game.state, game.ctx)` in a loop (then `refreshStats` + `game.notify()`): an automated or off-screen Chrome
+window throttles requestAnimationFrame to ~1 fps, which also throttles the game clock.
+Gameplay screenshots for the website: in dev, the page can POST a PNG to `/__screenshot?name=<name>` (Content-Type `image/png`, same origin only) and it lands in `public/screenshots/`.
 
 ## Architecture
 
@@ -32,26 +34,38 @@ src/
   sim/        PURE game logic — no DOM, no Pixi. Deterministic (seeded RNG in state).
     types.ts      GameState and friends (everything serialisable); GameMeta = difficulty, founder, custom start
     state.ts      newGame(opts) + SAVE_VERSION
-    tick.ts       one game day: construction → supply → power → compute → economy → license → rivals → objectives → events
-    model.ts      shared formulas (costs, build times, chip specs, capability, K, crisisCost) — UI previews use these too
-    actions.ts    player actions; validate → spend → mutate → Result {ok | reason}
+    tick.ts       one game day: construction → supply → stack → power → compute → economy → capital/politics/rivals
+                  → license → rivals' models → stats → jobs → finale → objectives → act phases → events
+    model.ts      shared formulas (costs, tiers, plots, chip pools, materials, capability, K, crisisCost) — UI previews use these too
+    actions.ts    player actions; validate → spend → mutate → Result {ok | reason} (Act II actions at the bottom)
     power.ts / supply.ts / ai.ts / economy.ts / events.ts / offline.ts   (see SPEC §11)
-  content/    data: regions, sites, facilities, techs, companies, events, objectives, advisors, cities,
-              difficulty.ts (presets, founders, event rates, rival pace), fieldGuide.ts, changelog.ts (parses CHANGELOG.md)
+    act2.ts       Act II framework: beginAct2, phases (1 Gigawatts · 2 The Stack · 3 The Race · 4 The Crunch · 5 done),
+                  Series B / race / finale triggers, the "Start at Act II" preset (newAct2Game)
+    network.ts    regional inference markets: private graph (fiber, leased/own cables), serve efficiency, contracts first
+    stack.ts / politics.ts / capital.ts / rivals.ts / jobs.ts / finale.ts   (see SPEC §17)
+  content/    data: regions, sites, facilities (with tiers), techs, companies, events (+ events2.ts for Act II), objectives,
+              advisors, cities, difficulty.ts, fieldGuide.ts, changelog.ts (parses CHANGELOG.md)
+              Act II: network.ts (cables), stack.ts (deals, mines, materials), politics.ts (export rules, treaties,
+              sovereign deals), capital.ts (customers, Series B, board, finance), rivals.ts (rival prefs, startups), jobs.ts
   world/      map raster decode + sea router (A* over 0.5° ocean, carved canals, closable chokepoints) + sun position
   render/     Pixi v8. stage.ts = low-res render target scaled by whole numbers (one pixel size everywhere) + fade overlay
     palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn)
     pixels.ts     PixelCanvas: indexed-colour drawing (rect/line/ellipse/dither/text) baked with the era palette
     globe.ts      orthographic pixel Earth (landing hero, icons, OG image) with real sun + city lights
-    worldMap/     terrain painter, night terminator + city lights, MapScene (markers, links, ships, input, cinematic glides)
-    diorama/      side-view campus scenes: art.ts (procedural facility/backdrop sprites) + dioramaScene.ts
-    sprites/      map icons, advisor portraits (procedural, with moods; Bit upgrades per model generation)
+    worldMap/     terrain painter, night terminator + city lights, MapScene (markers, links, ships, input, cinematic glides),
+                  act2Layers.ts (Act II site visibility, landing/mine/rival markers, cables, fiber, cosmetic shipping lanes)
+    diorama/      side-view campus scenes: dioramaScene.ts (scrolling wide campuses, view-only supplier/mine/landing scenes),
+                  art.ts (backdrops + the makeArt switch), plants.ts (Act II plants), industry.ts (suppliers, mines,
+                  landing stations, rival campuses), sizes.ts (per-tier sizes), layout.ts (plots), campusArt.ts, draw.ts
+    sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-5)
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
     tutorial.ts   Bit's guided steps: text, target (`data-tut` attribute or `site:<id>`), done(g) check
+    briefings.ts  Act II unlock briefings: the owning advisor's 1–3 step spotlight, shown once (meta.briefings)
     showcase.ts   the fake "day 900" world the menu tour flies over
     tour.ts       TourDirector: map glides + campus cuts behind the main menu
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window
+    panels/Act2Panels.tsx  Team (advisor jobs), Deals (supply · customers · companies), Blocs, Board & debt, Crunch tracker
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
@@ -79,7 +93,11 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 - **Content first:** new facilities/techs/events/sites/objectives are data in `src/content/`. Events are
   `EventDef`s with `weight`/`setup`/`choices[].apply` — keep choices to real trade-offs, give 2 advisor lines, and
   price crises with `cc(s, n)` so difficulty scales them.
-- **Tutorial targets:** UI elements Bit points at carry `data-tut="..."`; keep them when refactoring panels.
+- **Tutorial targets:** UI elements Bit (and the Act II briefings) point at carry `data-tut="..."`; keep them when refactoring panels.
+- **Act gating:** Act II content carries `act: 2` and/or `phase: n` (facilities, techs, events, objectives, sites, jobs,
+  deals). Act I must stay byte-identical: gate new behaviour on `s.act >= 2` and keep the Act I bot at ~day 812.
+- **Act II prices:** Act I events use `cc(s, n)`, which scales up in Act II; Act II events (events2.ts) use `c2(s, n)`,
+  written at Act II scale.
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
   it in `game.updateSettings` (CSS-level ones in `applyCssSettings`).
 - **Save compatibility:** adding optional fields → default them in `save/save.ts#migrate`. Breaking changes →
@@ -101,7 +119,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 | Want | Edit |
 |---|---|
-| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, map icon in `render/sprites/mapIcons.ts`, diorama art in `render/diorama/art.ts`, UI icon in `ui/icons.ts` |
+| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, map icon in `render/sprites/mapIcons.ts`, diorama art: size in `render/diorama/sizes.ts`, drawing in `plants.ts`, wired in `art.ts#makeArt`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx` |
 | New site | `content/sites.ts` (port must reach the world ocean — `npm test` checks every supplier→site route) |
 | New tech | `content/techs.ts` (+ a `TechKey` if it needs a new multiplier, read via `techMult`) |
 | New event | `content/events.ts` |
@@ -111,9 +129,19 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
 | Menu tour shot | `game/tour.ts` (`SHOTS`) and, for a new campus, `game/showcase.ts` |
 | Re-tune the economy | `sim/model.ts` constants, `content/facilities.ts`, `content/companies.ts` |
+| Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render/diorama/` + `mapIcons.ts` |
+| Supply deal, mine | `content/stack.ts` |
+| Cable system / landing station | `content/network.ts` + a `landing(...)` row in `content/sites.ts` |
+| Export rule, treaty, sovereign deal | `content/politics.ts` |
+| Contract customer, board/finance numbers | `content/capital.ts` |
+| Startup for sale, rival build habits | `content/rivals.ts` |
+| Advisor job | `content/jobs.ts` + its logic in `sim/jobs.ts` |
+| Act II event / chain | `content/events2.ts` (chain with `schedule(s, id, days)`) |
+| Act II briefing | `game/briefings.ts` (+ `data-tut` targets) |
+| Re-tune Act II pacing | `tests/act2.test.ts` + `tests/helpers/act2bot.ts`; `ACT2_ALLOCATION`, `inferPriceTrend`, `MODEL_PLAN` in `sim/model.ts`; rival pace in `sim/ai.ts#tickRivals` |
 
-## Known gaps / next (see SPEC §12, §16)
+## Known gaps / next (see SPEC §12, §16, §17)
 
-Acts II–V (fabs, packaging, nuclear/fusion, the Charter role pivot, orbit), company contracts/bidding,
-Kip's space arc, more dioramas per backdrop detail, the real theme song, code signing (Windows/macOS),
-a feedback form (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
+Acts III–V (the Charter role pivot, companies bidding on contracts, fusion, orbit), Kip's space arc, Act II balance
+from real playtests (the bot is a weak player; the mid-2034 deadline always ends the act), the real theme song,
+code signing (Windows/macOS), a feedback form (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.

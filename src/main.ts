@@ -86,7 +86,19 @@ function bindKeys(game: Game) {
         game.openPanel('guide');
         break;
       case 'l':
-        game.setTool(game.tool ? null : { kind: 'link', from: null });
+        game.setTool(game.tool?.kind === 'link' ? null : { kind: 'link', from: null });
+        break;
+      case 'i':
+        if ((game.state?.act ?? 1) >= 2) game.setTool(game.tool?.kind === 'fiber' ? null : { kind: 'fiber', from: null });
+        break;
+      case 't':
+        if ((game.state?.act ?? 1) >= 2) game.openPanel('team');
+        break;
+      case 'e':
+        if ((game.state?.act ?? 1) >= 2) game.openPanel('deals');
+        break;
+      case 'p':
+        if ((game.state?.act ?? 1) >= 2) game.openPanel('blocs');
         break;
       case 'm':
         if (game.mode === 'diorama') game.enterMap();

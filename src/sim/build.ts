@@ -1,20 +1,55 @@
-import { FACILITIES } from '../content/facilities';
+import { FACILITIES, HALLS } from '../content/facilities';
 import { siteDef } from '../content/sites';
 import type { GameState } from './types';
 import { fmtMW, news } from './core';
 import { installInventory } from './supply';
+import { euvBlocked } from './politics';
 
 /** Advance construction of facilities, grid connections and transmission links by a day. */
 export function tickConstruction(s: GameState): void {
   for (const f of s.facilities) {
+    // expansions run alongside a working facility
+    if (f.upgrade) {
+      f.upgrade.progress += 1;
+      if (f.upgrade.progress >= f.upgrade.buildDays) {
+        f.tier = f.upgrade.to;
+        f.upgrade = undefined;
+        const label = FACILITIES[f.type].tiers?.[(f.tier ?? 2) - 2]?.label ?? `tier ${f.tier}`;
+        news(s, `🏗 ${FACILITIES[f.type].name} at ${siteDef(f.siteId).name} expanded to ${label}.`, 'good');
+        if (HALLS.includes(f.type)) installInventory(s, f.siteId);
+      }
+    }
     if (f.status !== 'building') continue;
+    // a fab needs Veldt's EUV tools halfway through; export rules can hold them up
+    if (f.type === 'fab' && f.progress >= f.buildDays * 0.5) {
+      const blocked = euvBlocked(s, siteDef(f.siteId).region);
+      if (blocked && !f.blocked) news(s, `⛔ EUV tools for ${siteDef(f.siteId).name} are held up by export licensing. Sol can apply for a licence.`, 'bad');
+      f.blocked = blocked ? 'euv' : undefined;
+      if (blocked) continue;
+    }
     f.progress += 1;
     if (f.progress >= f.buildDays) {
       f.status = 'online';
       f.onlineDay = s.day;
-      if (f.type === 'datacenter') f.racks ??= [];
+      if (HALLS.includes(f.type)) f.racks ??= [];
       news(s, `🏗 ${FACILITIES[f.type].name} at ${siteDef(f.siteId).name} is online.`, 'good');
-      if (f.type === 'datacenter') installInventory(s, f.siteId);
+      if (HALLS.includes(f.type)) installInventory(s, f.siteId);
+    }
+  }
+  for (const l of s.network?.fiber ?? []) {
+    if (l.status !== 'building') continue;
+    l.progress += 1;
+    if (l.progress >= l.buildDays) {
+      l.status = 'online';
+      news(s, `🌐 Fiber lit: ${siteDef(l.a).name} ⇄ ${siteDef(l.b).name}.`, 'good');
+    }
+  }
+  for (const c of s.network?.own ?? []) {
+    if (c.status !== 'building') continue;
+    c.progress += 1;
+    if (c.progress >= c.buildDays) {
+      c.status = 'online';
+      news(s, `🌊 Your subsea cable ${siteDef(c.a).name} ⇄ ${siteDef(c.b).name} is carrying traffic.`, 'good');
     }
   }
   for (const [id, st] of Object.entries(s.sites)) {

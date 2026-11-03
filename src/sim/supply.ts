@@ -5,21 +5,29 @@ import { CHOKEPOINT_BY_ID } from '../world/routing';
 import type { Batch, GameState, Order, Shipment, SupplierId } from './types';
 import { fmtNum, news, nextId } from './core';
 import { closedChokepoints, modMult } from './effects';
-import { AIR_KM_PER_DAY, dcCapacityUnits, LAND_KM_PER_DAY, SEA_KM_PER_DAY, supplierDailyRate } from './model';
+import { AIR_KM_PER_DAY, facilityIT, LAND_KM_PER_DAY, SEA_KM_PER_DAY, supplierDailyRate } from './model';
+import { HALLS } from '../content/facilities';
 import { haversineKm } from '../content/sites';
 
 export interface SimContext {
   router: Router | null;
 }
 
+/** Your online fab sites (the 'own' supplier ships from these). */
+export function ownFabSites(s: GameState): string[] {
+  return s.facilities.filter((f) => f.type === 'fab' && f.status === 'online').map((f) => f.siteId);
+}
+
 /** Choose the supplier site closest (by straight line) to a destination. */
-export function supplierOrigin(supplier: SupplierId, dest: string): string {
+export function supplierOrigin(supplier: SupplierId, dest: string, s?: GameState): string {
   const d = siteDef(dest);
-  let best = CHIP_SUPPLIERS[supplier].sites[0];
+  const sites = supplier === 'own' && s ? ownFabSites(s) : CHIP_SUPPLIERS[supplier].sites;
+  if (!sites.length) return CHIP_SUPPLIERS.kestrel.sites[0];
+  let best = sites[0];
   let bestKm = Infinity;
-  for (const id of CHIP_SUPPLIERS[supplier].sites) {
-    const s = siteDef(id);
-    const km = haversineKm(s.lat, s.lon, d.lat, d.lon);
+  for (const id of sites) {
+    const sd = siteDef(id);
+    const km = haversineKm(sd.lat, sd.lon, d.lat, d.lon);
     if (km < bestKm) {
       bestKm = km;
       best = id;
@@ -130,12 +138,12 @@ export function installInventory(s: GameState, siteId: string): number {
   if (!inv?.length) return 0;
   let installed = 0;
   for (const dc of s.facilities) {
-    if (dc.siteId !== siteId || dc.type !== 'datacenter' || dc.status !== 'online') continue;
+    if (dc.siteId !== siteId || !HALLS.includes(dc.type) || dc.status !== 'online') continue;
     dc.racks ??= [];
     while (inv.length) {
       const batch = inv[0];
       const usedKw = dc.racks.reduce((a, r) => a + r.qty * r.kw, 0);
-      const freeUnits = Math.floor((dcCapacityUnits(1) - usedKw) / batch.kw);
+      const freeUnits = Math.floor((facilityIT(dc) * 1000 - usedKw) / batch.kw);
       if (freeUnits <= 0) break;
       const take = Math.min(batch.qty, freeUnits);
       const same = dc.racks.find((r) => r.perf === batch.perf && r.supplier === batch.supplier);

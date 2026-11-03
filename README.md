@@ -7,8 +7,8 @@ build power, chips, compute and supply lines on a real-Earth pixel map, keep you
 **Play:** https://thekardashevproject.netlify.app — in the browser, installed as an app (offline, landscape on
 phones), or as a Windows / macOS / Linux download from [Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
 
-> Status: **v0.2 "The Front Door"**. Act I (The Garage) is playable end to end. See `SPEC.md` for the full design
-> and `CHANGELOG.md` for what changed.
+> Status: **v0.3 "The Scale-Up"**. Acts I (The Garage) and II (The Scale-Up) are playable end to end. See `SPEC.md`
+> for the full design and `CHANGELOG.md` for what changed.
 
 ## Play locally
 
@@ -38,6 +38,12 @@ npm run desktop:build   # installers in src-tauri/target/release/bundle/
   Rival labs keep shipping.
 - **Pressure**: 20+ events (supply shocks, disasters, politics, climate, safety incidents, markets), each with
   advisor commentary and real trade-offs.
+- **Act II, The Scale-Up**: grow from a Series A to an IPO. Tiered halls and plants, megasites and the Gigawatt
+  Campus; hydro, geothermal and three nuclear paths; wafers, HBM and packaging as separate pools, supply deals, your
+  own packaging plant and a fab joint venture; mine stakes; fiber, subsea cables and regional markets; advisor jobs
+  (standing orders); a board, project finance, enterprise contracts and sovereign deals; bloc relations, export rules,
+  elections, treaties and summits; rivals building on the map; and a three-front finale, The Crunch. Start a new
+  company straight at Act II if you like.
 - **Campus dioramas**: side-view pixel scenes of each site, with animated facilities, weather, real local time of
   day, night lighting and a time-lapse toggle.
 - **Era palettes**: the whole world re-grades as K climbs (preview them in Settings → Display).
@@ -55,7 +61,7 @@ npm run desktop:build   # installers in src-tauri/target/release/bundle/
 
 Drag to pan · scroll or pinch to zoom · click a site to inspect, double-click to view its campus ·
 Space pause · 1–4 speed · C compute · O orders · R research · F finance · G goals · N news · B Field Guide ·
-L power-line tool · M/Esc back to map · WASD/arrows pan · +/− zoom.
+L power-line tool · M/Esc back to map · WASD/arrows pan · +/− zoom. Act II: T team · E deals · P blocs · I fiber tool.
 
 ## Credits
 

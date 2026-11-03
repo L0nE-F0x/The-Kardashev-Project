@@ -6,14 +6,23 @@
 
 export const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+const LAUNCH_KEY = 'kardashev.launchedAsApp';
+try {
+  // the installed app starts at /play/?app=1 (see the manifest's start_url)
+  if (new URLSearchParams(window.location.search).has('app')) window.sessionStorage.setItem(LAUNCH_KEY, '1');
+} catch {
+  /* storage blocked */
+}
+
 export function isStandalone(): boolean {
   if (isDesktopApp) return true;
   try {
-    return (
-      window.matchMedia('(display-mode: standalone)').matches ||
-      window.matchMedia('(display-mode: fullscreen)').matches ||
-      (navigator as Navigator & { standalone?: boolean }).standalone === true
-    );
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+    if ((navigator as Navigator & { standalone?: boolean }).standalone === true) return true;
+    // The manifest asks for fullscreen, but F11 or a tiling window manager's fullscreen matches too:
+    // only trust it when this session was launched from the installed app.
+    if (window.matchMedia('(display-mode: fullscreen)').matches) return window.sessionStorage.getItem(LAUNCH_KEY) === '1';
+    return false;
   } catch {
     return false;
   }

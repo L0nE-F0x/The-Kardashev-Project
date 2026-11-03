@@ -12,6 +12,7 @@ type Shot =
 const SHOTS: Shot[] = [
   { kind: 'map', lod: 0, from: [-60, 22], to: [10, 28], secs: 12, caption: 'Earth · 19.6 terawatts · K 0.729' },
   { kind: 'campus', site: 'west-texas', secs: 12 },
+  { kind: 'campus', site: 'lakeshore', secs: 10, caption: 'Lakeshore Station · a retired reactor, restarted' },
   { kind: 'map', lod: 1, from: [104, 5], to: [128, 30], secs: 10, caption: 'The Pacific Fab Belt and the Strait of Malacca' },
   { kind: 'campus', site: 'lulea', secs: 11, caption: 'Luleå · free cooling at the Arctic Circle' },
   { kind: 'map', lod: 1, from: [20, 38], to: [50, 18], secs: 10, caption: 'Suez, the Red Sea and the Gulf' },
@@ -21,6 +22,8 @@ const SHOTS: Shot[] = [
   { kind: 'map', lod: 1, from: [-90, 10], to: [-60, -25], secs: 10, caption: 'Panama and the Andes' },
   { kind: 'campus', site: 'atacama', secs: 11, caption: 'Atacama · the sunniest desert on Earth' },
   { kind: 'campus', site: 'kyushu', secs: 10 },
+  { kind: 'map', lod: 1, from: [-75, 42], to: [-20, 48], secs: 10, caption: 'Subsea cables under the Atlantic' },
+  { kind: 'campus', site: 'wyoming', secs: 13, caption: 'Wyoming · a gigawatt campus on the high plains' },
 ];
 
 const FADE = 0.6;

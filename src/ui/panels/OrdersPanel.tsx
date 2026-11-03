@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, useGame } from '../components';
-import { CHIP_SUPPLIERS } from '../../content/companies';
+import { CHIP_SUPPLIERS, MARKET_SUPPLIERS } from '../../content/companies';
+import { REGIONS } from '../../content/regions';
+import { orderBlockedBy } from '../../sim/politics';
+import { PoolBars } from './Act2Panels';
 import { siteDef } from '../../content/sites';
 import { CHOKEPOINT_BY_ID } from '../../world/routing';
 import type { SupplierId } from '../../sim/types';
@@ -12,15 +15,19 @@ export function OrdersPanel() {
   const game = useGame();
   const s = game.state!;
   const destOptions = useMemo(() => {
-    const ids = new Set(s.facilities.filter((f) => f.type === 'datacenter').map((f) => f.siteId));
+    const ids = new Set(s.facilities.filter((f) => f.type === 'datacenter' || f.type === 'campus').map((f) => f.siteId));
     return [...ids];
   }, [s.facilities.length]);
+  const act2 = (s.act ?? 1) >= 2;
+  const fabOnline = s.facilities.some((f) => f.type === 'fab' && f.status === 'online');
+  const supplierIds: SupplierId[] = fabOnline ? ['own', ...MARKET_SUPPLIERS] : MARKET_SUPPLIERS;
   const [supplier, setSupplier] = useState<SupplierId>('lumen');
   const [qty, setQty] = useState(2000);
   const [dest, setDest] = useState<string>(destOptions[0] ?? '');
   const [mode, setMode] = useState<'sea' | 'air'>('sea');
   const destId = destOptions.includes(dest) ? dest : destOptions[0];
   const quote = destId ? quoteOrder(s, game.ctx, supplier, qty, destId, mode) : null;
+  const blocked = destId ? orderBlockedBy(s, supplier, siteDef(destId).region) : null;
 
   return (
     <Panel title="Chips & Shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
@@ -32,7 +39,7 @@ export function OrdersPanel() {
         <>
           <h4>New order</h4>
           <div class="row wrap" style={{ gap: '6px', marginBottom: '8px' }}>
-            {(Object.keys(CHIP_SUPPLIERS) as SupplierId[]).map((id) => {
+            {supplierIds.map((id) => {
               const def = CHIP_SUPPLIERS[id];
               const spec = chipSpec(s, id);
               const ahead = s.orders.filter((o) => !o.done && o.supplier === id).reduce((a, o) => a + o.qty - o.produced, 0);
@@ -46,6 +53,7 @@ export function OrdersPanel() {
                     {fmtMoney(spec.price, 0)} · {spec.perf.toFixed(1)} PFLOP/s · {(spec.kw * 1000).toFixed(0)} W · {Math.round(supplierDailyRate(s, id) * 30.4).toLocaleString()}/mo
                     {ahead ? ` · ${ahead.toLocaleString()} queued` : ''}
                   </span>
+                  {act2 && <PoolBars supplier={id} />}
                 </button>
               );
             })}
@@ -53,7 +61,7 @@ export function OrdersPanel() {
           <div class="row wrap" style={{ gap: '10px' }}>
             <label class="grow" style={{ minWidth: '200px' }}>
               <span class="label">Quantity: {qty.toLocaleString()}</span>
-              <input type="range" min={500} max={10000} step={500} value={qty} onInput={(e) => setQty(Number((e.target as HTMLInputElement).value))} />
+              <input type="range" min={500} max={act2 ? 100000 : 10000} step={500} value={qty} onInput={(e) => setQty(Number((e.target as HTMLInputElement).value))} />
             </label>
             <label>
               <span class="label">Ship to</span>
@@ -79,6 +87,11 @@ export function OrdersPanel() {
               </div>
             </div>
           </div>
+          {destId && blocked && (
+            <div class="small warn section">
+              ⛔ {blocked.name}: {CHIP_SUPPLIERS[supplier].short} can’t ship to {REGIONS[siteDef(destId).region].name} without a licence. Ask Sol on the Blocs screen.
+            </div>
+          )}
           {quote && (
             <div class="row wrap between section" style={{ alignItems: 'flex-end' }}>
               <KV
@@ -90,7 +103,7 @@ export function OrdersPanel() {
                   ['Ships from', siteDef(quote.fromSite).name],
                 ]}
               />
-              <button class="btn gold" data-tut="order-button" disabled={s.finance.cash < quote.total} onClick={() => game.order(supplier, qty, destId!, mode)}>
+              <button class="btn gold" data-tut="order-button" disabled={s.finance.cash < quote.total || !!blocked} onClick={() => game.order(supplier, qty, destId!, mode)}>
                 <Icon name="cash" size="sm" /> Order for {fmtMoney(quote.total)}
               </button>
             </div>

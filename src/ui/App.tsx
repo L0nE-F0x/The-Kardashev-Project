@@ -9,12 +9,13 @@ import { OrdersPanel } from './panels/OrdersPanel';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { FinancePanel } from './panels/FinancePanel';
 import { GoalsPanel, NewsPanel } from './panels/MiscPanels';
+import { BlocsPanel, CrunchTracker, DealsPanel, TeamPanel } from './panels/Act2Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
 import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
 import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
 import { FieldGuideBody } from './menu/FieldGuide';
-import { TutorialOverlay } from './Tutorial';
+import { BriefingOverlay, TutorialOverlay } from './Tutorial';
 
 function Hud() {
   const game = useGame();
@@ -25,6 +26,7 @@ function Hud() {
       <TopBar />
       <Dock />
       {game.mode === 'map' && <Objectives />}
+      <CrunchTracker />
       <div class="side">{game.mode === 'map' || game.selection?.kind === 'site' ? <Inspector /> : null}</div>
       {panel === 'compute' && <ComputePanel />}
       {panel === 'orders' && <OrdersPanel />}
@@ -32,6 +34,9 @@ function Hud() {
       {panel === 'finance' && <FinancePanel />}
       {panel === 'news' && <NewsPanel />}
       {panel === 'goals' && <GoalsPanel />}
+      {panel === 'team' && <TeamPanel />}
+      {panel === 'deals' && <DealsPanel />}
+      {panel === 'blocs' && <BlocsPanel />}
       {panel === 'settings' && (
         <Panel title="Settings" icon="settings" class="wide" onClose={() => game.openPanel(null)}>
           <SettingsBody />
@@ -49,6 +54,7 @@ function Hud() {
       <Toasts />
       <MapTooltip />
       <TutorialOverlay />
+      <BriefingOverlay />
       <EventModal />
       <AwayModal />
       <ActCompleteModal />

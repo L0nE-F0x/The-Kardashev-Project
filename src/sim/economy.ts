@@ -4,13 +4,14 @@ import { siteDef } from '../content/sites';
 import type { GameState, Ledger } from './types';
 import { clamp, fmtMoney, monthKey, monthLabelOfKey, news } from './core';
 import { modAdd, techMult } from './effects';
-import { DAYS_PER_MONTH, rentalPrice } from './model';
+import { DAYS_PER_MONTH, facilityOpex, rentalPrice } from './model';
+import { MINE_BY_ID } from '../content/stack';
 import type { PowerResult } from './power';
 import type { ComputeResult } from './ai';
 import { REGION_IDS } from '../content/mapcodes';
 import { FOUNDERS } from '../content/difficulty';
 
-export const emptyLedger = (): Ledger => ({ revenue: 0, rental: 0, power: 0, fuel: 0, opex: 0, staff: 0, capex: 0, chips: 0, shipping: 0, funding: 0, other: 0 });
+export const emptyLedger = (): Ledger => ({ revenue: 0, debt: 0, rental: 0, power: 0, fuel: 0, opex: 0, staff: 0, capex: 0, chips: 0, shipping: 0, funding: 0, other: 0 });
 
 /** Record a cash movement (+ income / − spend) in this month's ledger. */
 export function spend(s: GameState, category: keyof Ledger, amount: number): void {
@@ -36,7 +37,7 @@ export function tickEconomy(s: GameState, power: PowerResult, compute: ComputeRe
   costs += power.gridCost + power.fuelCost;
   for (const f of s.facilities) {
     if (f.status !== 'online') continue;
-    const opex = FACILITIES[f.type].opex * perDay;
+    const opex = (f.type === 'hq' ? FACILITIES.hq.opex : facilityOpex(f)) * perDay;
     if (f.type === 'lab' || f.type === 'hq') spend(s, 'staff', opex);
     else spend(s, 'opex', opex);
     costs += opex;
@@ -47,6 +48,12 @@ export function tickEconomy(s: GameState, power: PowerResult, compute: ComputeRe
     costs += extra;
   }
   earn(s, 'revenue', compute.revenueDay);
+  if (power.sales > 0) earn(s, 'other', power.sales);
+  // mine stakes pay a dividend that rises with the price of what they dig up
+  for (const [id, share] of Object.entries(s.stack?.stakes ?? {})) {
+    const m = MINE_BY_ID[id];
+    if (m && share > 0) earn(s, 'other', ((m.income * share) / 0.1) * (s.market.materials?.[m.material] ?? 1) * perDay);
+  }
 
   // monthly rollover
   const mk = monthKey(s.day);

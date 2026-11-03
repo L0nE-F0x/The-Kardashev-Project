@@ -9,9 +9,23 @@ export function queueEvent(s: GameState, id: string, ctx: Record<string, string 
   s.events.queue.push({ id, ctx, day: s.day });
 }
 
+/** Queue an event a number of days from now (event chains, finale beats). */
+export function scheduleEvent(s: GameState, id: string, days: number, ctx: Record<string, string | number> = {}): void {
+  s.events.scheduled.push({ id, day: s.day + Math.max(0, Math.round(days)), ctx });
+}
+
 /** Roll for random events, safety incidents and cash crises; surface the next queued card. */
 export function tickEvents(s: GameState): void {
   if (s.flags.offline) return;
+
+  // chained / scripted events that have come due
+  if (s.events.scheduled?.length) {
+    const due = s.events.scheduled.filter((e) => e.day <= s.day);
+    if (due.length) {
+      s.events.scheduled = s.events.scheduled.filter((e) => e.day > s.day);
+      for (const e of due) if (EVENT_BY_ID[e.id]) queueEvent(s, e.id, e.ctx);
+    }
+  }
 
   // safety incidents — checked twice a month once a model is in the wild
   const c = currentCapability(s);
@@ -20,6 +34,7 @@ export function tickEvents(s: GameState): void {
     if (rand(s) < p) {
       const major = c >= 2.5 && s.stats.margin < -0.3 && rand(s) < 0.6;
       queueEvent(s, major ? 'incident-major' : 'incident-minor');
+      if (major) s.flags.lastMajorIncident = s.day;
       s.safety.incidents += 1;
       s.safety.lastIncidentDay = s.day;
     }
@@ -40,6 +55,9 @@ export function tickEvents(s: GameState): void {
     for (const def of EVENTS) {
       if (!def.weight) continue;
       if (def.minDay && s.day < def.minDay) continue;
+      if ((def.act ?? 1) > (s.act ?? 1)) continue;
+      if (def.phase && ((s.act ?? 1) < 2 || s.phase < def.phase)) continue;
+      if (def.actOnly && def.actOnly !== (s.act ?? 1)) continue;
       const last = s.events.last[def.id];
       if (last !== undefined && (def.once || s.day - last < (def.cooldown ?? 365))) continue;
       const w = def.weight(s);
