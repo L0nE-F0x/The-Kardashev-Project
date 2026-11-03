@@ -157,8 +157,9 @@ function oversight(s: GameState): void {
   for (const p of c.projects) {
     if (p.status !== 'building' || !isLate(s, p) || s.flags[`expedited:${p.id}`]) continue;
     if (s.day - (p.startDay + p.promised) < j.a * 30.4) continue;
-    if (expediteCost(p) > deskBudget(s)) continue;
-    if (expediteProject(s, p.id).ok) report(s, 'juno', `put overtime crews on a late ${CONTRACT_KINDS[p.kind].name.toLowerCase()} (${fmtMoney(expediteCost(p))}).`);
+    const cost = expediteCost(p);
+    if (cost > deskBudget(s)) continue;
+    if (expediteProject(s, p.id).ok) report(s, 'juno', `put overtime crews on a late ${CONTRACT_KINDS[p.kind].name.toLowerCase()} (${fmtMoney(cost)}).`);
   }
 }
 

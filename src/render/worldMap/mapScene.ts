@@ -1612,7 +1612,8 @@ export class MapScene implements Scene {
     }
     if (site) {
       const now = performance.now();
-      if (this.lastClick.site === site && now - this.lastClick.t < 350 && siteDef(site).kind === 'build') {
+      const kind = siteDef(site).kind;
+      if (this.lastClick.site === site && now - this.lastClick.t < 350 && (kind === 'build' || kind === 'charter' || kind === 'mega' || kind === 'launch')) {
         this.game.enterDiorama(site);
         return;
       }
