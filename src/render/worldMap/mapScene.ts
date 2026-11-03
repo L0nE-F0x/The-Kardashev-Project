@@ -1,4 +1,4 @@
-import { Container, Graphics, Sprite, type Texture } from 'pixi.js';
+import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
 import type { Scene, PixelPointer } from '../stage';
 import type { MapLod } from '../../world/mapData';
@@ -6,13 +6,14 @@ import { sampleRegionCode } from '../../world/mapData';
 import { CHOKEPOINTS } from '../../world/routing';
 import { REGION_BY_CODE, CODE_BY_REGION } from '../../content/mapcodes';
 import { REGIONS } from '../../content/regions';
-import { SITES, siteDef } from '../../content/sites';
-import type { Shipment } from '../../sim/types';
+import { CHARTER_HQ, SITES, siteDef } from '../../content/sites';
+import type { GameState, Shipment } from '../../sim/types';
+import { builderColor } from '../../sim/charterView';
 import { closedChokepoints } from '../../sim/effects';
-import { C, hex } from '../palette';
+import { C, getEra, hex } from '../palette';
 import { PixelCanvas } from '../pixels';
-import { cachedTexture, labelTexture, refreshTexture, textureOf } from '../textures';
-import { renderBorders, renderTerrain } from './terrain';
+import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf } from '../textures';
+import { renderBloom, renderBorders, renderTerrain } from './terrain';
 import { lightPoints, renderLights, renderNight, type LightPoint } from './night';
 import {
   cableShipTexture,
@@ -46,6 +47,41 @@ import {
   type CableDraw,
   type Px,
 } from './act2Layers';
+import {
+  act3Label,
+  act3On,
+  anchorGlyphs,
+  anchorKey,
+  charterView,
+  craneSpots,
+  hvdcDraws,
+  hvdcKey,
+  hvdcTrack,
+  launchFrame,
+  liftoffActive,
+  markerOrigin,
+  megaCranes,
+  megaPatchCanvas,
+  megaPatchKey,
+  megaPatchLights,
+  orbitAngle,
+  orbitPoint,
+  paintHvdc,
+  paintOrbit,
+  rowSpots,
+  spaceSolarSpot,
+  type HvdcTrack,
+} from './act3Layers';
+import {
+  anchorGlyphTexture,
+  beamTexture,
+  converterTexture,
+  craneTexture,
+  pulse2Texture,
+  rocketTexture,
+  satelliteTexture,
+  spaceSolarTexture,
+} from '../sprites/charterIcons';
 
 /** The map tools this scene draws previews for ('fiber' arrives with Act II). */
 type AnyTool = { kind: string; from: string | null } | null;
@@ -57,6 +93,8 @@ interface NetLayer {
   key: string;
 }
 const NET_CACHE: (NetLayer | null)[] = [null, null];
+/** Solarpunk Bloom overlay per LOD (era 2+), painted the first time it's needed. */
+const BLOOM_CACHE: (Texture | null)[] = [null, null];
 
 /** Per-LOD textures, built lazily. */
 interface LodLayer {
@@ -109,6 +147,11 @@ export class MapScene implements Scene {
   private readonly netL = new Container();
   private readonly cutG = new Graphics();
   private readonly netPulseL = new Container();
+  /** Act III: megaproject ground (under the night shade), HVDC pulses, things in the sky. */
+  private readonly megaL = new Container();
+  private readonly hvdcPulseL = new Container();
+  private readonly skyL = new Container();
+  private readonly stationL = new Container();
   private readonly routeG = new Graphics();
   private readonly pulseL = new Container();
   private readonly chokeL = new Container();
@@ -151,6 +194,29 @@ export class MapScene implements Scene {
   private shipSprites = new Map<string, Sprite>();
   private linkKey = '';
   private routeKey = '';
+  // ── Act III ──
+  private megaSprites = new Map<string, { sprite: Sprite; key: string; tex: Texture | null; ox: number; oy: number; lights: LightPoint[] }>();
+  private megaCraneSprites: { sprite: Sprite; site: string; i: number }[] = [];
+  private megaCraneKey = '';
+  private hvdcTracks = new Map<string, HvdcTrack>();
+  private hvdcPulses: { sprite: Sprite; tail: Sprite; id: string; t: number; speed: number }[] = [];
+  private hvdcPulseKey = '';
+  private hvdcSprites: { sprite: Sprite; id: string; at: 'a' | 'b' | 'head' }[] = [];
+  private hvdcSpriteKey = '';
+  private anchorSprites: { sprite: Sprite; lat: number; lon: number; dx: number; dy: number }[] = [];
+  private anchorSpriteKey = '';
+  private satSprite: Sprite | null = null;
+  private solarSprite: Sprite | null = null;
+  private beamSprite: Sprite | null = null;
+  private rocketSprite: Sprite | null = null;
+  private puffSprites: Sprite[] = [];
+  private bloom: WrapSprite | null = null;
+  private bloomLod = -1;
+  /** The Charter view the mega layers were last built from (rebuild keys only when it changes). */
+  private megaView: unknown = null;
+  private megaLod = -1;
+  private charterSeen: unknown = null;
+  private charterLod = -1;
   // input
   private down: { x: number; y: number; camX: number; camY: number; moved: boolean } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
@@ -163,7 +229,7 @@ export class MapScene implements Scene {
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.world);
-    this.world.addChild(this.terrainL, this.overlayL, this.netL, this.cutG, this.netPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.chokeL, this.markerL, this.shipL, this.previewG, this.selSprite, this.labelL);
+    this.world.addChild(this.terrainL, this.megaL, this.overlayL, this.netL, this.cutG, this.netPulseL, this.hvdcPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
     const initial = this.layer(0);
     this.terrain = new WrapSprite(this.terrainL, initial.terrain);
     this.borders = new WrapSprite(this.overlayL, initial.borders, { alpha: 0.32 });
@@ -228,6 +294,12 @@ export class MapScene implements Scene {
     this.tracks.clear();
     this.netPulseKey = '';
     this.cutKey = '';
+    this.hvdcTracks.clear();
+    this.hvdcPulseKey = '';
+    this.hvdcSpriteKey = '';
+    this.anchorSpriteKey = '';
+    this.megaCraneKey = '';
+    this.bloomLod = -1;
     if (this.net) this.net.setTexture(this.netLayer().tex, W);
     this.rebuildRegionLabels();
     for (const c of this.clouds) this.placeCloud(c);
@@ -377,11 +449,13 @@ export class MapScene implements Scene {
     this.world.position.set(-Math.floor(this.camX), -Math.floor(this.camY));
     if (now - this.lastNight > 30_000) this.refreshNight(false);
     this.updateClouds(dt);
+    this.updateBloom();
     this.routeBudget = 1;
     this.updateHighlight();
     this.updateMarkers();
     this.updateRivals();
     this.updateNetwork(dt);
+    this.updateCharter(dt);
     this.updateLinks();
     this.updateRoutes();
     this.updateShips();
@@ -397,10 +471,42 @@ export class MapScene implements Scene {
     const L = this.L;
     this.lastNight = performance.now();
     renderNight(L.lod, new Date(), L.nightPc);
-    renderLights(L.lod, L.nightPc, L.lightPts, L.lightsPc);
     refreshTexture(L.night);
-    refreshTexture(L.lights);
+    this.refreshLights();
     void force;
+  }
+
+  /** City lights, plus (Act III) the megaprojects' lights, on the night side. */
+  private refreshLights() {
+    const L = this.L;
+    let pts = L.lightPts;
+    // (the patches' lights are in the current LOD's pixels only once they've been rebuilt for it)
+    if (this.megaSprites.size && this.megaLod === this.lodIndex) {
+      const extra: LightPoint[] = [];
+      for (const m of this.megaSprites.values()) if (m.tex) extra.push(...m.lights);
+      if (extra.length) pts = [...L.lightPts, ...extra];
+    }
+    renderLights(L.lod, L.nightPc, pts, L.lightsPc);
+    refreshTexture(L.lights);
+  }
+
+  /** Solarpunk Bloom (era 2+): the regreened Sahel, shelterbelts and regrown woods over the terrain. */
+  private updateBloom() {
+    if (getEra() < 2) {
+      if (this.bloom) for (const sp of this.bloom.sprites) sp.visible = false;
+      return;
+    }
+    let tex = BLOOM_CACHE[this.lodIndex];
+    if (!tex) {
+      tex = textureOf(renderBloom(this.lod));
+      BLOOM_CACHE[this.lodIndex] = tex;
+    }
+    if (!this.bloom) this.bloom = new WrapSprite(this.terrainL, tex);
+    if (this.bloomLod !== this.lodIndex) {
+      this.bloom.setTexture(tex, this.lod.W);
+      this.bloomLod = this.lodIndex;
+    }
+    for (const sp of this.bloom.sprites) sp.visible = true;
   }
 
   private buildClouds() {
@@ -464,6 +570,9 @@ export class MapScene implements Scene {
     const selectedSite = g.selection?.kind === 'site' ? g.selection.id : null;
     const tool = g.tool as AnyTool;
     const fine = this.lodIndex >= 1;
+    // Act III: the rocket leaves its pad while the liftoff replays
+    const act3 = act3On(s);
+    const flying = act3 && !g.settings.reducedMotion && liftoffActive(charterView(s), s!.day);
     for (const site of SITES) {
       let m = this.markers.get(site.id);
       if (!siteVisible(site, s)) {
@@ -487,8 +596,8 @@ export class MapScene implements Scene {
       m.sprite.visible = true;
       const glyphs = siteGlyphs(s, site.id);
       const hovered = hoveredSite === site.id;
-      const showLabel = hovered || selectedSite === site.id || (fine && glyphs.length > 0) || ((tool?.kind === 'link' || tool?.kind === 'fiber') && tool.from === site.id);
-      const marker = siteMarker(site, s, hovered, g.mode === 'title');
+      const showLabel = hovered || selectedSite === site.id || (fine && glyphs.length > 0) || (fine && act3 && act3Label(site, s)) || ((tool?.kind === 'link' || tool?.kind === 'fiber') && tool.from === site.id);
+      const marker = siteMarker(site, s, hovered, g.mode === 'title', { flying });
       const key = `${this.lodIndex}|${hovered}|${showLabel}|${glyphs.map((f) => `${f.type}${f.building ? 'b' : ''}${f.upgrade ? 'u' : ''}${f.tier}`).join(',')}|${marker.key}|${act2}`;
       const p = this.proj(site.lon, site.lat);
       const x = Math.floor(this.wrapX(p.x));
@@ -761,17 +870,34 @@ export class MapScene implements Scene {
     }
     const fiber = s.network?.fiber ?? [];
     const known = cables.filter((c) => this.tracks.has(`cable:${c.a}|${c.b}`)).length;
-    const key = `${known}|${cables.map((c) => `${c.id}:${c.kind}:${Math.floor(c.built * 40)}:${c.cut}`).join(',')}|${fiber.map((f) => f.id + f.status + f.a + f.b).join(',')}`;
+    // Act III: HVDC links and the orbital test's ground track share the network layer
+    const cv = act3On(s) ? charterView(s) : null;
+    const act3Key = cv ? `${hvdcKey(cv)}|${cv.orbitalTest}` : '';
+    const key = `${known}|${cables.map((c) => `${c.id}:${c.kind}:${Math.floor(c.built * 40)}:${c.cut}`).join(',')}|${fiber.map((f) => f.id + f.status + f.a + f.b).join(',')}|${act3Key}`;
     const L = this.netLayer();
     // while routes are still being worked out (a frame each), paint once at the start and once at the end
     if (L.key !== key && (known === cables.length || !L.key)) {
       L.key = key;
       L.pc.data.fill(0);
       paintNetwork(L.pc, this.lod, s, (c) => this.cableTrack(c));
+      if (cv) {
+        if (cv.orbitalTest) paintOrbit(L.pc, this.lod);
+        paintHvdc(L.pc, this.lod, hvdcDraws(cv, this.lod, (h) => this.hvdcTrackOf(h.route)));
+      }
       refreshTexture(L.tex);
     }
     this.updateCuts(cables);
     this.updateNetPulses(cables, dt, key);
+  }
+
+  /** An HVDC route's pixels at the current LOD (great circle, cached). */
+  private hvdcTrackOf(route: { id: string; a: [number, number]; b: [number, number] }): HvdcTrack {
+    let t = this.hvdcTracks.get(route.id);
+    if (!t) {
+      t = hvdcTrack(route, this.lod);
+      this.hvdcTracks.set(route.id, t);
+    }
+    return t;
   }
 
   /** Cut cables blink bright red over their dark-red line; a cross and a repair ship mark the break. */
@@ -927,6 +1053,314 @@ export class MapScene implements Scene {
     });
   }
 
+  // ── Act III: megaprojects, HVDC links, anchors, the launch and the orbit ─────────────────
+  private clearCharter() {
+    for (const m of this.megaSprites.values()) {
+      m.sprite.destroy();
+      if (m.tex) releaseTexture(m.tex);
+    }
+    const hadLights = [...this.megaSprites.values()].some((m) => m.lights.length);
+    this.megaSprites.clear();
+    this.megaView = null;
+    this.charterSeen = null;
+    if (hadLights) this.refreshLights();
+    this.megaCraneSprites.forEach((c) => c.sprite.destroy());
+    this.megaCraneSprites = [];
+    this.megaCraneKey = '';
+    this.hvdcPulses.forEach((p) => {
+      p.sprite.destroy();
+      p.tail.destroy();
+    });
+    this.hvdcPulses = [];
+    this.hvdcPulseKey = '';
+    this.hvdcSprites.forEach((h) => h.sprite.destroy());
+    this.hvdcSprites = [];
+    this.hvdcSpriteKey = '';
+    this.anchorSprites.forEach((a) => a.sprite.destroy());
+    this.anchorSprites = [];
+    this.anchorSpriteKey = '';
+    for (const sp of [this.satSprite, this.solarSprite, this.beamSprite, this.rocketSprite]) if (sp) sp.visible = false;
+    this.puffSprites.forEach((p) => (p.visible = false));
+  }
+
+  private updateCharter(dt: number) {
+    const s = this.game.view;
+    if (!s || !act3On(s)) {
+      const any = this.megaSprites.size || this.megaCraneSprites.length || this.hvdcPulses.length || this.hvdcSprites.length || this.anchorSprites.length;
+      if (any || this.satSprite?.visible || this.solarSprite?.visible || this.rocketSprite?.visible || this.puffSprites.some((p) => p.visible)) this.clearCharter();
+      return;
+    }
+    const v = charterView(s);
+    // structure (which sprites exist) only changes with the view or the zoom level; positions every frame
+    const fresh = v !== this.charterSeen || this.lodIndex !== this.charterLod;
+    this.charterSeen = v;
+    this.charterLod = this.lodIndex;
+    this.updateMegaGround(v);
+    this.updateMegaCranes(v, fresh);
+    this.updateHvdcSprites(v, fresh);
+    this.updateHvdcPulses(v, dt, fresh);
+    this.updateAnchors(v, fresh);
+    this.updateSky(v, s);
+  }
+
+  /** Megaproject footprints: one sprite per site, repainted when its stage or kinds change. */
+  private updateMegaGround(v: ReturnType<typeof charterView>) {
+    if (v !== this.megaView || this.megaLod !== this.lodIndex) {
+      this.megaView = v;
+      this.megaLod = this.lodIndex;
+      let lightsChanged = false;
+      for (const mv of v.megas) {
+        const key = `${this.lodIndex}|${megaPatchKey(mv, this.lod.res)}`;
+        let m = this.megaSprites.get(mv.siteId);
+        if (!m) {
+          const sprite = new Sprite();
+          this.megaL.addChild(sprite);
+          m = { sprite, key: '', tex: null, ox: 0, oy: 0, lights: [] };
+          this.megaSprites.set(mv.siteId, m);
+        }
+        if (m.key === key) continue;
+        m.key = key;
+        const old = m.tex;
+        const patch = megaPatchCanvas(siteDef(mv.siteId), mv, this.lod);
+        m.tex = patch ? textureOf(patch.pc) : null;
+        m.sprite.texture = m.tex ?? Texture.EMPTY;
+        m.sprite.visible = !!patch;
+        m.lights = [];
+        if (patch) {
+          m.ox = patch.ox;
+          m.oy = patch.oy;
+          // its night lights, in unwrapped map pixels
+          const site = siteDef(mv.siteId);
+          const sx = Math.floor((site.lon + 180) / this.lod.res) + patch.ox;
+          const sy = Math.floor((90 - site.lat) / this.lod.res) + patch.oy;
+          m.lights = megaPatchLights(patch.pc).map((p) => ({ x: sx + p.x, y: sy + p.y, c: p.c }));
+        }
+        if (old) releaseTexture(old);
+        lightsChanged = true;
+      }
+      if (lightsChanged) this.refreshLights();
+    }
+    for (const [id, m] of this.megaSprites) {
+      if (!m.tex) continue;
+      const site = siteDef(id);
+      const p = this.proj(site.lon, site.lat);
+      m.sprite.position.set(Math.floor(this.wrapX(p.x)) + m.ox, Math.floor(p.y) + m.oy);
+    }
+  }
+
+  /** Builder-coloured cranes beside each megaproject with work under way. */
+  private updateMegaCranes(v: ReturnType<typeof charterView>, fresh: boolean) {
+    const key = fresh ? v.megas.map((mv) => `${mv.siteId}:${megaCranes(mv).join('.')}`).join(',') : this.megaCraneKey;
+    if (key !== this.megaCraneKey) {
+      this.megaCraneKey = key;
+      this.megaCraneSprites.forEach((c) => c.sprite.destroy());
+      this.megaCraneSprites = [];
+      for (const mv of v.megas) {
+        megaCranes(mv).forEach((col, i) => {
+          const sprite = new Sprite(craneTexture(col));
+          this.markerL.addChild(sprite);
+          this.megaCraneSprites.push({ sprite, site: mv.siteId, i });
+        });
+      }
+    }
+    for (const c of this.megaCraneSprites) {
+      const marker = this.markers.get(c.site);
+      if (!marker?.sprite.visible) {
+        c.sprite.visible = false;
+        continue;
+      }
+      const site = siteDef(c.site);
+      const p = this.proj(site.lon, site.lat);
+      const x = Math.floor(this.wrapX(p.x));
+      const y = Math.floor(p.y);
+      const tex = marker.sprite.texture;
+      const sizes = this.megaCraneSprites.filter((o) => o.site === c.site).map((o) => ({ w: o.sprite.texture.width, h: o.sprite.texture.height }));
+      const spot = craneSpots(x, y, tex.width, tex.height, sizes)[c.i];
+      c.sprite.visible = true;
+      c.sprite.position.set(spot.x, spot.y);
+    }
+  }
+
+  /** Converter stations at both ends of every HVDC link, and the build head (a crane, or a cable ship at sea). */
+  private updateHvdcSprites(v: ReturnType<typeof charterView>, fresh: boolean) {
+    const key = fresh ? `${this.lodIndex}|${hvdcKey(v)}` : this.hvdcSpriteKey;
+    if (key !== this.hvdcSpriteKey) {
+      this.hvdcSpriteKey = key;
+      this.hvdcSprites.forEach((h) => h.sprite.destroy());
+      this.hvdcSprites = [];
+      for (const h of v.hvdc) {
+        const online = h.status === 'online';
+        for (const at of ['a', 'b'] as const) {
+          const sprite = new Sprite(converterTexture(online));
+          this.stationL.addChild(sprite);
+          this.hvdcSprites.push({ sprite, id: h.route.id, at });
+        }
+        if (!online) {
+          const t = this.hvdcTrackOf(h.route);
+          const i = Math.floor(h.progress * (t.pts.length - 1));
+          const sprite = new Sprite(t.sea[i] ? cableShipTexture() : craneTexture(builderColor(h.builder), true));
+          this.stationL.addChild(sprite);
+          this.hvdcSprites.push({ sprite, id: h.route.id, at: 'head' });
+        }
+      }
+    }
+    for (const e of this.hvdcSprites) {
+      const h = v.hvdc.find((x) => x.route.id === e.id);
+      if (!h) continue;
+      const t = this.hvdcTrackOf(h.route);
+      const pts = t.pts;
+      const tex = e.sprite.texture;
+      if (e.at === 'head') {
+        const i = Math.floor(h.progress * (pts.length - 1));
+        const p = pts[i];
+        const x = Math.floor(this.wrapX(p.x));
+        if (t.sea[i]) e.sprite.position.set(x - 3, p.y - 3);
+        else e.sprite.position.set(x - 2, p.y - tex.height + 1);
+      } else {
+        const p = e.at === 'a' ? pts[0] : pts[pts.length - 1];
+        e.sprite.position.set(Math.floor(this.wrapX(p.x)) - Math.floor(tex.width / 2), p.y - tex.height + 2);
+      }
+    }
+  }
+
+  /** Power flowing along online HVDC links, from the megaproject end. Hidden with reduced motion. */
+  private updateHvdcPulses(v: ReturnType<typeof charterView>, dt: number, fresh: boolean) {
+    this.hvdcPulseL.visible = !this.game.settings.reducedMotion;
+    const key = fresh ? `${this.lodIndex}|${hvdcKey(v)}` : this.hvdcPulseKey;
+    const big = this.lodIndex >= 1;
+    if (key !== this.hvdcPulseKey) {
+      this.hvdcPulseKey = key;
+      this.hvdcPulses.forEach((p) => {
+        p.sprite.destroy();
+        p.tail.destroy();
+      });
+      this.hvdcPulses = [];
+      for (const h of v.hvdc) {
+        if (h.status !== 'online') continue;
+        const len = this.hvdcTrackOf(h.route).pts.length;
+        const n = Math.max(2, Math.round(len / 40));
+        for (let k = 0; k < n; k++) {
+          const tail = new Sprite(big ? pulse2Texture() : pixelTexture());
+          tail.tint = hex(C.yel0);
+          const sprite = new Sprite(big ? pulse2Texture() : pixelTexture());
+          sprite.tint = hex(C.white);
+          this.hvdcPulseL.addChild(tail, sprite);
+          this.hvdcPulses.push({ sprite, tail, id: h.route.id, t: k / n, speed: 28 });
+        }
+      }
+    }
+    if (this.game.settings.reducedMotion) return;
+    for (const p of this.hvdcPulses) {
+      const h = v.hvdc.find((x) => x.route.id === p.id);
+      if (!h) continue;
+      const pts = this.hvdcTrackOf(h.route).pts;
+      if (pts.length < 2) continue;
+      p.t = (p.t + (dt * p.speed) / pts.length) % 1;
+      const q = trackAt(pts, p.t);
+      const r = trackAt(pts, Math.max(0, p.t - 2.5 / pts.length));
+      const shift = Math.floor(this.wrapX(q.x)) - q.x;
+      p.sprite.position.set(q.x + shift, q.y);
+      p.tail.position.set(r.x + shift, r.y);
+    }
+  }
+
+  /** Public compute campuses, open cables and Commons lines, gathered at each bloc's anchor. */
+  private updateAnchors(v: ReturnType<typeof charterView>, fresh: boolean) {
+    const key = fresh ? anchorKey(v) : this.anchorSpriteKey;
+    if (key !== this.anchorSpriteKey) {
+      this.anchorSpriteKey = key;
+      this.anchorSprites.forEach((a) => a.sprite.destroy());
+      this.anchorSprites = [];
+      for (const a of v.anchors) {
+        const glyphs = anchorGlyphs(a).map((g) => anchorGlyphTexture(g.kind, g.builder, g.building));
+        rowSpots(0, 0, glyphs.map((t) => ({ w: t.width, h: t.height }))).forEach((spot, i) => {
+          const sprite = new Sprite(glyphs[i]);
+          this.markerL.addChild(sprite);
+          this.anchorSprites.push({ sprite, lat: a.lat, lon: a.lon, dx: spot.x, dy: spot.y });
+        });
+      }
+    }
+    for (const a of this.anchorSprites) {
+      const p = this.proj(a.lon, a.lat);
+      a.sprite.position.set(Math.floor(this.wrapX(p.x)) + a.dx, Math.floor(p.y) + a.dy);
+    }
+  }
+
+  /** The orbital test satellite, the space-solar craft beaming down, and the liftoff replay. */
+  private updateSky(v: ReturnType<typeof charterView>, s: GameState) {
+    const still = this.game.settings.reducedMotion;
+    // the orbital compute test crossing the map on its inclined orbit
+    if (v.orbitalTest) {
+      if (!this.satSprite) {
+        this.satSprite = new Sprite(satelliteTexture());
+        this.skyL.addChild(this.satSprite);
+      }
+      const g = orbitPoint(still ? 1.1 : orbitAngle(this.time));
+      const p = this.proj(g.lon, g.lat);
+      const tex = this.satSprite.texture;
+      this.satSprite.position.set(Math.floor(this.wrapX(p.x)) - Math.floor(tex.width / 2), Math.floor(p.y) - Math.floor(tex.height / 2));
+      this.satSprite.visible = true;
+    } else if (this.satSprite) this.satSprite.visible = false;
+    // the space-solar demonstrator hangs over the launch complex and beams power down
+    const groundId = v.launch?.siteId ?? CHARTER_HQ;
+    if (v.spaceSolar) {
+      if (!this.solarSprite) {
+        this.beamSprite = new Sprite();
+        this.solarSprite = new Sprite(spaceSolarTexture());
+        this.skyL.addChild(this.beamSprite, this.solarSprite);
+      }
+      const site = siteDef(groundId);
+      const p = this.proj(site.lon, site.lat);
+      const tex = this.solarSprite.texture;
+      const bob = still ? 0 : Math.round(Math.sin(this.time * 1.3));
+      const spot = spaceSolarSpot(Math.floor(this.wrapX(p.x)), Math.floor(p.y), tex.width, tex.height, bob);
+      this.solarSprite.position.set(spot.craft.x, spot.craft.y);
+      this.solarSprite.visible = true;
+      this.beamSprite!.texture = beamTexture(spot.beam.len);
+      this.beamSprite!.position.set(spot.beam.x, spot.beam.y);
+      this.beamSprite!.alpha = still ? 0.45 : 0.3 + 0.25 * (0.5 + 0.5 * Math.sin(this.time * 2.2));
+      this.beamSprite!.visible = true;
+    } else {
+      if (this.solarSprite) this.solarSprite.visible = false;
+      if (this.beamSprite) this.beamSprite.visible = false;
+    }
+    // the cliffhanger liftoff, replayed for a month of game time
+    const flying = !still && liftoffActive(v, s.day) && !!v.launch;
+    let used = 0;
+    if (flying) {
+      const marker = this.markers.get(v.launch!.siteId);
+      const site = siteDef(v.launch!.siteId);
+      const p = this.proj(site.lon, site.lat);
+      const pad = marker?.sprite.texture;
+      const o = markerOrigin(Math.floor(this.wrapX(p.x)), Math.floor(p.y), pad?.width ?? 13, pad?.height ?? 16, true);
+      const baseX = o.x + 5;
+      const baseY = o.y + 4;
+      const f = launchFrame(this.time);
+      if (!this.rocketSprite) {
+        this.rocketSprite = new Sprite();
+        this.skyL.addChild(this.rocketSprite);
+      }
+      for (const pf of f.puffs) {
+        let sp = this.puffSprites[used];
+        if (!sp) {
+          sp = new Sprite(pixelTexture());
+          this.skyL.addChildAt(sp, 0);
+          this.puffSprites.push(sp);
+        }
+        sp.tint = hex(pf.c);
+        sp.position.set(baseX + 1 + pf.dx, baseY + 9 + pf.dy);
+        sp.visible = true;
+        used++;
+      }
+      if (f.rise !== null) {
+        this.rocketSprite.texture = rocketTexture(f.flame);
+        this.rocketSprite.position.set(baseX - 1, baseY - 1 - f.rise);
+        this.rocketSprite.visible = true;
+      } else this.rocketSprite.visible = false;
+    } else if (this.rocketSprite) this.rocketSprite.visible = false;
+    for (let i = used; i < this.puffSprites.length; i++) this.puffSprites[i].visible = false;
+  }
+
   private routePixels(path: [number, number][]): { x: number; y: number }[] {
     const pts = path.map(([lon, lat]) => this.proj(lon, lat));
     if (!pts.length) return pts;
@@ -1041,7 +1475,7 @@ export class MapScene implements Scene {
       const tex = selectionTexture(frame);
       this.selSprite.texture = tex;
       const p = this.sitePx(sel.id);
-      const lift = this.markers.get(sel.id)?.lift ? 4 : 0;
+      const lift = this.liftOf(sel.id);
       this.selSprite.position.set(Math.floor(p.x) - Math.floor(tex.width / 2), Math.floor(p.y) - Math.floor(tex.height / 2) - lift);
       this.selSprite.visible = true;
     } else this.selSprite.visible = false;
@@ -1058,6 +1492,13 @@ export class MapScene implements Scene {
     this.pixelLine(this.previewG, a.x, a.y, wx, wy, hex(tool.kind === 'fiber' ? C.pnk1 : C.yel1), 2, 2);
   }
 
+  /** How far above the site a lifted marker's middle sits (4 for pins; more for the tall launch pad). */
+  private liftOf(id: string): number {
+    const m = this.markers.get(id);
+    if (!m?.lift) return 0;
+    return Math.max(4, Math.floor(m.sprite.texture.height / 2) - 1);
+  }
+
   // ── input ─────────────────────────────────────────────────────────────────────────────────
   private hitSite(px: number, py: number): string | null {
     const wx = this.camX + px;
@@ -1069,7 +1510,7 @@ export class MapScene implements Scene {
       if (!siteVisible(site, s)) continue;
       const p = this.proj(site.lon, site.lat);
       const x = this.wrapX(p.x);
-      const lift = this.markers.get(site.id)?.lift ? 4 : 0;
+      const lift = this.liftOf(site.id);
       const d = Math.hypot(x - wx, p.y - lift - wy);
       if (d < bestD) {
         bestD = d;

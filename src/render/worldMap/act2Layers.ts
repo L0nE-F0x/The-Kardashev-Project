@@ -21,6 +21,7 @@ import {
   sitePinCanvas,
   supplierCanvas,
 } from '../sprites/mapIcons';
+import { act3Marker, chosenLaunch, isAct3Site } from './act3Layers';
 
 export interface Px {
   x: number;
@@ -47,10 +48,18 @@ export function actOf(s: GameState | null): { act: number; phase: number } {
   return { act: s?.act ?? 1, phase: s?.phase ?? 1 };
 }
 
-/** Whether a site shows on the map (Act II sites appear as the act unfolds). */
+/**
+ * Whether a site shows on the map (Act II sites appear as the act unfolds; Act III's launch
+ * candidates wait for the Build-Out, but the chosen launch site always shows).
+ */
 export function siteVisible(site: SiteDef, s: GameState | null): boolean {
   const { act, phase } = actOf(s);
-  return siteOpen(site, act, phase);
+  if (site.kind === 'launch' && act >= 3) {
+    // once a launch complex is contracted, the other candidates fold away
+    const chosen = chosenLaunch(s);
+    if (chosen) return chosen === site.id;
+  }
+  return siteOpen(site, act, phase, s?.charter?.phase ?? 0);
 }
 
 // ── markers ──────────────────────────────────────────────────────────────────────────────────
@@ -81,8 +90,12 @@ export function mineOwned(s: GameState | null, siteId: string): boolean {
   return (s?.stack?.stakes?.[siteId] ?? 0) > 0;
 }
 
-/** The marker for a site. `title` = the main-menu tour (no home marker). */
-export function siteMarker(site: SiteDef, s: GameState | null, hovered: boolean, title: boolean): SiteMarker {
+/**
+ * The marker for a site. `title` = the main-menu tour (no home marker). `flying` (Act III) hides
+ * the rocket on the launch pad while the liftoff animation plays.
+ */
+export function siteMarker(site: SiteDef, s: GameState | null, hovered: boolean, title: boolean, opts: { flying?: boolean } = {}): SiteMarker {
+  if (isAct3Site(site)) return act3Marker(site, s, hovered, opts);
   if (site.kind === 'supplier') {
     const col = SUPPLIER_COLOR[site.supplier ?? 'lumen'] ?? 'ink8';
     return { key: `chip:${col}`, make: () => supplierCanvas(col), lift: false };

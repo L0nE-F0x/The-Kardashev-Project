@@ -278,3 +278,66 @@ export function terrainCanvas(lod: MapLod): PixelCanvas {
   }
   return pc;
 }
+
+/**
+ * Solarpunk Bloom (era 2 and later): the regreened world, painted over the terrain — the Great
+ * Green Wall across the Sahel, the shelterbelts of northern China, woods regrown across the
+ * temperate belt, and solar panels glinting among the fields. The terrain itself is untouched,
+ * so earlier eras look exactly as they did.
+ */
+export function renderBloom(lod: MapLod): PixelCanvas {
+  const { W, H, biome, res } = lod;
+  const pc = new PixelCanvas(W, H);
+  const fine = res <= 0.25;
+  const at = (x: number, y: number) => (y < 0 || y >= H ? B.OCEAN : biome[y * W + (((x % W) + W) % W)]);
+  const landish = (b: number) => b === B.GRASS || b === B.SAVANNA || b === B.DESERT || b === B.TEMPERATE || b === B.PLATEAU || b === B.FARMLAND;
+  for (let y = 1; y < H - 2; y++) {
+    const lat = 90 - (y + 0.5) * res;
+    for (let x = 0; x < W; x++) {
+      const b = at(x, y);
+      if (!landish(b)) continue;
+      const lon = -180 + (x + 0.5) * res;
+      let p = 0;
+      let sahel = false;
+      // the Great Green Wall: a belt of trees from Senegal to Djibouti
+      if (lat > 11 && lat < 18.6 && lon > -17.5 && lon < 43) {
+        const band = Math.max(0, 1 - Math.abs(lat - 14.8) / 3.8) * (0.75 + fbm(lon / 3, lat / 3, 61, 2) * 0.5);
+        if (b === B.GRASS || b === B.SAVANNA) p = 0.11 * band;
+        else if (b === B.DESERT && lat < 16.8) p = 0.07 * band;
+        sahel = p > 0;
+      }
+      // the Three-North shelterbelt along the edge of the Gobi
+      if (lat > 35 && lat < 44 && lon > 95 && lon < 125 && (b === B.DESERT || b === B.GRASS || b === B.PLATEAU)) p = Math.max(p, 0.035);
+      // woods regrown in the temperate belt and on the grasslands
+      if (b === B.TEMPERATE) p = Math.max(p, 0.03);
+      else if (b === B.GRASS && !sahel) p = Math.max(p, 0.012);
+      if (p > 0 && hash2(x, y, 71) < p * (fine ? 1 : 0.7)) {
+        if (!landish(at(x - 1, y)) || !landish(at(x + 1, y)) || !landish(at(x, y + 1))) continue;
+        if (!fine) {
+          pc.set(x, y, sahel ? C.grn3 : C.grn4);
+          continue;
+        }
+        if (sahel || b === B.DESERT || b === B.PLATEAU) {
+          // a young acacia: a flat crown on a short trunk
+          pc.set(x - 1, y, C.grn5);
+          pc.set(x, y, C.grn4);
+          pc.set(x + 1, y, C.grn3);
+          pc.set(x, y + 1, C.snd2);
+        } else {
+          pc.set(x, y - 1, C.grn6);
+          pc.set(x - 1, y, C.grn6);
+          pc.set(x, y, C.grn4);
+          pc.set(x + 1, y, C.grn2);
+          pc.set(x, y + 1, C.grn2);
+        }
+        continue;
+      }
+      // solar glinting among the fields
+      if (fine && b === B.FARMLAND && at(x + 1, y) === B.FARMLAND && hash2(x, y, 73) < 0.006) {
+        pc.set(x, y, C.blu3);
+        pc.set(x + 1, y, C.sky4);
+      }
+    }
+  }
+  return pc;
+}

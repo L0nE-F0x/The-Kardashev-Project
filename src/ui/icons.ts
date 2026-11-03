@@ -79,27 +79,47 @@ const ICONS = {
   copper: [g('.........', '.........', '..aaaaa..', '.abccbba.', 'abbbbbbba', 'abbbbbbba', 'aaaaaaaaa', '.........', '.........'), { a: 'red1', b: 'org0', c: 'org2' }],
   helium: [g('..aaaa...', '.abbbba..', 'abcbbbba.', 'abbbbbba.', 'abbbbbba.', '.abbbba..', '..abba...', '...aa....', '....d....'), { a: 'blu2', b: 'sky4', c: 'white', d: 'ink7' }],
   neon: [g('.........', '.a....a..', 'aba..aba.', 'abba.aba.', 'ababaaba.', 'aba.abba.', 'aba..aba.', '.a....a..', '.........'), { a: 'pnk0', b: 'white' }],
-  // ── Act III (placeholders — redrawn by the art pass) ──
-  charter: [g('...aaa...', '.aabbbaa.', '.abcbcba.', 'abbbcbbba', 'abcccccba', 'abbbcbbba', '.abcbcba.', '.aabbbaa.', '...aaa...'), { a: 'snd3', b: 'yel0', c: 'sea6' }],
-  council: [g('....a....', '...aba...', '..abbba..', '.aaaaaaa.', '.a.a.a.a.', '.a.a.a.a.', '.a.a.a.a.', 'aaaaaaaaa', 'abbbbbbba'), { a: 'ink8', b: 'yel0' }],
-  mission: [g('....a....', '...aba...', '...aba...', '..abcba..', '..abcba..', '.abbcbba.', '.abbbbba.', 'aa.a.a.aa', '...ddd...'), { a: 'ink8', b: 'blu4', c: 'sky4', d: 'org1' }],
-  partner: [g('.aa...aa.', 'abba.abba', 'abba.abba', '.aa...aa.', '.........', 'aaaa.aaaa', 'abbbabbba', 'abbbabbba', 'aaaa.aaaa'), { a: 'ink6', b: 'cyn4' }],
-  world: [g('...aaa...', '.aabbcaa.', '.abccbba.', 'abbcbbcba', 'acccbbbba', 'abbbbccba', '.abbbcca.', '.aabbbaa.', '...aaa...'), { a: 'sea2', b: 'sea6', c: 'grn6' }],
-  legit: [g('aaaaaaaaa', 'abbbbbbba', 'abccbccba', 'abbbbbbba', 'abccccbba', 'abbbbbbba', '.abbbbba.', '..abbba..', '...aaa...'), { a: 'snd3', b: 'yel1', c: 'snd4' }],
-  capital: [g('.........', '...aaa...', '..abbba..', '.abbcbba.', '.abcccba.', '.abbcbba.', '..abbba..', '...aaa...', '.........'), { a: 'vio1', b: 'vio4', c: 'yel0' }],
-  access: [g('....a....', '...aaa...', '..a.a.a..', '....a....', '.a..a..a.', 'aaa.a.aaa', '.a..a..a.', '...aaa...', '..aaaaa..'), { a: 'cyn4' }],
-  vote: [g('.........', '.aaaaaaa.', '.abbbbba.', '.abcbcba.', '.abbbbba.', 'aaaaaaaaa', 'addddddda', 'addddddda', 'aaaaaaaaa'), { a: 'ink7', b: 'white', c: 'grn6', d: 'blu3' }],
-  hvdc: [g('a.......a', 'aa.....aa', '.aa...aa.', '..abbba..', '..bcccb..', '..abbba..', '.aa...aa.', 'aa.....aa', 'a.......a'), { a: 'ink6', b: 'org1', c: 'yel1' }],
-  launch: [g('....a....', '...aba...', '...aba...', '...aba...', '..abbba..', '..abbba..', '.aa.a.aa.', '...cdc...', '....c....'), { a: 'ink8', b: 'white', c: 'org1', d: 'yel0' }],
-  satellite: [g('.........', 'aa.....aa', 'aab...baa', 'aa.bbb.aa', '...bcb...', 'aa.bbb.aa', 'aab...baa', 'aa.....aa', '.........'), { a: 'blu4', b: 'ink8', c: 'cyn5' }],
-  fusion: [g('...aaa...', '.aa...aa.', 'a..bbb..a', 'a.bcccb.a', 'a.bcdcb.a', 'a.bcccb.a', 'a..bbb..a', '.aa...aa.', '...aaa...'), { a: 'vio3', b: 'pnk0', c: 'yel1', d: 'white' }],
-  lock: [g('...aaa...', '..a...a..', '..a...a..', '.aaaaaaa.', '.abbbbba.', '.abbcbba.', '.abbcbba.', '.abbbbba.', '.aaaaaaa.'), { a: 'ink7', b: 'snd5', c: 'snd2' }],
-  threshold: [g('....a....', '...aba...', '...aba...', '..abcba..', '..abcba..', '.abbcbba.', '.abbbbba.', 'abbbcbbba', 'aaaaaaaaa'), { a: 'red2', b: 'org1', c: 'yel1' }],
-  mega: [g('.........', '.a.a.a.a.', 'aaaaaaaaa', 'abababab.', 'aaaaaaaaa', 'abababab.', 'aaaaaaaaa', '.c.c.c.c.', 'ccccccccc'), { a: 'blu2', b: 'sky4', c: 'snd4' }],
-  evals: [g('.aaaaaaa.', 'abbbbbbba', 'ab.....ba', 'ab.c.c.ba', 'ab..c..ba', 'ab.c.c.ba', 'ab.....ba', 'abbbbbbba', '.aaaaaaa.'), { a: 'blu1', b: 'blu4', c: 'grn6' }],
-  tender: [g('aaaaaa...', 'abbbbaa..', 'abccbaba.', 'abbbbaaaa', 'abccccbba', 'abbbbbbba', 'abccccbba', 'abbbbbbba', 'aaaaaaaaa'), { a: 'ink6', b: 'ink9', c: 'ink5' }],
-  desk: [g('.........', '..aaaaa..', '..abbba..', '..aaaaa..', 'aaaaaaaaa', 'acccccccc', 'a.c...c.c', 'a.c...c.c', '..c...c..'), { a: 'ink7', b: 'cyn4', c: 'snd3' }],
-  faction: [g('a........', 'abbbb....', 'abbbbcc..', 'abbbbccc.', 'a...ccccc', 'a........', 'a........', 'a........', 'aa.......'), { a: 'ink8', b: 'blu4', c: 'red3' }],
+  // ── Act III ──
+  // the Charter: a gold sunburst round a small blue-green globe (the map's HQ emblem)
+  charter: [g('....r....', '.r.ggg.r.', '..gbbbg..', '.gbcceg..', 'rgbceebgr', '.gbccdbg.', '..gbbbg..', '.r.ggg.r.', '....r....'), { r: 'yel0', g: 'org2', b: 'sea4', c: 'sea6', d: 'sea5', e: 'grn6' }],
+  // the Council: a marble hall, pediment and columns, a gold seal over the door
+  council: [g('....a....', '..aabaa..', '.abbcbba.', 'aaaaaaaaa', '.d.d.d.d.', '.d.d.d.d.', '.d.d.d.d.', 'aaaaaaaaa', 'eeeeeeeee'), { a: 'ink6', b: 'ink9', c: 'yel0', d: 'white', e: 'ink7' }],
+  // a mission: a round patch with a gold star
+  mission: [g('..aaaaa..', '.abbbbba.', 'abbbcbbba', 'abbcccbba', 'abcccccba', 'abbcbcbba', 'abcbbbcba', '.abbbbba.', '..aaaaa..'), { a: 'blu1', b: 'blu4', c: 'yel0' }],
+  // partners: a handshake
+  partner: [g('.........', '.........', 'aa.....bb', 'aacc.ddbb', 'acccdddbb', 'a.cccddb.', '...cdd...', '.........', '.........'), { a: 'blu4', b: 'org1', c: 'skn5', d: 'skn3' }],
+  // the World screen: the Earth with its meridians, and the sun's glint
+  world: [g('...aaa...', '.aabbcaa.', '.abccbdc.', 'acbcbbcda', 'accccbbba', 'abbbcccba', '.abbbcca.', '.aabbbaa.', '...aaa...'), { a: 'sea2', b: 'sea6', c: 'grn6', d: 'yel1' }],
+  // Legitimacy: a gold seal with ribbons
+  legit: [g('..a.a.a..', '.abbbbba.', 'abbcccbba', '.bcbbbcb.', 'abcbbbcba', '.abcccba.', '..abbba..', '..d...d..', '.dd...dd.'), { a: 'snd3', b: 'yel0', c: 'yel1', d: 'red3' }],
+  // political capital: a faceted violet gem
+  capital: [g('.........', '..aaaaa..', '.abbcdda.', 'aaaaaaaaa', '.abbcdda.', '..abcda..', '...acd...', '....a....', '.........'), { a: 'vio1', b: 'vio3', c: 'vio4', d: 'vio5' }],
+  // compute access: signal arcs reaching out
+  access: [g('.........', '..aaaaa..', '.a.....a.', 'a..bbb..a', '..b...b..', '....c....', '...ccc...', '....c....', '.........'), { a: 'cyn3', b: 'cyn5', c: 'cyn6' }],
+  // a vote: a ballot going into the box
+  vote: [g('...aaa...', '...aba...', '...aba...', '.ccaaacc.', '.cdddddc.', '.ceeeeec.', '.cdddddc.', '.cdddddc.', '.ccccccc.'), { a: 'ink6', b: 'white', c: 'blu1', d: 'blu4', e: 'ink1' }],
+  // HVDC: a lattice pylon carrying glowing lines
+  hvdc: [g('b.......b', 'aacaaacaa', '.b.aca.b.', '...a.a...', '..aacaa..', '..a.a.a..', '.a..a..a.', '.aa...aa.', 'a.......a'), { a: 'ink6', b: 'yel0', c: 'ink8' }],
+  // the launch complex: a service tower beside a rocket on its pad
+  launch: [g('.a...c...', '.ab.cdc..', '.a..cdc..', '.ab.cec..', '.a..cdc..', '.abbcdc..', '.a.ccdcc.', 'ffffgffff', 'f..hhh..f'), { a: 'ink6', b: 'ink8', c: 'ink9', d: 'white', e: 'blu4', f: 'ink5', g: 'org0', h: 'yel1' }],
+  // a satellite: solar wings either side of a gold bus, a dish
+  satellite: [g('.........', 'aba...aba', 'bab...bab', 'abacccaba', 'bab.d.bab', 'aba...aba', '....e....', '...eee...', '.........'), { a: 'blu3', b: 'blu5', c: 'ink8', d: 'yel0', e: 'ink9' }],
+  // fusion: plasma held in a ring
+  fusion: [g('...aaa...', '.aa...aa.', 'a..bbb..a', 'a.bcccb.a', 'abcdedcba', 'a.bcccb.a', 'a..bbb..a', '.aa...aa.', '...aaa...'), { a: 'vio3', b: 'pnk0', c: 'pnk1', d: 'yel1', e: 'white' }],
+  // the blind trust: a padlock
+  lock: [g('..aaaaa..', '.ab...ba.', '.a.....a.', 'ccccccccc', 'cdddddddc', 'cddeeeddc', 'cdddedddc', 'cdddddddc', 'ccccccccc'), { a: 'ink6', b: 'ink8', c: 'snd2', d: 'yel0', e: 'snd3' }],
+  // the Threshold: light pouring through a doorway
+  threshold: [g('.aaaaaaa.', '.abbbbba.', '.abcccba.', '.abcdcba.', '.abcdcba.', '.abcdcba.', '.abcccba.', 'aaecdceaa', 'eeeeeeeee'), { a: 'rck2', b: 'org1', c: 'yel1', d: 'white', e: 'yel0' }],
+  // a megaproject: a solar field under a wind turbine and the sun
+  mega: [g('dd....c.c', 'd......h.', '......cbc', '.......b.', 'cccccc.b.', 'aaaaaa.b.', '.cccccc.b', '.aaaaaa.b', 'eeeeeeeee'), { a: 'blu2', b: 'ink9', c: 'blu4', d: 'yel0', e: 'grn5', h: 'ink7' }],
+  // frontier evals: a magnifier over a model, passing
+  evals: [g('..aaa....', '.abbba...', 'abbbcba..', 'abbcbba..', 'acbbbba..', '.abbba...', '..aaada..', '.....dd..', '......dd.'), { a: 'ink8', b: 'blu2', c: 'grn6', d: 'snd4' }],
+  // a tender: a sealed envelope of bids
+  tender: [g('.........', 'aaaaaaaaa', 'acbbbbbca', 'abcbbbcba', 'abbcbcbba', 'abbbdbbba', 'abbbbbbba', 'aaaaaaaaa', '.........'), { a: 'snd3', b: 'snd8', c: 'snd5', d: 'red3' }],
+  // the Charter desk: a desk with a terminal and a lamp
+  desk: [g('.......a.', '.bbbb..a.', '.bccb.aa.', '.bbbb.dd.', '..bb.....', 'eeeeeeeee', 'e.f...f.e', 'e.f...f.e', 'e.......e'), { a: 'ink7', b: 'ink4', c: 'cyn5', d: 'yel1', e: 'snd4', f: 'snd2' }],
+  // factions: three banners, Atlantic blue, Eastern red, Non-aligned green
+  faction: [g('a..a..a..', 'abbaccadd', 'abbaccadd', 'ab.ac.ad.', 'a..a..a..', 'a..a..a..', 'a..a..a..', 'a..a..a..', 'aa.aa.aa.'), { a: 'ink6', b: 'blu4', c: 'red3', d: 'grn6' }],
 } satisfies Record<string, Grid>;
 
 export type IconName = keyof typeof ICONS;
