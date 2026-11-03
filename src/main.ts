@@ -100,6 +100,12 @@ function bindKeys(game: Game) {
       case 'p':
         if ((game.state?.act ?? 1) >= 2) game.openPanel('blocs');
         break;
+      case 'h':
+        if ((game.state?.act ?? 1) >= 3) game.openPanel('charter');
+        break;
+      case 'u':
+        if ((game.state?.act ?? 1) >= 3) game.openPanel('council');
+        break;
       case 'm':
         if (game.mode === 'diorama') game.enterMap();
         break;

@@ -17,6 +17,7 @@ import { LANDING_SITES } from '../content/sites';
 import { inventoryCount } from '../sim/supply';
 import { BUILD_SITES } from '../content/sites';
 import type { IconName } from './icons';
+import { CharterHqInspector, LaunchInspector, MegaInspector } from './panels/Act3Panels';
 
 export const FAC_ICON: Record<FacilityType, IconName> = {
   datacenter: 'datacenter', solar: 'solar', wind: 'wind', gas: 'gas', battery: 'battery', lab: 'lab', hq: 'hq',
@@ -45,6 +46,9 @@ export function Inspector() {
   if (site.kind === 'build') return <SiteInspector id={sel.id} />;
   if (site.kind === 'landing') return <LandingInspector id={sel.id} />;
   if (site.kind === 'mine') return <MineInspector id={sel.id} />;
+  if (site.kind === 'charter') return <CharterHqInspector id={sel.id} />;
+  if (site.kind === 'mega') return <MegaInspector id={sel.id} />;
+  if (site.kind === 'launch') return <LaunchInspector id={sel.id} />;
   return <SupplierInspector id={sel.id} />;
 }
 

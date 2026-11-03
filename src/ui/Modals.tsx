@@ -115,6 +115,7 @@ export function ActCompleteModal() {
   const game = useGame();
   const s = game.state!;
   if (!game.showActComplete) return null;
+  if (s.flags.act3Complete) return <Act3CompleteModal />;
   if (s.flags.act2Complete) return <Act2CompleteModal />;
   const st = s.stats;
   const model = s.models[s.models.length - 1];
@@ -292,7 +293,82 @@ function Act2CompleteModal() {
             <Portrait id="sol" mood="excited" size={56} />
             <div class="bubble">
               <b>Sol · Diplomacy</b>
-              The blocs have called an emergency summit. After the Crunch, they want someone to coordinate power, chips and compute for the whole planet — and they keep saying our name. We’d have {seat}. Act III — The Charter — is on the drawing board.
+              The blocs have called an emergency summit. After the Crunch, they want someone to coordinate power, chips and compute for the whole planet — and they keep saying our name. We’d have {seat}.
+            </div>
+          </div>
+          <div class="choices">
+            <button class="btn primary choice" onClick={() => game.dismissActComplete()}>
+              <span class="t">
+                <Icon name="play" size="sm" /> On to Geneva
+              </span>
+              <span class="d">The blocs are about to found the Kardashev Project — Act III, The Charter, begins.</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Act3CompleteModal() {
+  const game = useGame();
+  const s = game.state!;
+  const c = s.charter!;
+  const st = s.stats;
+  const model = s.models[s.models.length - 1];
+  const outcome = c.renewal?.outcome ?? 'limited';
+  const held = c.threshold?.held ?? 0;
+  const missions = Object.keys(c.missions).length;
+  const name = { planetary: 'The Planetary Charter', limited: 'Renewed, with limits', caretaker: 'A caretaker term' }[outcome];
+  return (
+    <div class="scrim">
+      <div class="modal frame">
+        <div class="head">
+          <span class="ico">🚀</span>
+          <div class="grow">
+            <div class="label">{fmtDate(s.day, true)}</div>
+            <h2>Act III complete — The Charter</h2>
+          </div>
+        </div>
+        <div class="body">
+          <div class="story">
+            Ten years as Steward of the Kardashev Project: {Math.round(c.world.charterTW * 1000).toLocaleString()} GW of Charter clean power, {missions} of 6 missions, and a Council that voted {c.renewal?.yes ?? 0}–{c.renewal?.no ?? 0} for {name.toLowerCase()}. The first orbital compute module is on its way up.
+          </div>
+          <div class="deltas">
+            <div class="delta">
+              <div class="label">Kardashev</div>
+              <div class={`v ${st.K >= 0.75 ? 'gold' : 'cyan'}`}>{st.K.toFixed(4)}</div>
+              <div class="small muted">{st.worldTW.toFixed(1)} TW</div>
+            </div>
+            <div class="delta">
+              <div class="label">Renewal</div>
+              <div class={`v ${outcome === 'planetary' ? 'gold' : outcome === 'limited' ? 'good' : 'warn'}`}>{name}</div>
+              <div class="small muted">{c.renewal?.yes}–{c.renewal?.no}</div>
+            </div>
+            <div class="delta">
+              <div class="label">Planetary Mandate</div>
+              <div class={`v ${held >= 2 ? 'good' : 'warn'}`}>{held} / 3</div>
+              <div class="small muted">fronts held</div>
+            </div>
+            <div class="delta">
+              <div class="label">Legitimacy</div>
+              <div class="v">{Math.round(c.legitimacy)}</div>
+            </div>
+            <div class="delta">
+              <div class="label">Carbon budget</div>
+              <div class={`v ${c.world.carbonGt < 0 ? 'bad' : ''}`}>{Math.round(c.world.carbonGt)} Gt</div>
+            </div>
+            <div class="delta">
+              <div class="label">Model</div>
+              <div class="v">{model?.name}</div>
+              <div class="small muted">{CAPABILITY_TIERS[tierOf(st.capability)]}</div>
+            </div>
+          </div>
+          <div class="quote">
+            <Portrait id="kip" mood="excited" size={56} />
+            <div class="bubble">
+              <b>Kip · Space</b>
+              Orbit is open, the grids are joined and Bit wants to help run a planet. Act IV — Planetary — is on the drawing board.
             </div>
           </div>
           <div class="choices">
@@ -300,7 +376,7 @@ function Act2CompleteModal() {
               <span class="t">
                 <Icon name="play" size="sm" /> Keep playing (sandbox)
               </span>
-              <span class="d">Keep growing toward Type I; Act III is coming.</span>
+              <span class="d">Keep climbing toward Type I; Act IV is coming.</span>
             </button>
           </div>
         </div>

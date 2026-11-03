@@ -18,6 +18,7 @@ import { creditLeft, debtTotal, ipoValuation, loanRate } from '../../sim/capital
 import { FRONT_NAMES } from '../../sim/finale';
 import type { FrontId, Materials, SupplierId } from '../../sim/types';
 import { jobSpendHint } from '../../sim/jobs';
+import { CharterDeskSection } from './Act3Panels';
 
 const phaseLabel = (n: number) => `phase ${n} · ${PHASE_NAMES[n]}`;
 
@@ -62,6 +63,7 @@ export function TeamPanel() {
           );
         })}
       </div>
+      <CharterDeskSection />
     </Panel>
   );
 }

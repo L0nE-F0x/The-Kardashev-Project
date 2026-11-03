@@ -120,6 +120,25 @@ export const TECHS: TechDef[] = [
   { id: 'policy-desk', name: 'Policy Desk', cat: 'policy', cost: 80, act: 2, blurb: 'Former diplomats on staff, in every capital.', effect: 'Relations with governments grow 30% faster; licences 25% faster.', mods: { relationGain: 1.3, licenceDays: 0.75 } },
   { id: 'compliance', name: 'Export Compliance Systems', cat: 'policy', cost: 100, act: 2, phase: 2, requires: ['policy-desk'], blurb: 'Track every chip from wafer to rack.', effect: 'Licences 40% faster; detours half as risky.', mods: { licenceDays: 0.6, smuggleRisk: 0.5 } },
   { id: 'local-content', name: 'Local Content Programmes', cat: 'policy', cost: 90, act: 2, requires: ['community'], blurb: 'Hire, train and buy locally wherever you build.', effect: 'Permits 10% faster; trust grows 20% faster.', mods: { permit: 0.9, licenseGain: 1.2 } },
+
+  // ════════════════════════════════════ ACT III ════════════════════════════════════════
+  // ── Models ──
+  { id: 'agentic-science', name: 'Agentic Science', cat: 'ai', cost: 380, act: 3, requires: ['auto-research'], blurb: 'Swarms of agents that read, hypothesise, run the experiment and write it up overnight.', effect: 'Research output ×1.5.', mods: { research: 1.5 } },
+  { id: 'recursive-distill', name: 'Recursive Distillation', cat: 'ai', cost: 420, act: 3, requires: ['world-models'], blurb: 'Each generation teaches the next a little more efficiently.', effect: 'Algorithmic efficiency ×1.6.', mods: { algoEff: 1.6 } },
+  { id: 'grid-ai', name: 'Grid-Scale Forecasting AI', cat: 'ai', cost: 300, act: 3, cphase: 2, requires: ['reasoning'], blurb: 'Models that predict sun, wind and demand hours ahead across a continent.', effect: 'Charter megaprojects deliver 8% more.', mods: { energyYield: 1.08 } },
+  // ── Hardware ──
+  { id: 'optical-io', name: 'Optical Interconnects', cat: 'hardware', cost: 320, act: 3, requires: ['chiplets'], blurb: 'Light instead of copper between chips: more bandwidth, less power.', effect: 'PUE ×0.95; inference revenue ×1.15.', mods: { pue: 0.95, inferEff: 1.15 } },
+  { id: 'rad-hard', name: 'Radiation-Hardened Accelerators', cat: 'hardware', cost: 260, act: 3, cphase: 2, blurb: 'Chips that shrug off cosmic rays — for orbit, and for Kip.', effect: 'Charter contracts 5% cheaper (space builds especially).', mods: { charterCost: 0.95 } },
+  // ── Energy ──
+  { id: 'superconducting', name: 'Superconducting Cables', cat: 'energy', cost: 340, act: 3, cphase: 2, requires: ['hvdc'], blurb: 'Cryogenic lines that carry gigawatts with almost no loss.', effect: 'Charter megaprojects deliver 6% more; power lines lose 50% less.', mods: { energyYield: 1.06, linkLoss: 0.5 } },
+  { id: 'sodium-cells', name: 'Sodium-Ion Grid Storage', cat: 'energy', cost: 260, act: 3, requires: ['lfp-cells'], blurb: 'Batteries from salt instead of lithium.', effect: 'Batteries 30% cheaper; Charter builds 5% faster.', mods: { batteryCost: 0.7, charterSpeed: 0.95 } },
+  { id: 'advanced-fission', name: 'Advanced Fission', cat: 'energy', cost: 360, act: 3, requires: ['smr-licensing'], blurb: 'Molten salt and high-temperature reactors from a factory line.', effect: 'Nuclear builds 20% faster; Charter builds 5% faster.', mods: { nuclearBuild: 0.8, charterSpeed: 0.95 } },
+  // ── Safety ──
+  { id: 'interp-3', name: 'Interpretability III', cat: 'safety', cost: 380, act: 3, requires: ['interp-2'], blurb: 'Read a frontier model’s plans before it acts on them.', effect: 'Safety research ×2; world alignment grows 20% faster.', mods: { safetyEff: 2, alignGain: 1.2 } },
+  { id: 'formal-verification', name: 'Formal Verification of Agents', cat: 'safety', cost: 420, act: 3, cphase: 3, requires: ['oversight'], blurb: 'Mathematical proofs about what a deployed agent can and can’t do.', effect: 'Incidents 40% less severe everywhere; world alignment grows 20% faster.', mods: { incidentSeverity: 0.6, alignGain: 1.2 } },
+  // ── Policy ──
+  { id: 'open-tendering', name: 'Open Tendering Platform', cat: 'policy', cost: 240, act: 3, requires: ['policy-desk'], blurb: 'Every bid, score and award published in real time.', effect: 'Legitimacy gains ×1.25; Charter contracts 5% cheaper.', mods: { legitGain: 1.25, charterCost: 0.95 } },
+  { id: 'citizen-assemblies', name: 'Citizen Assemblies', cat: 'policy', cost: 280, act: 3, cphase: 2, requires: ['local-content'], blurb: 'Randomly chosen citizens deliberate on every megaproject.', effect: 'Access grows 25% faster; Legitimacy gains ×1.15.', mods: { accessGain: 1.25, legitGain: 1.15 } },
 ];
 
 export const TECH_BY_ID: Record<string, TechDef> = Object.fromEntries(TECHS.map((t) => [t.id, t]));

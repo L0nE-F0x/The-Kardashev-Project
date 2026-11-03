@@ -45,6 +45,15 @@ export function TopBar() {
             </span>
           </div>
         </div>
+        {s.charter && (
+          <button class="stat btnless" onClick={() => game.openPanel('charter')} data-tut="charter-stat" data-tip={`The Kardashev Project's treasury (separate from your company's cash).\nLegitimacy ${Math.round(s.charter.legitimacy)}/100 · political capital ${Math.round(s.charter.capital)}.\nClick to open the Charter (H).`}>
+            <Icon name="charter" />
+            <div class="col">
+              <span class="v gold">{fmtMoney(s.charter.budget)}</span>
+              <span class={`s ${s.charter.legitimacy < 35 ? 'bad' : ''}`}>legit {Math.round(s.charter.legitimacy)}</span>
+            </div>
+          </button>
+        )}
         <div class="stat" data-tip={`Power served to your sites vs. what they need.\nGeneration you own: ${fmtMW(st.playerGenMW)} average.`}>
           <Icon name="power" />
           <div class="col">

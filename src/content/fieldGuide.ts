@@ -222,6 +222,106 @@ An initial public offering (IPO) sells shares to the public. Founders sometimes 
     body: `Alternating current loses energy quickly over long distances. High-voltage direct current lines lose far less — around 3% per 1,000 km — so they carry power from remote deserts, rivers and offshore wind farms to the cities and campuses that need it.`,
     game: 'With HVDC research, power lines reach 2.5× further and lose 60% less on the way.',
   },
+
+  // ════════════════════════════════════ ACT III ════════════════════════════════════════
+  {
+    id: 'consortium', title: 'Planetary consortia', cat: 'scale', icon: 'charter', unlock: (s) => (s.act ?? 1) >= 3,
+    body: `Some projects are too big, too risky or too shared for any one country. CERN pools European physics; ITER is a fusion reactor built by 35 nations; the International Space Station was assembled by five space agencies; the International Energy Agency began as a club of oil importers after the 1973 crisis.
+
+Consortia like these trade speed for legitimacy. Members pay in, argue about where the money goes, and expect projects on their own soil. They work when every member believes the arrangement is fair — and the people running them are seen as neutral.`,
+    game: 'The Kardashev Project is funded by bloc dues (sized by economy and willingness), spends through contracts, and lives on Legitimacy — the blocs’ confidence that you run it fairly.',
+  },
+  {
+    id: 'procurement', title: 'Procurement & tenders', cat: 'scale', icon: 'tender', unlock: (s) => (s.charter?.tenders.length ?? 0) > 0 || (s.charter?.projects.length ?? 0) > 0,
+    body: `Governments buy big things through tenders: publish what you want, let firms bid, pick one. The cheapest bid is not always the best — megaprojects famously run late and over budget, and the bidder that promised the most is often the one that overruns.
+
+Good procurement weighs price against track record, sets penalties for delay, and avoids depending on a single supplier.`,
+    game: 'Partners bid a price and a timeline shaped by five traits. Reliability cuts trouble, Speed shortens bids, Cost lowers prices, Ambition takes on more (and over-promises), Ethics avoids scandals. Passing over the cheapest bid is remembered.',
+  },
+  {
+    id: 'conflict-of-interest', title: 'Conflicts of interest', cat: 'world', icon: 'lock', unlock: (s) => (s.act ?? 1) >= 3 && (!!s.flags.trustDecided || !!s.flags.selfAwards),
+    body: `When the person awarding a contract owns one of the bidders, every award looks suspect — even the fair ones. Public officials sell or recuse themselves; some put their holdings in a blind trust, where an independent trustee manages the assets and the owner can’t see or steer them.
+
+A blind trust doesn’t remove the conflict entirely (you still know what you put in), but it removes the day-to-day temptation and makes the arrangement easier to trust.`,
+    game: 'Awarding your own company costs Legitimacy unless its bid is clearly the best value. In the blind trust your advisors run the company, its buttons lock and conflicts cost far less.',
+  },
+  {
+    id: 'megaprojects', title: 'Megaprojects', cat: 'energy', icon: 'mega', unlock: (s) => (s.charter?.projects ?? []).some((p) => ['solar', 'wind', 'nuclear', 'hydro', 'geo'].includes(p.kind)),
+    body: `The world already builds energy at enormous scale: more than 500 GW of solar a year by the mid-2020s, single parks in China and India spanning thousands of square kilometres, and offshore wind zones in the North Sea planned in tens of gigawatts.
+
+The bottlenecks are rarely the panels themselves. They are grid connections, transformers, land rights, skilled crews and finance — which is why megaprojects tend to cluster where all of those can be lined up at once.`,
+    game: 'Every Charter energy contract is built at one of twelve megaproject sites, one per bloc. A site grows through three stages (20, 80 and 200 GW of average output), and the map and diorama grow with it.',
+  },
+  {
+    id: 'supergrids', title: 'Supergrids', cat: 'energy', icon: 'hvdc', unlock: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'hvdc') || (s.charter?.phase ?? 0) >= 2,
+    body: `High-voltage direct current lines lose only about 3% of their power per thousand kilometres, so they can carry sunshine from deserts to cities on other continents. Proposals like the Sahara-to-Europe links or the Australia–Asia PowerLink would move gigawatts across seas.
+
+Linking regions also smooths out the weather: it is always sunny or windy somewhere, and a wider grid needs less storage.`,
+    game: 'HVDC links between blocs make the megaproject behind them deliver more, cut grid prices at both ends, raise access and speed up world growth. They also hold the grid together in a heatwave.',
+  },
+  {
+    id: 'carbon-budget', title: 'The carbon budget', cat: 'world', icon: 'co2', unlock: (s) => (s.charter?.phase ?? 0) >= 2,
+    body: `Global warming tracks the total CO₂ ever emitted, roughly linearly. That makes it possible to talk about a budget: how much more can be emitted for a given chance of staying under 1.5 °C or 2 °C. At today’s ~40 Gt a year, the 1.5 °C budget is nearly gone and the 2 °C budget lasts a couple of decades.
+
+Overshooting the budget doesn’t end the world, but every extra tonne means more heatwaves, droughts and floods.`,
+    game: 'The World screen tracks a 2 °C budget (~500 Gt CO₂ in 2035). Clean Charter energy retires fossil plants and makes new energy cleaner. Past zero, heatwaves and droughts get likelier and the Threshold’s grid front starts harder.',
+  },
+  {
+    id: 'access', title: 'Energy & compute access', cat: 'world', icon: 'access', unlock: (s) => (s.act ?? 1) >= 3,
+    body: `Hundreds of millions of people still lack reliable electricity, and access to frontier AI is even more unequal: most of the world’s data centers sit in a handful of countries. Without local compute, connectivity and cheap power, the benefits of AI arrive late — or not at all.
+
+Public compute, open cables and local energy projects are how other infrastructure gaps were closed in the past.`,
+    game: 'Each bloc has a compute-access meter. Public compute campuses, open cables, Commons lines, megaprojects and HVDC endpoints raise it; standing still lets it fall as the frontier moves on. The Mandate needs every bloc at 40.',
+  },
+  {
+    id: 'compute-governance', title: 'Compute governance', cat: 'compute', icon: 'compute', unlock: (s) => (s.charter?.phase ?? 0) >= 3 || !!s.charter?.council.passed.includes('compute-cap'),
+    body: `Training compute is one of the few things about AI that is measurable and concentrated: frontier runs need tens of thousands of specialised chips, made by a handful of companies. That makes it a natural lever for governance — reporting thresholds, licences for very large runs, and caps.
+
+Compute rules are blunt. They can slow everyone, they can be dodged by moving abroad, and algorithmic progress keeps lowering the compute needed for a given capability.`,
+    game: 'The compute cap slows every lab by a quarter. Your own runs above 3×10³⁰ FLOP need a Charter licence: the evals route takes about three months; fast-tracking your own run costs Legitimacy.',
+  },
+  {
+    id: 'frontier-evals', title: 'Frontier evaluations', cat: 'compute', icon: 'evals', unlock: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'evals' || p.kind === 'interp') || !!s.charter?.council.passed.includes('run-licensing'),
+    body: `Before a frontier model ships, evaluators probe it for dangerous capabilities — cyber-offence, bio-risk, deception, autonomous replication — and for whether its safety training holds up under pressure. Interpretability research tries to read what a model is actually computing.
+
+The hard part is that evaluations have to keep up with the models. An evaluator that can’t elicit a capability can’t certify its absence.`,
+    game: 'The world safety margin is world alignment minus the best model anywhere. Evals programmes and interpretability consortia raise world alignment (less for each repeat); a negative margin means incidents at rival labs.',
+  },
+  {
+    id: 'open-closed', title: 'Open vs closed weights', cat: 'compute', icon: 'globe', unlock: (s) => (s.charter?.phase ?? 0) >= 2,
+    body: `Open weights let anyone run, study and adapt a model: a boon for research, competition and countries that can’t afford to train their own. They also can’t be recalled: whatever a model can do, everyone who downloads it can do.
+
+Most proposals sit in between — release older models openly, stage releases behind evaluations, keep the very frontier closed.`,
+    game: 'The Council can pick one of three policies: open weights for all (growth, access, Orchard races ahead, more incidents), staged release (a middle path) or a closed frontier (fewer incidents, less access, an unhappy Orchard).',
+  },
+  {
+    id: 'launch-economics', title: 'Launch economics', cat: 'scale', icon: 'launch', unlock: (s) => !!s.flags.kipJoined,
+    body: `For most of the space age, a kilogram to orbit cost tens of thousands of dollars, because every rocket was thrown away. Reusable boosters cut that by an order of magnitude; fully reusable heavy lifters promise another.
+
+Equatorial launch sites give rockets a free boost from Earth’s rotation; polar sites reach orbits that pass over the whole planet.`,
+    game: 'Kip’s arc: a Charter launch complex at one of five candidate sites, then an orbital compute test, then a space-solar demonstrator. The orbital commons protocol makes space contracts cheaper and faster.',
+  },
+  {
+    id: 'space-solar', title: 'Space-based solar power', cat: 'energy', icon: 'satellite', unlock: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'spacesolar') || !!s.flags.orbitalTest,
+    body: `Above the atmosphere sunlight is about 40% stronger and never sets in the right orbit. A solar array in space can beam power to the ground as microwaves, collected by a large field of antennas. Small demonstrations have already beamed measurable power from orbit.
+
+The challenge is cost: launching and assembling square kilometres of hardware only makes sense if launch becomes very cheap.`,
+    game: 'The space-solar demonstrator is the last step of First Steps Off-World. In Act IV, space solar and orbital compute are how the climb to Type I escapes Earth’s heat limit.',
+  },
+  {
+    id: 'orbital-dc', title: 'Data centres in orbit', cat: 'compute', icon: 'satellite', unlock: (s) => !!s.flags.orbitalTest || (s.charter?.projects ?? []).some((p) => p.kind === 'orbital'),
+    body: `In orbit, sunlight is free and constant, and there are no neighbours or land costs. But everything must be launched, radiation flips bits, nothing can be repaired by hand, and in a vacuum heat can only be shed by radiating it away — so radiators become the biggest part of the machine.
+
+At planetary scale, waste heat becomes the binding constraint: a Type I civilisation’s power, dissipated on Earth’s surface, would warm it badly. That is the long-run argument for moving compute off-planet.`,
+    game: 'The orbital compute test proves accelerators can run in orbit (a satellite crosses the map). It is part of the Mandate, and the act ends with the first real orbital data centre lifting off.',
+  },
+  {
+    id: 'fusion', title: 'Fusion: ignition and gain', cat: 'energy', icon: 'fusion', unlock: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'fusion') || (s.charter?.phase ?? 0) >= 2,
+    body: `Fusion releases energy by forcing light nuclei together at temperatures above 100 million degrees. In 2022 a laser experiment first produced more fusion energy than the laser energy delivered to its target — “ignition” — though the facility as a whole used far more power than it made.
+
+A power plant needs net electricity, day after day: high-field magnets or lasers that work reliably, materials that survive the neutrons, and a way to breed tritium fuel.`,
+    game: 'A Charter grant to Sunforge funds a pilot plant. If it finishes, the Act III ending brings sustained ignition — a seed for Act IV’s fusion age.',
+  },
 ];
 
 export const GUIDE_BY_ID: Record<string, GuideEntry> = Object.fromEntries(GUIDE.map((g) => [g.id, g]));

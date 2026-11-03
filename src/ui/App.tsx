@@ -10,6 +10,7 @@ import { ResearchPanel } from './panels/ResearchPanel';
 import { FinancePanel } from './panels/FinancePanel';
 import { GoalsPanel, NewsPanel } from './panels/MiscPanels';
 import { BlocsPanel, CrunchTracker, DealsPanel, TeamPanel } from './panels/Act2Panels';
+import { CharterPanel, CouncilPanel, ThresholdTracker } from './panels/Act3Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
 import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
 import { MainMenu } from './menu/MainMenu';
@@ -27,6 +28,7 @@ function Hud() {
       <Dock />
       {game.mode === 'map' && <Objectives />}
       <CrunchTracker />
+      <ThresholdTracker />
       <div class="side">{game.mode === 'map' || game.selection?.kind === 'site' ? <Inspector /> : null}</div>
       {panel === 'compute' && <ComputePanel />}
       {panel === 'orders' && <OrdersPanel />}
@@ -37,6 +39,8 @@ function Hud() {
       {panel === 'team' && <TeamPanel />}
       {panel === 'deals' && <DealsPanel />}
       {panel === 'blocs' && <BlocsPanel />}
+      {panel === 'charter' && <CharterPanel />}
+      {panel === 'council' && <CouncilPanel />}
       {panel === 'settings' && (
         <Panel title="Settings" icon="settings" class="wide" onClose={() => game.openPanel(null)}>
           <SettingsBody />

@@ -242,7 +242,7 @@ export function setResearch(s: GameState, techId: string): Result {
   const t = TECH_BY_ID[techId];
   if (!t) return fail('Unknown tech');
   if (s.research.done.includes(techId)) return fail('Already researched');
-  if (!techAvailable(s, techId)) return fail(t.act && t.act > (s.act ?? 1) ? 'Opens in Act II' : 'Opens later in the act');
+  if (!techAvailable(s, techId)) return fail(t.act && t.act > (s.act ?? 1) ? `Opens in Act ${t.act === 3 ? 'III' : 'II'}` : 'Opens later in the act');
   if ((t.requires ?? []).some((r) => !s.research.done.includes(r))) return fail('Prerequisites missing');
   if (s.research.current && s.research.current !== techId) {
     // switching keeps progress banked in the pool

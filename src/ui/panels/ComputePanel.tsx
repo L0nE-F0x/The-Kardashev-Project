@@ -1,4 +1,5 @@
 import { Bar, Icon, KV, Panel, pct, useGame } from '../components';
+import { OwnLicenceBox } from './Act3Panels';
 import { RENTAL } from '../../content/companies';
 import { fmtDate, fmtDays, fmtMoney, fmtSci } from '../../sim/core';
 import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, rentalMax, rentalPrice, tierOf } from '../../sim/model';
@@ -92,6 +93,7 @@ export function ComputePanel() {
 
       <div class="section">
         <h4>Training</h4>
+        <OwnLicenceBox />
         {run ? (
           <div>
             <div class="row between">

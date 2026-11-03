@@ -17,6 +17,12 @@ export function Dock() {
           ['blocs', 'blocs', 'Blocs · diplomacy (P)', s.capital.sovereign.filter((d) => d.status === 'offer').length || undefined],
         ] as [PanelId, IconName, string, number?][])
       : []),
+    ...((s.act ?? 1) >= 3 && s.charter
+      ? ([
+          ['charter', 'charter', 'The Charter: treasury, contracts, missions, partners, world (H)', s.charter.tenders.filter((t) => t.bids.length && !t.pending.length).length || undefined],
+          ['council', 'council', 'The Council: resolutions and votes (U)', !s.charter.council.agenda.length && s.charter.capital >= 10 ? 1 : undefined],
+        ] as [PanelId, IconName, string, number?][])
+      : []),
     ['goals', 'goals', 'Goals (G)'],
     ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
     ['news', 'news', 'News (N)'],

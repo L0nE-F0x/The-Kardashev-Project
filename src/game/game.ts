@@ -5,6 +5,13 @@ import type { PixelStage, Scene } from '../render/stage';
 import type { RegionId } from '../content/mapcodes';
 import { newGame, type NewGameOptions } from '../sim/state';
 import { newAct2Game } from '../sim/act2';
+import { newAct3Game } from '../sim/act3';
+import * as CH from '../sim/charter';
+import * as CO from '../sim/council';
+import { requestOwnLicence as requestLicence } from '../sim/frontier';
+import { setDesk as setDeskJob } from '../sim/desk';
+import type { ContractKind, ContractSize } from '../sim/types';
+import type { CharterTab } from '../ui/panels/Act3Panels';
 import type { RegionId as Rid } from '../content/mapcodes';
 import type { AdvisorId, Job } from '../sim/types';
 import { refreshStats, tick } from '../sim/tick';
@@ -31,7 +38,7 @@ import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | null;
 export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
 export type Mode = 'title' | 'map' | 'diorama';
 export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install';
@@ -86,6 +93,9 @@ export class Game {
   toasts: Toast[] = [];
   awayReport: OfflineReport | null = null;
   showActComplete = false;
+  /** Act III: which Charter tab is open, and a contract draft from the inspector. */
+  charterTab: CharterTab = 'overview';
+  charterDraft: { kind?: ContractKind; where?: string } | null = null;
   /** Act II unlock briefing on screen (UI-only; which ones were seen is saved in meta). */
   briefing: { id: string; step: number } | null = null;
   private briefingResume: Speed | null = null;
@@ -174,12 +184,12 @@ export class Game {
     return listSlots().length >= MAX_SLOTS;
   }
 
-  startNew(opts: NewGameOptions & { act2?: boolean }): boolean {
+  startNew(opts: NewGameOptions & { act2?: boolean; act3?: boolean }): boolean {
     if (this.slotsFull()) {
       this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
       return false;
     }
-    this.state = opts.act2 ? newAct2Game(opts) : newGame(opts);
+    this.state = opts.act3 ? newAct3Game(opts) : opts.act2 ? newAct2Game(opts) : newGame(opts);
     this.slotId = newSlotId();
     refreshStats(this.state);
     this.awayReport = null;
@@ -427,6 +437,11 @@ export class Game {
       this.showActComplete = true;
       sfx('fanfare');
     }
+    if (s.flags.act3Complete && !s.flags.act3Shown) {
+      s.flags.act3Shown = true;
+      this.showActComplete = true;
+      sfx('fanfare');
+    }
     if (s.events.active && !this.settings.autoPause && !s.flags[`seen:${s.events.active.id}:${s.events.active.day}`]) {
       s.flags[`seen:${s.events.active.id}:${s.events.active.day}`] = true;
       sfx('alert');
@@ -493,7 +508,7 @@ export class Game {
   private updateEra(): void {
     // the era follows K, or the act, whichever is later (Act II barely moves K but should look like the Grid Rush)
     const act = this.view?.act ?? 1;
-    const byAct = (act >= 2 ? 1 : 0) as Era;
+    const byAct = (act >= 3 ? 2 : act >= 2 ? 1 : 0) as Era;
     const target: Era = this.eraOverride ?? (Math.max(byAct, this.eraForK(this.view?.stats.K ?? kardashev(19.6e12))) as Era);
     if (target !== getEra()) {
       setEra(target);
@@ -653,6 +668,20 @@ export class Game {
     this.notify();
   }
 
+  // ── Act III: the blind trust locks the company's own buttons ─────────────────────────────────
+  /** True (with a toast) when the company is in a blind trust and the player tries to run it. */
+  private locked(): boolean {
+    const s = this.state;
+    if (!s?.charter?.blindTrust) return false;
+    sfx('error');
+    this.toast(`🔒 ${s.company.name} is in a blind trust — your advisors run it now. (Charter → Overview to leave.)`, 'bad', 'penny');
+    return true;
+  }
+
+  private lockedResult(): A.Result {
+    return { ok: false, reason: 'Your company is in a blind trust' };
+  }
+
   // ── actions (wrap the sim, refresh, give feedback) ─────────────────────────────────────────
   /** Run an action, asking first when it costs more than the player's confirm threshold. */
   private guarded(cost: number, title: string, run: () => void): void {
@@ -692,17 +721,23 @@ export class Game {
   }
 
   build(siteId: string, type: FacilityType): void {
+    if (this.locked()) return;
     const s = this.state!;
     this.guarded(buildCost(s, type), 'Build this?', () => void this.after(A.build(s, siteId, type), 'build'));
   }
 
   requestGrid(siteId: string, mw: number) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.requestGrid(this.state!, siteId, mw));
   }
 
   linkClick(siteId: string): void {
     const tool = this.tool;
     if (!tool) return;
+    if (this.locked()) {
+      this.tool = null;
+      return;
+    }
     if (!tool.from) {
       this.tool = { kind: tool.kind, from: siteId };
       sfx('select');
@@ -731,6 +766,7 @@ export class Game {
 
   // ── Act II actions ──
   upgrade(facilityId: string): void {
+    if (this.locked()) return;
     const s = this.state!;
     const f = s.facilities.find((x) => x.id === facilityId);
     if (!f) return;
@@ -738,79 +774,97 @@ export class Game {
   }
 
   buyLand(siteId: string): void {
+    if (this.locked()) return;
     const s = this.state!;
     this.guarded(landCost(s, siteId), 'Buy more land here?', () => void this.after(A.buyLand(s, siteId), 'cash'));
   }
 
   leaseCable(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.leaseCable(this.state!, id), 'cash');
   }
 
   dropLease(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.dropLease(this.state!, id));
   }
 
   buildOwnCable(a: string, b: string): void {
+    if (this.locked()) return;
     this.guarded(OWN_CABLE_COST, 'Lay your own subsea cable?', () => void this.after(A.buildOwnCable(this.state!, a, b), 'build'));
   }
 
   signDeal(id: string): void {
+    if (this.locked()) return;
     const d = DEAL_BY_ID[id];
     this.guarded(d?.cost ?? 0, `Sign: ${d?.name}?`, () => void this.after(A.signDeal(this.state!, id), 'cash'));
   }
 
   buyStake(mineId: string): void {
+    if (this.locked()) return;
     const s = this.state!;
     this.guarded(A.stakePrice(s, mineId), 'Buy a 10% stake?', () => void this.after(A.buyStake(s, mineId), 'cash'));
   }
 
   lobby(region: Rid) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.lobby(this.state!, region), 'cash');
   }
 
   applyLicence(rule: string, region: Rid) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.applyLicence(this.state!, rule, region));
   }
 
   signTreaty(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.signTreaty(this.state!, id), 'objective');
   }
 
   leaveTreaty(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.leaveTreaty(this.state!, id));
   }
 
   acceptSovereign(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.acceptSovereign(this.state!, id), 'objective');
   }
 
   declineSovereign(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.declineSovereign(this.state!, id));
   }
 
   borrow(amount: number) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.borrow(this.state!, amount), 'cash');
   }
 
   repayLoan(id: string): void {
+    if (this.locked()) return;
     const l = this.state!.capital.loans.find((x) => x.id === id);
     this.guarded(l?.balance ?? 0, 'Repay this loan early?', () => void this.after(A.repayLoan(this.state!, id), 'cash'));
   }
 
   acceptContract(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.acceptContract(this.state!, id), 'objective');
   }
 
   declineContract(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.declineContract(this.state!, id));
   }
 
   buyStartup(id: string): void {
+    if (this.locked()) return;
     const o = this.state!.startups.offers.find((x) => x.id === id);
     this.guarded(o?.price ?? 0, 'Acquire this company?', () => void this.after(A.buyStartup(this.state!, id), 'objective'));
   }
 
   setJob(advisor: AdvisorId, patch: Partial<Job>) {
+    if (this.locked()) return this.lockedResult();
     const r = A.setJob(this.state!, advisor, patch);
     if (!r.ok) {
       sfx('error');
@@ -821,29 +875,161 @@ export class Game {
   }
 
   order(supplier: SupplierId, qty: number, dest: string, mode: 'sea' | 'air'): void {
+    if (this.locked()) return;
     const s = this.state!;
     const quote = A.quoteOrder(s, this.ctx, supplier, qty, dest, mode);
     this.guarded(quote.total, 'Place this order?', () => void this.after(A.placeOrder(s, this.ctx, supplier, qty, dest, mode), 'cash'));
   }
 
   setRental(units: number): void {
+    if (this.locked()) return;
     A.setRental(this.state!, units);
     refreshStats(this.state!);
     this.notify();
   }
 
   setAlloc(key: A.AllocKey, v: number): void {
+    if (this.locked()) return;
     A.setAlloc(this.state!, key, v);
     refreshStats(this.state!);
     this.notify();
   }
 
   startTraining() {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.startTraining(this.state!), 'confirm');
   }
 
   setResearch(id: string) {
+    if (this.locked()) return this.lockedResult();
     return this.after(A.setResearch(this.state!, id), 'confirm');
+  }
+
+  // ── Act III: the Charter ──
+  setCharterTab(tab: CharterTab): void {
+    this.charterTab = tab;
+    sfx('click');
+    this.notify();
+  }
+
+  /** Open the Charter on a tab, optionally with a contract draft (from a site inspector). */
+  openCharter(tab: CharterTab, draft: { kind?: ContractKind; where?: string } | null = null): void {
+    this.charterTab = tab;
+    this.charterDraft = draft;
+    this.panel = 'charter';
+    sfx('click');
+    this.notify();
+  }
+
+  postTender(kind: ContractKind, size: ContractSize, where: string) {
+    this.charterDraft = null;
+    return this.after(CH.postTender(this.state!, kind, size, where), 'confirm');
+  }
+
+  closeTender(id: string) {
+    return this.after(CH.closeTender(this.state!, id));
+  }
+
+  awardBid(tenderId: string, bidIndex: number): void {
+    const s = this.state!;
+    const t = s.charter?.tenders.find((x) => x.id === tenderId);
+    const b = t?.bids[bidIndex];
+    if (!t || !b) return;
+    const run = () => void this.after(CH.awardBid(s, tenderId, bidIndex), 'objective');
+    const conflict = CH.conflictCost(s, t, b);
+    if (conflict > 0) {
+      this.confirm = {
+        title: `Award ${s.company.name}?`,
+        detail: `This is your own company’s bid. Awarding it costs ${conflict} Legitimacy${s.charter?.blindTrust ? ' (the blind trust softens it)' : ''}, and journalists may dig.`,
+        onYes: () => {
+          this.confirm = null;
+          run();
+        },
+      };
+      sfx('alert');
+      this.notify();
+      return;
+    }
+    this.guarded(b.price * 0.2, 'Award this contract?', run);
+  }
+
+  cancelProject(id: string): void {
+    this.confirm = {
+      title: 'Cancel this contract?',
+      detail: 'What the Charter has paid is gone, the builder will be furious (relationship −20) and Legitimacy falls by 4.',
+      onYes: () => {
+        this.confirm = null;
+        this.after(CH.cancelProject(this.state!, id));
+      },
+    };
+    sfx('alert');
+    this.notify();
+  }
+
+  expedite(id: string): void {
+    const p = this.state!.charter?.projects.find((x) => x.id === id);
+    this.guarded(p ? CH.expediteCost(p) : 0, 'Pay for overtime crews?', () => void this.after(CH.expediteProject(this.state!, id), 'cash'));
+  }
+
+  claimDamages(id: string) {
+    return this.after(CH.claimDamages(this.state!, id), 'cash');
+  }
+
+  donate(amount: number): void {
+    if (this.locked()) return;
+    this.guarded(amount, 'Give this to the Charter?', () => void this.after(CH.donate(this.state!, amount), 'cash'));
+  }
+
+  setBlindTrust(on: boolean): void {
+    const s = this.state!;
+    const why = CH.canSetBlindTrust(s, on);
+    if (why) {
+      sfx('error');
+      this.toast(why, 'bad', 'penny');
+      return;
+    }
+    this.confirm = {
+      title: on ? 'Put your company in a blind trust?' : 'Take your company out of the blind trust?',
+      detail: on
+        ? 'Your advisors will run it on standing orders and you won’t be able to touch it. Legitimacy +8; conflicts of interest cost far less.'
+        : `You get the controls back. Legitimacy −12, and you can’t go back in for ${Math.round(CH.TRUST_COOLDOWN / 30.4)} months.`,
+      onYes: () => {
+        this.confirm = null;
+        this.after(CH.setBlindTrust(s, on), on ? 'objective' : 'confirm');
+      },
+    };
+    sfx('alert');
+    this.notify();
+  }
+
+  tableResolution(id: string) {
+    return this.after(CO.tableResolution(this.state!, id), 'confirm');
+  }
+
+  withdrawResolution(id: string) {
+    return this.after(CO.withdrawResolution(this.state!, id));
+  }
+
+  whipBloc(r: Rid) {
+    return this.after(CO.whipBloc(this.state!, r));
+  }
+
+  favourBloc(r: Rid): void {
+    this.guarded(CO.favourCost(this.state!, r), 'Spend treasury money on a favour?', () => void this.after(CO.favourBloc(this.state!, r), 'cash'));
+  }
+
+  requestOwnLicence(gen: number, fast: boolean) {
+    return this.after(requestLicence(this.state!, gen, fast), fast ? 'confirm' : 'confirm');
+  }
+
+  setDesk(advisor: AdvisorId, patch: Partial<Job>) {
+    const r = setDeskJob(this.state!, advisor, patch);
+    if (!r.ok) {
+      sfx('error');
+      this.toast(r.reason, 'bad');
+    }
+    this.notify();
+    return r;
   }
 
   chooseEvent(index: number): void {

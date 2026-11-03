@@ -1513,3 +1513,96 @@ ol.steps li {
     bottom: 64px;
   }
 }
+
+/* ── Act III: the Charter ─────────────────────────────────────────────────────────────── */
+.bigv {
+  font-family: var(--font-label);
+  font-size: 22px;
+  margin: 2px 0 4px;
+}
+.traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: var(--muted);
+}
+.traits .pips {
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.tender {
+  padding: 8px;
+  margin-bottom: 8px;
+}
+.bid {
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+.bid.you {
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.bid img.portrait,
+.project img.portrait,
+.partner img.portrait,
+.mission img.portrait {
+  image-rendering: pixelated;
+  flex: none;
+}
+.project {
+  padding: 4px 0;
+  border-top: 1px solid var(--line);
+}
+.votes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin-top: 4px;
+}
+.whip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+}
+.mandate {
+  padding: 2px 0;
+}
+.mission.done {
+  box-shadow:
+    inset 2px 2px 0 var(--gold),
+    inset -2px -2px 0 var(--c-snd3, #7d5232);
+}
+.ledger {
+  border-collapse: collapse;
+  width: 100%;
+}
+.ledger th,
+.ledger td {
+  text-align: right;
+  padding: 1px 6px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.ledger th:first-child,
+.ledger td:first-child {
+  text-align: left;
+}
+.select {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 2px solid var(--line);
+  padding: 4px;
+}
+.stat.btnless {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}

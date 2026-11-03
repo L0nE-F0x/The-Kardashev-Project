@@ -28,6 +28,7 @@ export interface SlotInfo {
   /** Current act (2 = The Scale-Up). */
   act?: number;
   act2?: boolean;
+  act3?: boolean;
   gameOver: boolean;
 }
 
@@ -76,6 +77,7 @@ function infoOf(id: string, s: GameState): SlotInfo {
     act1: !!s.flags.act1Complete,
     act: s.act ?? 1,
     act2: !!s.flags.act2Complete,
+    act3: !!s.flags.act3Complete,
     gameOver: !!s.meta.gameOver,
   };
 }

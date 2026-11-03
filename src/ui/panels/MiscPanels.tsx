@@ -1,6 +1,7 @@
 import { Icon, Panel, Portrait, useGame } from '../components';
 import { OBJECTIVES, actObjectives } from '../../content/objectives';
 import { PHASE_NAMES } from '../../sim/actions';
+import { CHARTER_PHASES } from '../../content/charter';
 import { fmtDate } from '../../sim/core';
 
 export function NewsPanel() {
@@ -24,6 +25,7 @@ export function NewsPanel() {
 export function GoalsPanel() {
   const game = useGame();
   const s = game.state!;
+  if ((s.act ?? 1) >= 3) return <Act3Goals />;
   if ((s.act ?? 1) >= 2) return <Act2Goals />;
   return (
     <Panel title="Act I · The Garage" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
@@ -84,6 +86,46 @@ function Act2Goals() {
         </div>
       ))}
       {s.phase < 4 && <div class="small muted">More goals appear as each phase opens.</div>}
+    </Panel>
+  );
+}
+
+function Act3Goals() {
+  const game = useGame();
+  const s = game.state!;
+  const cp = Math.min(5, s.charter?.phase ?? 1);
+  const list = actObjectives(s);
+  const phases = [1, 2, 3, 4, 5].filter((p) => p <= cp);
+  return (
+    <Panel title="Act III · The Charter" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <p class="small muted" style={{ marginTop: 0 }}>
+        Steward of the Kardashev Project. Phase {cp} of 5: {CHARTER_PHASES[cp]}. The Charter Mandate in phase 3 starts The Threshold; by 1 January 2044 it starts anyway. Then the Council votes on renewal.
+      </p>
+      {phases.map((p) => (
+        <div key={p} class="section">
+          <h4>
+            Phase {p} · {CHARTER_PHASES[p]}
+          </h4>
+          {list
+            .filter((o) => (o.phase ?? 1) === p)
+            .map((o) => {
+              const done = s.objectives.done.includes(o.id);
+              const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
+              return (
+                <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>
+                  <Portrait id={o.advisor} size={32} />
+                  <div class="grow">
+                    <div class="t">
+                      {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                    </div>
+                    <div class="h">{o.hint}</div>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      ))}
+      {cp < 5 && <div class="small muted">More goals appear as each phase opens. The whole Mandate is on Charter → Overview.</div>}
     </Panel>
   );
 }

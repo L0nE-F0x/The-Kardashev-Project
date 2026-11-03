@@ -29,7 +29,7 @@ export function ResearchPanel() {
             <h4>
               {TECH_CATEGORIES[cat].icon} {TECH_CATEGORIES[cat].name}
             </h4>
-            {TECHS.filter((t) => t.cat === cat).map((t) => {
+            {TECHS.filter((t) => t.cat === cat && (t.act ?? 1) <= Math.max(2, s.act ?? 1)).map((t) => {
               const done = s.research.done.includes(t.id);
               const locked = (t.requires ?? []).some((r) => !s.research.done.includes(r));
               const current = s.research.current === t.id;
