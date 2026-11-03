@@ -243,7 +243,7 @@ export function tickCouncil(s: GameState): void {
   const c = s.charter;
   if (!c) return;
   const k = c.council;
-  if (s.day >= k.nextSession && c.phase < 6) {
+  if (s.day >= k.nextSession) {
     if (k.agenda.length) {
       const results = holdSession(s);
       queueEvent(s, 'council-session', { results: JSON.stringify(results) });

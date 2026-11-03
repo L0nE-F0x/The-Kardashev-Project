@@ -225,6 +225,7 @@ const KEYS: [string, string][] = [
   ['L', 'Power-line tool'],
   ['I', 'Fiber tool (Act II)'],
   ['T · E · P', 'Team · Deals · Blocs (Act II)'],
+  ['H · U', 'The Charter · The Council (Act III)'],
   ['W A S D / arrows', 'Pan the map'],
   ['+ / −', 'Zoom the map'],
   ['M · Esc', 'Back to the map / close'],

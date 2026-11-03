@@ -30,7 +30,7 @@ export function GoalsPanel() {
   return (
     <Panel title="Act I · The Garage" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
       <p class="small muted" style={{ marginTop: 0 }}>
-        Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Acts II–V (hyperscaler → steward of the Kardashev Project → Type I) are on the roadmap.
+        Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Act II makes you a hyperscaler and Act III the steward of the Kardashev Project; Acts IV–V (planetary → Type I) are on the roadmap.
       </p>
       {OBJECTIVES.filter((o) => (o.act ?? 1) === 1).map((o) => {
         const done = s.objectives.done.includes(o.id);

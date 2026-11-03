@@ -161,6 +161,11 @@ export function youCanBid(s: GameState, kind: ContractKind): boolean {
   }
 }
 
+/** Partners (not your company) able and willing to bid on this kind right now. */
+export function partnerBidders(s: GameState, kind: ContractKind): string[] {
+  return eligible(s, kind).filter((x) => x !== YOU);
+}
+
 function eligible(s: GameState, kind: ContractKind): string[] {
   const def = CONTRACT_KINDS[kind];
   const out: string[] = [];
@@ -184,7 +189,6 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
   if (!c) return 'The Charter doesn’t exist yet.';
   const def = CONTRACT_KINDS[kind];
   if (c.phase < def.cphase) return `Opens in phase ${def.cphase}.`;
-  if (c.phase >= 6) return null;
   if (def.fixed && size !== 1) return 'This contract comes in one size.';
   switch (def.where) {
     case 'mega': {
@@ -606,7 +610,7 @@ function monthly(s: GameState): void {
   // Legitimacy drifts toward a baseline set by your standing; delivery, arrears and walkouts push it around
   const target = 48 + 3 * c.standing;
   let d = (target - c.legitimacy) * 0.05;
-  if (c.blindTrust) d += 0.6;
+  if (c.blindTrust) d += 0.4;
   if (c.projects.some((p) => p.status === 'building' && p.arrears > 0)) d -= 1.5;
   d -= Math.min(3, c.projects.filter((p) => isLate(s, p)).length * 0.5);
   d -= Object.keys(c.council.walkouts).length;
@@ -680,7 +684,7 @@ function completeProject(s: GameState, p: Project): void {
     st.done += 1;
     addPartnerRel(s, p.builder, late ? 2 : 6);
   }
-  addLegitimacy(s, late ? 0.2 : 1);
+  addLegitimacy(s, late ? 0.1 : 0.6);
   // developing blocs especially notice projects at home
   if (WEALTH[p.region] === 'developing') addRelation(s, p.region, 4);
   else addRelation(s, p.region, 1.5);

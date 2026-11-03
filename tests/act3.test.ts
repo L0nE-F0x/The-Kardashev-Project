@@ -9,10 +9,20 @@ import { minAccess } from '../src/sim/charter';
 import { worldMargin } from '../src/sim/frontier';
 import { loadWorld } from './helpers/world';
 import { MISSIONS } from '../src/content/charter';
+import { routeBetween } from '../src/world/routing';
+import { SITES } from '../src/content/sites';
 
 const ctx = { router: loadWorld().router };
 
 describe('act III', () => {
+  it('can reach every new Charter site by sea (ports sit on the ocean)', () => {
+    const { router } = loadWorld();
+    for (const site of SITES.filter((x) => x.kind === 'mega' || x.kind === 'launch' || x.kind === 'charter')) {
+      const r = routeBetween(router, 'lumen-hsinchu', site.id, 'sea', new Set());
+      expect(r.km, site.id).toBeGreaterThan(0);
+    }
+  });
+
   it('migrates a v3 save (Act II sandbox) and founds the Charter', () => {
     const s = newAct2Game({ name: 'Old', homeSite: 'london', seed: 4 });
     s.flags.act2Complete = s.day;

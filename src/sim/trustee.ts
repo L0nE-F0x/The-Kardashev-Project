@@ -11,6 +11,8 @@ import * as A from './actions';
 import { siteSlots } from './model';
 import { creditLeft } from './capital';
 import { news } from './core';
+import { nextModelPlan } from './ai';
+import { ownRunStatus, requestOwnLicence } from './frontier';
 
 export function tickTrustee(s: GameState): void {
   const c = s.charter;
@@ -21,6 +23,11 @@ export function tickTrustee(s: GameState): void {
     const cur = s.jobs[j.advisor];
     if (cur?.on) continue;
     A.setJob(s, j.advisor, { on: true, a: cur?.a ?? j.a.def, b: cur?.b ?? j.b?.def });
+  }
+  // runs above the Charter's compute cap go through the evals route, never the fast track
+  if (!s.training) {
+    const plan = nextModelPlan(s);
+    if (ownRunStatus(s, plan.gen, plan.flop) === 'needed') requestOwnLicence(s, plan.gen, false);
   }
   // research never sits idle
   if (!s.research.current) {

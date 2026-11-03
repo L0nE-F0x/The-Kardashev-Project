@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 — The Charter (2026-11-04)
+- Act III, The Charter: after the Crunch the blocs found the Kardashev Project and make you its Steward — from The Founding to the renewal vote, about 2035–44.
+- Two hats: run the Charter and your company at once, or put the company in a blind trust. Your company bids on Charter contracts like everyone else, and awarding it costs Legitimacy.
+- Contracts: post what the world needs, where and how big. 21 partner companies bid with their own traits, quirks and CEOs, then build it — with overruns, scandals and strikes. Partners remember how you treat them.
+- Megaprojects in every bloc (Sahara Solar Belt, North Sea Wind, Gobi Wind & Storage, Pacific Reactor Fleet…), intercontinental HVDC links, a Chip Commons, public compute and open cables.
+- Six missions with permanent world-wide rewards, and the Charter Mandate: Kardashev 0.75, clean power, chips, compute access for every bloc, a safety regime, Legitimacy and Kip’s orbital test.
+- The Council: twelve weighted seats, 14 resolutions, vote forecasts, whips and favours; bloc dues and a treasury of its own; factions, walkouts and a rival consortium.
+- The world finally moves: a living world energy model, every bloc’s clean share, a 2 °C carbon budget and compute access per bloc.
+- A Charter safety regime: a world safety margin across every lab, run licensing, a compute cap (your own big runs need a licence too) and open-weights policy. Bit grows up and can run the Charter desk once you trust it.
+- Delegation: a Charter desk for Mira, Juno, Sol, Penny, Kip and Bit.
+- Kip finally joins: a launch complex, an orbital compute test satellite and a space-solar demonstrator.
+- The finale: The Threshold — the Long Summer, a model at the edge and a Council coming apart — then the renewal vote and liftoff.
+- New art: the Solarpunk Bloom palette, megaprojects that grow on the map and in their dioramas, glowing HVDC links, the Charter HQ in Geneva, a launch complex with a real liftoff, Bit-6 and Bit-7, 15 new CEOs and three faction delegates.
+- Start a new company straight at Act III. Act III briefings, 12 new techs, 14 new Field Guide entries and a brighter Act III ambience.
+
 ## 0.3.0 — The Scale-Up (2026-11-04)
 - Act II, The Scale-Up: from a Series A to an IPO in four phases — Gigawatts, The Stack, The Race and The Crunch.
 - Bigger everything: data halls grow to 50 and 200 MW, power plants grow too, buy land for more plots, megasites open, and the Gigawatt Campus arrives late in the act.

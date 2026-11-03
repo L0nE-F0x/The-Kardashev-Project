@@ -100,6 +100,7 @@ export class Game {
   briefing: { id: string; step: number } | null = null;
   private briefingResume: Speed | null = null;
   private act2Music = false;
+  private act3Music = false;
   /** With auto-pause off, event cards wait behind a pill until opened. */
   eventOpen = false;
   confirm: ConfirmRequest | null = null;
@@ -302,7 +303,8 @@ export class Game {
     this.stage.setZoomBoost(this.settings.zoom);
     this.stage.setScene(this.scenes.map(this));
     this.act2Music = (this.state?.act ?? 1) >= 2;
-    playMusic(this.act2Music ? 'game2' : 'game');
+    this.act3Music = (this.state?.act ?? 1) >= 3;
+    playMusic(this.act3Music ? 'game3' : this.act2Music ? 'game2' : 'game');
     this.notify();
   }
 
@@ -431,6 +433,10 @@ export class Game {
     if ((s.act ?? 1) >= 2 && !this.act2Music) {
       this.act2Music = true;
       if (this.mode !== 'title') playMusic('game2');
+    }
+    if ((s.act ?? 1) >= 3 && !this.act3Music) {
+      this.act3Music = true;
+      if (this.mode !== 'title') playMusic('game3');
     }
     if (s.flags.act2Complete && !s.flags.act2Shown) {
       s.flags.act2Shown = true;

@@ -4,7 +4,7 @@
  */
 import { audioCtx, musicBus } from './engine';
 
-type Track = 'menu' | 'game' | 'game2' | null;
+type Track = 'menu' | 'game' | 'game2' | 'game3' | null;
 
 const THEME_URL = '../audio/theme.mp3';
 let current: Track = null;
@@ -33,6 +33,7 @@ function switchTo(track: Track) {
   if (track === 'menu') startMenu();
   else if (track === 'game') startSequencer(GAME_SONG);
   else if (track === 'game2') startSequencer(GAME2_SONG);
+  else if (track === 'game3') startSequencer(GAME3_SONG);
 }
 
 function stopAll() {
@@ -152,6 +153,22 @@ const GAME2_SONG: Song = {
   arp: true,
   drums: false,
   padLevel: 0.055,
+  sparse: true,
+};
+
+/** Act III: brighter and wider — a Lydian lift over a slow, hopeful progression. */
+const GAME3_SONG: Song = {
+  bpm: 72,
+  chords: [
+    [38, 62, 66, 69, 76],
+    [43, 62, 67, 71, 78],
+    [40, 64, 67, 71, 74],
+    [45, 64, 69, 73, 76],
+  ],
+  melody: [74, null, null, 76, 78, null, 81, null, 78, null, 76, null, 74, null, null, null, 71, null, 74, null, 76, null, null, 78, 76, null, 73, null, null, null, null, null],
+  arp: true,
+  drums: false,
+  padLevel: 0.06,
   sparse: true,
 };
 

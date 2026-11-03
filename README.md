@@ -7,8 +7,8 @@ build power, chips, compute and supply lines on a real-Earth pixel map, keep you
 **Play:** https://thekardashevproject.netlify.app — in the browser, installed as an app (offline, landscape on
 phones), or as a Windows / macOS / Linux download from [Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
 
-> Status: **v0.3 "The Scale-Up"**. Acts I (The Garage) and II (The Scale-Up) are playable end to end. See `SPEC.md`
-> for the full design and `CHANGELOG.md` for what changed.
+> Status: **v0.4 "The Charter"**. Acts I (The Garage), II (The Scale-Up) and III (The Charter) are playable end to
+> end. See `SPEC.md` for the full design and `CHANGELOG.md` for what changed.
 
 ## Play locally
 
@@ -44,6 +44,12 @@ npm run desktop:build   # installers in src-tauri/target/release/bundle/
   (standing orders); a board, project finance, enterprise contracts and sovereign deals; bloc relations, export rules,
   elections, treaties and summits; rivals building on the map; and a three-front finale, The Crunch. Start a new
   company straight at Act II if you like.
+- **Act III, The Charter**: become Steward of the Kardashev Project, the planet's consortium, while your own company
+  bids like everyone else (or sits in a blind trust). Post contracts and judge bids from 21 partner companies with
+  traits and quirks; build megaprojects in every bloc, intercontinental HVDC links, a Chip Commons, public compute and
+  a safety regime; win votes in a Council of twelve blocs with factions, walkouts and a rival consortium; track world
+  energy, the carbon budget and compute access; give Kip a launch complex; delegate to a Charter desk (Bit can run it
+  once you trust it); then hold The Threshold and win the renewal vote. Start a new company straight at Act III too.
 - **Campus dioramas**: side-view pixel scenes of each site, with animated facilities, weather, real local time of
   day, night lighting and a time-lapse toggle.
 - **Era palettes**: the whole world re-grades as K climbs (preview them in Settings → Display).
@@ -62,6 +68,7 @@ npm run desktop:build   # installers in src-tauri/target/release/bundle/
 Drag to pan · scroll or pinch to zoom · click a site to inspect, double-click to view its campus ·
 Space pause · 1–4 speed · C compute · O orders · R research · F finance · G goals · N news · B Field Guide ·
 L power-line tool · M/Esc back to map · WASD/arrows pan · +/− zoom. Act II: T team · E deals · P blocs · I fiber tool.
+Act III: H the Charter · U the Council.
 
 ## Credits
 

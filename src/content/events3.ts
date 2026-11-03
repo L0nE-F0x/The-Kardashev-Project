@@ -613,6 +613,36 @@ export const ACT3_EVENTS: EventDef[] = [
     },
   },
   {
+    id: 'contested-link',
+    category: 'politics',
+    icon: '🔌',
+    act: 3,
+    once: true,
+    weight: (s) => ((s.charter?.projects ?? []).some((p) => p.kind === 'hvdc' && p.where === 'hvdc-gobi' && p.status !== 'cancelled') ? 3 : 0),
+    title: () => 'A contested link',
+    body: () => 'The Gobi–Fab Belt link will carry Eastern power into the heart of the chip industry. The Atlantic delegation calls it a strategic vulnerability: whoever controls the converter station controls the fabs’ lights.',
+    advisors: () => [
+      { id: 'ceo:atlantic', text: 'We will not let the world’s fabs run on a switch someone else can flip.', mood: 'angry' },
+      { id: 'ceo:eastern', text: 'It is a power line. It carries electrons, not intentions.', mood: 'neutral' },
+      { id: 'juno', text: 'Technically they’re both right. Grids are geopolitics with copper in.', mood: 'neutral' },
+    ],
+    choices: (s) => [
+      { label: 'Joint control of both converter stations', detail: 'Both sides grumble; tension −5 each; the link takes 3 months longer.', apply: () => {
+        if (s.charter) for (const f of ['eastern', 'atlantic'] as FactionId[]) s.charter.council.factions[f].tension = clamp(s.charter.council.factions[f].tension - 5, 0, 100);
+        const p = s.charter?.projects.find((x) => x.kind === 'hvdc' && x.where === 'hvdc-gobi' && x.status === 'building');
+        if (p) p.days += 90;
+      } },
+      { label: 'Build it as planned', detail: 'Eastern relations +6; Atlantic tension +12.', apply: () => {
+        addRelation(s, 'eam', 6);
+        if (s.charter) s.charter.council.factions.atlantic.tension = clamp(s.charter.council.factions.atlantic.tension + 12, 0, 100);
+      } },
+      { label: 'Add a backup supply for the Fab Belt', detail: `${fmtMoney(ch3(s, 4e9), 0)} for local storage: everyone calms down.`, disabled: treasury(s, ch3(s, 4e9)), apply: () => {
+        chSpend(s, 'programmes', ch3(s, 4e9));
+        if (s.charter) s.charter.council.factions.atlantic.tension = clamp(s.charter.council.factions.atlantic.tension - 4, 0, 100);
+      } },
+    ],
+  },
+  {
     id: 'secret-run',
     category: 'safety',
     icon: '🕵',

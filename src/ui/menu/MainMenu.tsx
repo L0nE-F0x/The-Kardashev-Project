@@ -73,7 +73,7 @@ export function MainMenu() {
         {!isStandalone() && item('arrow', canPromptInstall() || game.installAvailable ? 'Install app' : 'Get the app', install)}
         {isDesktopApp && item('close', 'Quit', () => void quitApp())}
         <div class="menu-foot small muted">
-          v{APP_VERSION} · Acts I–II: The Garage · The Scale-Up
+          v{APP_VERSION} · Acts I–III: The Garage · The Scale-Up · The Charter
           {!isDesktopApp && (
             <>
               {' · '}

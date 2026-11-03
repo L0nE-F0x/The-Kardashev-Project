@@ -245,7 +245,9 @@ function whereOptions(s: GameState, kind: ContractKind): { id: string; name: str
   const def = CONTRACT_KINDS[kind];
   switch (def.where) {
     case 'mega':
-      return MEGA_SITES.filter((m) => m.mega?.includes(kind)).map((m) => ({ id: m.id, name: m.name, note: `${REGIONS[m.region].short} · stage ${megaView(s, m.id).stage}` }));
+      return MEGA_SITES.filter((m) => m.mega?.includes(kind))
+        .sort((a, b) => (kind === 'solar' ? b.solarCF - a.solarCF : kind === 'wind' ? b.windCF - a.windCF : 0))
+        .map((m) => ({ id: m.id, name: m.name, note: `${REGIONS[m.region].short} · stage ${megaView(s, m.id).stage}${kind === 'solar' ? ` · sun ${Math.round(m.solarCF * 100)}%` : kind === 'wind' ? ` · wind ${Math.round(m.windCF * 100)}%` : ''}` }));
     case 'route':
       return HVDC_ROUTES.map((r) => ({ id: r.id, name: r.name, note: `${r.km.toLocaleString()} km${r.subsea ? ' · subsea' : ''}` }));
     case 'launch':
@@ -456,7 +458,7 @@ function MissionsTab() {
   const s = game.state!;
   const c = s.charter!;
   return (
-    <div class="cardgrid" data-tut="missions">
+    <div class="cardgrid two" data-tut="missions">
       {MISSIONS.map((m) => {
         const pr = missionProgress(s, m);
         const done = c.missions[m.id];
@@ -508,7 +510,7 @@ function PartnersTab() {
       <p class="small muted" style={{ marginTop: 0 }}>
         Every company on Earth is a partner now. Awards, prompt payments and finished projects win them over; cancellations, penalties and passing over the cheapest bid sour them. Below 30 they stop bidding and lobby against you; above 70 they bid lower and offer favours.
       </p>
-      <div class="cardgrid" data-tut="partners">
+      <div class="cardgrid two" data-tut="partners">
         {ids.map((id) => {
           const d = PARTNERS[id];
           const st = c.partners[id];

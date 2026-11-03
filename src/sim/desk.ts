@@ -10,7 +10,7 @@ import { LAUNCH_SITES, MEGA_SITES } from '../content/sites';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { AdvisorId, ContractKind, ContractSize, GameState, Job } from './types';
 import { fmtMoney, news } from './core';
-import { affordable, awardBid, bidScore, canAward, canPost, expediteCost, expediteProject, isLate, postTender } from './charter';
+import { affordable, awardBid, bidScore, canAward, canPost, expediteCost, expediteProject, isLate, partnerBidders, postTender } from './charter';
 import { canWhip, forecast, voteScore, whipBloc } from './council';
 import { megaStage } from '../content/charter';
 import { worldMargin } from './frontier';
@@ -106,7 +106,7 @@ function report(s: GameState, who: AdvisorId, text: string): void {
 
 export function tickDesk(s: GameState): void {
   const c = s.charter;
-  if (!c || c.phase >= 6 || s.day % 7 !== 5) return;
+  if (!c || s.day % 7 !== 5) return;
   tenderDesk(s);
   oversight(s);
   whip(s);
@@ -210,7 +210,7 @@ function nextMissionContract(s: GameState): { kind: ContractKind; size: Contract
     return g.reduce((a, [x, y]) => a + Math.min(1, x / Math.max(1e-9, y)), 0) / Math.max(1, g.length);
   };
   const open = MISSIONS.filter((m) => !c.missions[m.id] && c.phase >= m.cphase && m.id !== 'offworld').sort((a, b) => frac(a) - frac(b));
-  const tryPost = (kind: ContractKind, size: ContractSize, where: string) => (canPost(s, kind, size, where) === null ? { kind, size, where } : null);
+  const tryPost = (kind: ContractKind, size: ContractSize, where: string) => (canPost(s, kind, size, where) === null && partnerBidders(s, kind).length ? { kind, size, where } : null);
   for (const m of open) {
     const pr = missionProgress(s, m);
     if (m.id === 'clean-power') {
@@ -270,6 +270,7 @@ function bestEnergy(s: GameState, forStages: boolean): { kind: ContractKind; siz
   for (const o of options) {
     const first = !c.projects.some((p) => p.where === o.where && p.status !== 'cancelled');
     const order: ContractSize[] = first ? [2, 1] : [3, 2];
+    if (!partnerBidders(s, o.kind).length) continue;
     for (const size of order) if (canPost(s, o.kind, size, o.where) === null) return { kind: o.kind, size, where: o.where };
   }
   return null;
