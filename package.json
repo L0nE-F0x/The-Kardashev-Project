@@ -1,0 +1,29 @@
+{
+  "name": "kardashev-project",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A cozy-but-real pixel-art management sim about the AI boom: guide Earth up the Kardashev scale.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "gen:map": "node tools/gen-worldmap.mjs"
+  },
+  "dependencies": {
+    "pixi.js": "^8.22.0",
+    "preact": "^10.29.8"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^24.19.2",
+    "topojson-client": "^3.1.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0",
+    "world-atlas": "^2.0.2"
+  }
+}
