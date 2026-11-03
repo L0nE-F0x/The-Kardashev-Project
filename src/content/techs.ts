@@ -34,7 +34,14 @@ export type TechKey =
   | 'rivalReact'
   | 'rivalBoost'
   | 'openPressure'
-  | 'smuggleRisk';
+  | 'smuggleRisk'
+  // ── Act III ──
+  | 'energyYield'
+  | 'charterCost'
+  | 'charterSpeed'
+  | 'accessGain'
+  | 'alignGain'
+  | 'legitGain';
 
 export interface TechDef {
   id: string;
@@ -49,6 +56,8 @@ export interface TechDef {
   act?: number;
   /** Act II phase it becomes available in. */
   phase?: number;
+  /** Act III: the Charter phase it becomes available in. */
+  cphase?: number;
 }
 
 export const TECH_CATEGORIES: Record<TechCategory, { name: string; icon: string }> = {

@@ -9,9 +9,12 @@ import { clamp, fmtMoney, news, pick, rand } from '../sim/core';
 import { crisisCost, currentCapability, frontier, openBest } from '../sim/model';
 import { DIFFICULTIES } from './difficulty';
 import { ACT2_EVENTS } from './events2';
+import { ACT3_EVENTS } from './events3';
 
 export type Mood = 'neutral' | 'happy' | 'worried' | 'angry' | 'excited';
 export type Ctx = Record<string, string | number>;
+/** Who speaks on a card: an advisor, a partner's CEO (`ceo:halcyon`) or a faction delegate (`ceo:atlantic`). */
+export type Speaker = AdvisorId | `ceo:${string}`;
 
 export interface EventChoice {
   label: string;
@@ -27,7 +30,7 @@ export interface EventDef {
   icon: string;
   title: (s: GameState, ctx: Ctx) => string;
   body: (s: GameState, ctx: Ctx) => string;
-  advisors: (s: GameState, ctx: Ctx) => { id: AdvisorId; text: string; mood?: Mood }[];
+  advisors: (s: GameState, ctx: Ctx) => { id: Speaker; text: string; mood?: Mood }[];
   choices: (s: GameState, ctx: Ctx) => EventChoice[];
   /** Random-pool weight; omit for scripted-only events. */
   weight?: (s: GameState) => number;
@@ -42,6 +45,8 @@ export interface EventDef {
   phase?: number;
   /** Only rolls in this act. */
   actOnly?: number;
+  /** Act III: the Charter phase needed. */
+  cphase?: number;
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -763,7 +768,7 @@ function severity(s: GameState): number {
   return s.research.done.includes('evals') ? 0.6 : 1;
 }
 
-EVENTS.push(...ACT2_EVENTS);
+EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS);
 
 export const EVENT_BY_ID: Record<string, EventDef> = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
 export type { RegionDef };

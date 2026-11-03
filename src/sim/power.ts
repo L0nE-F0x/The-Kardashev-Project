@@ -160,7 +160,7 @@ export function solvePower(s: GameState): PowerResult {
       if (soldMW > 0) res.sales += soldMW * gShare * 24 * gridPrice(s, id) * 0.45;
       res.gridCost += siteGrid * 24 * gridPrice(s, id);
       res.fuelCost += siteGas * 24 * fuelPrice;
-      const co2 = siteGas * 24 * gasCo2 + siteGrid * 24 * REGIONS[site.region].gridCarbon;
+      const co2 = siteGas * 24 * gasCo2 + siteGrid * 24 * REGIONS[site.region].gridCarbon * modMult(s, 'grid:carbon');
       res.co2 += co2;
       res.co2ByRegion[site.region] = (res.co2ByRegion[site.region] ?? 0) + co2;
       const localGen = p.solar + p.wind + p.gasCap + p.firm;

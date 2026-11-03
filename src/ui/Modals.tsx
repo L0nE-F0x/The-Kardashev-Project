@@ -1,4 +1,4 @@
-import { Icon, Portrait, useGame } from './components';
+import { Icon, Portrait, SpeakerPortrait, speakerName, useGame } from './components';
 import { EVENT_BY_ID } from '../content/events';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, tierOf } from '../sim/model';
@@ -29,9 +29,9 @@ export function EventModal() {
           <div class="story">{def.body(s, ctx)}</div>
           {def.advisors(s, ctx).map((a, i) => (
             <div class="quote" key={i}>
-              <Portrait id={a.id} mood={a.mood} size={56} />
+              <SpeakerPortrait id={a.id} mood={a.mood} size={56} />
               <div class="bubble">
-                <b>{a.id === 'bit' ? 'Bit' : { juno: 'Juno · Engineering', penny: 'Penny · Finance', mira: 'Mira · Supply chain', sol: 'Sol · Diplomacy', iris: 'Iris · Safety', kip: 'Kip · Space' }[a.id]}</b>
+                <b>{speakerName(a.id)}</b>
                 {a.text}
               </div>
             </div>

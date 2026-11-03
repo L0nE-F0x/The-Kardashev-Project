@@ -4,7 +4,10 @@ import type { Game } from '../game/game';
 import type { AdvisorId } from '../sim/types';
 import type { Mood } from '../content/events';
 import { iconUrl, type IconName } from './icons';
-import { portraitUrl } from '../render/sprites/portraits';
+import { ceoPortraitUrl, portraitUrl } from '../render/sprites/portraits';
+import type { Speaker } from '../content/events';
+import { DELEGATES, PARTNERS } from '../content/charter';
+import { CEOS } from '../content/companies';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
 
@@ -22,8 +25,28 @@ export function Icon({ name, size, title }: { name: IconName; size?: 'sm' | 'lg'
 
 export function Portrait({ id, mood, size, bitGen }: { id: AdvisorId; mood?: Mood; size?: number; bitGen?: number }) {
   const game = useContext(GameCtx);
-  const gen = bitGen ?? (game?.state ? Math.min(5, game.state.models.length) : 0);
+  const gen = bitGen ?? (game?.state ? Math.min(7, game.state.models.length) : 0);
   return <img class="portrait" src={portraitUrl(id, mood ?? 'neutral', gen)} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={id} draggable={false} />;
+}
+
+const ADVISOR_TITLES: Record<string, string> = { juno: 'Juno · Engineering', penny: 'Penny · Finance', mira: 'Mira · Supply chain', sol: 'Sol · Diplomacy', iris: 'Iris · Safety', kip: 'Kip · Space', bit: 'Bit' };
+
+/** The name line for an event-card speaker (advisor, partner CEO or faction delegate). */
+export function speakerName(id: Speaker): string {
+  if (!id.startsWith('ceo:')) return ADVISOR_TITLES[id] ?? id;
+  const key = id.slice(4);
+  const p = PARTNERS[key];
+  if (p) return `${p.ceo.name} · ${p.short}`;
+  const d = DELEGATES[key as keyof typeof DELEGATES];
+  if (d) return `${d.name} · ${d.title}`;
+  const c = CEOS[key];
+  return c ? `${c.name} · ${c.company}` : key;
+}
+
+/** Portrait for any speaker: advisors and Bit, or a CEO / delegate (`ceo:<id>`). */
+export function SpeakerPortrait({ id, mood, size }: { id: Speaker; mood?: Mood; size?: number }) {
+  if (!id.startsWith('ceo:')) return <Portrait id={id as AdvisorId} mood={mood} size={size} />;
+  return <img class="portrait" src={ceoPortraitUrl(id.slice(4), mood ?? 'neutral')} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={id.slice(4)} draggable={false} />;
 }
 
 export function Bar({ value, kind, tall, tip }: { value: number; kind?: 'gold' | 'violet' | 'warn'; tall?: boolean; tip?: string }) {

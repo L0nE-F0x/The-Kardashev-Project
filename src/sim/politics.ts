@@ -57,6 +57,7 @@ export function orderBlockedBy(s: GameState, supplier: SupplierId, dest: RegionI
 /** Whether Veldt's EUV tools can't reach a fab in this region right now. */
 export function euvBlocked(s: GameState, region: RegionId): boolean {
   if ((s.act ?? 1) < 2) return false;
+  if (s.flags.euvCommons) return false;
   return ruleActive(s, 'euv-licensing') && RULE_BY_ID['euv-licensing'].to.includes(region) && !licensed(s, 'euv-licensing', region);
 }
 

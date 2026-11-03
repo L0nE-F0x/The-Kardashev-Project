@@ -58,6 +58,7 @@ export function tickEvents(s: GameState): void {
       if ((def.act ?? 1) > (s.act ?? 1)) continue;
       if (def.phase && ((s.act ?? 1) < 2 || s.phase < def.phase)) continue;
       if (def.actOnly && def.actOnly !== (s.act ?? 1)) continue;
+      if (def.cphase && ((s.act ?? 1) < 3 || (s.charter?.phase ?? 0) < def.cphase)) continue;
       const last = s.events.last[def.id];
       if (last !== undefined && (def.once || s.day - last < (def.cooldown ?? 365))) continue;
       const w = def.weight(s);

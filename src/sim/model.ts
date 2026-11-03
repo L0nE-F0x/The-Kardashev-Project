@@ -204,7 +204,7 @@ export function gridHeadroomLeft(s: GameState, siteId: string): number {
 
 export function gridPrice(s: GameState, siteId: string): number {
   const site = siteDef(siteId);
-  return REGIONS[site.region].gridPrice * site.priceMult * modMult(s, `region:${site.region}:price`);
+  return REGIONS[site.region].gridPrice * site.priceMult * modMult(s, `region:${site.region}:price`) * modMult(s, 'grid:price');
 }
 
 export function linkCost(km: number, s?: GameState): number {
@@ -308,14 +308,14 @@ export function supplierPools(s: GameState, supplier: SupplierId): { logic: numb
     logic = base * competition + dealUnits(s, 'reserve', supplier) + dealUnits(s, 'cofund', supplier);
   }
   // ── HBM: shortages hit everyone, deals shield part of the volume ──
-  const shortage = Math.max(0, 1 - s.market.hbm);
+  const shortage = Math.max(0, 1 - s.market.hbm * modMult(s, 'market:hbm'));
   const hbmFactor = 1 - Math.min(0.9, def.hbmExposure * techMult(s, 'hbmExposure') * shortage * 1.6);
   const hbmCovered = act2 ? Math.min(logic, dealUnits(s, 'hbm')) : 0;
   const hbm = hbmCovered + (logic - hbmCovered) * hbmFactor;
   // ── packaging (Act II): Bondline's lines are shared; your plant and slots are not ──
   let pkg = logic;
   if (act2) {
-    const pShort = Math.max(0, 1 - (s.market.pkg ?? 1));
+    const pShort = Math.max(0, 1 - (s.market.pkg ?? 1) * modMult(s, 'market:pkg'));
     const pFactor = 1 - Math.min(0.85, pShort * POOL_TUNING.pkgSlope * (2 - techMult(s, 'pkgEff')));
     const own = ownPackaging(s) + dealUnits(s, 'packaging');
     const share = supplierShare(s, supplier);

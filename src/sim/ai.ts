@@ -193,6 +193,12 @@ export function tickRivals(s: GameState): void {
       const theirMW = (s.rivalBuilds ?? []).filter((b) => b.owner === r.id && b.status === 'online').reduce((a, b) => a + b.itMW, 0);
       step *= 0.32 * (1 + Math.min(0.5, theirMW / 2500)) * techMult(s, 'rivalBoost') * modMult(s, `rival:${r.id}:pace`);
     }
+    if ((s.act ?? 1) >= 3 && s.charter) {
+      const passed = s.charter.council.passed;
+      if (passed.includes('compute-cap')) step *= 0.75;
+      if (r.open && passed.includes('open-weights')) step *= 1.3;
+      if (r.open && passed.includes('closed-frontier')) step *= 0.6;
+    }
     r.capability += step;
     r.modelGen += 1;
     r.nextRelease = s.day + Math.round(interval);

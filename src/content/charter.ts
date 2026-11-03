@@ -7,6 +7,7 @@ import type { AdvisorId, ContractKind, FactionId, GameState } from '../sim/types
 import type { RegionId } from './mapcodes';
 import type { IconName } from '../ui/icons';
 import type { ColorKey } from '../render/palette';
+import type { TechKey } from './techs';
 import { SITE_BY_ID } from './sites';
 import { REGIONS } from './regions';
 
@@ -240,115 +241,115 @@ export const CONTRACT_KINDS: Record<ContractKind, ContractKindDef> = {
   solar: k({
     kind: 'solar', name: 'Solar & storage park', icon: 'solar', cat: 'energy', where: 'mega', cphase: 1,
     blurb: 'Panels to the horizon with enough batteries behind them to run through the night.',
-    sizes: [25, 75, 200], unit: 'GW', value: 2.0e9, yearly: 0.94, share: 0.2, days: [720, 900, 1100],
+    sizes: [25, 75, 200], unit: 'GW', value: 2.0e9, yearly: 0.94, share: 0.2, days: [540, 720, 900],
     bidders: ['halcyon', 'saltflat', 'brightwater', 'you'], effect: 'Adds clean power to the world (K ↑) and retires fossil plants in its bloc.',
   }),
   wind: k({
     kind: 'wind', name: 'Wind field', icon: 'wind', cat: 'energy', where: 'mega', cphase: 1,
     blurb: 'Hundreds of 20 MW turbines, onshore or out at sea.',
-    sizes: [20, 60, 150], unit: 'GW', value: 2.6e9, yearly: 0.96, share: 0.2, days: [800, 1000, 1250],
+    sizes: [20, 60, 150], unit: 'GW', value: 2.6e9, yearly: 0.96, share: 0.2, days: [600, 780, 960],
     bidders: ['halcyon', 'tidewater', 'brightwater', 'you'], effect: 'Adds clean power that blows day and night (K ↑).',
   }),
   nuclear: k({
     kind: 'nuclear', name: 'Reactor fleet', icon: 'reactor', cat: 'energy', where: 'mega', cphase: 1,
     blurb: 'One certified design, built again and again until the crews could do it blindfold.',
-    sizes: [8, 24, 60], unit: 'GW', value: 7e9, yearly: 0.97, share: 0.25, days: [1800, 2200, 2600],
+    sizes: [8, 24, 60], unit: 'GW', value: 7e9, yearly: 0.97, share: 0.25, days: [1500, 1800, 2200],
     bidders: ['littlesun', 'halcyon'], effect: 'Firm clean power for sixty years. Holds the grid in a heatwave.',
   }),
   hydro: k({
     kind: 'hydro', name: 'Pumped hydro & storage', icon: 'hydro', cat: 'energy', where: 'mega', cphase: 1,
     blurb: 'Two reservoirs and a mountain between them: a battery the size of a lake.',
-    sizes: [10, 30, 80], unit: 'GW', value: 3.5e9, yearly: 0.99, share: 0.2, days: [1100, 1400, 1700],
+    sizes: [10, 30, 80], unit: 'GW', value: 3.5e9, yearly: 0.99, share: 0.2, days: [900, 1100, 1350],
     bidders: ['brightwater', 'halcyon'], effect: 'Firm clean power and storage that steadies every grid it touches.',
   }),
   geo: k({
     kind: 'geo', name: 'Enhanced geothermal field', icon: 'geothermal', cat: 'energy', where: 'mega', cphase: 1,
     blurb: 'Drill two miles down, fracture hot rock, circulate water, make steam. Repeat a thousand times.',
-    sizes: [6, 18, 45], unit: 'GW', value: 4e9, yearly: 0.95, share: 0.2, days: [900, 1150, 1400],
+    sizes: [6, 18, 45], unit: 'GW', value: 4e9, yearly: 0.95, share: 0.2, days: [720, 900, 1100],
     bidders: ['halcyon', 'deepvein', 'brightwater'], effect: 'Firm clean power around the clock.',
   }),
   // ── grid ──
   hvdc: k({
     kind: 'hvdc', name: 'Intercontinental HVDC link', icon: 'hvdc', cat: 'grid', where: 'route', cphase: 2,
     blurb: 'A high-voltage direct-current line between continents, with converter stations at each end.',
-    sizes: [20, 50, 100], unit: 'GW', value: 1.2e6, yearly: 0.98, share: 0.3, days: [1000, 1250, 1500],
+    sizes: [20, 50, 100], unit: 'GW', value: 1.2e6, yearly: 0.98, share: 0.3, days: [800, 1000, 1200],
     bidders: ['spanwire', 'halcyon', 'tidewater'], effect: 'Megaprojects behind it deliver more; cheaper, cleaner power at both ends; access ↑.',
   }),
   // ── chips (The Chip Commons) ──
   fab: k({
     kind: 'fab', name: 'Logic fab line', icon: 'fab', cat: 'chips', where: 'region', cphase: 2,
     blurb: 'A leading-edge logic fab, co-funded so its output is shared fairly between members.',
-    sizes: [1, 2, 4], unit: 'fabs', value: 25e9, yearly: 1.0, share: 0.3, days: [1200, 1350, 1500],
+    sizes: [1, 2, 4], unit: 'fabs', value: 25e9, yearly: 1.0, share: 0.3, days: [1000, 1100, 1250],
     bidders: ['lumen', 'kestrel'], effect: 'Everyone’s wafer supply grows (yours too); access ↑ in the host bloc.',
   }),
   hbm: k({
     kind: 'hbm', name: 'HBM line', icon: 'orders', cat: 'chips', where: 'region', cphase: 2,
     blurb: 'A high-bandwidth memory fab: the stacks every accelerator needs eight of.',
-    sizes: [1, 2, 4], unit: 'lines', value: 12e9, yearly: 1.0, share: 0.3, days: [800, 950, 1100],
+    sizes: [1, 2, 4], unit: 'lines', value: 12e9, yearly: 1.0, share: 0.3, days: [700, 800, 900],
     bidders: ['stackwell', 'hanbit'], effect: 'Memory shortages ease for good.',
   }),
   pkg: k({
     kind: 'pkg', name: 'Packaging line', icon: 'packaging', cat: 'chips', where: 'region', cphase: 2,
     blurb: 'Advanced packaging lines that bond logic to memory.',
-    sizes: [1, 2, 4], unit: 'lines', value: 5e9, yearly: 1.0, share: 0.3, days: [550, 650, 800],
+    sizes: [1, 2, 4], unit: 'lines', value: 5e9, yearly: 1.0, share: 0.3, days: [450, 550, 650],
     bidders: ['bondline', 'you'], effect: 'The packaging bottleneck loosens for everyone.',
   }),
   euv: k({
     kind: 'euv', name: 'EUV tool line', icon: 'research', cat: 'chips', where: 'region', cphase: 2,
     blurb: 'A second Veldt assembly hall for EUV machines — the tools every leading-edge fab needs.',
-    sizes: [1, 2, 3], unit: 'halls', value: 10e9, yearly: 1.0, share: 0.3, days: [800, 950, 1100],
+    sizes: [1, 2, 3], unit: 'halls', value: 10e9, yearly: 1.0, share: 0.3, days: [700, 800, 900],
     bidders: ['veldt'], effect: 'Fab lines build 20% faster; EUV export licences matter less.',
   }),
   // ── access (Compute for Everyone) ──
   compute: k({
     kind: 'compute', name: 'Public compute campus', icon: 'datacenter', cat: 'access', where: 'region', cphase: 1,
     blurb: 'A Charter-owned campus whose capacity is shared by the bloc’s universities, startups and public services.',
-    sizes: [200, 500, 1000], unit: 'MW', value: 12e6, yearly: 0.97, share: 0.6, days: [600, 780, 950],
+    sizes: [200, 500, 1000], unit: 'MW', value: 12e6, yearly: 0.97, share: 0.6, days: [450, 600, 750],
     bidders: ['cumulus', 'stratum', 'meridian', 'lattice', 'orchard', 'you'], effect: 'Compute access ↑ in the bloc (+8 / +15 / +25).',
   }),
   cable: k({
     kind: 'cable', name: 'Open subsea cable', icon: 'cable', cat: 'access', where: 'region', cphase: 1,
     blurb: 'A new open-access cable system into an underserved coast.',
-    sizes: [1, 2, 3], unit: 'cables', value: 1.5e9, yearly: 0.99, share: 0.6, days: [600, 700, 800],
+    sizes: [1, 2, 3], unit: 'cables', value: 1.5e9, yearly: 0.99, share: 0.6, days: [450, 550, 650],
     bidders: ['tidewater', 'cumulus', 'you'], effect: 'Compute access ↑ in the bloc (+5 / +9 / +12).',
   }),
   // ── safety (A Safe Frontier) ──
   evals: k({
     kind: 'evals', name: 'Frontier evals programme', icon: 'evals', cat: 'safety', where: 'global', cphase: 1,
     blurb: 'Independent red teams that test every frontier model before release, for every lab.',
-    sizes: [1, 2, 3], unit: 'scale', value: 4e9, yearly: 1.03, share: 1, days: [365, 540, 720],
-    bidders: ['lattice', 'meridian', 'orchard', 'you'], effect: 'World alignment ↑ (+0.12 / +0.25 / +0.4).',
+    sizes: [1, 2, 3], unit: 'scale', value: 4e9, yearly: 1.03, share: 1, days: [300, 450, 600],
+    bidders: ['lattice', 'meridian', 'orchard', 'you'], effect: 'World alignment ↑ (+0.08 / +0.15 / +0.25; less for each repeat).',
   }),
   interp: k({
     kind: 'interp', name: 'Interpretability consortium', icon: 'brain', cat: 'safety', where: 'global', cphase: 2,
     blurb: 'Every lab’s best people, reading the minds of every lab’s models.',
-    sizes: [1, 2, 3], unit: 'scale', value: 5e9, yearly: 1.03, share: 1, days: [540, 720, 900],
-    bidders: ['lattice', 'orchard', 'meridian', 'you'], effect: 'World alignment ↑ (+0.1 / +0.2 / +0.35) and keeps growing.',
+    sizes: [1, 2, 3], unit: 'scale', value: 5e9, yearly: 1.03, share: 1, days: [420, 560, 700],
+    bidders: ['lattice', 'orchard', 'meridian', 'you'], effect: 'World alignment ↑ (+0.06 / +0.12 / +0.2) and it keeps growing faster.',
   }),
   // ── space (Kip) ──
   launch: k({
     kind: 'launch', name: 'Launch complex', icon: 'launch', cat: 'space', where: 'launch', cphase: 2, fixed: true,
     blurb: 'Pads, a tower, an assembly hall and a tank farm: the Charter’s own door to orbit.',
-    sizes: [1, 1, 1], unit: '', value: 8e9, yearly: 0.97, share: 0.5, days: [900, 900, 900],
+    sizes: [1, 1, 1], unit: '', value: 8e9, yearly: 0.97, share: 0.5, days: [720, 720, 720],
     bidders: ['parabola', 'karman'], effect: 'Opens the orbital compute test and the space-solar demo.',
   }),
   orbital: k({
     kind: 'orbital', name: 'Orbital compute test', icon: 'satellite', cat: 'space', where: 'global', cphase: 2, fixed: true,
     blurb: 'A small satellite of radiation-hardened accelerators with its own solar wings and radiators.',
-    sizes: [1, 1, 1], unit: '', value: 3e9, yearly: 0.95, share: 0.6, days: [540, 540, 540],
+    sizes: [1, 1, 1], unit: '', value: 3e9, yearly: 0.95, share: 0.6, days: [450, 450, 450],
     bidders: ['parabola', 'karman', 'you'], effect: 'Proves compute can run in orbit — Act IV’s first step.',
   }),
   spacesolar: k({
     kind: 'spacesolar', name: 'Space-solar demonstrator', icon: 'satellite', cat: 'space', where: 'global', cphase: 2, fixed: true,
     blurb: 'A sun-facing array in orbit that beams a few megawatts down to a ground station by microwave.',
-    sizes: [1, 1, 1], unit: '', value: 5e9, yearly: 0.95, share: 0.6, days: [720, 720, 720],
+    sizes: [1, 1, 1], unit: '', value: 5e9, yearly: 0.95, share: 0.6, days: [600, 600, 600],
     bidders: ['parabola', 'karman', 'halcyon'], effect: 'Power beamed from orbit, for the first time.',
   }),
   // ── fusion ──
   fusion: k({
     kind: 'fusion', name: 'Fusion pilot plant grant', icon: 'fusion', cat: 'fusion', where: 'global', cphase: 2, fixed: true,
     blurb: 'Fund Sunforge’s pilot plant to net electricity.',
-    sizes: [1, 1, 1], unit: '', value: 10e9, yearly: 1.0, share: 1, days: [1460, 1460, 1460],
+    sizes: [1, 1, 1], unit: '', value: 10e9, yearly: 1.0, share: 1, days: [1200, 1200, 1200],
     bidders: ['sunforge'], effect: 'A chance at ignition before the act is out.',
   }),
 };
@@ -552,6 +553,12 @@ export const MISSIONS: MissionDef[] = [
   },
 ];
 export const MISSION_BY_ID: Record<string, MissionDef> = Object.fromEntries(MISSIONS.map((m) => [m.id, m]));
+
+/** Multiplicative mission rewards (read through techMult). */
+export const MISSION_MODS: Record<string, Partial<Record<TechKey, number>>> = {
+  'compute-everyone': { demand: 1.25 },
+  'safe-frontier': { incidentSeverity: 0.5 },
+};
 
 function siteIds(s: GameState): string[] {
   return [...new Set((s.charter?.projects ?? []).filter((x) => CONTRACT_KINDS[x.kind].where === 'mega').map((x) => x.where))];

@@ -2,6 +2,8 @@ import { TECH_BY_ID, type TechKey } from '../content/techs';
 import { FOUNDERS } from '../content/difficulty';
 import { TREATY_BY_ID } from '../content/politics';
 import { STARTUP_BY_ID } from '../content/rivals';
+import { RESOLUTION_BY_ID } from '../content/council';
+import { MISSION_MODS } from '../content/charter';
 import type { GameState, Modifier } from './types';
 import { nextId } from './core';
 
@@ -19,6 +21,16 @@ export function techMult(s: GameState, key: TechKey): number {
   for (const id of s.startups?.bought ?? []) {
     const v = STARTUP_BY_ID[id]?.mods?.[key];
     if (v !== undefined) m *= v;
+  }
+  if (s.charter) {
+    for (const id of s.charter.council.passed) {
+      const v = RESOLUTION_BY_ID[id]?.mods?.[key];
+      if (v !== undefined) m *= v;
+    }
+    for (const id of Object.keys(s.charter.missions)) {
+      const v = MISSION_MODS[id]?.[key];
+      if (v !== undefined) m *= v;
+    }
   }
   return m;
 }

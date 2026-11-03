@@ -43,6 +43,7 @@ import {
 import { ownFabSites, planShipment, supplierOrigin, type SimContext } from './supply';
 import { addRelation, licencePending, orderBlockedBy } from './politics';
 import { creditLeft, loanRate, monthlyPayment } from './capital';
+import { ownRunStatus } from './frontier';
 
 export type Result = { ok: true } | { ok: false; reason: string };
 
@@ -52,6 +53,7 @@ export function techAvailable(s: GameState, techId: string): boolean {
   if (!t) return false;
   if ((t.act ?? 1) > (s.act ?? 1)) return false;
   if (t.phase && (s.act ?? 1) === 2 && s.phase < t.phase) return false;
+  if (t.cphase && (s.act ?? 1) >= 3 && (s.charter?.phase ?? 0) < t.cphase) return false;
   return true;
 }
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -91,6 +93,7 @@ export function siteRestriction(s: GameState, siteId: string, type: FacilityType
   if ((type === 'smr' || type === 'reactor') && s.regions[site.region].license < 55) return 'Needs local trust ≥ 55';
   if ((type === 'smr' || type === 'reactor') && s.blocs[site.region].stance === 'cautious' && s.blocs[site.region].relation < 60) return 'This government won’t approve new reactors (relations < 60)';
   if (type === 'gas' && s.politics.treaties.includes('grid-compact')) return 'The Clean Grid Compact rules out new gas';
+  if (type === 'gas' && s.charter?.council.passed.includes('fossil-freeze')) return 'The Council has frozen new fossil power';
   return null;
 }
 
@@ -227,6 +230,9 @@ export function setAlloc(s: GameState, key: AllocKey, value: number): void {
 export function startTraining(s: GameState): Result {
   if (s.training) return fail('A training run is already in progress');
   const plan = nextModelPlan(s);
+  const lic = ownRunStatus(s, plan.gen, plan.flop);
+  if (lic === 'needed') return fail(`${plan.name} is above the Charter’s compute cap — request a licence (Charter → Frontier)`);
+  if (lic === 'pending') return fail(`${plan.name}’s licence is still with the Charter’s evaluators`);
   s.training = { name: plan.name, gen: plan.gen, target: plan.flop, done: 0, startDay: s.day };
   news(s, `🧠 Training run started: ${plan.name}.`);
   return OK;

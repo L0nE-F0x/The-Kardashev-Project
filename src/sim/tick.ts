@@ -7,6 +7,14 @@ import { tickRivalBuilds } from './rivals';
 import { tickJobs } from './jobs';
 import { tickFinale } from './finale';
 import { tickAct } from './act2';
+import { tickAct3 } from './act3';
+import { tickCharter } from './charter';
+import { tickWorld } from './world';
+import { tickCouncil } from './council';
+import { tickRegime } from './frontier';
+import { tickTrustee } from './trustee';
+import { tickDesk } from './desk';
+import { tickThreshold } from './threshold';
 import { leaseCost } from './actions';
 import { spend } from './economy';
 import { ADVISORS } from '../content/advisors';
@@ -51,6 +59,13 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickPolitics(s);
     tickRivalBuilds(s);
   }
+  const act3 = (s.act ?? 1) >= 3 && !!s.charter;
+  if (act3) {
+    tickCharter(s, compute.revenueDay);
+    tickWorld(s);
+    tickCouncil(s);
+    tickRegime(s);
+  }
   tickLicense(s, power);
   tickRivals(s);
   s.carbon.cumMt += power.co2 / 1e6;
@@ -59,8 +74,14 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickJobs(s, ctx);
     tickFinale(s);
   }
+  if (act3) {
+    tickTrustee(s);
+    tickDesk(s);
+    tickThreshold(s);
+  }
   tickObjectives(s);
   tickAct(s);
+  tickAct3(s);
   tickEvents(s);
   expireModifiers(s);
 }
@@ -93,7 +114,8 @@ function updateStats(s: GameState, power: PowerResult, compute: ComputeResult, c
   st.frontier = frontier(s);
   st.alignment = alignmentOf(s);
   st.margin = st.alignment - c;
-  st.worldTW = worldBaselineTW(s.day) + power.genMW / 1e6;
+  // Act III: the world's energy is a living system (Acts I–II keep the closed form)
+  st.worldTW = (s.charter ? s.charter.world.tw + s.charter.world.charterTW : worldBaselineTW(s.day)) + power.genMW / 1e6;
   st.K = kardashev(st.worldTW * 1e12);
   st.inferQuality = inferQuality(s, c);
   st.inferDemand = inferDemand(s, c) * RENTAL.perf;

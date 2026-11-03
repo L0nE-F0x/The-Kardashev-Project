@@ -1,6 +1,10 @@
 import type { AdvisorId, GameState } from '../sim/types';
 import { currentCapability, facilityMW } from '../sim/model';
 import { FACILITIES, FIRM, GENERATORS } from './facilities';
+import { megaStage } from './charter';
+import { MEGA_SITES } from './sites';
+
+const MEGA_IDS = MEGA_SITES.map((m) => m.id);
 
 export interface ObjectiveDef {
   id: string;
@@ -15,7 +19,7 @@ export interface ObjectiveDef {
   goal?: boolean;
   /** Act this objective belongs to (default 1). */
   act?: number;
-  /** Act II phase it appears in. */
+  /** Act II phase it appears in (Act III: the Charter's phase). */
   phase?: number;
 }
 
@@ -72,6 +76,41 @@ OBJECTIVES.push(
   a2({ id: 'a2-ipo', phase: 4, title: 'Ring the bell: IPO', hint: 'Penny has the bankers on speed dial.', advisor: 'penny', goal: true, after: ['a2-crunch'], done: (s) => !!s.flags.act2Complete }),
 );
 
+// ════════════════════════════════════ ACT III ════════════════════════════════════════════
+const a3 = (o: Omit<ObjectiveDef, 'act'>): ObjectiveDef => ({ ...o, act: 3 });
+const ch = (s: GameState) => s.charter;
+const chDone = (s: GameState, kind: string) => (ch(s)?.projects ?? []).some((p) => p.kind === kind && p.status === 'done');
+const chAny = (s: GameState, kinds: string[]) => (ch(s)?.projects ?? []).some((p) => kinds.includes(p.kind) && p.status !== 'cancelled');
+
+OBJECTIVES.push(
+  // ── Phase 1 · The Founding ──
+  a3({ id: 'a3-tender', phase: 1, title: 'Post your first Charter contract', hint: 'Open the Charter (H) → Contracts. Pick what to build, where, and how big; partners bid within three weeks.', advisor: 'mira', done: (s) => (ch(s)?.projects.length ?? 0) > 0 || (ch(s)?.tenders.length ?? 0) > 0 }),
+  a3({ id: 'a3-award', phase: 1, title: 'Award a contract', hint: 'When the bids are in, pick one. Cheap, fast or reliable — and think twice before picking your own company.', advisor: 'mira', after: ['a3-tender'], done: (s) => (ch(s)?.projects.length ?? 0) > 0 }),
+  a3({ id: 'a3-resolution', phase: 1, title: 'Pass a resolution in the Council', hint: 'Open the Council (U). Table a resolution with political capital, check the forecast, lean on the waverers.', advisor: 'sol', done: (s) => !!ch(s)?.council.history.some((h) => h.passed) }),
+  a3({ id: 'a3-trust', phase: 1, title: 'Decide what to do about your company', hint: 'Keep running it yourself, or put it in a blind trust (Charter → Overview).', advisor: 'penny', done: (s) => !!s.flags.trustDecided || !!ch(s)?.blindTrust }),
+  a3({ id: 'a3-desk', phase: 1, title: 'Give an advisor a Charter desk job', hint: 'Team (T) → Charter desk. Mira can award tenders for you; Sol can whip votes.', advisor: 'bit', done: (s) => Object.values(ch(s)?.desk ?? {}).some((j) => j?.on) }),
+  // ── Phase 2 · The Build-Out ──
+  a3({ id: 'a3-mega1', phase: 2, title: 'Bring a megaproject to stage 1', hint: '20 GW of average output at one megaproject site.', advisor: 'juno', done: (s) => MEGA_IDS.some((id) => megaStage(s, id) >= 1) }),
+  a3({ id: 'a3-hvdc', phase: 2, title: 'Start an intercontinental HVDC link', hint: 'Contracts → HVDC link. Megaprojects behind a link deliver more.', advisor: 'juno', done: (s) => chAny(s, ['hvdc']) }),
+  a3({ id: 'a3-commons', phase: 2, title: 'Fund a Chip Commons line', hint: 'A fab, HBM or packaging line in a bloc that needs one.', advisor: 'mira', done: (s) => chAny(s, ['fab', 'hbm', 'pkg']) }),
+  a3({ id: 'a3-launch', phase: 2, title: 'Give Kip a launch complex', hint: 'Contracts → Launch complex, at one of five candidate sites.', advisor: 'kip', done: (s) => chAny(s, ['launch']) }),
+  a3({ id: 'a3-access', phase: 2, title: 'Lift a developing bloc’s access to 40', hint: 'Public compute campuses and open cables raise compute access.', advisor: 'sol', done: (s) => (['lat', 'ssa', 'sas', 'seo'] as const).some((r) => (ch(s)?.access[r] ?? 0) >= 40) }),
+  // ── Phase 3 · The Frontier (the Charter Mandate) ──
+  a3({ id: 'a3-k075', phase: 3, title: 'Reach Kardashev 0.75', hint: '31.6 TW. Charter energy adds directly, and every project speeds the world’s own growth.', advisor: 'bit', goal: true, done: (s) => s.stats.K >= 0.75 }),
+  a3({ id: 'a3-clean', phase: 3, title: 'Complete Clean Power for All', hint: '600 GW of Charter clean power and three megaprojects at stage 2.', advisor: 'juno', goal: true, done: (s) => !!ch(s)?.missions['clean-power'] }),
+  a3({ id: 'a3-chips', phase: 3, title: 'Complete The Chip Commons', hint: 'Three fabs, two HBM lines and two packaging lines across three blocs.', advisor: 'mira', goal: true, done: (s) => !!ch(s)?.missions['chip-commons'] }),
+  a3({ id: 'a3-access40', phase: 3, title: 'Every bloc’s compute access ≥ 40', hint: 'Find the bloc furthest behind and build there.', advisor: 'sol', goal: true, done: (s) => Object.values(ch(s)?.access ?? { x: 0 }).every((v) => v >= 40) }),
+  a3({ id: 'a3-regime', phase: 3, title: 'A working safety regime', hint: 'Run licensing in force, an evals programme completed and a positive world safety margin.', advisor: 'iris', goal: true, done: (s) => !!ch(s)?.council.passed.includes('run-licensing') && chDone(s, 'evals') && (ch(s)!.regime.alignment - Math.max(s.stats.capability, ...s.market.rivals.map((r) => r.capability))) >= 0 }),
+  a3({ id: 'a3-legit', phase: 3, title: 'Legitimacy ≥ 50', hint: 'Deliver projects, spread them fairly, keep your hands off your own company’s bids.', advisor: 'penny', goal: true, done: (s) => (ch(s)?.legitimacy ?? 0) >= 50 }),
+  a3({ id: 'a3-orbital', phase: 3, title: 'Kip’s orbital compute test', hint: 'A launch complex first, then the test satellite.', advisor: 'kip', goal: true, done: (s) => !!s.flags.orbitalTest }),
+  // ── Phase 4–5 ──
+  a3({ id: 'a3-threshold', phase: 4, title: 'Come through The Threshold', hint: 'Hold the grid, the frontier and the Council for 120 days.', advisor: 'sol', goal: true, done: (s) => !!ch(s)?.threshold?.done }),
+  a3({ id: 'a3-renewal', phase: 5, title: 'The renewal vote', hint: 'The Council decides whether the Charter gets planetary powers.', advisor: 'sol', goal: true, after: ['a3-threshold'], done: (s) => !!ch(s)?.renewal }),
+);
+
+/** The Charter Mandate: when it is met, The Threshold begins. */
+export const MANDATE_GOALS = ['a3-k075', 'a3-clean', 'a3-chips', 'a3-access40', 'a3-regime', 'a3-legit', 'a3-orbital'];
+
 /** The IPO checklist that starts The Crunch. */
 export const IPO_GOALS = ['a2-gw-it', 'a2-gw-gen', 'a2-bit4', 'a2-rev1b', 'a2-frontier', 'a2-safe'];
 export const SERIES_B_GOALS = ['a2-it100', 'a2-bit3', 'a2-rev75'];
@@ -81,7 +120,8 @@ export const OBJECTIVE_BY_ID: Record<string, ObjectiveDef> = Object.fromEntries(
 /** Objectives that belong to the current act and phase. */
 export function actObjectives(s: GameState): ObjectiveDef[] {
   const act = s.act ?? 1;
-  return OBJECTIVES.filter((o) => (o.act ?? 1) === act && (act !== 2 || (o.phase ?? 1) <= s.phase));
+  const phase = act === 3 ? (s.charter?.phase ?? 1) : s.phase;
+  return OBJECTIVES.filter((o) => (o.act ?? 1) === act && (act === 1 || (o.phase ?? 1) <= phase));
 }
 
 export function visibleObjectives(s: GameState): ObjectiveDef[] {
