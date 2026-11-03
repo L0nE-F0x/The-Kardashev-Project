@@ -4,9 +4,9 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M2 "The Scale-Up" is built and shipped** (v0.3.0) on top of M1 "First Light" and M1.5 "The Front Door":
-Acts I and II are playable end to end. Section 17 is the Act II plan with as-built notes. **M3, Act III — The Charter,
-is planned in section 18** (being built for v0.4.0). Section 13 lists the
+Status: **M3 "The Charter" is built** (v0.4.0) on top of M2 "The Scale-Up", M1 "First Light" and M1.5 "The Front
+Door": Acts I, II and III are playable end to end. Section 17 is the Act II plan and section 18 the Act III plan, both
+with as-built notes. **Next: M4, Acts IV–V.** Section 13 lists the
 locked decisions and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
 
 ---
@@ -820,7 +820,7 @@ Everything above is in, with these numbers and adjustments from the balance bot 
 
 ---
 
-## 18. M3 "The Charter": plan (v0.4.0)
+## 18. M3 "The Charter": built (v0.4.0)
 
 Act III, about 2035–44. After the Crunch, the blocs found **The Kardashev Project** in Geneva and make you its
 **Steward**. You now wear two hats: you run the Charter (a planetary consortium with its own treasury, a Council of
@@ -1028,3 +1028,40 @@ the Act III complete screen (K, year, renewal, fronts, Legitimacy, missions, cle
 4. Events and arcs, objectives, techs.
 5. UI: panels, top bar, inspector, tracker, modals, New Company, briefings, Field Guide.
 6. Tests and the Act III bot; browser QA (desktop and phone); docs; release v0.4.0.
+
+### As built (2026-11-04)
+
+Everything above is in, with these numbers and adjustments from the guard-rail bot (`tests/act3.test.ts`: Start at
+Act III, blind trust, every Charter desk on):
+- **Pacing:** the bot meets the Mandate in autumn 2043 and finishes the act in ~8.7 years (Threshold from the Mandate,
+  not the 1 January 2044 deadline). K reaches ~0.751 with ~4.4 TW of Charter clean power and world growth near 4.5%/yr.
+- **Treasury:** founding $25B (+$10B with *Energy first*); standard dues ~$12B/month × each bloc's willingness (≈ $6–9B
+  at first), growing 5%/yr and with the *Raise the dues* resolution. The desks only award what the treasury can carry:
+  committed progress payments must stay within dues (plus a slice of the reserve), so projects don't fall into arrears.
+- **Contracts:** the Charter pays 20% of energy, 25% of nuclear, 30% of grid and chip lines, 50–60% of space and
+  access, 100% of safety and fusion; 20% on award, the rest daily. Build times: solar 540/720/900 days, wind
+  600/780/960, nuclear 1,500/1,800/2,200, HVDC 800/1,000/1,200. Partner capacity is 2 + ⌊Ambition/2⌋ projects; up to
+  eight open tenders. Monthly trouble chance 2.5% × (6 − Reliability).
+- **Megaproject stages** at 20 / 80 / 200 GW average; *Clean Power for All* needs 600 GW and three sites at stage 2.
+- **World:** baseline growth 1.6%/yr + 0.35%/yr per TW of Charter power (capped at 1.2%) + missions and links, capped
+  at 5%/yr; new energy starts 35% clean; Charter power next door retires fossil plants faster.
+- **Safety regime:** world alignment starts just under the frontier and drifts +0.08/yr (+ interpretability,
+  licensing, running programmes, Bit's desk); each repeat evals/interp programme teaches less (×0.6); your own
+  company's research can lift the field only to about even with the frontier. The compute cap is 3×10³⁰ FLOP (Bit-7
+  is the first of your runs to need a licence).
+- **Legitimacy** drifts 5%/month toward 48 + 3 × Standing; +0.6 per finished project, +0.4/month in the blind trust.
+- **Act I and II are unchanged:** the Act I bot still finishes on day 812 and the Act II bot still IPOs after 5.6 years.
+- **Balance (deferred):** the delegating bot ends with Legitimacy in the 90s, a 88–0 renewal and a Threshold that barely
+  bites; a weaker or self-dealing Steward sees much harder votes. Tune in the beta.
+
+### Hooks left for Acts IV–V
+- **The renewal** (`charter.renewal.outcome`: planetary / limited / caretaker) and **the Planetary Mandate**
+  (`charter.threshold.held`, 0–3) should set the powers you start Act IV with.
+- **Space and fusion flags:** `flags.launchSite`, `flags.orbitalTest`, `flags.spaceSolar`, `flags.liftoff`,
+  `flags.act4Space` (First Steps Off-World), `flags.fusionPilot` (Sunforge's pilot plant).
+- **The grid:** HVDC links and megaproject stages are the seed of Act IV's global grid; `charter.world` (per-bloc TW,
+  clean share, carbon budget) is ready to carry K past 0.8.
+- **Bit:** the co-pilot desk (trust-gated) is the seed of Act IV's AI-managed regions; `flags.bitAnswer`
+  (company / everyone / self) records what you told Bit it is.
+- **Reusable systems:** partners with relationships, the Council with factions and the Concord, Charter desks, the
+  safety regime and the world safety margin.

@@ -556,6 +556,10 @@ export function tickCharter(s: GameState, revenueDay: number): void {
       t.bids.push(makeBid(s, t, d.partner));
     }
     t.bids.sort((a, b) => a.price - b.price);
+    if (!t.pending.length) {
+      const low = t.bids[0];
+      news(s, t.bids.length ? `📬 Bids are in for ${CONTRACT_KINDS[t.kind].name} at ${whereName(t.where)}: ${t.bids.length}, lowest ${fmtMoney(low.price)} from ${partnerName(s, low.partner)}. Award one in Charter → Contracts.` : `📭 Nobody bid for ${CONTRACT_KINDS[t.kind].name} at ${whereName(t.where)}.`, 'event');
+    }
   }
   const expired = c.tenders.filter((t) => s.day >= t.closesDay && !t.pending.length);
   if (expired.length) {

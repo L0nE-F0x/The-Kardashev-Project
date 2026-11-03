@@ -159,6 +159,9 @@ export function newAct3Game(opts: NewGameOptions): GameState {
   s.politics.treaties = ['evals-pact'];
   for (const id of ['mira', 'juno', 'penny', 'iris', 'bit', 'sol'] as const) s.jobs[id] = { on: true, a: { mira: 1.5e9, juno: 0.2, penny: 3e9, iris: 0.1, bit: 0.4, sol: 60e6 }[id], b: id === 'juno' || id === 'mira' ? 0 : undefined };
   s.events.last = { welcome: 0, 'series-a': 799, 'act2-begin': 800, ipo: day - 30 };
+  // the Act II arcs already happened to this company
+  for (const id of ['hbm-1', 'hbm-2', 'hbm-3', 'lines-1', 'lines-2', 'lines-3', 'restart-1', 'restart-2', 'race-1', 'race-2', 'bit-3', 'bit-4', 'queue-reform', 'sovereign-wealth', 'chip-diversion', 'takeover-1', 'takeover-2'])
+    s.events.last[id] = day - 400;
   s.events.nextRoll = day + 75;
   s.news = [];
   beginAct3(s);
