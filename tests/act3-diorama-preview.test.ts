@@ -18,6 +18,7 @@ import { BLOOM_TONE, bloomOf, puffArt } from '../src/render/diorama/draw';
 import { pieceArt, pieceSize, sitePieces, type PieceSpec } from '../src/render/diorama/industry';
 import { act3Key, act3Plan } from '../src/render/diorama/act3Pieces';
 import { sceneBands } from '../src/render/diorama/scenery';
+import { BLOC_ORDER, blocBannerAt } from '../src/render/diorama/act3kit';
 import { launchFlash, rocketPose } from '../src/render/diorama/launch';
 import { CHARTER_HQ, LAUNCH_SITES, MEGA_SITES, SITES, siteDef } from '../src/content/sites';
 import { CONTRACT_KINDS, MEGA_STAGES, megaGW } from '../src/content/charter';
@@ -379,6 +380,35 @@ describe.skipIf(!dir)('act III diorama previews (Solarpunk Bloom)', () => {
     // a phone in landscape (422×195) and a tall desktop window (320×200)
     write(`a3-view-charter-phone.png`, compose(s, CHARTER_HQ, { night: false, cam: 9999, vw: 422, vh: 195 }).png(3));
     write(`a3-view-charter-tall.png`, compose(s, CHARTER_HQ, { night: true, cam: 0, vw: 320, vh: 200 }).png(3));
+    // the flag alley up close: every bloc banner, day and night
+    const council = pieceArt(act3Plan(s, siteDef(CHARTER_HQ), 320).pieces.find((p) => p.kind === 'council')!);
+    const cb = council.base[0];
+    const top = cb.h - 50;
+    for (const night of [false, true]) {
+      const zoom = new Frame(cb.w, 50);
+      const bg = new PixelCanvas(cb.w, 50);
+      bg.rect(0, 0, cb.w, 50, night ? C.night1 : C.sky4);
+      zoom.draw(bg, 0, 0);
+      zoom.draw(cb, 0, -top, night ? NIGHT_TINT : [1, 1, 1]);
+      if (night) {
+        zoom.draw(council.glow[0], 0, -top);
+        zoom.add(bloomOf(council.glow[0]), 0, -top, 0.55);
+      }
+      write(`a3-flag-alley-${night ? 'night' : 'day'}.png`, zoom.png(6));
+    }
+    // and the twelve banners on their own, big
+    const sheet = new PixelCanvas(12 * 11 + 1, 8);
+    sheet.rect(0, 0, sheet.w, sheet.h, C.ink8);
+    BLOC_ORDER.forEach((id, k) => {
+      for (let j = 0; j < 5; j++) for (let i = 0; i < 8; i++) {
+        const c = blocBannerAt(id, i, j);
+        if (c) sheet.set(2 + k * 11 + i, 1 + j, c);
+      }
+      sheet.vline(1 + k * 11, 1, 7, C.ink5);
+    });
+    const big = new Frame(sheet.w, sheet.h);
+    big.draw(sheet, 0, 0);
+    write('a3-bloc-banners.png', big.png(10));
     for (const [k, cam] of [[0, 0], [1, Math.round((w - 320) / 2)], [2, w]] as [number, number][]) {
       write(`a3-view-charter-${k}-day.png`, compose(s, CHARTER_HQ, { night: false, cam }).png(3));
       write(`a3-view-charter-${k}-night.png`, compose(s, CHARTER_HQ, { night: true, cam }).png(3));
@@ -570,6 +600,15 @@ describe('act III diorama art', () => {
     // the launch site's look follows the contract: candidate → building → online → liftoff
     const launch = LAUNCH_SITES[0];
     expect(new Set(states.map((s) => act3Key(s, launch))).size).toBe(4);
+  });
+
+  it('the twelve bloc banners are all different, with a swallowtail fly', () => {
+    const grids = BLOC_ORDER.map((id) => Array.from({ length: 40 }, (_, k) => blocBannerAt(id, k % 8, Math.floor(k / 8))).join(','));
+    expect(new Set(grids).size).toBe(12);
+    for (const id of BLOC_ORDER) {
+      expect(blocBannerAt(id, 7, 2)).toBe(0);
+      expect(blocBannerAt(id, 0, 2)).not.toBe(0);
+    }
   });
 
   it('the fast bloom matches the full scan pixel for pixel', () => {

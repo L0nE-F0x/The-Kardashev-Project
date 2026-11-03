@@ -75,12 +75,15 @@ src/
                   act3Layers.ts (Charter HQ, megaproject markers + overlays, HVDC links, launch, bloc anchors, satellites)
     diorama/      side-view campus scenes: dioramaScene.ts (scrolling wide campuses, view-only supplier/mine/landing scenes),
                   art.ts (backdrops + the makeArt switch), plants.ts (Act II plants), industry.ts (suppliers, mines,
-                  landing stations, rival campuses), sizes.ts (per-tier sizes), layout.ts (plots), campusArt.ts, draw.ts
-    sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-5)
+                  landing stations, rival campuses), sizes.ts (per-tier sizes), layout.ts (plots), campusArt.ts, draw.ts;
+                  Act III: act3Pieces.ts (planner + art dispatch + `act3Key`), charterHQ.ts (Geneva), mega.ts (megaprojects
+                  by stage and kind, offshore North Sea), launch.ts (pad, rocket, liftoff loop), act3kit.ts, scenery.ts (bands)
+    sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-7;
+                  every partner CEO and the three faction delegates have looks), charterIcons.ts (Act III map sprites)
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
     tutorial.ts   Bit's guided steps: text, target (`data-tut` attribute or `site:<id>`), done(g) check
-    briefings.ts  Act II unlock briefings: the owning advisor's 1–3 step spotlight, shown once (meta.briefings)
+    briefings.ts  Act II (`b-*`) and Act III (`c-*`) unlock briefings: the owning advisor's 1–3 step spotlight, shown once
     showcase.ts   the fake "day 900" world the menu tour flies over
     tour.ts       TourDirector: map glides + campus cuts behind the main menu
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window

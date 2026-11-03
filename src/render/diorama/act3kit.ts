@@ -91,59 +91,108 @@ export function emblem(pc: PixelCanvas, g: PixelCanvas | null, x: number, y: num
   }
 }
 
-// ── flags of the twelve blocs ──────────────────────────────────────────────────────────────
-type FlagPattern = 'h3' | 'cross' | 'dot' | 'canton' | 'diag' | 'stars' | 'ring';
+// ── banners of the twelve blocs ────────────────────────────────────────────────────────────
+/**
+ * Abstract bloc banners for the Council's flag alley: each bloc's own colour field in simple
+ * halves, a stripe, a wave or a chevron, one small neutral emblem, and a swallowtail fly.
+ * Deliberately unlike any real country's flag: the blocs are fictional, and Act III sets them
+ * against each other (sanctions, walkouts, standoffs).
+ */
+type BannerField = 'h2' | 'v2' | 'd2' | 'wave' | 'band' | 'chevron' | 'hoist';
 
-export const BLOC_FLAGS: Record<RegionId, { a: number; b: number; c: number; p: FlagPattern }> = {
-  atl: { a: C.red3, b: C.white, c: C.blu2, p: 'canton' },
-  pac: { a: C.sea6, b: C.yel0, c: C.sea6, p: 'dot' },
-  lat: { a: C.grn5, b: C.yel0, c: C.blu3, p: 'diag' },
-  eur: { a: C.blu2, b: C.yel0, c: C.blu2, p: 'ring' },
-  nor: { a: C.red3, b: C.white, c: C.red3, p: 'cross' },
-  stp: { a: C.white, b: C.blu3, c: C.red3, p: 'h3' },
-  mena: { a: C.grn3, b: C.white, c: C.ink2, p: 'h3' },
-  ssa: { a: C.grn5, b: C.yel0, c: C.red3, p: 'h3' },
-  sas: { a: C.org1, b: C.white, c: C.grn4, p: 'h3' },
-  eam: { a: C.red3, b: C.yel0, c: C.red3, p: 'stars' },
-  fab: { a: C.white, b: C.red3, c: C.white, p: 'dot' },
-  seo: { a: C.cyn3, b: C.white, c: C.cyn3, p: 'stars' },
+/** Emblems as tiny pixel grids: 'x' = the emblem colour, 'w' = white. */
+const MARKS = {
+  pillar: ['x', 'x', 'x'],
+  ring: ['xxx', 'x.x', 'xxx'],
+  orbit: ['.w.', 'xxx'],
+  step: ['x..', 'xx.', 'xxx'],
+  wave: ['x.x.', '.x.x'],
+  chevron: ['x..', '.x.', 'x..'],
+  peak: ['.x.', 'xxx'],
+  pair: ['x.x'],
+  diamond: ['.x.', 'x.x', '.x.'],
+  arch: ['xxx', 'x.x'],
+  leaf: ['.xx', 'xx.', 'x..'],
+  dot: ['xx', 'xx'],
+} as const;
+
+interface Banner {
+  field: BannerField;
+  /** Main colour and the second colour of the field. */
+  a: number;
+  b: number;
+  mark: keyof typeof MARKS;
+  /** Emblem colour and its top-left in the 8×5 banner. */
+  m: number;
+  at: [number, number];
+}
+
+export const BLOC_BANNERS: Record<RegionId, Banner> = {
+  atl: { field: 'd2', a: C.blu3, b: C.sky4, mark: 'pillar', m: C.yel0, at: [1, 1] },
+  eam: { field: 'h2', a: C.red2, b: C.pnk1, mark: 'ring', m: C.yel0, at: [1, 1] },
+  eur: { field: 'wave', a: C.cyn3, b: C.cyn5, mark: 'orbit', m: C.yel0, at: [1, 0] },
+  sas: { field: 'v2', a: C.org2, b: C.vio2, mark: 'step', m: C.white, at: [1, 1] },
+  pac: { field: 'h2', a: C.sea5, b: C.sea7, mark: 'wave', m: C.white, at: [1, 1] },
+  fab: { field: 'hoist', a: C.pnk0, b: C.ink3, mark: 'chevron', m: C.white, at: [3, 1] },
+  lat: { field: 'd2', a: C.org1, b: C.blu2, mark: 'peak', m: C.white, at: [1, 1] },
+  seo: { field: 'band', a: C.sky3, b: C.grn7, mark: 'pair', m: C.yel0, at: [1, 1] },
+  mena: { field: 'wave', a: C.snd5, b: C.rck3, mark: 'diamond', m: C.white, at: [1, 0] },
+  ssa: { field: 'chevron', a: C.grn6, b: C.snd2, mark: 'arch', m: C.white, at: [3, 1] },
+  stp: { field: 'v2', a: C.grn3, b: C.snd6, mark: 'leaf', m: C.yel0, at: [1, 1] },
+  nor: { field: 'd2', a: C.vio3, b: C.cyn5, mark: 'dot', m: C.white, at: [1, 1] },
+};
+
+/** The two colours each bloc shows in the Council hall's frieze (upper row, lower row). */
+export const BLOC_FRIEZE: Record<RegionId, [number, number]> = {
+  atl: [C.red3, C.red3],
+  pac: [C.sea6, C.yel0],
+  lat: [C.grn5, C.yel0],
+  eur: [C.blu2, C.yel0],
+  nor: [C.red3, C.red3],
+  stp: [C.white, C.blu3],
+  mena: [C.grn3, C.grn3],
+  ssa: [C.grn5, C.yel0],
+  sas: [C.org1, C.org1],
+  eam: [C.red3, C.yel0],
+  fab: [C.white, C.red3],
+  seo: [C.cyn3, C.cyn3],
 };
 
 /** Council seats in vote-weight order (the flag alley runs this way). */
 export const BLOC_ORDER: RegionId[] = ['atl', 'eam', 'eur', 'sas', 'pac', 'fab', 'lat', 'seo', 'mena', 'ssa', 'stp', 'nor'];
 
-/** Colour of a bloc flag at (i, j) in a w×h flag. */
-export function blocFlagAt(id: RegionId, i: number, j: number, w: number, h: number): number {
-  const f = BLOC_FLAGS[id];
-  switch (f.p) {
-    case 'h3':
-      return j < Math.round(h / 3) ? f.a : j < Math.round((h * 2) / 3) ? f.b : f.c;
-    case 'cross':
-      return i === Math.floor(w * 0.36) || j === Math.floor(h / 2) ? f.b : f.a;
-    case 'dot': {
-      const dx = i + 0.5 - w / 2;
-      const dy = j + 0.5 - h / 2;
-      return dx * dx + dy * dy <= (h * 0.3) ** 2 + 0.6 ? f.b : f.a;
-    }
-    case 'canton':
-      if (i < Math.ceil(w * 0.45) && j < Math.ceil(h / 2)) return f.c;
-      return j % 2 ? f.b : f.a;
-    case 'diag':
-      return Math.abs(i * (h / w) - j) < 0.9 ? f.b : j > i * (h / w) ? f.c : f.a;
-    case 'stars':
-      return (i === 1 && j === 1) || ((i + j) % 4 === 0 && i > 2 && j > 0 && j < h - 1) ? f.b : f.a;
-    case 'ring': {
-      const dx = i + 0.5 - w / 2;
-      const dy = (j + 0.5 - h / 2) * 1.3;
-      const d = Math.hypot(dx, dy);
-      return d > h * 0.28 && d < h * 0.52 && (i + j) % 2 === 0 ? f.b : f.a;
-    }
+/**
+ * Colour of a bloc's banner at (i, j), i = 0 at the hoist, in an 8×5 banner; 0 where the
+ * swallowtail is cut out of the fly.
+ */
+export function blocBannerAt(id: RegionId, i: number, j: number): number {
+  if ((i === 7 && j >= 1 && j <= 3) || (i === 6 && j === 2)) return 0;
+  const f = BLOC_BANNERS[id];
+  const row = MARKS[f.mark][j - f.at[1]];
+  const ch = row?.[i - f.at[0]];
+  if (ch === 'x') return f.m;
+  if (ch === 'w') return C.white;
+  switch (f.field) {
+    case 'h2':
+      return j <= 2 ? f.a : f.b;
+    case 'v2':
+      return i < 4 ? f.a : f.b;
+    case 'd2':
+      return i + j * 1.6 < 6.2 ? f.a : f.b;
+    case 'wave':
+      return j < 2 + ((i >> 1) & 1) ? f.a : f.b;
+    case 'band':
+      return j === 2 ? f.b : f.a;
+    case 'chevron':
+      return i <= 2 - Math.abs(j - 2) ? f.b : f.a;
+    case 'hoist':
+      return i < 2 ? f.b : f.a;
   }
 }
 
 /**
  * A flag flying from a pole: pole from baseY up h px, flag w×fh at the top, waving with `wave`
- * (0..3). `at(i, j)` gives the flag's colour.
+ * (0..3). `at(i, j)` gives the flag's colour (0 = transparent).
  */
 export function flagOnPole(pc: PixelCanvas, x: number, baseY: number, h: number, w: number, fh: number, wave: number, at: (i: number, j: number) => number, pole = C.ink8) {
   pc.vline(x, baseY - h, h, pole);
@@ -154,6 +203,7 @@ export function flagOnPole(pc: PixelCanvas, x: number, baseY: number, h: number,
     const dy = Math.round(Math.sin((i / w) * Math.PI * 1.6 - wave * (Math.PI / 2)) * amp * 1.2);
     for (let j = 0; j < fh; j++) {
       let c = at(i, j);
+      if (!c) continue; // cut-outs (a swallowtail fly)
       // shade the troughs of the ripple
       if (dy > 0 && ditherAt(x + i, j, 0.4)) c = darker(c);
       pc.set(x + 1 + i, baseY - h + j + dy, c);

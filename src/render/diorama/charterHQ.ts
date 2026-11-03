@@ -9,7 +9,7 @@ import { bayer, ditherAt, fbm, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import type { FacilityArt } from './art';
 import { facadeShade, floodWash } from './draw';
-import { BLOC_FLAGS, BLOC_ORDER, blocFlagAt, CHARTER, emblem, festoon, flagOnPole, lushTree, person, planter, seated, solarCanopy } from './act3kit';
+import { BLOC_FRIEZE, BLOC_ORDER, blocBannerAt, CHARTER, emblem, festoon, flagOnPole, lushTree, person, planter, seated, solarCanopy } from './act3kit';
 
 /** Light-stone paving along the bottom of every HQ piece (instead of a dirt strip). */
 function paving(pc: PixelCanvas, x0: number, W: number, H: number) {
@@ -187,11 +187,11 @@ export function councilHall(): FacilityArt {
   for (let i = 0; i < 12; i++) {
     const x0 = drumX + Math.round((i * drumW) / 12);
     const x1 = drumX + Math.round(((i + 1) * drumW) / 12);
-    const f = BLOC_FLAGS[BLOC_ORDER[i]];
+    const [fa, fb] = BLOC_FRIEZE[BLOC_ORDER[i]];
     for (let x = x0; x < x1; x++) {
-      pc.set(x, friezeY, f.a);
-      pc.set(x, friezeY + 1, x === x0 ? C.ink9 : f.b === C.white ? f.a : f.b);
-      g.set(x, friezeY, f.a);
+      pc.set(x, friezeY, fa);
+      pc.set(x, friezeY + 1, x === x0 ? C.ink9 : fb);
+      g.set(x, friezeY, fa);
     }
   }
   // cornice
@@ -236,7 +236,7 @@ export function councilHall(): FacilityArt {
     person(pc, x, k < 5 ? H - 3 : upperY, k + 40, k % 3 === 0 ? 1 : 0);
   }
   paving(pc, 0, W, H);
-  // ── flag alley: six flags each side of the steps, waving ──
+  // ── flag alley: six bloc banners each side of the steps, waving ──
   const poles: [number, (typeof BLOC_ORDER)[number]][] = [];
   const left = [14, 24, 34, 44, 54, 64];
   const right = [W - 72, W - 62, W - 52, W - 42, W - 32, W - 22];
@@ -247,12 +247,17 @@ export function councilHall(): FacilityArt {
     const fp = base.clone();
     const fg = baseG.clone();
     for (const [i, [x, id]] of poles.entries()) {
-      flagOnPole(fp, x, H - 3, 36, 8, 5, (f + i) % 4, (a, b) => blocFlagAt(id, a, b, 8, 5));
+      flagOnPole(fp, x, H - 3, 36, 8, 5, (f + i) % 4, (a, b) => blocBannerAt(id, a, b));
       fp.set(x - 1, H - 4, C.ink6);
       fp.set(x + 1, H - 4, C.ink6);
       // each flag is spot-lit at night
       fg.set(x, H - 40, C.yel1);
-      for (let j = 0; j < 5; j++) for (let a = 0; a < 8; a++) if (bayer(x + a, j) < 3) fg.set(x + 1 + a, H - 39 + j, blocFlagAt(id, a, j, 8, 5));
+      for (let j = 0; j < 5; j++) {
+        for (let a = 0; a < 8; a++) {
+          const c = blocBannerAt(id, a, j);
+          if (c && bayer(x + a, j) < 3) fg.set(x + 1 + a, H - 39 + j, c);
+        }
+      }
     }
     frames.push(fp);
     glows.push(fg);
