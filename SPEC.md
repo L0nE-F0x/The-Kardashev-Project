@@ -4,10 +4,11 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M3 "The Charter" is built** (v0.4.0) on top of M2 "The Scale-Up", M1 "First Light" and M1.5 "The Front
-Door": Acts I, II and III are playable end to end. Section 17 is the Act II plan and section 18 the Act III plan, both
-with as-built notes. **Next: M4, Acts IV–V.** Section 13 lists the
-locked decisions and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
+Status: **M3 "The Charter" is built and live** (v0.4.0, patched in v0.4.1) on top of M2 "The Scale-Up", M1 "First
+Light" and M1.5 "The Front Door": Acts I, II and III are playable end to end. Section 17 is the Act II plan and section
+18 the Act III plan, both with as-built notes. **Next: M4, Acts IV–V** (not planned yet; Act III's hooks for it close
+section 18). Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
+`CLAUDE.md`.
 
 ---
 
@@ -361,10 +362,10 @@ rasteriser, save system, sim tick and clock.
 controls, the HBM crunch event chain, more dioramas, standing orders. **Full plan: section 17.**
 
 **M3: Act III, The Charter.** The role pivot, companies bidding on contracts, the rest of the
-advisor cast, deeper bloc politics.
+advisor cast, deeper bloc politics. **Full plan: section 18.**
 
 **M4: Acts IV–V.** Fusion, HVDC global grid, launch, orbital DCs, space solar, the Moon, the
-thermal budget, the Type I ending.
+thermal budget, the Type I ending. **Next up** (start state: the hooks at the end of section 18).
 
 **M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds. **The balance pass
 happens here**: a full playthrough plus beta testers, then rebalancing across all acts before launch and marketing.
@@ -1033,8 +1034,9 @@ the Act III complete screen (K, year, renewal, fronts, Legitimacy, missions, cle
 
 Everything above is in, with these numbers and adjustments from the guard-rail bot (`tests/act3.test.ts`: Start at
 Act III, blind trust, every Charter desk on):
-- **Pacing:** the bot meets the Mandate in autumn 2043 and finishes the act in ~8.7 years (Threshold from the Mandate,
-  not the 1 January 2044 deadline). K reaches ~0.751 with ~4.4 TW of Charter clean power and world growth near 4.5%/yr.
+- **Pacing:** the bot meets the Mandate in summer 2043 and finishes the act on 31 December 2043, 9.0 years in (the
+  Threshold starts from the Mandate, before the 1 January 2044 deadline). K reaches ~0.752 with ~4.0 TW of Charter
+  clean power (~33 TW worldwide) and world growth at the 5%/yr cap. (Re-checked after v0.4.1.)
 - **Treasury:** founding $25B (+$10B with *Energy first*); standard dues ~$12B/month × each bloc's willingness (≈ $6–9B
   at first), growing 5%/yr and with the *Raise the dues* resolution. The desks only award what the treasury can carry:
   committed progress payments must stay within dues (plus a slice of the reserve), so projects don't fall into arrears.
@@ -1051,8 +1053,13 @@ Act III, blind trust, every Charter desk on):
   is the first of your runs to need a licence).
 - **Legitimacy** drifts 5%/month toward 48 + 3 × Standing; +0.6 per finished project, +0.4/month in the blind trust.
 - **Act I and II are unchanged:** the Act I bot still finishes on day 812 and the Act II bot still IPOs after 5.6 years.
-- **Balance (deferred):** the delegating bot ends with Legitimacy in the 90s, a 88–0 renewal and a Threshold that barely
-  bites; a weaker or self-dealing Steward sees much harder votes. Tune in the beta.
+- **Balance (deferred):** the delegating bot ends with Legitimacy in the high 80s, an 88–0 renewal and a Threshold that
+  barely bites (all three fronts held); a weaker or self-dealing Steward sees much harder votes. Tune in the beta.
+- **v0.4.1:** Act II summits stop once the Charter's Council exists, and the Start at Act III preset staggers the bloc
+  elections and restarts the startup-offer clock, so a new Act III game no longer opens with a leftover summit or an
+  election wave.
+- **Not done yet:** the main menu's background tour has no Act III shots, and the Act III panels haven't been checked at
+  phone width in a real browser (CLAUDE.md, Known gaps).
 
 ### Hooks left for Acts IV–V
 - **The renewal** (`charter.renewal.outcome`: planetary / limited / caretaker) and **the Planetary Mandate**

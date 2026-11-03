@@ -181,11 +181,18 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Act III briefing | `game/briefings.ts` (`c-*`, + `data-tut` targets) |
 | Re-tune Act III pacing | `tests/act3.test.ts` + `tests/helpers/act3bot.ts`; `CHARTER` numbers, contract `value`/`days`, world growth in `sim/world.ts`, world alignment drift in `sim/frontier.ts` |
 
-## Known gaps / next (see SPEC §12, §16, §17)
+## Known gaps / next (see SPEC §12, §16, §17, §18)
 
 **Next: Acts IV–V** (SPEC §12 M4: Planetary — the global grid, fusion, orbital compute, the Moon — then Type I; Act III's
 hooks for them are at the end of SPEC §18). Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
+
+**Still open from v0.4 (Act III):**
+- The main menu's background tour (`game/tour.ts` `SHOTS`, `game/showcase.ts`) only flies over Acts I–II: no Charter
+  HQ, megaproject or launch shots yet.
+- Act III panels have never been checked at phone width in a real browser (the QA Chrome window ignores resizes on this
+  tiling window manager); they only have small-screen CSS fallbacks.
+- The Windows and macOS installers build in CI but have never been launched on a real machine.
 
 **Balance is deliberately deferred** to a pre-launch beta (full playthrough + beta testers, then a rebalancing pass
 across all acts). Until then, balance bots are guard rails only: every act must be completable with no stalls or NaNs,
