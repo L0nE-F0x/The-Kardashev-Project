@@ -163,6 +163,10 @@ export function newAct3Game(opts: NewGameOptions): GameState {
   for (const id of ['hbm-1', 'hbm-2', 'hbm-3', 'lines-1', 'lines-2', 'lines-3', 'restart-1', 'restart-2', 'race-1', 'race-2', 'bit-3', 'bit-4', 'queue-reform', 'sovereign-wealth', 'chip-diversion', 'takeover-1', 'takeover-2'])
     s.events.last[id] = day - 400;
   s.events.nextRoll = day + 75;
+  // the Act II clocks restart: elections staggered over the coming years, the next startups in a few months
+  Object.values(s.blocs).forEach((b, i) => (b.nextElection = day + 150 + ((i * 397) % 1460)));
+  s.startups.nextOffer = day + 120;
+  s.startups.offers = [];
   s.news = [];
   beginAct3(s);
   s.events.active = s.events.queue.shift() ?? null;

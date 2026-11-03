@@ -154,8 +154,8 @@ export function tickPolitics(s: GameState): void {
     tickSovereign(s);
   }
 
-  // summits (phase 2+)
-  if (s.phase >= 2 && p.nextSummit > 0 && s.day >= p.nextSummit) {
+  // summits (phase 2+; in Act III the Charter's Council takes their place)
+  if (s.phase >= 2 && (s.act ?? 1) < 3 && p.nextSummit > 0 && s.day >= p.nextSummit) {
     p.nextSummit = s.day + 540;
     queueEvent(s, 'summit', { host: pick(s, ['eur', 'fab', 'mena', 'sas', 'atl'] as RegionId[]) });
   }

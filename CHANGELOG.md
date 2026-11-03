@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.1 — Geneva fixes (2026-11-04)
+- Starting a new company at Act III no longer opens with a leftover Act II summit or a wave of elections; in Act III the Charter’s Council takes over from the old summits.
+
 ## 0.4.0 — The Charter (2026-11-04)
 - Act III, The Charter: after the Crunch the blocs found the Kardashev Project and make you its Steward — from The Founding to the renewal vote, about 2035–44.
 - Two hats: run the Charter and your company at once, or put the company in a blind trust. Your company bids on Charter contracts like everyone else, and awarding it costs Legitimacy.
