@@ -76,7 +76,7 @@ Healthy life expectancy ${s.system.lifeExp.toFixed(1)} years, rising ${s.system.
 Click to open the System (X).`}>
             <Icon name="thermal" />
             <div class="col">
-              <span class={`v ${overLine(s) > 0 ? 'bad' : surfaceTW(s) > lineTW(s) * 0.92 ? 'warn' : ''}`}>{Math.round((surfaceTW(s) / Math.max(1, lineTW(s))) * 100)}% of line</span>
+              <span class={`v ${overLine(s) > 0 ? 'bad' : surfaceTW(s) > lineTW(s) * 0.92 ? 'warn' : ''}`}>{s.system.thermalLine ? `${Math.round((surfaceTW(s) / Math.max(1, lineTW(s))) * 100)}% of line` : 'no line yet'}</span>
               <span class="s">{s.system.lifeExp.toFixed(0)} healthy years</span>
             </div>
           </button>
