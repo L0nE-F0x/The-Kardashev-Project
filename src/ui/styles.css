@@ -1678,3 +1678,13 @@ ol.steps li {
     bottom: 36px;
   }
 }
+/* the plan screen on a phone held sideways: keep the Begin button on screen */
+@media (max-height: 520px) {
+  .planmodal .quote,
+  .planmodal .buildcard .m {
+    display: none;
+  }
+  .planmodal .body > p {
+    margin-bottom: 4px;
+  }
+}

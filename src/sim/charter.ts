@@ -686,7 +686,7 @@ function monthly(s: GameState): void {
   if (c.projects.some((p) => p.status === 'building' && p.arrears > 0)) d -= 1.5;
   const late = c.projects.filter((p) => isLate(s, p)).length;
   // Act IV runs hundreds of projects: what matters is the share that's late, not the count
-  if (s.planet) d -= Math.min(3, (8 * late) / Math.max(4, c.projects.filter((p) => p.status === 'building').length));
+  if (s.planet) d -= Math.min(2, (4 * late) / Math.max(4, c.projects.filter((p) => p.status === 'building').length));
   else d -= Math.min(3, late * 0.5);
   d -= Object.keys(c.council.walkouts).length;
   if (c.budget < 0) d -= 2;

@@ -259,7 +259,7 @@ export function spendShare(s: GameState): Record<FactionId, number> {
 }
 
 /** Each faction's share of the world economy (what "fair" spending looks like). */
-const fairShare = (f: FactionId) => FACTIONS[f].members.reduce((a, r) => a + (VOTES[r] / TOTAL_VOTES), 0);
+export const fairShare = (f: FactionId) => FACTIONS[f].members.reduce((a, r) => a + (VOTES[r] / TOTAL_VOTES), 0);
 
 export function tickCouncil(s: GameState): void {
   const c = s.charter;
@@ -281,7 +281,9 @@ export function tickCouncil(s: GameState): void {
   for (const f of FACTION_IDS) {
     const gap = fairShare(f) - share[f];
     const t = k.factions[f];
-    t.tension = clamp(t.tension + gap * 6 + (35 - t.tension) * 0.02, 0, 100);
+    // Act IV: provinces that are doing well cool their faction's tempers
+    const wb = s.planet ? FACTIONS[f].members.reduce((a, r) => a + s.planet!.provinces[r].wellbeing, 0) / FACTIONS[f].members.length : 50;
+    t.tension = clamp(t.tension + gap * 6 + (35 - t.tension) * 0.02 - (s.planet ? Math.max(0, wb - 50) / 15 : 0), 0, 100);
   }
   // walkouts: very tense factions lose a member
   for (const f of FACTION_IDS) {

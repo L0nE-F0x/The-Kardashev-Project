@@ -17,7 +17,7 @@ import { clamp, dateOf, fmtDate, news } from './core';
 const yearOf = (day: number) => dateOf(day).getUTCFullYear();
 import { queueEvent, resolveEvent } from './events';
 import { addModifier } from './effects';
-import { affordable, awardBid, bidScore, canPost, contractEstimate, duesMonthly, postTender } from './charter';
+import { affordable, awardBid, bidScore, canPost, committedMonthly, contractEstimate, duesMonthly, postTender } from './charter';
 import { enterStage } from './act4';
 import { tick } from './tick';
 import type { SimContext } from './supply';
@@ -27,6 +27,8 @@ import { canLaunch, moonStage, orbitGW, padsBuilt } from './orbit';
 import { gridComponents, linksBuilt, mainGrid } from './supergrid';
 import { warming } from './climate';
 import { worldMargin } from './frontier';
+import { fairShare, spendShare } from './council';
+import { FACTION_IDS, factionOf } from '../content/charter';
 
 type Result = { ok: true } | { ok: false; reason: string };
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -213,11 +215,23 @@ interface Wish {
 const live = (s: GameState, kind: ContractKind) => (s.charter?.projects ?? []).filter((p) => p.kind === kind && p.status !== 'cancelled');
 const openTender = (s: GameState, w: Wish) => (s.charter?.tenders ?? []).some((t) => t.kind === w.kind && t.where === w.where && (t.opt ?? '') === (w.opt ?? ''));
 
-/** Energy at the megaprojects with the best resource (solar first, then wind). */
-function energyWishes(_s: GameState): Wish[] {
+/** How far each faction is below its fair share of Charter spending (positive = owed). */
+function factionNeed(s: GameState): Record<string, number> {
+  const share = spendShare(s);
+  return Object.fromEntries(FACTION_IDS.map((f) => [f, fairShare(f) - share[f]]));
+}
+
+/** Sort megaproject sites so the faction owed the most comes first (keeps tempers down). */
+function fairOrder<T extends { region: RegionId }>(s: GameState, sites: T[], score: (x: T) => number): T[] {
+  const need = factionNeed(s);
+  return [...sites].sort((a, b) => score(b) + 2 * need[factionOf(b.region)] - (score(a) + 2 * need[factionOf(a.region)]));
+}
+
+/** Energy at the megaprojects with the best resource (solar first, then wind), fairly spread. */
+function energyWishes(s: GameState): Wish[] {
   const out: Wish[] = [];
-  const sun = MEGA_SITES.filter((m) => m.mega?.includes('solar')).sort((a, b) => b.solarCF - a.solarCF);
-  const wind = MEGA_SITES.filter((m) => m.mega?.includes('wind')).sort((a, b) => b.windCF - a.windCF);
+  const sun = fairOrder(s, MEGA_SITES.filter((m) => m.mega?.includes('solar')), (m) => m.solarCF);
+  const wind = fairOrder(s, MEGA_SITES.filter((m) => m.mega?.includes('wind')), (m) => m.windCF);
   for (const m of sun.slice(0, 4)) out.push({ kind: 'solar', size: 3, where: m.id });
   for (const m of wind.slice(0, 3)) out.push({ kind: 'wind', size: 3, where: m.id });
   return out;
@@ -247,7 +261,7 @@ function wishes(s: GameState, pr: Priority | 'energy'): Wish[] {
         for (const d of idle.slice(0, 2 - piloting)) out.push({ kind: 'fpilot', size: 1, where: d });
       }
       const working = DESIGN_IDS.filter((d) => pl.fusion[d].status === 'won' || pl.fusion[d].status === 'partial');
-      const sites = [...MEGA_SITES].sort((a, b) => live(s, 'ffleet').filter((p) => p.where === a.id).length - live(s, 'ffleet').filter((p) => p.where === b.id).length);
+      const sites = fairOrder(s, MEGA_SITES, (m) => -0.05 * live(s, 'ffleet').filter((p) => p.where === m.id).length);
       for (const d of working)
         for (const size of [3, 2, 1] as ContractSize[]) {
           if (fleetBlocked(s, d, CONTRACT_KINDS.ffleet.sizes[size - 1])) continue;
@@ -317,6 +331,13 @@ function bestBid(s: GameState, t: Tender): number {
 /** The plan's reserve: keep this much in the treasury after any down payment. */
 const reserveOf = (s: GameState, plan: FivePlan) => plan.reserve * duesMonthly(s) * 12;
 
+/** The planner commits at most 85% of the monthly dues to progress payments (dues swing with Legitimacy). */
+function plannerAffords(s: GameState, plan: FivePlan, price: number, days: number): boolean {
+  const c = s.charter!;
+  const extra = ((price * 0.8) / Math.max(1, days)) * 30.44;
+  return c.budget - price * 0.2 >= reserveOf(s, plan) && committedMonthly(s) + extra <= duesMonthly(s) * 0.85 + Math.max(0, c.budget - price * 0.2 - reserveOf(s, plan)) / 24 && affordable(s, price, days);
+}
+
 /** One planning round (weekly during a jump): award what's ready, post what the priorities want. */
 export function plannerTick(s: GameState, plan: FivePlan): void {
   const c = s.charter;
@@ -326,7 +347,7 @@ export function plannerTick(s: GameState, plan: FivePlan): void {
     const i = bestBid(s, t);
     if (i < 0) continue;
     const b = t.bids[i];
-    if (c.budget - b.price * 0.2 < reserveOf(s, plan) || !affordable(s, b.price, b.days)) continue;
+    if (!plannerAffords(s, plan, b.price, b.days)) continue;
     awardBid(s, t.id, i);
   }
   const maxOpen = 5;
@@ -336,7 +357,7 @@ export function plannerTick(s: GameState, plan: FivePlan): void {
       if (openTender(s, w)) continue;
       if (canPost(s, w.kind, w.size, w.where, w.opt)) continue;
       const est = contractEstimate(s, w.kind, w.size, w.where, w.opt);
-      if (!affordable(s, est.share, est.days) || c.budget - est.share * 0.2 < reserveOf(s, plan)) continue;
+      if (!plannerAffords(s, plan, est.share, est.days)) continue;
       postTender(s, w.kind, w.size, w.where, w.opt);
       break;
     }

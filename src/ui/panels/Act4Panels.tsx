@@ -432,8 +432,11 @@ function FusionTab() {
             <div class="small muted" style={{ marginTop: '4px' }}>
               {working
                 ? `Fleets: ${Math.round(designGW(s, d, true))} GW running, ${Math.round(designGW(s, d) - designGW(s, d, true))} GW building · ~${fmtMoney(fleetValuePerGW(s, d))} per GW · capacity factor ${Math.round(def.cf * (st.status === 'partial' ? 85 : 100))}%`
-                : `A pilot is ${oddsWord(odds)} to work${st.tries ? ` (try ${st.tries + 1})` : ''} · ${fmtMoney(def.pilot)} · ~${fmtDays(def.pilotDays)}`}
+                : st.status === 'pilot'
+                  ? `The pilot plant is being built (try ${st.tries}).`
+                  : `A pilot is ${oddsWord(odds)} to work${st.tries ? ` (try ${st.tries + 1})` : ''} · ${fmtMoney(def.pilot)} · ~${fmtDays(def.pilotDays)}`}
             </div>
+            {!working && st.status !== 'pilot' && pilotWhy && <div class="small warn">{pilotWhy}</div>}
             {working ? (
               <>
                 <PostContract kind="ffleet" opt={d} label="Order a fleet" />
@@ -576,7 +579,7 @@ export function PlanModal() {
   const to = new Date(Date.UTC(2027, 0, 1) + (s.day + p.years * 365.25) * 86_400_000).getUTCFullYear();
   return (
     <div class="scrim">
-      <div class="modal frame" style={{ width: 'min(640px, 100%)' }} role="dialog" aria-label="Five-year plan" data-tut="plan">
+      <div class="modal frame planmodal" style={{ width: 'min(640px, 100%)' }} role="dialog" aria-label="Five-year plan" data-tut="plan">
         <div class="head">
           <Icon name="plan" size="lg" />
           <div class="grow">

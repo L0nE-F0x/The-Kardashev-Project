@@ -10,6 +10,9 @@ import type { ContractKind, GameState } from './types';
 import { newAct3Game } from './act3';
 import { beginAct4 } from './act4';
 import { tick } from './tick';
+import { nextModelPlan } from './ai';
+import { algoEff, capabilityOf } from './model';
+import { techMult } from './effects';
 import type { NewGameOptions } from './state';
 import type { SimContext } from './supply';
 
@@ -68,6 +71,15 @@ export function newAct4Game(opts: NewGameOptions, ctx: SimContext): GameState {
   s.events.queue = [];
   s.events.scheduled = [];
   s.news = [];
+  // the company kept training through the decade: Bit-5, Bit-6 and Bit-7
+  s.training = null;
+  const eff = algoEff(s);
+  for (const day of [ACT4_START_DAY - 2400, ACT4_START_DAY - 1300, ACT4_START_DAY - 300]) {
+    const plan = nextModelPlan(s);
+    s.models.push({ name: plan.name, gen: plan.gen, flop: plan.flop, capability: capabilityOf(plan.flop, eff), day });
+  }
+  const cap = s.models[s.models.length - 1].capability;
+  s.safety.cumFlop = Math.max(s.safety.cumFlop, Math.pow(10, cap + 22 + 0.1) / techMult(s, 'safetyEff'));
   // the Charter enters its second term whole: no walkouts, no late payers
   c.council.walkouts = {};
   c.council.late = {};

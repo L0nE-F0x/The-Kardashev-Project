@@ -166,7 +166,7 @@ export function DioramaBar() {
         <Icon name="globe" size="sm" /> World map
       </button>
       <span>
-        <b>{site.name}</b> <span class="muted small">· {REGIONS[site.region].name}</span>
+        <b>{site.name}</b> <span class="muted small">· {site.kind === 'moon' ? 'The Moon' : REGIONS[site.region].name}</span>
       </span>
       <button class={`btn small ${game.dioramaTimelapse ? 'active' : ''}`} onClick={() => game.toggleTimelapse()} data-tip="Skies follow the site's real local time. Time-lapse spins a full day every ~40 seconds.">
         <Icon name="clock" size="sm" /> Time-lapse
