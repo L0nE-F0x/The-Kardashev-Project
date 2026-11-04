@@ -49,7 +49,7 @@ import java.nio.charset.StandardCharsets;
  * phones (Xiaomi's MIUI / HyperOS) silently block one app from starting another, so tapping the
  * icon did nothing. Everything here runs in this app's process.
  *
- * The page talks to the app through window.KardashevAndroid (saveFile, installUpdate) and calls
+ * The page talks to the app through window.KardashevAndroid (saveFile, saveImage, installUpdate) and calls
  * window.kpBack (the back gesture) and window.kpUpdateStatus (update progress), all wrapped in
  * src/platform/platform.ts.
  */
@@ -65,7 +65,9 @@ public class LauncherActivity extends Activity {
     private String host;
     private String launchUrl;
     private ValueCallback<Uri[]> fileCallback;
-    private String pendingSave;
+    /** What the next "save as" writes, and what to say when it's done. */
+    private byte[] pendingSave;
+    private String pendingSaved;
     /** An update waiting for the "install unknown apps" permission. */
     private String pendingUpdate;
 
@@ -184,25 +186,42 @@ public class LauncherActivity extends Activity {
         /** Export a save: ask where to put it, then write it there. */
         @JavascriptInterface
         public void saveFile(String name, String text) {
-            runOnUiThread(() -> {
-                pendingSave = text;
-                Intent create = new Intent(Intent.ACTION_CREATE_DOCUMENT);
-                create.addCategory(Intent.CATEGORY_OPENABLE);
-                create.setType("application/json");
-                create.putExtra(Intent.EXTRA_TITLE, name);
-                try {
-                    startActivityForResult(create, REQ_SAVE_FILE);
-                } catch (ActivityNotFoundException e) {
-                    pendingSave = null;
-                    Toast.makeText(LauncherActivity.this, "No app here can save files.", Toast.LENGTH_LONG).show();
-                }
-            });
+            runOnUiThread(() -> askToSave(name, "application/json", text.getBytes(StandardCharsets.UTF_8), "Save exported."));
+        }
+
+        /** Save a picture (the Type I end card), sent as base64 PNG data. */
+        @JavascriptInterface
+        public void saveImage(String name, String base64) {
+            byte[] png;
+            try {
+                png = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+            } catch (IllegalArgumentException e) {
+                runOnUiThread(() -> Toast.makeText(LauncherActivity.this, "Couldn't read the picture.", Toast.LENGTH_LONG).show());
+                return;
+            }
+            runOnUiThread(() -> askToSave(name, "image/png", png, "Picture saved."));
         }
 
         /** Update the app: download the release's APK and hand it to the phone's installer. */
         @JavascriptInterface
         public void installUpdate(String url) {
             runOnUiThread(() -> startUpdate(url));
+        }
+    }
+
+    /** Ask the phone where to put a file (its "save as" screen), then write the bytes there. */
+    private void askToSave(String name, String mime, byte[] bytes, String done) {
+        pendingSave = bytes;
+        pendingSaved = done;
+        Intent create = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        create.addCategory(Intent.CATEGORY_OPENABLE);
+        create.setType(mime);
+        create.putExtra(Intent.EXTRA_TITLE, name);
+        try {
+            startActivityForResult(create, REQ_SAVE_FILE);
+        } catch (ActivityNotFoundException e) {
+            pendingSave = null;
+            Toast.makeText(this, "No app here can save files.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -303,15 +322,17 @@ public class LauncherActivity extends Activity {
             if (result == RESULT_CANCELED) updateStatus("cancelled", null);
             else if (result != RESULT_OK) updateStatus("failed", "the installer said no (" + result + ")");
         } else if (request == REQ_SAVE_FILE) {
-            String text = pendingSave;
+            byte[] bytes = pendingSave;
+            String done = pendingSaved;
             pendingSave = null;
-            if (result != RESULT_OK || data == null || data.getData() == null || text == null) return;
+            pendingSaved = null;
+            if (result != RESULT_OK || data == null || data.getData() == null || bytes == null) return;
             try (OutputStream out = getContentResolver().openOutputStream(data.getData())) {
                 if (out == null) throw new java.io.IOException("no stream");
-                out.write(text.getBytes(StandardCharsets.UTF_8));
-                Toast.makeText(this, "Save exported.", Toast.LENGTH_SHORT).show();
+                out.write(bytes);
+                Toast.makeText(this, done != null ? done : "Saved.", Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
-                Toast.makeText(this, "Couldn't write the save file.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Couldn't write the file.", Toast.LENGTH_LONG).show();
             }
         }
     }

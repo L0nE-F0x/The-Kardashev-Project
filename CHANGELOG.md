@@ -14,6 +14,7 @@
 - The ending: the camera pulls back to the swarm, epilogues that remember all five acts, credits, your campaign in numbers, and an end card to save or share. Then keep playing toward Type II.
 - New: space dioramas (the yards, Ring One, the Aurora habitat, the asteroids), the Swarmlight palette, three new partners, successors and new faces, Bit-10, nine contract kinds, five Council resolutions, nine techs, twelve Field Guide entries, Act V briefings, Autopilot between eras, and a Type I badge on your save.
 - Start a new company straight at Act V. Finish the campaign to unlock a new founder, The Steward.
+- The Android app can save your end card as a picture (the app updates itself to 0.6.0).
 
 ## 0.5.1 — In-app updates (2026-11-04)
 - The installed apps update from inside the game. When a new version is out, a note at the top of the screen offers it: press Update.

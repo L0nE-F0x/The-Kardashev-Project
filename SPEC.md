@@ -1575,7 +1575,8 @@ first choice on every card and big decision, the default era plans, Autopilot on
 - **The ending:** the last climb switches to the solar-system view; the Type I card surfaces at once; the cinematic is
   the solar-system scene's pull-back (Earth → the inner system, ~12 s); about eleven epilogue cards (one per topic, the
   first variant that holds), credits, the campaign in numbers (acts a preset skipped are left out), the end card (a
-  480×270 PixelCanvas, saved as a PNG; the Android app can't save images, so it suggests a screenshot), then Keep playing.
+  480×270 PixelCanvas, saved as a PNG; the 0.6.0 Android app saves it through the phone's save-as screen via a new
+  `saveImage` bridge, older apps suggest updating), then Keep playing.
 - **New Game+:** finishing unlocks The Steward founder and keeps the best Type I year per difficulty, both in settings.
 - **The "Start at Act V" preset** is set up directly (no fast-forward) and moves every due date (elections, model launches,
   sessions, tenders) along with the 23 skipped years.

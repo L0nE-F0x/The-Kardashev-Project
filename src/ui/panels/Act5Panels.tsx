@@ -1009,7 +1009,7 @@ function EndCard({ year }: { year: number }) {
           <img class="endcard" src={url} alt={text} />
           {note && <div class="small muted">{note}</div>}
           <div class="row wrap" style={{ gap: '8px', marginTop: '8px' }}>
-            <button class="btn" onClick={() => setNote(saveImage(name, url) ? 'Saved.' : 'This app can’t save pictures — take a screenshot to share it.')}>
+            <button class="btn" onClick={() => setNote(saveImage(name, url) ? 'Saved.' : 'Update the app to save pictures — or take a screenshot to share it.')}>
               <Icon name="arrow" size="sm" /> Save the picture
             </button>
             {canShareImages() && (

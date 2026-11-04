@@ -153,8 +153,8 @@ src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the gam
 android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
               /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more
               (v0.5.0): Xiaomi's MIUI/HyperOS silently blocks the hand-off to Chrome, so the icon did nothing. The page
-              gets window.KardashevAndroid.saveFile (export a save) and calls window.kpBack (the back gesture), both
-              wrapped in platform.ts (saveTextFile, onHostBack). In-app updates (v0.5.1): the page compares the app's
+              gets window.KardashevAndroid.saveFile (export a save) and .saveImage (v0.6.0: the end card as base64 PNG) and
+              calls window.kpBack (the back gesture), all wrapped in platform.ts (saveTextFile, saveImage, onHostBack). In-app updates (v0.5.1): the page compares the app's
               version (user agent `KardashevAndroid/x.y.z`) with the latest GitHub release and calls installUpdate(url):
               the app downloads the APK (only from this repo's releases) into its cache, UpdateProvider serves it to the
               phone's installer (ACTION_INSTALL_PACKAGE, not PackageInstaller sessions: those fail on some Xiaomi phones),
@@ -298,8 +298,8 @@ builds — then v1.0.0. Later: Type II as an Act VI that continues a finished sa
 **Still open:**
 - The main menu's background tour (`game/tour.ts` `SHOTS`, `game/showcase.ts`) only flies over Acts I–II: no Charter
   HQ, megaproject, launch, orbit-view, Moon, solar-system or Act V diorama shots yet.
-- Act V (v0.6.0): audio is only the ending cue; rewilding isn't drawn over old megaproject sites; the end card can't be
-  saved inside the Android app (a screenshot is suggested); Act V screens checked in headless desktop and phone emulation only.
+- Act V (v0.6.0): audio is only the ending cue; rewilding isn't drawn over old megaproject sites; Android apps older
+  than 0.6.0 can't save the end card (they suggest updating); Act V screens checked in headless desktop and phone emulation only.
 - Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
   lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.

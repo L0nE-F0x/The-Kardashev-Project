@@ -23,6 +23,8 @@ try {
 /** What the Android app (android/app/src/main/java/…/LauncherActivity.java) gives the page. */
 interface AndroidBridge {
   saveFile(name: string, text: string): void;
+  /** v0.6.0 and later: save a PNG (base64) through the phone's save-as screen. */
+  saveImage?(name: string, base64: string): void;
   /** Since v0.5.1: download this APK and hand it to the phone's installer; progress comes back through window.kpUpdateStatus. */
   installUpdate?(url: string): void;
 }
@@ -84,9 +86,14 @@ export function saveTextFile(name: string, text: string, type = 'application/jso
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-/** Save a PNG (the Type I end card) as a download. The Android app can't save images: share or screenshot there. */
+/** Save a PNG (the Type I end card): a download in the browser, the phone's save-as screen in the Android app. False in Android apps older than v0.6.0. */
 export function saveImage(name: string, dataUrl: string): boolean {
-  if (androidBridge()) return false;
+  const bridge = androidBridge();
+  if (bridge) {
+    if (!bridge.saveImage) return false;
+    bridge.saveImage(name, dataUrl.slice(dataUrl.indexOf(',') + 1));
+    return true;
+  }
   const a = document.createElement('a');
   a.href = dataUrl;
   a.download = name;
