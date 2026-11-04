@@ -4,7 +4,8 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M4 "Planetary" is built** (v0.5.0, Act IV, section 19 with as-built notes) on top of M3 "The Charter"
+Status: **M4 "Planetary" is built** (v0.5.0, Act IV, section 19 with as-built notes; v0.5.1 added in-app updates for the
+installed apps) on top of M3 "The Charter"
 (v0.4.x, including v0.4.2 "Easy Reading": readable font, phone fullscreen, an Android app), M2 "The Scale-Up", M1 "First
 Light" and M1.5 "The Front Door": Acts I–IV are playable end to end. Section 17 is the Act II plan and section
 18 the Act III plan and section 19 the Act IV plan, all with as-built notes. **Next: M4.5, Act V "Type I"**, to be planned

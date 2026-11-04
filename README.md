@@ -8,7 +8,7 @@ build power, chips, compute and supply lines on a real-Earth pixel map, keep you
 phones), as an Android app, or as a Windows / macOS / Linux download from
 [Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
 
-> Status: **v0.5 "Planetary"**. Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary) are
+> Status: **v0.5.1** (v0.5 "Planetary" + in-app updates). Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary) are
 > playable end to end. See `SPEC.md` for the full design and `CHANGELOG.md` for what changed.
 
 ## Play locally

@@ -4,7 +4,7 @@ Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts
 Current build: **v0.5 "Planetary"** (M4): Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary)
 are playable end to end, on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
 desktop builds). v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
-Android app.
+Android app; v0.5.1 added in-app updates for the installed desktop and Android apps (an Update toast in the game).
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 
 ## Commands
@@ -264,13 +264,13 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 - Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
   lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
-- In-app updates (v0.5.1) were tested end to end with local builds: the Linux AppImage (update, restart, a bad
-  signature refused) and the Android app in the emulator (permission, download, installer). Not yet on Windows,
-  macOS or a real phone; a .deb install may not update itself (the AppImage does).
+- In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
+  refused; the Android app in the emulator) and on the user's real Xiaomi phone, which updated itself to v0.5.1. Not yet
+  on Windows or macOS. CI also signs the .deb (latest.json has linux-x86_64-deb), untested.
 - The Windows and macOS installers build in CI but have never been launched on a real machine. The Linux AppImage runs
   on the dev machine (Omarchy/Arch, installed to ~/Applications with a launcher entry).
-- The Android app (v0.4.2) builds and is signed, but hasn't been installed on a real phone yet. Google Play would need
-  an `.aab` (`./gradlew bundleRelease`) and a Play Console account.
+- The Android app runs on the user's real phone (Xiaomi, v0.5.x, the WebView app). Google Play would need an `.aab`
+  (`./gradlew bundleRelease`) and a Play Console account.
 
 **Balance is deliberately deferred** to a pre-launch beta (full playthrough + beta testers, then a rebalancing pass
 across all acts). Until then, balance bots are guard rails only: every act must be completable with no stalls or NaNs,
