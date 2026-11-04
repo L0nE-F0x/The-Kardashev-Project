@@ -300,6 +300,9 @@ builds — then v1.0.0. Later: Type II as an Act VI that continues a finished sa
   HQ, megaproject, launch, orbit-view, Moon, solar-system or Act V diorama shots yet.
 - Act V (v0.6.0): audio is only the ending cue; rewilding isn't drawn over old megaproject sites; Android apps older
   than 0.6.0 can't save the end card (they suggest updating); Act V screens checked in headless desktop and phone emulation only.
+  The 0.6.0 APK's `saveImage` bridge compiled (local debug build) but hasn't been tried on the emulator or a phone yet.
+- Local Android builds on the dev machine: `JAVA_HOME=~/.local/share/jdk/jdk-17.0.21+9 ANDROID_HOME=~/.local/share/android-sdk
+  ./gradlew assembleDebug --offline` (in `android/`).
 - Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
   lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
