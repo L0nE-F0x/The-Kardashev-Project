@@ -25,7 +25,7 @@ npm run desktop:dev     # the game in a native window
 npm run desktop:build   # installers in src-tauri/target/release/bundle/
 ```
 
-Android app (a Trusted Web Activity that opens the live site full screen; needs JDK 17 and the Android SDK):
+Android app (a small WebView app that runs the live site full screen; needs JDK 17 and the Android SDK):
 
 ```bash
 cd android && ./gradlew assembleRelease   # APK in android/app/build/outputs/apk/release/

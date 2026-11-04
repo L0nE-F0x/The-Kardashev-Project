@@ -124,10 +124,14 @@ src/
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks)
   audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips), music.ts (menu theme MP3 or chiptune fallback, game ambience)
 src-tauri/    Tauri 2 desktop shell (one window loading play/index.html; capabilities = close + fullscreen only)
-android/      the Android app: a Trusted Web Activity (Bubblewrap-generated Gradle project) that opens the LIVE site at
-              /play/?app=android full screen and landscape. Version comes from package.json; twa-manifest.json records
-              the settings. Web changes need no new APK. public/.well-known/assetlinks.json (the release key's SHA-256)
-              lets it hide Chrome's address bar — it must match the signing key.
+android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
+              /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more
+              (v0.5.0): Xiaomi's MIUI/HyperOS silently blocks the hand-off to Chrome, so the icon did nothing. The page
+              gets window.KardashevAndroid.saveFile (export a save) and calls window.kpBack (the back gesture), both
+              wrapped in platform.ts (saveTextFile, onHostBack). Version comes from package.json; web changes need no
+              new APK. public/.well-known/assetlinks.json is left over from the TWA (unused, harmless).
+              QA: the debug APK enables WebView debugging, so `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`
+              + raw CDP (Playwright can't attach to a WebView) drives the page in the emulator (AVD `kp`, Android 15).
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
 .github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + the Android APK on a draft GitHub release
@@ -193,7 +197,7 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
    Download buttons pick it up (the APK link is `releases/latest/download/TheKardashevProject-android.apk`, so the asset
    name must stay fixed). The APK is signed from the repo secrets `ANDROID_KEYSTORE_B64` and
    `ANDROID_KEYSTORE_PASSWORD`; the key itself lives in `~/.config/kardashev-project/android/` on the dev machine.
-   **Never lose or change it**: a new key means phones can't update the app, and `assetlinks.json` must match it.
+   **Never lose or change it**: a new key means phones can't update the app.
 
 The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the chiptune is the fallback).
 

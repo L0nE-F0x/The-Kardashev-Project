@@ -78,7 +78,7 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-  # The Android app is a Trusted Web Activity: a small APK that opens the live site full screen, so
+  # The Android app is a small WebView app that runs the live site full screen, so
   # it only needs rebuilding when its version, icon or name changes. Signed with the release key
   # from the repo secrets ANDROID_KEYSTORE_B64 (base64 of the .p12) and ANDROID_KEYSTORE_PASSWORD.
   android:

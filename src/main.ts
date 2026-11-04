@@ -11,6 +11,7 @@ import { DioramaScene } from './render/diorama/dioramaScene';
 import { OrbitScene } from './render/orbit/orbitScene';
 import { TourDirector } from './game/tour';
 import { App } from './ui/App';
+import { onHostBack } from './platform/platform';
 
 async function boot() {
   syncCssVars();
@@ -44,7 +45,19 @@ async function boot() {
   (window as unknown as { game: Game }).game = game;
 }
 
+/** Escape and the Android back gesture: close the topmost thing. False when nothing was open. */
+function back(game: Game): boolean {
+  if (game.mode === 'title' || !game.state) return false;
+  if (game.tool) game.setTool(null);
+  else if (game.panel) game.openPanel(null);
+  else if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
+  else if (game.selection) game.select(null);
+  else return false;
+  return true;
+}
+
 function bindKeys(game: Game) {
+  onHostBack(() => back(game));
   window.addEventListener('keydown', (e) => {
     if ((e.target as HTMLElement)?.tagName === 'INPUT' || game.mode === 'title' || !game.state) return;
     const scene = game.stage.getScene();
@@ -119,10 +132,7 @@ function bindKeys(game: Game) {
         if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
         break;
       case 'Escape':
-        if (game.tool) game.setTool(null);
-        else if (game.panel) game.openPanel(null);
-        else if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
-        else game.select(null);
+        back(game);
         break;
       case 'ArrowLeft':
       case 'a':

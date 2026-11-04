@@ -6,7 +6,7 @@
 
 export const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-/** The Android app (a Trusted Web Activity around the live site): always the latest release's APK. */
+/** The Android app (the live site in the app's own WebView): always the latest release's APK. */
 export const ANDROID_APK_URL = 'https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk';
 
 const LAUNCH_KEY = 'kardashev.launchedAsApp';
@@ -18,16 +18,33 @@ try {
   /* storage blocked */
 }
 
+/** What the Android app (android/app/src/main/java/…/LauncherActivity.java) gives the page. */
+interface AndroidBridge {
+  saveFile(name: string, text: string): void;
+}
+
+function androidBridge(): AndroidBridge | null {
+  return (typeof window !== 'undefined' && (window as Window & { KardashevAndroid?: AndroidBridge }).KardashevAndroid) || null;
+}
+
+/** Running inside the Android app. */
+export function isAndroidApp(): boolean {
+  if (androidBridge()) return true;
+  try {
+    return window.sessionStorage.getItem(LAUNCH_KEY) === 'android';
+  } catch {
+    return false;
+  }
+}
+
 export function isStandalone(): boolean {
-  if (isDesktopApp) return true;
+  if (isDesktopApp || isAndroidApp()) return true;
   try {
     if (window.matchMedia('(display-mode: standalone)').matches) return true;
     if ((navigator as Navigator & { standalone?: boolean }).standalone === true) return true;
     // The manifest asks for fullscreen, but F11 or a tiling window manager's fullscreen matches too:
     // only trust it when this session was launched from the installed app.
-    if (window.matchMedia('(display-mode: fullscreen)').matches) return window.sessionStorage.getItem(LAUNCH_KEY) !== null;
-    // the Android app runs in Chrome; whatever display mode it reports, it was launched as an app
-    return window.sessionStorage.getItem(LAUNCH_KEY) === 'android';
+    return window.matchMedia('(display-mode: fullscreen)').matches && window.sessionStorage.getItem(LAUNCH_KEY) !== null;
   } catch {
     return false;
   }
@@ -48,6 +65,27 @@ export function isPhone(): boolean {
   } catch {
     return false;
   }
+}
+
+/** Save a text file: the Android app asks where to put it; everywhere else it's a download. */
+export function saveTextFile(name: string, text: string, type = 'application/json'): void {
+  const bridge = androidBridge();
+  if (bridge) return bridge.saveFile(name, text);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/**
+ * The Android app's back gesture calls this first: return true when it closed something; when
+ * nothing was open the app goes to the background.
+ */
+export function onHostBack(fn: () => boolean): void {
+  if (typeof window !== 'undefined') (window as Window & { kpBack?: () => boolean }).kpBack = fn;
 }
 
 export async function quitApp(): Promise<void> {

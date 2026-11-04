@@ -1,6 +1,7 @@
 import type { GameState } from '../sim/types';
 import { ensureAct2State, SAVE_VERSION } from '../sim/state';
 import { dateOf } from '../sim/core';
+import { saveTextFile } from '../platform/platform';
 
 /**
  * Saves live in localStorage as numbered slots (up to MAX_SLOTS companies), plus a small index
@@ -183,14 +184,7 @@ export function importSave(code: string): GameState | null {
 
 /** Download a save as a .json file. */
 export function downloadSave(s: GameState): void {
-  const blob = new Blob([JSON.stringify(s)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${s.company.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'company'}-day${s.day}.kardashev.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  saveTextFile(`${s.company.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'company'}-day${s.day}.kardashev.json`, JSON.stringify(s));
 }
 
 /** Remove every save and setting (Data → reset). */

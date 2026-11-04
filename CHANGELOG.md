@@ -14,6 +14,7 @@
 - The finale: The Heat Wall — a record hot season, a debris cascade in orbit and an AI reaching for the controls, all at once — then the cliffhanger into Act V.
 - New: Dr. Lena Moreau (fusion), Moon commander Ade Bello, four new partner companies, the rival AIs as faces, Bit-8 and Bit-9, the Orbital Dawn palette from the start of the act, fusion plants and air-capture farms at the megaprojects, a growing spaceport, six Council resolutions, ten techs, nine Field Guide entries and Act IV briefings.
 - Start a new company straight at Act IV.
+- Fix: the Android app opens on every phone. On some phones (Xiaomi, Redmi and POCO among them) tapping its icon did nothing, because the phone blocked the hand-off to Chrome; the app now runs the game itself, full screen. Back closes the open panel, and exporting or importing a save uses the phone's file picker. The app keeps its own saves: if you played in the old app or in Chrome, export from Chrome (Settings → Data) and import in the app.
 
 ## 0.4.2 — Easy Reading (2026-11-04)
 - A new font that is much easier to read, in the game and on the website: Atkinson Hyperlegible Next. The big titles and the world map stay pixel. Miss the old look? Settings → Accessibility → Text font → Pixel.
