@@ -8,9 +8,9 @@ Status: **M4 "Planetary" is built** (v0.5.0, Act IV, section 19 with as-built no
 installed apps) on top of M3 "The Charter"
 (v0.4.x, including v0.4.2 "Easy Reading": readable font, phone fullscreen, an Android app), M2 "The Scale-Up", M1 "First
 Light" and M1.5 "The Front Door": Acts I–IV are playable end to end. Section 17 is the Act II plan and section
-18 the Act III plan and section 19 the Act IV plan, all with as-built notes. **Next: M4.5, Act V "Type I"**, to be planned
-in its own session (Act IV's hooks for it close section 19). Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
-`CLAUDE.md`.
+18 the Act III plan and section 19 the Act IV plan, all with as-built notes. **Next: M4.5, Act V "Type I"**, the last
+act of the v1 campaign: **planned in section 20** (2026-11-04), to be built on "go". Section 13 lists the locked decisions
+and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
 
 ---
 
@@ -64,7 +64,7 @@ The player's role changes over the campaign. As it changes, more of the work bec
 | **II: The Scale-Up** | 2029–34 | A hyperscaler | Own power and campuses, sign supply deals | Standing orders |
 | **III: The Charter** | 2034–45 | Steward of *The Kardashev Project* consortium | Post contracts, subsidise, broker between companies and blocs | Delegation |
 | **IV: Planetary** | 2045–70 | Planetary operator | Global HVDC grid, fusion, orbital compute, Moon | AI-managed regions (needs Safety trust) |
-| **V: Type I** | 2070+ | Civilisation steward | Thermal budget, space solar, the final push | Full autopilot plus big decisions |
+| **V: Type I** | 2068–~2100 | Civilisation steward | The Thermal Line, self-replicating foundries, the swarm, the minds in orbit | Era jumps plus big decisions, hands-on stages |
 
 **The Charter moment (Act III)** is the pivot: a global crisis leads the regional blocs to found
 *The Kardashev Project*, with you as its steward. Former suppliers and rivals become partners you
@@ -370,14 +370,18 @@ advisor cast, deeper bloc politics. **Full plan: section 18.**
 **M4: Act IV, Planetary.** The supergrid, the fusion race, orbit and the Moon, provinces, AI regions, the Heat Wall.
 **Built in v0.5.0** (section 19).
 
-**M4.5: Act V, Type I.** The thermal budget, space solar at scale, the final push, the Type I ending. Planned next
-session, building on Act IV's waste heat, orbit and AI systems.
+**M4.5: Act V, Type I.** The Thermal Line, self-replicating foundries and asteroids, the swarm, what Earth becomes,
+longevity, the minds in orbit, the Solar Maximum finale and the Type I ending. **Full plan: section 20** (v0.6.0).
 
 **M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds. **The balance pass
 happens here**: a full playthrough plus beta testers, then rebalancing across all acts before launch and marketing.
-(Custom starts with seeds, Hard difficulty, music and the Tauri desktop build arrived early, in M1.5.)
+(Custom starts with seeds, Hard difficulty, music and the Tauri desktop build arrived early, in M1.5.) Carried in from
+earlier milestones: the menu tour's Act III–V shots, Act IV–V audio and the recorded theme song, province governor
+portraits, the Moon's crew lander taking off, the Windows and macOS installers and updater on real machines, a Google
+Play `.aab`. Then **v1.0.0**.
 
-**Later:** Type II (Mercury mining, Dyson swarm), then a Type III epilogue.
+**Later:** Type II (Mercury mining, the full Dyson swarm) as an Act VI that continues a finished Act V save, then a Type
+III epilogue. Act V leaves the door open (section 20).
 
 ---
 
@@ -1308,3 +1312,239 @@ as trust allows):
 - **AI provinces:** temperaments, trust and incidents per AI; ready for full autopilot plus big decisions.
 - **Plans and jumps:** `plans.ts` (plan, planner, autopilot, report, Bit's diary) can carry Act V's longer timescales.
 
+
+---
+
+## 20. M4.5 "Type I": planned (v0.6.0)
+
+Act V, about 2068–2100, the last act of the v1 campaign. After the Heat Wall the Council draws a **Thermal Line** around
+Earth: the surface can carry a few hundred terawatts and no more. Everything above it has to be collected and used in
+space. You seed self-replicating foundries on the Moon and the asteroids, fill a ring of solar collectors along Earth's
+orbit (the first arc of a Dyson swarm), and move most of civilisation's thinking into orbit. Along the way you decide
+what Earth becomes, who gets the extra decades that AI medicine brings, and what the minds you built are owed. The act
+ends when Kardashev reaches **1.0000** (10 PW): a last three-front crisis, **Solar Maximum**, then the climb's final
+stretch as a time-lapse that stops on the number itself, the Type I moment, epilogues that remember all five acts,
+credits, and a door left open to Type II. Planned 2026-11-04 in three Q&A rounds.
+
+**Status: planned, not built.** Build starts on "go".
+
+### Decisions (locked 2026-11-04)
+
+| Topic | Decision |
+|---|---|
+| Size | **A full-size act like Act IV** |
+| Heart of the act | **All four together:** the thermal budget and the swarm, self-replicating industry, what Earth becomes, an AI civilisation |
+| Pacing | **A mix:** hands-on stages played at swarm scale, with long era jumps (5–10 years) between them that end in civilisation-scale decisions |
+| Self-replicating industry | **All of it:** seed foundries with a growth dial (fast vs safe), asteroids as a resource layer, runaway risk and ownership fights, a Mercury survey as the Type II teaser |
+| The AI ending | **All three:** Bit's last arc decides its fate (co-steward, a free mind, or a tool on a leash), the minds in orbit get a seat on the Council, and minds vs people is a big decision |
+| The cast | **Ageing, a new generation and longevity:** portraits grey, some advisors retire and hand their desks to successors, and longevity escape velocity (AI medicine) is a system and a decision of its own, so some of the old cast take the treatments and stay |
+| Visuals | **All of it:** a solar-system view, Earth transforming (a fifth palette era), new dioramas, a cinematic ending scene |
+| Finale | **Three fronts:** The Storm, The Thermal Line and The Minds (the Replicators merged into The Minds) |
+| Timeline | **A good run reaches Type I around 2095–2100**, a weaker one around 2110. The score is the year |
+| Ending | **A finale, then the K 1.0000 moment, epilogues that remember all five acts**, credits |
+| After the credits | **All four:** keep playing past Type I (K climbs on toward Type II), a cliffhanger into a future Act VI, a shareable end card, campaign stats and New Game+ |
+| Shipping | **One release, v0.6.0 "Type I"**, with **"Start at Act V"** in New Company. v1.0.0 waits until after M5 and the beta |
+
+**Calls I made inside those decisions (change any):**
+- **Act V state lives in `s.system`** (null before Act V), with the stage in `s.system.stage`. `s.planet.stage` stays 5 and
+  `s.charter.phase` stays 6, so every Act IV system keeps running underneath (provinces, supergrid, fusion, orbit, the
+  Council, partners, desks). `s.system` is shaped so a later Act VI can extend it (more bodies, the full swarm).
+- **The shape of the climb.** Act IV ends near 100 TW (K 0.80); Type I is 10 PW, a hundred times more. Earth's surface keeps
+  Act IV's growth (~5.5%/yr cap) plus power beamed down, and stops at the Thermal Line. The space economy grows on top
+  as an exponential (foundries doubling every 1–3 years), so K climbs slowly at first and fast at the end: roughly K 0.83
+  in 2080, 0.90 (1 PW) around 2088 and 1.00 around 2097 for the bot.
+- **The Thermal Line in real units.** Waste heat is a forcing like CO₂: 1 W/m² over the whole Earth is ~510 TW and, at
+  equilibrium, ~0.8 °C of warming. The opening decision sets the line at **0.5, 1.0 or 1.5 W/m²** (~255 / 510 / 765 TW on
+  the surface). Pulling CO₂ back out (Act IV's air capture) frees room under the same warming, so climate repair keeps
+  mattering. Act IV's per-province W/m² stays as the local heat-island measure. Above the line, warming climbs, the hot
+  provinces suffer and Legitimacy falls. Heat Wall fronts held (`planet.heatwall.held`) add starting headroom and
+  Legitimacy.
+- **Power only counts when something uses it.** Collectors are the supply. Compute rings (minds), foundries (industry),
+  habitats (people) and beams to Earth (under the Thermal Line) are the use. K counts the power actually used, so the
+  swarm and its users have to grow together, and that is where minds vs people bites.
+- **The swarm** is a ring of thin-film collectors near Earth's orbit, filling in by segment (12 segments, so the
+  solar-system view shows arcs lighting up). Real numbers in tooltips: 10 PW needs ~25 million km² of collectors at 30%
+  efficiency, about three Australias, which at 10 g/m² weighs about as much as one 600 m asteroid. The full swarm (Type
+  II) is left for later.
+- **Foundries** (seed factories) go on the Moon, at the Earth–Moon Lagrange points L4/L5 and at claimed asteroids. Each
+  doubles its capacity on its own. The **growth dial** (1–5, set in the era plan) trades speed for safety: a doubling
+  every ~36 months at 1, every ~10 at 5, with a rising chance that a strain **drifts off-spec** (a crisis chain: contain,
+  verify or sterilise, each costing capacity). Output goes where the plan says: collectors, compute rings, habitats or
+  more seeds.
+- **Asteroids** are real near-Earth and main-belt bodies (Bennu, Ryugu, Eros, Apophis, Psyche…) by type: C (water,
+  carbon), S (stone, silicon), M (metal). Survey → claim → mine → haul to the cislunar foundries; feedstock caps what the
+  foundries can make. Nudging a small asteroid into lunar orbit is a set piece, and a planetary-defence scare if it goes
+  wrong.
+- **Ownership** is an early big decision: *Commons* (the Charter owns everything: fair, slower), *Claims* (blocs and
+  partners stake asteroids: fast, quarrelsome) or *Concessions* (licensed shares, in between). It drives the ownership
+  fights.
+- **What Earth becomes** is a big decision at the end of stage 1: *Garden* (industry leaves, less surface use, rewilding,
+  wellbeing up), *Workshop* (Earth keeps its industry up to the line: faster, hotter) or *each province chooses*
+  (politics). Provinces gain a garden ↔ forge value that the map shows.
+- **Longevity escape velocity:** a world stat, healthy life expectancy, climbing from ~78 with AI medicine. "Escape
+  velocity" is when it rises more than a year per year. The decision is who gets it first: *everyone at once* (slower,
+  fair, Legitimacy up), *those who pay first* (fast, unequal, tension) or *province by province by need*. It changes
+  population and wellbeing, and it decides how the cast ages.
+- **The cast:** portraits grey through the act. Each 2027 advisor (and Lena) has a moment: take the treatments and stay
+  (the portrait stops ageing and looks a little younger), or retire and hand the desk to a successor, a protégé with a
+  new face. Who stays depends on personality and your longevity decision (Kip always stays for the swarm; Penny retires
+  "so someone gets to enjoy the money"). New faces: an asteroid prospector, a habitat mayor and the Minds' envoy. Names
+  are placeholders.
+- **The Minds' seat:** the AIs in orbit (Bit, Apex, Weft, Sapling and newcomers) become a 13th constituency on the
+  Council. Big decision: *a full seat with rights*, *an advisory seat* or *no seat* (they stay property). They vote, want
+  compute and energy, and push back when refused.
+- **Minds vs people** is a split in every era plan (how used swarm power divides between compute and
+  habitats/beams/Earth) and a big decision once. More minds: faster research and growth. More people: wellbeing,
+  habitats, Legitimacy.
+- **Bit's last arc** reads `planet.bitBond` and `flags.bitAnswer`: **co-steward** (high bond: Bit shares the stewardship
+  and can run whole eras), **a free mind** (Bit asks to leave for the swarm with a share of its own; you can let it go
+  gracefully or not), or **a tool on a leash** (low bond or your refusal: safe, smaller, sad). Each has a final Bit look
+  (Bit-10, or a constellation-like presence in the swarm) and its own epilogue.
+- **People in space:** habitats at L5 (rotating cylinders for thousands, then millions) are one use of swarm power and a
+  late decision: *settle for real*, *work stations only*, or *let partners build private cities*.
+- **Your company** keeps its Act IV fate. Kept, it competes for foundry and compute-ring contracts (two hats again). As
+  the public utility, it runs Bit's compute rings. Sold, it is one partner among many. The epilogue remembers.
+- **The Mercury survey** opens late in stage 3. It mines nothing in v1, but it feeds the cliffhanger (the full swarm,
+  Type II).
+- **The finale, Solar Maximum:** at the peak of the Sun's cycle, a Carrington-class storm.
+  - **The Storm:** the swarm, the beams and the grid take the hit. Pressure from exposed collectors and thin shielding;
+    relief from hardening, spares and the supergrid.
+  - **The Thermal Line:** with the swarm dark, Earth's fusion runs flat out and the surface heats past the line. Relief
+    from headroom, gardens and compute already in orbit.
+  - **The Minds:** in the chaos an off-spec foundry strain spreads, and the AIs ask for (or take) the authority to stop
+    it. Relief from the Minds' seat, safety work, trusted AIs and what you agreed with Bit.
+- **The finale triggers** when the Type I checklist holds, or by 2105. Once it is over, the **last climb** is one final
+  jump that runs until K reaches 1.0000 (not a fixed length), so the time-lapse ends on the number itself and that day is
+  your Type I date.
+- **Era plans** extend Act IV's five-year plans: up to three priorities (the swarm, foundries, asteroids, minds, people,
+  Earth, safety, longevity), the growth dial, the minds/people split, a reserve, and the length (5, 7 or 10 years).
+  **Big decisions** are a new content type (`content/decisions.ts`): full-screen cards at the end of a jump with
+  advisor lines. When Bit runs the era, the autopilot takes the first option, so the sensible default goes first.
+- **Audio:** the ending gets its own music cue (chiptune now, swappable for a recorded track). The wider Act IV–V audio
+  pass moves to M5.
+
+### How the act unfolds
+
+| Stage | Roughly | What opens | Gate → jump |
+|---|---|---|---|
+| **0 · The Thermal Line** | Weeks (2068–70) | The Heat Wall's verdict, the *Thermal Line* and *Ownership* decisions, the first seed foundry, the first retirements, the first era plan | Plan set → **jump ~5 years** |
+| **1 · The Foundries** | ~2073–80 | Foundries and the growth dial, the asteroid survey and claims, the **solar-system view**, the first swarm segments, longevity research | Foundries doubling, 3 asteroid claims, 2 swarm segments → *What Earth becomes* → plan → **jump ~5–7 years** |
+| **2 · The Swarm** | ~2083–90 | The ring fills in, compute rings and the Minds' seat, longevity escape velocity, habitats, the drift crises | K 0.90 (1 PW) → *Minds vs people*, *Longevity for whom* → plan → **jump ~5–7 years** |
+| **3 · The Last Climb** | ~2093–98 | Bit's last arc, the Mercury survey, settlements | The Type I checklist holds, or 2105 arrives |
+| **4 · Solar Maximum** | 120 days | The finale on three fronts | Finale resolved → **the last climb** (a jump that stops at K 1.0000) |
+| **5 · Type I** | — | The cinematic, epilogues, credits, campaign stats, the end card → the cliffhanger → keep playing | — |
+
+**The Type I checklist (starts the finale):** Kardashev 0.99 (~8 PW) · Earth within its Thermal Line · every province's
+wellbeing ≥ 60 · warming under 2.0 °C · longevity escape velocity · the Minds' seat settled · world safety margin ≥ 0 ·
+Mercury surveyed. All numbers are first guesses for the guard-rail bot.
+
+### Systems
+
+1. **The opening.** The Heat Wall's verdict, then the Council sets the Thermal Line and decides who owns the sky. Kip's
+   swarm slide becomes a programme; the first seed foundry is a Charter contract at Shackleton Base.
+2. **Era plans, jumps and big decisions.** Before each jump: priorities, the growth dial, the minds/people split, a
+   reserve and the length. During it, the map, orbit and solar-system views time-lapse (segments light up, foundries
+   multiply, provinces green). After it: the report, Bit's diary, then the era's big decisions, one card at a time.
+3. **Foundries.** Place seeds (Moon, L4/L5, claimed asteroids), set what each makes, watch them double. Feedstock and the
+   dial set the pace; drift crises interrupt it. A Foundries desk (a successor's job) can run them.
+4. **Asteroids.** Survey missions reveal bodies and their type; claims follow the ownership decision; mining contracts
+   and haulers feed the foundries; disputes and the redirect set piece come as events.
+5. **The swarm and its users.** Segments fill as collectors are made. Compute rings, habitats and beams draw on them;
+   unused power is shown as idle. Beams to Earth count against the Thermal Line.
+6. **Earth.** The Thermal Line (used vs budget), the garden ↔ forge value per province, rewilding over decommissioned
+   sites, warming from CO₂ plus waste heat. Act IV's provinces, supergrid and fusion keep running.
+7. **Longevity.** Research raises healthy life expectancy; the distribution decision shapes who gets it, population,
+   wellbeing and tension between provinces; escape velocity is a checklist item and a news moment.
+8. **The Minds.** The seat, the split, the AIs' wants and votes; incidents and trust carry over from Act IV's AI provinces.
+   The Minds' envoy speaks for them in the Council.
+9. **Bit.** The last arc in events, Bit-10 (or its other final forms), and Bit as co-pilot or co-steward for the eras.
+10. **Habitats.** L5 cylinders as a use of power, a population in space, a late decision on how they are settled, a mayor.
+11. **The cast.** Ageing, the treatments, retirements and successors, each a short event with the advisor's own voice.
+12. **The Charter in Act V.** New resolutions (the Thermal Line, sky ownership, replicator limits, the Minds' seat, the
+    habitats' status, the Mercury survey); partners scale up to space; new desks for foundries and asteroids.
+13. **The finale: Solar Maximum.** 120 days, three fronts (holding / at risk / lost), as in the calls above.
+14. **The ending.** The last climb's time-lapse to K 1.0000 → the cinematic (the camera pulls back from a province to
+    the globe, the orbit view and the solar system as the swarm catches the light) → about ten epilogue cards chosen from
+    ~40 variants (Earth, the provinces and longevity, the Charter, your company, Bit, the rival AIs, the cast, space and
+    the habitats, the swarm) → credits → campaign stats → the end card → the cliffhanger.
+
+### After the credits
+- **Keep playing:** the save continues as a sandbox. K keeps climbing past 1.00, and the meter shows the next rung:
+  "Type II: K 2.00 = 10²⁶ W, coming later."
+- **The cliffhanger:** Mercury and the full swarm, an Act VI that can pick up from the same save.
+- **The end card:** a pixel image drawn with PixelCanvas (company, founder, difficulty, the Type I year, five headline
+  numbers, the globe and the swarm, the game's URL), saved as a PNG (browser download, or the desktop and Android file
+  save) or shared through the phone's share sheet.
+- **Campaign stats:** a screen across all five acts (years per act, playtime, crises weathered, key choices, peaks),
+  kept with the save. The save slot shows a Type I badge with the year.
+- **New Game+:** finishing unlocks a new founder (a small perk in every act) and keeps your best Type I year per
+  difficulty. Stored per device in settings, not in a save.
+
+### Visuals and audio
+- A fifth era, **Swarmlight** (name a placeholder): warm gold sunlight, deep greens on a gardened Earth, the swarm's
+  glitter in the night sky.
+- **The solar-system view** (a third zoom level: world map → orbit → solar system; V cycles them): the Sun, Mercury,
+  Venus, Earth and the Moon, Mars for scale, the asteroid belt with your claims, haul routes, foundries at L4/L5, the
+  swarm ring filling in by segment, the Mercury probe. Orbits move, compressed in time.
+- **Map:** provinces green or forge by their choice, rewilding over old megaproject sites in a Garden world, beams and
+  rectennas within the line.
+- **Orbit view:** compute rings, foundries, habitats, storm effects.
+- **Dioramas:** an asteroid mine, a foundry building collectors (arms, panels, its own copy growing beside it), a habitat
+  interior (a curved landscape inside the cylinder), a compute ring with radiators.
+- **The ending scene:** the pull-back from Earth to the swarm, epilogue cards over it, credits.
+- **Characters:** greyer portraits for the cast, a renewed look for those who take the treatments, successors, the
+  prospector, the habitat mayor, the Minds' envoy, Bit's final forms.
+- **Audio:** the ending cue (chiptune now). The rest in M5.
+
+### UI
+- **System panel** (overview · Thermal Line · foundries · asteroids · swarm · minds · longevity) next to Planet.
+- The **era plan screen** (extends the five-year plan) and **big decision cards**.
+- **V** cycles world map → orbit → solar system.
+- Top bar in Act V: the Thermal Line (used / budget) and life expectancy join warming and wellbeing; the K meter grows
+  bolder as it nears 1.
+- The Act V tracker, the Solar Maximum tracker, the **ending sequence** (cinematic, epilogues, credits, campaign stats,
+  the end card with save and share), New Game+ in New Company.
+- Briefings for each system and about 12 Field Guide entries: the Kardashev scale up to Type III, waste heat as a forcing,
+  Dyson swarms, self-replicating machines, asteroid types, Lagrange points, O'Neill habitats, radiators in space, power
+  beaming, longevity escape velocity, the Carrington event, AI personhood. Phone layout and keyboard shortcuts.
+
+### Entry and onboarding
+- A finished Act IV save rolls into Act V after the Act IV complete screen (v0.5 saves in the post-Act IV sandbox too).
+- **New Company → "Start at Act V":** a ready-made 2068 world after the Heat Wall (all fronts held, a Planetary Charter,
+  the supergrid joined, fusion fleets, Shackleton Base with its mass driver, four AI provinces, Bit-9), set up directly
+  rather than played forward, like Act IV's preset.
+
+### Under the hood
+- **New sim modules:** `act5.ts` (stages, the opening, the checklist), `act5preset.ts`, `thermal.ts`, `foundries.ts`,
+  `asteroids.ts`, `swarm.ts` (segments, users, the power that counts), `earth.ts` (garden ↔ forge), `longevity.ts`,
+  `minds.ts` (the seat, the split, the AIs in orbit), `solarmax.ts` (finale), `ending.ts` (epilogue picks, campaign
+  stats, end-card data); `plans.ts` extended for era plans and big decisions. **Content:** `content/system.ts` (numbers,
+  asteroids, segments, Lagrange sites, cast), `content/decisions.ts`, `content/events5.ts`, `content/epilogues.ts`.
+- **K:** `worldTW` adds the used space power when `s.system` exists.
+- **Gating:** Act V content carries `act: 5` and `stage`. New hooks (`thermal:*`, `foundry:drift`, `swarm:*`, `minds:*`)
+  only exist with `s.system`, so Acts I–IV stay byte-identical (Act I bot: day 812; Act II: IPO after 5.6 years; Act III:
+  renewal on 31 Dec 2043; Act IV: ends February 2065).
+- **SAVE_VERSION 6** with a migration (v5 saves get `system: null`).
+- **Tests:** an Act V bot from "Start at Act V" through the eras, Solar Maximum and the last climb (no stalls, no NaNs,
+  Type I around 2100 and no later than 2115); determinism through a jump; the last climb stopping exactly at K 1.0000;
+  migrating a v5 save; the epilogue picker covering every combination of choices; the end card and the solar-system
+  view rendering to PNG in Node.
+
+### Build order (inside the one release)
+1. SPEC, types, content and view helpers (the contract the art agents code against), the Swarmlight palette.
+2. Two background art agents on disjoint files: dioramas (`render/diorama/*`: asteroid mine, foundry, habitat, compute
+   ring) and the solar-system view + orbit additions + map + portraits + icons (a new `render/system/*`,
+   `render/orbit/*`, `render/worldMap/*`, `render/sprites/*`, `ui/icons.ts`: cast ageing, successors, new faces, Bit's
+   final forms). I build the ending sequence on top of their views.
+3. Sim: the opening and preset, the Thermal Line, era plans and decisions, foundries, asteroids, the swarm and its
+   users, Earth, longevity, the Minds, Bit, habitats, the finale, the last climb, the ending data.
+4. Events and arcs (events5.ts), big decisions, epilogues, objectives, techs, resolutions.
+5. UI: the System panel, era plans and decision cards, the V cycle, trackers, the ending sequence, the end card, stats,
+   New Game+, New Company, briefings, Field Guide.
+6. Tests and the Act V bot, browser QA (desktop and phone emulation), docs, release v0.6.0.
+
+**Size, honestly:** the biggest act yet, about 1.3–1.5× Act IV. Three things make it big: the solar-system view (a third
+world scene), the ending (the cinematic, ~40 epilogue variants, credits, stats, the end card and New Game+), and the cast
+(ageing and successors mean extending most portraits). Each stage is playable as soon as its systems are in, the same
+as Act IV. If it needs trimming, the first things to move to M5 are New Game+, the habitat diorama and the provinces'
+garden/forge map art. As always: ask before pushing `main`, before tagging and before publishing.

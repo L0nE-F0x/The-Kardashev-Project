@@ -255,7 +255,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 ## Known gaps / next (see SPEC §12, §16, §17, §18, §19)
 
-**Next: Act V "Type I"** (SPEC §12 M4.5), to be planned in its own session; Act IV's hooks for it close SPEC §19. Then the real theme song, code signing (Windows/macOS), a feedback form
+**Next: Act V "Type I"** (v0.6.0), **planned in SPEC §20** (2026-11-04): the Thermal Line, foundries, asteroids, the swarm, longevity, the minds in orbit, Solar Maximum and the Type I ending; then M5 polish (SPEC §12). Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
 **Still open:**
