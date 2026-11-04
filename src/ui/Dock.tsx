@@ -23,6 +23,9 @@ export function Dock() {
           ['council', 'council', 'The Council: resolutions and votes (U)', !s.charter.council.agenda.length && s.charter.capital >= 10 ? 1 : undefined],
         ] as [PanelId, IconName, string, number?][])
       : []),
+    ...((s.act ?? 1) >= 4 && s.planet
+      ? ([['planet', 'globe', 'The Planet: provinces, grid, fusion, space, climate (Y)', s.planet.planOpen ? 1 : undefined]] as [PanelId, IconName, string, number?][])
+      : []),
     ['goals', 'goals', 'Goals (G)'],
     ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
     ['news', 'news', 'News (N)'],

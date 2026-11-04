@@ -1,5 +1,7 @@
 import { Icon, useGame } from './components';
 import { canFullscreen, enterFullscreen, isFullscreen, isPhone, isStandalone } from '../platform/platform';
+import { warming } from '../sim/climate';
+import { avgWellbeing } from '../sim/provinces';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, K_MILESTONES, tierOf } from '../sim/model';
 import type { Speed } from '../game/game';
@@ -52,6 +54,15 @@ export function TopBar() {
             <div class="col">
               <span class="v gold">{fmtMoney(s.charter.budget)}</span>
               <span class={`s ${s.charter.legitimacy < 35 ? 'bad' : ''}`}>legit {Math.round(s.charter.legitimacy)}</span>
+            </div>
+          </button>
+        )}
+        {s.planet && (
+          <button class="stat btnless" onClick={() => game.openPlanet('climate')} data-tut="planet-stat" data-tip={`Warming ${warming(s).toFixed(2)} °C (the checklist needs it under 2.0).\nAverage wellbeing across the provinces: ${Math.round(avgWellbeing(s))}.\nClick to open the Planet (Y).`}>
+            <Icon name="warming" />
+            <div class="col">
+              <span class={`v ${warming(s) >= 2 ? 'bad' : warming(s) > 1.8 ? 'warn' : ''}`}>{warming(s).toFixed(2)} °C</span>
+              <span class="s">wellbeing {Math.round(avgWellbeing(s))}</span>
             </div>
           </button>
         )}

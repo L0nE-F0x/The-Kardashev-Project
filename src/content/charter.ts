@@ -42,6 +42,8 @@ export interface PartnerDef {
   pitches: string[];
   /** Relationship at the start of Act III. */
   rel0: number;
+  /** Partners that only join in Act IV. */
+  act?: number;
 }
 
 const p = (d: PartnerDef) => d;
@@ -196,28 +198,28 @@ export const PARTNERS: Record<string, PartnerDef> = {
   }),
   // ── Act IV: the fusion race and climate repair (rel0 is their relationship when Act IV begins) ──
   twistfield: p({
-    id: 'twistfield', name: 'Twistfield Fusion', short: 'Twistfield', sector: 'Fusion (stellarator)', home: 'eur', color: 'vio5', rel0: 50,
+    id: 'twistfield', name: 'Twistfield Fusion', short: 'Twistfield', sector: 'Fusion (stellarator)', home: 'eur', color: 'vio5', rel0: 50, act: 4,
     traits: { rel: 5, speed: 1, cost: 2, ambition: 3, ethics: 5 },
     quirk: 'A consortium of institutes building a magnetic bottle twisted by supercomputer. Never early, never wrong.',
     ceo: { name: 'Prof. Greta Lindahl', vibe: 'Forty years on one design; speaks quietly and carries a torus-shaped paperweight.' },
     pitches: ['Stability is the whole game.', 'Slow is smooth, smooth is fusion.', 'We modelled this a billion times.'],
   }),
   kindle: p({
-    id: 'kindle', name: 'Kindle Ignition', short: 'Kindle', sector: 'Fusion (laser)', home: 'atl', color: 'org1', rel0: 50,
+    id: 'kindle', name: 'Kindle Ignition', short: 'Kindle', sector: 'Fusion (laser)', home: 'atl', color: 'org1', rel0: 50, act: 4,
     traits: { rel: 2, speed: 4, cost: 3, ambition: 5, ethics: 3 },
     quirk: 'Ten shots a second, each a tiny star. Spun out of a weapons lab and still a little twitchy.',
     ceo: { name: 'Jonah Pike', vibe: 'Talks fast, thinks faster, has a laser tattoo he won’t explain.' },
     pitches: ['We hit ignition before breakfast.', 'Every shot teaches us something.', 'Repetition rate is destiny.'],
   }),
   quickpinch: p({
-    id: 'quickpinch', name: 'Quickpinch Fusion', short: 'Quickpinch', sector: 'Fusion (magnetised target)', home: 'pac', color: 'yel1', rel0: 45,
+    id: 'quickpinch', name: 'Quickpinch Fusion', short: 'Quickpinch', sector: 'Fusion (magnetised target)', home: 'pac', color: 'yel1', rel0: 45, act: 4,
     traits: { rel: 2, speed: 5, cost: 5, ambition: 4, ethics: 2 },
     quirk: 'Pistons, liquid metal and a very loud bang. Cheapest by far, if it works at all.',
     ceo: { name: 'Rosa Quintero', vibe: 'Garage-startup energy at gigawatt scale; drives a pickup to board meetings.' },
     pitches: ['Cheap enough to fail twice.', 'Pistons are proven technology.', 'You want a star or a spreadsheet?'],
   }),
   carbonfold: p({
-    id: 'carbonfold', name: 'Carbonfold', short: 'Carbonfold', sector: 'Direct air capture', home: 'nor', color: 'grn4', rel0: 50,
+    id: 'carbonfold', name: 'Carbonfold', short: 'Carbonfold', sector: 'Direct air capture', home: 'nor', color: 'grn4', rel0: 50, act: 4,
     traits: { rel: 4, speed: 3, cost: 3, ambition: 4, ethics: 4 },
     quirk: 'Fans the size of cathedrals and sorbents that drink CO₂. Buries it in basalt, where it turns to stone.',
     ceo: { name: 'Sigrid Aalto', vibe: 'Geologist who fell in love with a fan. Measures success in megatonnes buried.' },

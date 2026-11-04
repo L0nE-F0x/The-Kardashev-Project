@@ -16,6 +16,7 @@ export function createCharter(s: GameState): CharterState {
   const clean = REGION_IDS.reduce((a, r) => a + blocs[r].tw * blocs[r].clean, 0) / tw;
   const partners: CharterState['partners'] = {};
   for (const [id, def] of Object.entries(PARTNERS)) {
+    if ((def.act ?? 3) > 3) continue; // Act IV's partners join when that act begins
     let rel = def.rel0;
     // companies you did business with in Act II remember it
     if ((s.stack?.deals ?? []).some((d) => d.partner === id)) rel += 10;

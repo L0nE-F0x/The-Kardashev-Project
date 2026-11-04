@@ -2,6 +2,7 @@ import { Icon, Portrait, SpeakerPortrait, speakerName, useGame } from './compone
 import { EVENT_BY_ID } from '../content/events';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, tierOf } from '../sim/model';
+import { Act4CompleteModal } from './panels/Act4Panels';
 
 export function EventModal() {
   const game = useGame();
@@ -115,6 +116,7 @@ export function ActCompleteModal() {
   const game = useGame();
   const s = game.state!;
   if (!game.showActComplete) return null;
+  if (s.flags.act4Complete) return <Act4CompleteModal />;
   if (s.flags.act3Complete) return <Act3CompleteModal />;
   if (s.flags.act2Complete) return <Act2CompleteModal />;
   const st = s.stats;
@@ -368,15 +370,15 @@ function Act3CompleteModal() {
             <Portrait id="kip" mood="excited" size={56} />
             <div class="bubble">
               <b>Kip · Space</b>
-              Orbit is open, the grids are joined and Bit wants to help run a planet. Act IV — Planetary — is on the drawing board.
+              Orbit is open, the grids are joined and Bit wants to help run a planet. Next: Act IV — Planetary.
             </div>
           </div>
           <div class="choices">
             <button class="btn primary choice" onClick={() => game.dismissActComplete()}>
               <span class="t">
-                <Icon name="play" size="sm" /> Keep playing (sandbox)
+                <Icon name="play" size="sm" /> On to Act IV · Planetary
               </span>
-              <span class="d">Keep climbing toward Type I; Act IV is coming.</span>
+              <span class="d">The planet becomes one system: a supergrid, a fusion race, orbit and the Moon.</span>
             </button>
           </div>
         </div>

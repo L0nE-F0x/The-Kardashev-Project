@@ -20,12 +20,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
   const [eventRate, setEventRate] = useState<EventRate>('normal');
   const [rivalPace, setRivalPace] = useState<RivalPace>('normal');
   const [seed, setSeed] = useState<number>(randomSeed());
-  const [start, setStart] = useState<1 | 2 | 3>(1);
+  const [start, setStart] = useState<1 | 2 | 3 | 4>(1);
   const lod = game.world.lods[1];
   const startCash = (cash ?? DIFFICULTIES[difficulty].cash) + FOUNDERS[founder].cash;
 
   const found = () => {
-    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: start === 1 && tutorial, act2: start === 2, act3: start === 3 });
+    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4 });
   };
 
   return (
@@ -45,7 +45,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
       </div>
 
       <h4 class="section">Where do you start?</h4>
-      <div class="cardgrid three">
+      <div class="cardgrid four">
         <button class={`btn pickcard ${start === 1 ? 'active' : ''}`} onClick={() => setStart(1)} aria-pressed={start === 1}>
           <span class="n">
             <Icon name="hq" size="sm" /> Act I · The Garage
@@ -63,6 +63,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             <Icon name="charter" size="sm" /> Act III · The Charter
           </span>
           <span class="b">January 2035. A listed company with a gigawatt campus — and twelve blocs asking you to run the Kardashev Project.</span>
+        </button>
+        <button class={`btn pickcard ${start === 4 ? 'active' : ''}`} onClick={() => setStart(4)} aria-pressed={start === 4} data-tut="start-act4">
+          <span class="n">
+            <Icon name="globe" size="sm" /> Act IV · Planetary
+          </span>
+          <span class="b">January 2045. A renewed Planetary Charter, fusion lit in a pilot plant, a launch pad — and a whole planet to run.</span>
         </button>
       </div>
 
@@ -147,7 +153,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       <div class="row between wrap section" style={{ gap: '8px' }}>
         <span class="small muted">
-          {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : ''}
+          {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : ''}
           {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : start === 3 ? 'public, with Charter Standing 2' : 'Series A in the bank'}
         </span>
         <button class="btn primary big" onClick={found} disabled={game.slotsFull()} data-tip={game.slotsFull() ? 'All 5 slots are in use — delete a company first.' : undefined}>

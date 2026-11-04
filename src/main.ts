@@ -106,13 +106,20 @@ function bindKeys(game: Game) {
       case 'u':
         if ((game.state?.act ?? 1) >= 3) game.openPanel('council');
         break;
+      case 'y':
+        if ((game.state?.act ?? 1) >= 4) game.openPanel('planet');
+        break;
+      case 'v':
+        if (game.mode === 'orbit') game.enterMap();
+        else if (game.hasOrbitView) game.enterOrbit();
+        break;
       case 'm':
-        if (game.mode === 'diorama') game.enterMap();
+        if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
         break;
       case 'Escape':
         if (game.tool) game.setTool(null);
         else if (game.panel) game.openPanel(null);
-        else if (game.mode === 'diorama') game.enterMap();
+        else if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
         else game.select(null);
         break;
       case 'ArrowLeft':

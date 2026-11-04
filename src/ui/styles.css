@@ -1648,3 +1648,33 @@ ol.steps li {
     overflow-x: auto;
   }
 }
+
+/* ── Act IV: the time-lapse while the years jump ─────────────────────────────────────────── */
+.jump {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  width: min(420px, calc(100vw - 32px));
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 6;
+  zoom: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
+}
+.jumpyear {
+  font-family: var(--font-pixel);
+  font-size: 28px;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+.provtable .provrow {
+  border-top: 1px solid var(--line);
+  padding: 3px 0;
+}
+@media (max-height: 520px) {
+  .jump {
+    bottom: 36px;
+  }
+}

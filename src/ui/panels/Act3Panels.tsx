@@ -70,7 +70,7 @@ const sign = (v: number, d = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
 const pips = (n: number) => '●'.repeat(Math.max(0, Math.min(5, n))) + '○'.repeat(Math.max(0, 5 - n));
 
 /** CEO or delegate portrait. */
-function Face({ id, size = 32, mood }: { id: string; size?: number; mood?: 'neutral' | 'happy' | 'worried' | 'angry' | 'excited' }) {
+export function Face({ id, size = 32, mood }: { id: string; size?: number; mood?: 'neutral' | 'happy' | 'worried' | 'angry' | 'excited' }) {
   if (id === YOU) return <Portrait id="bit" size={size} mood={mood} />;
   return <img class="portrait" src={ceoPortraitUrl(id, mood ?? 'neutral')} style={{ width: `${size}px`, height: `${size}px` }} alt={id} draggable={false} />;
 }
@@ -378,7 +378,7 @@ function ContractsTab() {
   );
 }
 
-function TenderCard({ t }: { t: Tender }) {
+export function TenderCard({ t }: { t: Tender }) {
   const game = useGame();
   const s = game.state!;
   const def = CONTRACT_KINDS[t.kind];
@@ -423,7 +423,7 @@ function TenderCard({ t }: { t: Tender }) {
   );
 }
 
-function ProjectRow({ p }: { p: Project }) {
+export function ProjectRow({ p }: { p: Project }) {
   const game = useGame();
   const s = game.state!;
   const def = CONTRACT_KINDS[p.kind];
@@ -510,7 +510,7 @@ function PartnersTab() {
   const game = useGame();
   const s = game.state!;
   const c = s.charter!;
-  const ids = [...PARTNER_IDS].sort((a, b) => c.partners[b].rel - c.partners[a].rel);
+  const ids = [...PARTNER_IDS].filter((id) => c.partners[id]).sort((a, b) => c.partners[b].rel - c.partners[a].rel);
   return (
     <>
       <p class="small muted" style={{ marginTop: 0 }}>

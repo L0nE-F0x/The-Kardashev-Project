@@ -6,6 +6,10 @@ import type { RegionId } from '../content/mapcodes';
 import { newGame, type NewGameOptions } from '../sim/state';
 import { newAct2Game } from '../sim/act2';
 import { newAct3Game } from '../sim/act3';
+import { newAct4Game } from '../sim/act4preset';
+import * as PL from '../sim/plans';
+import * as AI from '../sim/airegions';
+import type { AiId, FivePlan, JumpRecord } from '../sim/types';
 import * as CH from '../sim/charter';
 import * as CO from '../sim/council';
 import { requestOwnLicence as requestLicence } from '../sim/frontier';
@@ -38,9 +42,10 @@ import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | null;
+export type PlanetTab = 'overview' | 'provinces' | 'grid' | 'fusion' | 'space' | 'climate';
 export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
-export type Mode = 'title' | 'map' | 'diorama';
+export type Mode = 'title' | 'map' | 'diorama' | 'orbit';
 export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install';
 export type Hover =
   | { kind: 'site'; id: string; clientX: number; clientY: number }
@@ -69,7 +74,12 @@ export interface SceneFactory {
   map(game: Game): Scene;
   diorama(game: Game, siteId: string): Scene;
   tour(game: Game): TourDirector;
+  /** Act IV: the planet from orbit. */
+  orbit?(game: Game): Scene;
 }
+
+/** Game days a time jump advances per frame (the map time-lapses while it runs). */
+const JUMP_DAYS_PER_FRAME = 7;
 
 const SPEEDS = [0, 1, 2, 4, 8] as const;
 export type Speed = (typeof SPEEDS)[number];
@@ -95,6 +105,12 @@ export class Game {
   showActComplete = false;
   /** Act III: which Charter tab is open, and a contract draft from the inspector. */
   charterTab: CharterTab = 'overview';
+  /** Act IV. */
+  planetTab: PlanetTab = 'overview';
+  /** The report of the jump that just finished (shown until dismissed). */
+  jumpReport: JumpRecord | null = null;
+  /** Finish the running jump as fast as possible. */
+  jumpFast = false;
   charterDraft: { kind?: ContractKind; where?: string } | null = null;
   /** Act II unlock briefing on screen (UI-only; which ones were seen is saved in meta). */
   briefing: { id: string; step: number } | null = null;
@@ -202,12 +218,12 @@ export class Game {
     return listSlots().length >= MAX_SLOTS;
   }
 
-  startNew(opts: NewGameOptions & { act2?: boolean; act3?: boolean }): boolean {
+  startNew(opts: NewGameOptions & { act2?: boolean; act3?: boolean; act4?: boolean }): boolean {
     if (this.slotsFull()) {
       this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
       return false;
     }
-    this.state = opts.act3 ? newAct3Game(opts) : opts.act2 ? newAct2Game(opts) : newGame(opts);
+    this.state = opts.act4 ? newAct4Game(opts, this.ctx) : opts.act3 ? newAct3Game(opts) : opts.act2 ? newAct2Game(opts) : newGame(opts);
     this.slotId = newSlotId();
     refreshStats(this.state);
     this.awayReport = null;
@@ -325,6 +341,22 @@ export class Game {
     this.notify();
   }
 
+  /** Act IV: zoom out to the planet from orbit. */
+  enterOrbit(): void {
+    if (!this.scenes.orbit || !this.state?.planet) return;
+    this.mode = 'orbit';
+    this.dioramaSite = null;
+    this.hover = null;
+    this.stage.setZoomBoost(this.settings.zoom);
+    this.stage.setScene(this.scenes.orbit(this));
+    sfx('whoosh');
+    this.notify();
+  }
+
+  get hasOrbitView(): boolean {
+    return !!this.scenes.orbit && !!this.state?.planet;
+  }
+
   enterDiorama(siteId: string): void {
     this.mode = 'diorama';
     this.dioramaSite = siteId;
@@ -369,6 +401,9 @@ export class Game {
     if (!s) return true;
     return (
       (!!s.events.active && (this.settings.autoPause || this.eventOpen)) ||
+      !!s.planet?.jump ||
+      !!this.jumpReport ||
+      (!!s.planet?.planOpen && !s.events.active) ||
       !!this.awayReport ||
       this.showActComplete ||
       !!s.meta.gameOver ||
@@ -391,6 +426,18 @@ export class Game {
       this.tour?.update(dt);
     } else if (s) {
       s.meta.playtime += dt;
+      // Act IV: a time jump runs a week per frame so the map can time-lapse (or all at once when skipped)
+      if (s.planet?.jump) {
+        const rec = PL.jumpStep(s, this.ctx, this.jumpFast ? 100_000 : JUMP_DAYS_PER_FRAME);
+        refreshStats(s);
+        if (rec) {
+          this.jumpReport = rec;
+          this.jumpFast = false;
+          sfx('fanfare');
+          this.save();
+        }
+        this.notify();
+      }
       const blocked = this.blocked;
       if (blocked && this.speed !== 0) {
         this.resumeSpeed = this.speed;
@@ -465,6 +512,11 @@ export class Game {
       this.showActComplete = true;
       sfx('fanfare');
     }
+    if (s.flags.act4Complete && !s.flags.act4Shown) {
+      s.flags.act4Shown = true;
+      this.showActComplete = true;
+      sfx('fanfare');
+    }
     if (s.events.active && !this.settings.autoPause && !s.flags[`seen:${s.events.active.id}:${s.events.active.day}`]) {
       s.flags[`seen:${s.events.active.id}:${s.events.active.day}`] = true;
       sfx('alert');
@@ -531,7 +583,7 @@ export class Game {
   private updateEra(): void {
     // the era follows K, or the act, whichever is later (Act II barely moves K but should look like the Grid Rush)
     const act = this.view?.act ?? 1;
-    const byAct = (act >= 3 ? 2 : act >= 2 ? 1 : 0) as Era;
+    const byAct = (act >= 4 ? 3 : act >= 3 ? 2 : act >= 2 ? 1 : 0) as Era;
     const target: Era = this.eraOverride ?? (Math.max(byAct, this.eraForK(this.view?.stats.K ?? kardashev(19.6e12))) as Era);
     if (target !== getEra()) {
       setEra(target);
@@ -697,7 +749,12 @@ export class Game {
     const s = this.state;
     if (!s?.charter?.blindTrust) return false;
     sfx('error');
-    this.toast(`🔒 ${s.company.name} is in a blind trust — your advisors run it now. (Charter → Overview to leave.)`, 'bad', 'penny');
+    const co = s.planet?.company;
+    this.toast(
+      co === 'sell' ? `🔒 You sold ${s.company.name}: it isn’t yours to run any more.` : co === 'utility' ? `🔒 ${s.company.name} is the Charter’s public utility now: its advisors run it.` : `🔒 ${s.company.name} is in a blind trust — your advisors run it now. (Charter → Overview to leave.)`,
+      'bad',
+      'penny',
+    );
     return true;
   }
 
@@ -944,9 +1001,60 @@ export class Game {
     this.notify();
   }
 
-  postTender(kind: ContractKind, size: ContractSize, where: string) {
+  postTender(kind: ContractKind, size: ContractSize, where: string, opt?: string) {
     this.charterDraft = null;
-    return this.after(CH.postTender(this.state!, kind, size, where), 'confirm');
+    return this.after(CH.postTender(this.state!, kind, size, where, opt), 'confirm');
+  }
+
+  // ── Act IV: the planet ──
+  setPlanetTab(tab: PlanetTab): void {
+    this.planetTab = tab;
+    sfx('click');
+    this.notify();
+  }
+
+  openPlanet(tab: PlanetTab): void {
+    this.planetTab = tab;
+    this.panel = 'planet';
+    sfx('click');
+    this.notify();
+  }
+
+  /** Confirm the five-year plan: the next stage begins and the years start to jump. */
+  confirmPlan(plan: FivePlan) {
+    const r = this.after(PL.confirmPlan(this.state!, plan), 'confirm');
+    if (r.ok) {
+      this.panel = null;
+      this.select(null);
+      if (this.mode !== 'map') this.enterMap();
+    }
+    return r;
+  }
+
+  skipJump(): void {
+    this.jumpFast = true;
+  }
+
+  /** Re-read an earlier jump's report (Planet → Overview). */
+  showJumpReport(rec: JumpRecord): void {
+    this.jumpReport = rec;
+    this.panel = null;
+    sfx('page');
+    this.notify();
+  }
+
+  dismissJumpReport(): void {
+    this.jumpReport = null;
+    sfx('click');
+    this.notify();
+  }
+
+  delegateProvince(r: Rid, ai: AiId) {
+    return this.after(AI.delegate(this.state!, r, ai), 'confirm');
+  }
+
+  recallProvince(r: Rid) {
+    return this.after(AI.recall(this.state!, r));
   }
 
   closeTender(id: string) {
