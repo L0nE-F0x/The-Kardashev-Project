@@ -36,6 +36,8 @@ function impossibleHere(type: FacilityType, id: string): boolean {
   return false;
 }
 
+import { SpaceInspector } from './panels/Act5Panels';
+
 export function Inspector() {
   const game = useGame();
   const sel = game.selection;
@@ -49,6 +51,7 @@ export function Inspector() {
   if (site.kind === 'charter') return <CharterHqInspector id={sel.id} />;
   if (site.kind === 'mega') return <MegaInspector id={sel.id} />;
   if (site.kind === 'launch') return <LaunchInspector id={sel.id} />;
+  if (site.kind === 'yards' || site.kind === 'ring' || site.kind === 'habitat' || site.kind === 'asteroid' || (site.kind === 'moon' && game.state?.system)) return <SpaceInspector id={sel.id} />;
   return <SupplierInspector id={sel.id} />;
 }
 

@@ -32,6 +32,7 @@ import { toDataUrl } from '../../render/pixels';
 import { terrainCanvas } from '../../render/worldMap/terrain';
 import { canShareImages, saveImage, shareImage } from '../../platform/platform';
 import { OpenWork, PostContract } from './Act4Panels';
+import { SITE_BY_ID } from '../../content/sites';
 
 const STAGE_BLURB = [
   'Draw the Thermal Line, decide who owns the sky, plant the first seeds — then set the first era plan.',
@@ -1037,3 +1038,59 @@ function EndCard({ year }: { year: number }) {
     </div>
   );
 }
+
+// ════════════════════════════════════════ PLACES IN SPACE ════════════════════════════════════════
+/** The inspector for the Moon, the yards, Ring One, Aurora and the asteroids (from their dioramas or the solar-system view). */
+export function SpaceInspector({ id }: { id: string }) {
+  const game = useGame();
+  const s = game.state!;
+  const sy = s.system;
+  const site = SITE_BY_ID[id];
+  if (!site || !sy) return null;
+  const ast = ASTEROIDS.find((a) => a.id === id);
+  const st = ast ? sy.asteroids[id] : null;
+  const fs = sy.foundries.filter((f) => f.site === id);
+  const cap = fs.reduce((a, f) => a + f.cap, 0);
+  const canSeed = id === 'moon' || id === 'l4' || id === 'l5' || (!!st && st.status >= 2);
+  const why = ast ? canClaim(s, id) : null;
+  return (
+    <Panel title={site.name} icon={ast ? 'asteroid' : id === 'ring' ? 'ring' : id === 'aurora' ? 'habitat' : id === 'moon' ? 'moon' : 'foundry'} onClose={() => game.select(null)} extra={game.mode !== 'diorama' ? <button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button> : undefined}>
+      {ast && <div class="small muted">{TYPE_INFO[ast.type].name} · {ast.km >= 10 ? Math.round(ast.km) : ast.km} km · {ast.belt === 'nea' ? 'near-Earth' : 'main belt'}</div>}
+      <p class="small" style={{ margin: '6px 0' }}>
+        {site.blurb}
+      </p>
+      {id === 'ring' && <KV rows={[['Compute rings', fmtTW(sy.rings)], ['The minds’ mood', `${Math.round(sy.mindsMood)}`]]} />}
+      {id === 'aurora' && <KV rows={[['People in space', `${sy.spacePop.toFixed(sy.spacePop < 10 ? 1 : 0)} million`], ['Habitat & industry', fmtTW(sy.habitat)]]} />}
+      {st && <div class="small">{st.status === 0 ? 'Not surveyed.' : st.status === 1 ? 'Surveyed, unclaimed.' : `Claimed by ${ownerLabel(st.owner ?? 'charter')}.`}</div>}
+      {fs.length > 0 && (
+        <div class="small" style={{ marginTop: '4px' }}>
+          {fs.length} foundr{fs.length > 1 ? 'ies' : 'y'} · {cap.toFixed(cap < 10 ? 2 : 0)} Mt/yr
+          {fs.some((f) => f.drift > 0) && <span class="warn"> · a strain is drifting</span>}
+        </div>
+      )}
+      <div class="row wrap" style={{ gap: '6px', marginTop: '6px' }}>
+        {st?.status === 1 && (
+          <button class="btn small" disabled={!!why} onClick={() => game.claimAsteroid(id)} data-tip={why ?? `Claim it for the Charter (${claimCost(s)} political capital).`}>
+            Claim
+          </button>
+        )}
+        {canSeed && (
+          <button class="btn small primary" onClick={() => game.openSystem('foundries')}>
+            <Icon name="foundry" size="sm" /> Plant a seed
+          </button>
+        )}
+        {id === 'aurora' && (
+          <button class="btn small" onClick={() => game.openSystem('swarm')}>
+            <Icon name="habitat" size="sm" /> Habitats
+          </button>
+        )}
+        {id === 'ring' && (
+          <button class="btn small" onClick={() => game.openSystem('minds')}>
+            <Icon name="minds" size="sm" /> The minds
+          </button>
+        )}
+      </div>
+    </Panel>
+  );
+}
+

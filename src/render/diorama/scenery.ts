@@ -13,6 +13,9 @@ import { bands, type CampusLayout } from './layout';
 import { alpsRidge, jetFrames, lakeBand, sailboat } from './charterHQ';
 import { megaBack } from './mega';
 import { lunarBack, lunarFar, lunarFg, lunarGround, lunarMid } from './moon';
+import { spaceBands } from './space';
+import { asteroidBands } from './asteroid';
+import { habitatBands } from './habitat';
 
 /** An animated prop living in a band (it scrolls with that band's parallax). */
 export interface BandProp {
@@ -59,6 +62,12 @@ export interface SceneBands {
 }
 
 export function bandSeed(site: SiteDef): number {
+  // Act V's places in space all sit at 0°, 0°: tell them apart by name
+  if (site.kind === 'yards' || site.kind === 'ring' || site.kind === 'habitat' || site.kind === 'asteroid') {
+    let h = 0;
+    for (const ch of site.id) h = (h * 31 + ch.charCodeAt(0)) % 9973;
+    return Math.floor(hash2(h, 5, 3) * 1000);
+  }
   return Math.floor(hash2(site.lat * 10, site.lon * 10, 3) * 1000);
 }
 
@@ -76,6 +85,10 @@ export function sceneBands(site: SiteDef, L: CampusLayout, vw: number, vh: numbe
     return out;
   };
   const sc = L.scenery;
+  // Act V: open space, an asteroid, inside the habitat
+  if (sc?.kind === 'space') return spaceBands(sc, seed, b, L.width, vh);
+  if (sc?.kind === 'asteroid') return asteroidBands(sc, seed, b, L.width);
+  if (sc?.kind === 'habitat') return habitatBands(sc, seed, b, L.width, lampsUpTo);
   if (sc?.kind === 'moon') {
     // the Moon: crater-rim massifs, a crater plain, regolith with rover tracks; no road, no lamps
     const backH = 40;

@@ -16,6 +16,8 @@ import { act3Key } from './act3Pieces';
 import { sceneBands, type BandProp, type SceneBands } from './scenery';
 import { launchFlash, rocketPose, type LaunchSpec } from './launch';
 import { astronautFrames, driverPose, earthDisc, lunarSky, lunarStars, lunarSunArt, moonRoverArt, type DriverSpec } from './moon';
+import { moonDiscArt, paleBlueDot, spaceSkyArt, spaceSkyPlan, spaceSunArt, swarmArt } from './space';
+import { habitatSkyArt } from './habitat';
 import { terrainCanvas } from '../worldMap/terrain';
 
 interface Plot {
@@ -109,6 +111,9 @@ interface Walker {
 
 type Weather = 'clear' | 'cloudy' | 'rain' | 'snow' | 'dust';
 
+/** How the sky works: Earth, the Moon, open space (Act V's yards and ring), an asteroid, inside a habitat. */
+type SkyMode = 'earth' | 'lunar' | 'space' | 'asteroid' | 'habitat';
+
 const MAX_PARTICLES = 420;
 
 /**
@@ -138,6 +143,14 @@ export class DioramaScene implements Scene {
   private readonly site: SiteDef;
   /** The Moon base: black sky, no weather, astronauts and rovers. */
   private readonly lunar: boolean;
+  /** Act V: open space, an asteroid's surface or the inside of a habitat get their own skies. */
+  private readonly mode: SkyMode;
+  /** No air: no clouds, rain or birds (the Moon, space, asteroids). */
+  private readonly airless: boolean;
+  /** Screen-fixed lights in the sky (the habitat's far side at night), untinted. */
+  private readonly skyGlowL = new Container();
+  private skyGlow = new Sprite();
+  private skyGlowTex: Texture | null = null;
   private layout: CampusLayout | null = null;
   private vw = 640;
   private vh = 360;
@@ -195,7 +208,12 @@ export class DioramaScene implements Scene {
   ) {
     this.site = siteDef(siteId);
     this.lunar = this.site.backdrop === 'lunar';
-    this.root.addChild(this.skyL, this.farL, this.cloudL, this.midL, this.midGlowL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
+    const bd = this.site.backdrop;
+    this.mode = bd === 'lunar' ? 'lunar' : bd === 'space' ? 'space' : bd === 'asteroid' ? 'asteroid' : bd === 'habitat' ? 'habitat' : 'earth';
+    this.airless = this.mode === 'lunar' || this.mode === 'space' || this.mode === 'asteroid';
+    this.skyGlowL.addChild(this.skyGlow);
+    this.skyGlowL.visible = false;
+    this.root.addChild(this.skyL, this.skyGlowL, this.farL, this.cloudL, this.midL, this.midGlowL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
     this.skyL.addChild(this.skySprite, this.stars, this.sun, this.moon, this.earth, this.haze);
     this.earth.visible = false;
     this.world.addChild(this.groundL, this.plotL, this.actorL, this.fxL, this.fgL);
@@ -619,7 +637,7 @@ export class DioramaScene implements Scene {
     // clouds
     this.cloudL.removeChildren();
     this.clouds = [];
-    const n = this.lunar ? 0 : this.weather === 'clear' ? 3 : this.weather === 'dust' ? 2 : 7;
+    const n = this.airless ? 0 : this.weather === 'clear' ? 3 : this.weather === 'dust' ? 2 : 7;
     for (let i = 0; i < n; i++) {
       const sp = new Sprite(cachedTexture(`dio:cloud:${i % 4}:${this.weather === 'rain' ? 'g' : 'w'}`, () => cloudArt(i % 4, this.weather === 'rain')));
       sp.y = 12 + hash2(i, 9, 2) * this.vh * 0.25;
@@ -640,10 +658,14 @@ export class DioramaScene implements Scene {
     this.walkers = [];
     if (this.bandsInfo?.walkers === false) return;
     const solid = this.plots.filter((p) => p.kind !== 'empty').length;
-    const count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
+    let count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
+    // Act V: a few suited figures on an asteroid; the habitat fills up as it's lived in
+    const sc = this.layout?.scenery;
+    if (this.mode === 'asteroid') count = Math.min(count, 2 + Math.floor(solid / 2));
+    if (sc?.kind === 'habitat') count = Math.round(count * (0.5 + sc.lived * 0.35));
     const limit = Math.min(this.sceneW - 20, this.walkLimit());
     for (let i = 0; i < count; i++) {
-      const frames = this.lunar
+      const frames = this.lunar || this.mode === 'asteroid'
         ? astronautFrames(i).map((pc, k) => cachedTexture(`dio:astronaut:${i % 14}:${k}`, () => pc))
         : personFrames(i).map((pc, k) => cachedTexture(`dio:person:${i % 12}:${k}`, () => pc));
       const sp = new Sprite(frames[0]);
@@ -654,10 +676,12 @@ export class DioramaScene implements Scene {
   }
 
   private pickWeather(): Weather {
-    if (!this.game.settings.weather || this.lunar) return 'clear';
+    if (!this.game.settings.weather || this.airless) return 'clear';
     const s = this.game.view;
     const day = s?.day ?? 0;
     const r = hash2(Math.floor(day / 3), Math.floor(this.site.lat * 7 + this.site.lon), 17);
+    // the habitat's weather is scheduled: clouds some days, never a storm
+    if (this.mode === 'habitat') return r < 0.35 ? 'cloudy' : 'clear';
     const wet = this.site.backdrop === 'desert' ? 0.05 : this.site.water > 0.7 ? 0.35 : 0.22;
     if (r < wet) {
       const month = new Date().getUTCMonth();
@@ -695,6 +719,8 @@ export class DioramaScene implements Scene {
   private updateSky(dt: number) {
     if (this.game.dioramaTimelapse) this.timeOffset += dt * 2160 * 1000;
     if (this.lunar) return this.updateLunarSky(dt);
+    if (this.mode === 'space' || this.mode === 'asteroid') return this.updateSpaceSky();
+    if (this.mode === 'habitat') return this.updateHabitatSky(dt);
     const date = this.clock();
     const sub = subsolar(date);
     const alt = sunAltitude(this.site.lat, this.site.lon, sub);
@@ -822,6 +848,135 @@ export class DioramaScene implements Scene {
     this.skyL.tint = 0xffffff;
     for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
     const lightsOn = Math.max(0, Math.min(1, (d - 0.25) * 2.4));
+    this.glowL.alpha = lightsOn;
+    this.backGlowL.alpha = lightsOn;
+    this.midGlowL.alpha = lightsOn;
+    this.bloomL.alpha = lightsOn * 0.55;
+    this.glowL.visible = this.backGlowL.visible = this.midGlowL.visible = lightsOn > 0.01;
+    this.bloomL.visible = lightsOn > 0.01 && !this.game.settings.batterySaver;
+  }
+
+  /**
+   * Act V, open space and the asteroids: no day or night (the sun never sets out here), so the
+   * world stays sunlit and the lights glow against the black. The sun sits up on the left, the
+   * swarm glitters across the sky, the Earth turns as a disc (or shows as a pale blue dot from the
+   * asteroids). Solar Maximum's storm makes the light stutter.
+   */
+  private updateSpaceSky() {
+    const sc = this.layout?.scenery;
+    const place = sc?.kind === 'space' ? sc.place : 'asteroid';
+    const au = sc?.kind === 'asteroid' ? sc.au : 1;
+    const swarm = sc?.kind === 'space' || sc?.kind === 'asteroid' ? sc.swarm : 0;
+    const storm = sc?.kind === 'space' ? sc.storm : 0;
+    const plan = spaceSkyPlan(this.vw, this.vh, place, au);
+    const key = `space|${this.vw}x${this.vh}|${getEra()}|${place}|${au}|${swarm}`;
+    if (key !== this.skyKey) {
+      this.skyKey = key;
+      const seed = 37 + (place === 'l5' ? 11 : place === 'ring' ? 23 : place === 'asteroid' ? 31 + Math.round(au * 7) : 0);
+      if (this.skyTex) releaseTexture(this.skyTex);
+      this.skyTex = textureOf(spaceSkyArt(this.vw + 2, this.vh, seed));
+      this.skySprite.texture = this.skyTex;
+      if (this.starTex) releaseTexture(this.starTex);
+      this.starTex = textureOf(swarmArt(this.vw + 2, this.vh, plan, swarm, seed));
+      this.stars.texture = this.starTex;
+      if (this.hazeTex) releaseTexture(this.hazeTex);
+      this.hazeTex = textureOf(new PixelCanvas(1, 1));
+      this.haze.texture = this.hazeTex;
+      this.sun.texture = cachedTexture(`dio:spacesun:${plan.sun.r}`, () => spaceSunArt(plan.sun.r));
+      if (plan.moon) {
+        const mr = plan.moon.r;
+        this.moon.texture = cachedTexture(`dio:spacemoon:${mr}`, () => moonDiscArt(mr));
+      }
+      this.earthKey = '';
+    }
+    this.darkness = 0;
+    this.stars.alpha = 0.8 + Math.sin(this.time * 1.3) * 0.2;
+    const half = (this.sun.texture.width - 1) / 2;
+    this.sun.visible = true;
+    this.sun.position.set(Math.round(plan.sun.x - half), Math.round(plan.sun.y - half));
+    this.moon.visible = !!plan.moon;
+    if (plan.moon) this.moon.position.set(plan.moon.x - plan.moon.r - 1, plan.moon.y - plan.moon.r - 1);
+    if (plan.earth) {
+      const r = plan.earth.r;
+      const sub = subsolar(this.clock());
+      const ekey = `e|${Math.round(sub.lon / 3)}|${r}|${getEra()}`;
+      if (ekey !== this.earthKey) {
+        this.earthKey = ekey;
+        const lod = this.game.world?.lods?.[1];
+        const terrain = lod ? { pc: terrainCanvas(lod), res: lod.res } : undefined;
+        if (this.earthTex) releaseTexture(this.earthTex);
+        // lit from the left like everything else: the sun sits 70° west of the disc's centre
+        this.earthTex = textureOf(earthDisc(r, { lon0: ((sub.lon + 70 + 540) % 360) - 180, lat0: 12 }, { lat: sub.lat, lon: sub.lon }, terrain));
+        this.earth.texture = this.earthTex;
+      }
+      this.earth.visible = true;
+      this.earth.position.set(Math.round(plan.earth.x - this.earth.texture.width / 2), Math.round(plan.earth.y - this.earth.texture.height / 2));
+    } else if (plan.dot) {
+      if (this.earthKey !== 'dot') {
+        this.earthKey = 'dot';
+        this.earth.texture = cachedTexture('dio:bluedot', paleBlueDot);
+      }
+      this.earth.visible = true;
+      this.earth.position.set(plan.dot.x - 1, plan.dot.y - 1);
+    } else this.earth.visible = false;
+    // sunlight (weaker in the belt); the storm makes it stutter
+    const flick = storm > 0 && hash2(Math.floor(this.time * 10), 7, 3) < 0.07 * storm ? 0.8 : 1;
+    const [lr, lg, lb] = plan.light;
+    const tint = (Math.round(lr * flick * 255) << 16) | (Math.round(lg * flick * 255) << 8) | Math.round(Math.min(1, lb * (flick < 1 ? 1.1 : 1)) * flick * 255);
+    this.skyL.tint = 0xffffff;
+    for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    this.glowL.alpha = flick < 1 ? 0.45 : 0.92;
+    this.backGlowL.alpha = 0.9;
+    this.midGlowL.alpha = 0.9;
+    this.bloomL.alpha = flick < 1 ? 0.15 : 0.3;
+    this.glowL.visible = this.backGlowL.visible = this.midGlowL.visible = true;
+    this.bloomL.visible = !this.game.settings.batterySaver;
+    this.skyGlowL.visible = false;
+  }
+
+  /**
+   * Act V, inside the habitat: the far side overhead and the sun-line along the axis. The mirrors
+   * open at six and close at six: the line dims, the far side's towns and a few stars come out.
+   */
+  private updateHabitatSky(dt: number) {
+    const hour = localSolarHour(this.site.lon, this.clock());
+    const phase = hour >= 7 && hour < 17.5 ? 'day' : (hour >= 17.5 && hour < 18.3) || (hour >= 6.2 && hour < 7) ? 'golden' : hour >= 18.3 && hour < 19.2 ? 'sunset' : hour >= 5.2 && hour < 6.2 ? 'twilight' : 'night';
+    const target = phase === 'day' ? 0 : phase === 'golden' ? 0.12 : phase === 'sunset' ? 0.38 : phase === 'twilight' ? 0.55 : 0.72;
+    this.darkness += (target - this.darkness) * Math.min(1, dt * 2);
+    const key = `hab|${this.vw}x${this.vh}|${getEra()}`;
+    if (key !== this.skyKey) {
+      this.skyKey = key;
+      const sky = habitatSkyArt(this.vw + 2, this.vh, this.groundY, 53);
+      if (this.skyTex) releaseTexture(this.skyTex);
+      this.skyTex = textureOf(sky.base);
+      this.skySprite.texture = this.skyTex;
+      if (this.skyGlowTex) releaseTexture(this.skyGlowTex);
+      this.skyGlowTex = textureOf(sky.glow);
+      this.skyGlow.texture = this.skyGlowTex;
+      if (this.starTex) releaseTexture(this.starTex);
+      this.starTex = textureOf(new PixelCanvas(1, 1));
+      this.stars.texture = this.starTex;
+      if (this.hazeTex) releaseTexture(this.hazeTex);
+      this.hazeTex = textureOf(new PixelCanvas(1, 1));
+      this.haze.texture = this.hazeTex;
+    }
+    this.sun.visible = this.moon.visible = this.earth.visible = false;
+    const night = [0.24, 0.27, 0.5];
+    const warm = [1, 0.86, 0.72];
+    const d = this.darkness;
+    let r = 1 - (1 - night[0]) * d;
+    let g = 1 - (1 - night[1]) * d;
+    let b = 1 - (1 - night[2]) * d;
+    if (phase === 'golden' || phase === 'sunset') {
+      r *= warm[0];
+      g *= warm[1];
+      b *= warm[2];
+    }
+    const tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+    for (const l of [this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    const lightsOn = Math.max(0, Math.min(1, (d - 0.25) * 2.4));
+    this.skyGlowL.alpha = lightsOn;
+    this.skyGlowL.visible = lightsOn > 0.01;
     this.glowL.alpha = lightsOn;
     this.backGlowL.alpha = lightsOn;
     this.midGlowL.alpha = lightsOn;
@@ -1023,6 +1178,19 @@ export class DioramaScene implements Scene {
         max = 1 + Math.random() * 0.8;
         maxR = size ?? 1;
         break;
+      case 'grit':
+        // rock chipped off an asteroid: next to no gravity, it drifts off for good
+        vx = (Math.random() - 0.3) * 10;
+        vy = -2 - Math.random() * 6;
+        max = 1.6 + Math.random() * 1.2;
+        maxR = 1;
+        break;
+      case 'spark':
+        vx = (Math.random() - 0.5) * 22;
+        vy = -4 - Math.random() * 12;
+        max = 0.25 + Math.random() * 0.3;
+        maxR = 1;
+        break;
       default:
         // spray / cold mist: drifts and falls back
         vx = (Math.random() - 0.5) * 10;
@@ -1055,13 +1223,13 @@ export class DioramaScene implements Scene {
       if (p.drag) p.vx *= Math.max(0, 1 - dt * p.drag);
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      const r = p.kind === 'mist' || p.kind === 'dust' ? 1 : p.kind === 'exhaust' ? Math.min(p.size, 2 + Math.floor(k * p.size * 1.6)) : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
+      const r = p.kind === 'mist' || p.kind === 'dust' || p.kind === 'grit' || p.kind === 'spark' ? 1 : p.kind === 'exhaust' ? Math.min(p.size, 2 + Math.floor(k * p.size * 1.6)) : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
       if (r !== p.r) {
         p.r = r;
         p.sprite.texture = cachedTexture(`dio:puff:${p.kind}:${r}`, () => puffArt(r, p.kind));
       }
       p.sprite.position.set(Math.round(p.x - r), Math.round(p.y - r));
-      p.sprite.alpha = p.kind === 'mist' || p.kind === 'dust' ? 0.9 : 0.9 * (1 - k * k);
+      p.sprite.alpha = p.kind === 'mist' || p.kind === 'dust' || p.kind === 'spark' ? 0.9 : p.kind === 'grit' ? 0.9 * (1 - k) : 0.9 * (1 - k * k);
       this.particles[n++] = p;
     }
     this.particles.length = n;
@@ -1163,6 +1331,8 @@ export class DioramaScene implements Scene {
 
   /** Trucks call at loading docks: chips to your halls, wafers and gases at suppliers. */
   private updateTruck(dt: number) {
+    // nothing drives in open space or on an asteroid
+    if (this.mode === 'space' || this.mode === 'asteroid') return;
     if (!this.truck) {
       this.truckTimer -= dt;
       if (this.truckTimer > 0) return;
@@ -1289,7 +1459,7 @@ export class DioramaScene implements Scene {
     if (this.wheelX) this.game.stage?.canvas?.removeEventListener('wheel', this.wheelX);
     for (const t of this.ownTextures) releaseTexture(t);
     for (const p of this.plots) for (const t of p.own) releaseTexture(t);
-    for (const t of [this.skyTex, this.starTex, this.hazeTex, this.earthTex]) if (t) releaseTexture(t);
+    for (const t of [this.skyTex, this.starTex, this.hazeTex, this.earthTex, this.skyGlowTex]) if (t) releaseTexture(t);
     for (const sp of this.pool) sp.destroy();
     this.root.destroy({ children: true });
   }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon, Portrait, pct, useGame } from './components';
 import { linkMaxKm } from '../sim/model';
+import { ASTEROID_BY_ID } from '../content/system';
 import { SITE_BY_ID } from '../content/sites';
 import { REGIONS, STANCE_LABEL } from '../content/regions';
 import { FACILITIES } from '../content/facilities';
@@ -161,13 +162,22 @@ export function DioramaBar() {
   const game = useGame();
   if (game.mode !== 'diorama' || !game.dioramaSite) return null;
   const site = SITE_BY_ID[game.dioramaSite];
+  // Act V: places in space go back to the solar-system view
+  const inSpace = ['yards', 'ring', 'habitat', 'asteroid'].includes(site.kind) || (site.kind === 'moon' && !!game.state?.system);
+  const where = site.kind === 'moon' ? 'The Moon' : site.kind === 'yards' ? 'an Earth–Moon Lagrange point' : site.kind === 'ring' ? 'near Earth’s orbit round the Sun' : site.kind === 'habitat' ? 'Earth–Moon L5' : site.kind === 'asteroid' ? `${ASTEROID_BY_ID[site.id]?.type ?? ''}-type asteroid · ${ASTEROID_BY_ID[site.id]?.belt === 'main' ? 'main belt' : 'near-Earth'}` : REGIONS[site.region].name;
   return (
     <div class="dioramabar frame interactive">
-      <button class="btn small" onClick={() => game.enterMap()} data-tip="Back to the world map (M / Esc)">
-        <Icon name="globe" size="sm" /> World map
-      </button>
+      {inSpace && game.hasSystemView ? (
+        <button class="btn small" onClick={() => game.enterSystem()} data-tip="Back to the solar system (Esc for the world map)">
+          <Icon name="swarm" size="sm" /> Solar system
+        </button>
+      ) : (
+        <button class="btn small" onClick={() => game.enterMap()} data-tip="Back to the world map (M / Esc)">
+          <Icon name="globe" size="sm" /> World map
+        </button>
+      )}
       <span>
-        <b>{site.name}</b> <span class="muted small">· {site.kind === 'moon' ? 'The Moon' : REGIONS[site.region].name}</span>
+        <b>{site.name}</b> <span class="muted small">· {where}</span>
       </span>
       <button class={`btn small ${game.dioramaTimelapse ? 'active' : ''}`} onClick={() => game.toggleTimelapse()} data-tip="Skies follow the site's real local time. Time-lapse spins a full day every ~40 seconds.">
         <Icon name="clock" size="sm" /> Time-lapse

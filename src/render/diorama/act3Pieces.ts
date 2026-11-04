@@ -38,6 +38,10 @@ import {
 import { assemblyHall, launchPad, launchSurvey, tankFarm } from './launch';
 import { dacBlocks, dacFarm, DAC_W, DESIGN_BUILDER, FUSION_SIZE, fusionPlant } from './fusion';
 import { DRIVER_W, HAB_W, HE3_W, he3Plant, he3Tanks, ICE_W, iceRig, massDriver, MINE_W, moonConstruction, moonHab, moonPad, moonSurvey, PAD_W as MOON_PAD_W, regolithMine, RIM_W, rimSolar, TANKS_W } from './moon';
+import { act5PieceArt, act5Plan, act5WidthHint, isAct5Site, moonFoundrySpec } from './act5Pieces';
+import type { SpaceScenery } from './space';
+import type { AsteroidScenery } from './asteroid';
+import type { HabitatScenery } from './habitat';
 
 export const ACT3_PIECES = [
   'secretariat',
@@ -78,13 +82,46 @@ export const ACT3_PIECES = [
   'he3Tanks',
   'massDriver',
   'moonBuild',
+  // Act V
+  'moonFoundry',
+  'yardsModule',
+  'yardsCopy',
+  'yardsOutbound',
+  'yardsDock',
+  'yardsBerth',
+  'ringRack',
+  'ringHub',
+  'ringHead',
+  'habHouses',
+  'habSchool',
+  'habPark',
+  'habFarm',
+  'habSquare',
+  'habDorms',
+  'habWorks',
+  'habTower',
+  'habVilla',
+  'habBuild',
+  'astRocks',
+  'astBeacon',
+  'astClaim',
+  'astRig',
+  'astCatapult',
 ] as const;
 export type Act3PieceKind = (typeof ACT3_PIECES)[number];
 const KINDS = new Set<string>(ACT3_PIECES);
 export const isAct3Piece = (k: string): k is Act3PieceKind => KINDS.has(k);
 
 /** What the bands behind the pieces show. */
-export type Scenery = { kind: 'geneva' } | { kind: 'mega'; kinds: string[]; stage: number; offshore: boolean } | { kind: 'launch' } | { kind: 'moon'; stage: number };
+export type Scenery =
+  | { kind: 'geneva' }
+  | { kind: 'mega'; kinds: string[]; stage: number; offshore: boolean }
+  | { kind: 'launch' }
+  | { kind: 'moon'; stage: number }
+  // Act V: open space (the yards, Ring One), an asteroid's surface, inside the Aurora habitat
+  | SpaceScenery
+  | AsteroidScenery
+  | HabitatScenery;
 
 export interface Act3Plan {
   pieces: PieceSpec[];
@@ -114,15 +151,17 @@ export function act3Plan(s: GameState | null, site: SiteDef, viewW: number): Act
   if (site.kind === 'charter') return charterPlan();
   if (site.kind === 'mega') return megaPlan(s, site, viewW);
   if (site.kind === 'moon') return moonPlan(s, viewW);
+  if (isAct5Site(site)) return act5Plan(s, site, viewW);
   return launchPlan(s, site);
 }
 
 /** Everything about the state that changes how an Act III site looks (the scene's rebuild key). */
 export function act3Key(s: GameState | null, site: SiteDef): string {
-  if (site.kind !== 'mega' && site.kind !== 'launch' && site.kind !== 'moon') return '';
-  return act3Plan(s, site, 0)
-    .pieces.map((p) => pieceKeyOf(p))
-    .join(',');
+  if (site.kind !== 'mega' && site.kind !== 'launch' && site.kind !== 'moon' && !isAct5Site(site)) return '';
+  const plan = act3Plan(s, site, 0);
+  const key = plan.pieces.map((p) => pieceKeyOf(p)).join(',');
+  // Act V: the bands change too (the swarm in the sky, habitats in the distance, the storm)
+  return isAct5Site(site) ? `${key}#${JSON.stringify(plan.scenery)}` : key;
 }
 
 export function pieceKeyOf(p: PieceSpec): string {
@@ -292,7 +331,7 @@ function pieceWidthHint(p: PieceSpec): number {
     case 'massDriver':
       return DRIVER_W;
     default:
-      return 200;
+      return act5WidthHint(p) ?? 200;
   }
 }
 
@@ -319,6 +358,9 @@ function moonPlan(s: GameState | null, viewW: number): Act3Plan {
       const mine = livery(builderOf('moonmine'));
       pieces.push(spec('regolithMine', { gap: 0 }), spec('he3Plant', { ...mine, gap: 6 }), spec('he3Tanks', { gap: 14 }));
     }
+    // Act V: the Moon's own foundry, printing itself, feeding the mass driver
+    const foundry = moonFoundrySpec(s);
+    if (foundry) pieces.push(foundry);
     if (mv.stage >= 3) pieces.push(spec('massDriver', { ...livery(builderOf('massdriver')), gap: 0 }));
   }
   if (mv.building) {
@@ -490,6 +532,8 @@ export function act3PieceArt(spec: PieceSpec): FacilityArt {
       const full = kind === 'massdriver' ? massDriver(r) : kind === 'moonmine' ? he3Plant(r) : moonHab(r);
       return moonConstruction(kind, full, spec.p ?? 0, r, spec.label);
     }
+    default:
+      return act5PieceArt(spec);
   }
 }
 

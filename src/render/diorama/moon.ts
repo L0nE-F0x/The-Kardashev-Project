@@ -1310,7 +1310,7 @@ const railY = (x: number) => {
 };
 
 /** Capsule frames along a direction, with a hot magnetic streak behind when moving. */
-function capsuleFrames(dirs: ([number, number] | null)[]): { frames: PixelCanvas[]; glow: PixelCanvas[] } {
+export function capsuleFrames(dirs: ([number, number] | null)[]): { frames: PixelCanvas[]; glow: PixelCanvas[] } {
   const S = 44;
   const A = 26;
   const frames: PixelCanvas[] = [];
