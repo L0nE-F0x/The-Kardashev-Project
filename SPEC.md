@@ -4,13 +4,14 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M4 "Planetary" is built** (v0.5.0, Act IV, section 19 with as-built notes; v0.5.1 added in-app updates for the
-installed apps) on top of M3 "The Charter"
+Status: **M4.5 "Type I" is built** (v0.6.0, Act V, section 20 with as-built notes): **the whole v1 campaign, Acts I–V, is
+playable end to end**, from a garage in 2027 to Kardashev 1.0000. Before it: M4 "Planetary" (v0.5.0, Act IV, section 19;
+v0.5.1 added in-app updates for the installed apps) on top of M3 "The Charter"
 (v0.4.x, including v0.4.2 "Easy Reading": readable font, phone fullscreen, an Android app), M2 "The Scale-Up", M1 "First
 Light" and M1.5 "The Front Door": Acts I–IV are playable end to end. Section 17 is the Act II plan and section
-18 the Act III plan and section 19 the Act IV plan, all with as-built notes. **Next: M4.5, Act V "Type I"**, the last
-act of the v1 campaign: **planned in section 20** (2026-11-04), to be built on "go". Section 13 lists the locked decisions
-and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
+18 the Act III plan, section 19 the Act IV plan and section 20 the Act V plan, all with as-built notes. **Next: M5, polish
+and ship** (section 12): the beta, the balance pass, audio, the menu tour, store builds — then v1.0.0. Section 13 lists the
+locked decisions and section 15 tracks what's implemented. Developer notes live in `CLAUDE.md`.
 
 ---
 
@@ -371,7 +372,7 @@ advisor cast, deeper bloc politics. **Full plan: section 18.**
 **Built in v0.5.0** (section 19).
 
 **M4.5: Act V, Type I.** The Thermal Line, self-replicating foundries and asteroids, the swarm, what Earth becomes,
-longevity, the minds in orbit, the Solar Maximum finale and the Type I ending. **Full plan: section 20** (v0.6.0).
+longevity, the minds in orbit, the Solar Maximum finale and the Type I ending. **Built in v0.6.0** (section 20).
 
 **M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds. **The balance pass
 happens here**: a full playthrough plus beta testers, then rebalancing across all acts before launch and marketing.
@@ -1315,7 +1316,7 @@ as trust allows):
 
 ---
 
-## 20. M4.5 "Type I": planned (v0.6.0)
+## 20. M4.5 "Type I": built (v0.6.0)
 
 Act V, about 2068–2100, the last act of the v1 campaign. After the Heat Wall the Council draws a **Thermal Line** around
 Earth: the surface can carry a few hundred terawatts and no more. Everything above it has to be collected and used in
@@ -1326,7 +1327,7 @@ ends when Kardashev reaches **1.0000** (10 PW): a last three-front crisis, **Sol
 stretch as a time-lapse that stops on the number itself, the Type I moment, epilogues that remember all five acts,
 credits, and a door left open to Type II. Planned 2026-11-04 in three Q&A rounds.
 
-**Status: planned, not built.** Build starts on "go".
+**Status: built (v0.6.0), 2026-11-04.** As-built notes and the hooks for a later Act VI are at the end of this section.
 
 ### Decisions (locked 2026-11-04)
 
@@ -1548,3 +1549,49 @@ world scene), the ending (the cinematic, ~40 epilogue variants, credits, stats, 
 (ageing and successors mean extending most portraits). Each stage is playable as soon as its systems are in, the same
 as Act IV. If it needs trimming, the first things to move to M5 are New Game+, the habitat diorama and the provinces'
 garden/forge map art. As always: ask before pushing `main`, before tagging and before publishing.
+
+### As built (2026-11-04)
+
+Everything above is in, with these numbers and changes from the guard-rail bot (`tests/act5.test.ts`: Start at Act V, the
+first choice on every card and big decision, the default era plans, Autopilot on between eras):
+- **Pacing:** the bot jumps 2068→73, 2074→81 and 2082→89, plays stage 3 to the Type I checklist in December 2093, holds
+  all three fronts of Solar Maximum, and the last climb stops on K 1.0000 in **June 2095** (~27.5 years). Earth sits at its
+  Thermal Line (510 TW) from the early 2080s; everything above it is the swarm.
+- **Foundry growth:** doubling every 58 / 44 / 34 / 26 / 19 months by dial at 40% reinvestment (planned ~36 → ~10), and a
+  "reach" slowdown as the industry grows (the nearest rock goes first: ×1/(1 + 0.35·log₁₀(1 + Mt/2))). The planned numbers
+  put Type I near 2085 and overshot to K 1.10 inside an era jump. Seeds start at 0.12 Mt/yr.
+- **The finale always comes first:** era jumps (not the last climb) end early at K 0.99, and a fast stage 2 goes straight
+  to stage 3 without a jump. The storm darkens part of the swarm, so the last climb is a real climb.
+- **Earth stops at the Thermal Line:** its own growth tapers to zero over the last 12% below the line; beams fill the rest
+  of the headroom (capped by what the swarm can spare); Act IV's planner stops adding surface energy within 40 TW of it.
+- **The space dividend** is lower than first planned (the Commons 0.2 bn $ per TW-year): the treasury still runs into the
+  tens of trillions by the end. Balance-pass item.
+- **Big decisions** are EventDefs with `big: true` (`content/decisions.ts`, nine of them), shown as gold-framed cards;
+  the autopilot takes the first enabled choice, so Bit's own wish comes first on its card.
+- **The Replicators front** lives inside The Minds (the strain breaks loose at the biggest foundry; the AI asking for the
+  controls is Bit if your bond broke, else the least-trusted AI with provinces, else Chorus).
+- **The cast:** Penny, Mira, Sol and Lena retire by default (their successors take the desks and their lines everywhere);
+  Juno, Kip and Iris take the treatments. Each has a card; the other path is the second choice when the therapies exist.
+- **The ending:** the last climb switches to the solar-system view; the Type I card surfaces at once; the cinematic is
+  the solar-system scene's pull-back (Earth → the inner system, ~12 s); about eleven epilogue cards (one per topic, the
+  first variant that holds), credits, the campaign in numbers (acts a preset skipped are left out), the end card (a
+  480×270 PixelCanvas, saved as a PNG; the Android app can't save images, so it suggests a screenshot), then Keep playing.
+- **New Game+:** finishing unlocks The Steward founder and keeps the best Type I year per difficulty, both in settings.
+- **The "Start at Act V" preset** is set up directly (no fast-forward) and moves every due date (elections, model launches,
+  sessions, tenders) along with the 23 skipped years.
+- **Acts I–IV unchanged:** the Act I–IV bot logs diff empty against v0.5.1 (Act I day 812, the IPO in October 2034, the
+  renewal on 31 December 2043, Act IV ending in February 2065).
+- **Not done:** rewilding drawn over old megaproject sites on the map; the menu tour's Act III–V shots; Act IV–V audio
+  beyond the ending cue. Act V screens checked in headless desktop and phone emulation only.
+- **Balance (deferred):** the hands-off bot finishes with every checklist item green, wellbeing ~90, warming ~1.1 °C and
+  idle power ~5%; a dial-5 player can reach Type I in the 2080s at real drift risk. Tune in the beta.
+
+### Hooks left for Act VI (Type II)
+- **`s.system`** carries the bodies (asteroid registry, the twelve swarm segments, foundries by site) and keeps running
+  after Type I: the save is a sandbox, and the K meter's next rung is K 2.00 (10²⁶ W).
+- **Mercury:** `system.mercury` (surveyed) and `system.next` (`'swarm'` plans the full swarm, `'rest'` stops at Type I):
+  the epilogue's last card and Kip's line point onward; an Act VI can begin from either.
+- **The minds:** `system.seat`, `mindsMood`, `bitFate` (co-steward / free / leash) and `planet.bitBond` carry the AI story
+  forward; Bit-10 and Bit-11 are its final looks so far.
+- **People:** `lifeExp`, `escape`, `treated` per province, `spacePop` and `settlement`.
+

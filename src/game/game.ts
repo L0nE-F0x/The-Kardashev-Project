@@ -523,12 +523,18 @@ export class Game {
         refreshStats(s);
         if (rec) {
           this.eraReport = rec.last ? null : rec;
+          // the last climb ends on the number itself: show the Type I card at once
+          if (rec.last && !s.events.active && s.events.queue.length) {
+            s.events.active = s.events.queue.shift()!;
+            s.events.last[s.events.active.id] = s.day;
+          }
           this.jumpFast = false;
           sfx('fanfare');
           this.save();
         }
         this.notify();
       }
+      if (s.flags.endingStart && !s.flags.endingShown && !this.ending) this.startEnding();
       this.tickEnding(dt);
       const blocked = this.blocked;
       if (blocked && this.speed !== 0) {

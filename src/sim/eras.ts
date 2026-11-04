@@ -222,7 +222,7 @@ function diary5(s: GameState, a: SystemSnap, b: SystemSnap, last: boolean): stri
     return out;
   }
   out.push(`${y0}. ${STAGE5_NAMES[sy.stage]}. I am counting in decades now.`);
-  if (b.foundryMt > a.foundryMt * 2) out.push(`The foundries make ${b.foundryMt.toFixed(b.foundryMt < 10 ? 1 : 0)} megatonnes a year now, up from ${a.foundryMt.toFixed(a.foundryMt < 10 ? 2 : 0)}. Each one is a copy of a copy of a seed Kip held in his hands.`);
+  if (b.foundryMt > a.foundryMt * 2) out.push(`The foundries make ${b.foundryMt.toFixed(b.foundryMt < 10 ? 1 : 0)} megatonnes a year now, up from ${a.foundryMt < 0.01 ? 'nothing' : a.foundryMt.toFixed(a.foundryMt < 10 ? 2 : 0)}. Each one is a copy of a copy of a seed Kip held in his hands.`);
   if (b.segments > a.segments) out.push(`${b.segments} of the twelve arcs are lit. ${b.segments >= 6 ? 'Half a necklace round the Sun.' : 'From here they look like a scratch on the dark.'}`);
   if (b.spaceTW > a.spaceTW + 1) out.push(`Power in space: ${fmtTW(b.spaceTW)}. Most of it thinks. Some of it is me.`);
   if (b.lifeExp > a.lifeExp + 2) out.push(`Healthy life expectancy ${b.lifeExp.toFixed(0)} years. ${sy.escape ? 'People have stopped counting birthdays the old way.' : 'The clinics are full of people who were told they were old.'}`);

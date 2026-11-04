@@ -55,8 +55,9 @@ export function campaignStats(s: GameState): { headline: CampaignStat[]; acts: C
   let from = s.meta.act5Start ? yearAt(s.flags.act5Started) : s.meta.act4Start ? 2045 : s.meta.act3Start ? 2035 : s.meta.act2Start ? 2029 : 2027;
   for (const [name, day] of marks) {
     const y = yearAt(day);
-    if (y === null) continue;
-    if (from !== null && y >= from) acts.push({ label: name, value: `${from}–${y}` });
+    // acts a preset skipped are not part of this campaign
+    if (y === null || from === null || y < from || (y === from && day !== sy?.typeI)) continue;
+    acts.push({ label: name, value: `${from}–${y}` });
     from = y;
   }
   const hours = s.meta.playtime / 3600;
@@ -70,7 +71,7 @@ export function campaignStats(s: GameState): { headline: CampaignStat[]; acts: C
     { label: 'Wellbeing', value: `${Math.round(avgWellbeing(s))}` },
     { label: 'Healthy years', value: sy ? `${sy.lifeExp.toFixed(0)}` : '—' },
     { label: 'People in space', value: sy ? `${sy.spacePop.toFixed(0)} million` : '—' },
-    { label: 'Played', value: hours >= 1 ? `${hours.toFixed(1)} hours` : `${Math.round(hours * 60)} minutes` },
+    { label: 'Played', value: hours >= 1 ? `${hours.toFixed(1)} hours` : `${Math.max(1, Math.round(hours * 60))} minute${Math.round(hours * 60) > 1 ? 's' : ''}` },
     { label: 'Difficulty', value: `${DIFFICULTIES[s.meta.difficulty]?.name ?? s.meta.difficulty} · ${FOUNDERS[s.meta.founder]?.name ?? s.meta.founder}` },
   ];
   const choices: CampaignStat[] = sy

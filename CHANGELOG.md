@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0 — Type I (2026-11-04)
+- Act V, Type I: the last act of the campaign, from 2068 to the day Kardashev reaches 1.0000. Your score is the year you get there.
+- The Thermal Line: every watt ends up as heat, so the Council caps how much Earth’s surface may use. Almost all of the last hundredfold climb has to be caught and used in space.
+- Self-replicating foundries: plant seeds on the Moon, at the L4 and L5 yards and on claimed asteroids, and watch them double. A growth dial trades speed for the chance a strain drifts off-spec.
+- Real asteroids — Bennu, Ryugu, Eros, Psyche, Ceres and more — to survey, claim and work, and a Council fight over who owns the sky.
+- The swarm: twelve arcs of solar collectors along Earth’s orbit, lighting up one by one, powering compute rings, habitats and beams home.
+- A new solar-system view (press V twice): the Sun, the swarm, the planets, your claims and the haul routes, with a close-up of Earth and the Moon.
+- Big decisions between eras: the Thermal Line, who owns the sky, what Earth becomes, who lives longer first, minds or people, a seat for the minds, towns in the sky, what Bit asks for, and what comes after Type I.
+- Longevity escape velocity, gardens and workshops on Earth, habitats at L5, the minds in orbit and Bit’s last arc — co-steward, a free mind, or a tool on a leash.
+- The cast grows old — and some of them don’t: advisors take the longevity treatments or retire and hand their desks to a new generation.
+- The finale, Solar Maximum: a Carrington-class storm on the swarm, Earth’s Thermal Line and the minds, all at once. Then the last climb, as a time-lapse that stops on the number.
+- The ending: the camera pulls back to the swarm, epilogues that remember all five acts, credits, your campaign in numbers, and an end card to save or share. Then keep playing toward Type II.
+- New: space dioramas (the yards, Ring One, the Aurora habitat, the asteroids), the Swarmlight palette, three new partners, successors and new faces, Bit-10, nine contract kinds, five Council resolutions, nine techs, twelve Field Guide entries, Act V briefings, Autopilot between eras, and a Type I badge on your save.
+- Start a new company straight at Act V. Finish the campaign to unlock a new founder, The Steward.
+
 ## 0.5.1 — In-app updates (2026-11-04)
 - The installed apps update from inside the game. When a new version is out, a note at the top of the screen offers it: press Update.
 - Desktop (Windows, macOS and the Linux AppImage): the app downloads the new version, checks its signature and restarts into it. Your saves stay where they are.

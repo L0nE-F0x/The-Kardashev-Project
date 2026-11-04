@@ -5,7 +5,7 @@
  * Acts I–II keep the old closed-form world (worldBaselineTW), so they are unchanged.
  */
 import { avgGarden, surfaceTW } from './swarm';
-import { lineTW } from './systemView';
+import { earthOwnTW, lineTW } from './systemView';
 import { avgTreated } from './longevity';
 import { CHARTER, CONTRACT_KINDS, ENERGY_KINDS, HVDC_ROUTES, WEALTH } from '../content/charter';
 import { MEGA_SITES } from '../content/sites';
@@ -110,11 +110,14 @@ export function growthParts(s: GameState): { label: string; v: number }[] {
 }
 
 export function worldGrowth(s: GameState): number {
-  return clamp(
+  const g = clamp(
     growthParts(s).reduce((a, x) => a + x.v, 0),
     0,
     s.planet ? PLANET.maxGrowth : CHARTER.maxGrowth,
   );
+  // Act V: Earth's own economy stops growing at the Thermal Line (the rest of the climb is in space)
+  if (s.system?.thermalLine) return Math.min(g, PLANET.maxGrowth * clamp((1 - earthOwnTW(s) / lineTW(s)) / 0.12, 0, 1));
+  return g;
 }
 
 /** Clean share of newly built energy worldwide. */

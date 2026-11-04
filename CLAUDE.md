@@ -1,8 +1,8 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.5 "Planetary"** (M4): Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary)
-are playable end to end, on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
+Current build: **v0.6 "Type I"** (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
+Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
 desktop builds). v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
 Android app; v0.5.1 added in-app updates for the installed desktop and Android apps (an Update toast in the game).
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
@@ -13,7 +13,7 @@ Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 npm run dev           # Vite dev server → http://127.0.0.1:5317 (landing at /, game at /play/)
 npm run build         # typecheck (tsc 7) + production build → dist/ (both pages + service worker)
 npm test              # vitest: sim determinism, Act I bot, Act II bot (preset → IPO), Act III bot (preset → renewal),
-                      # Act IV bot (preset → jumps → the Heat Wall),
+                      # Act IV bot (preset → jumps → the Heat Wall), Act V bot (preset → eras → Solar Maximum → Type I),
                       # offline, saves, routing, map + diorama scenes
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
 npm run gen:assets    # re-render icons, favicon, logo, globe, OG image + src-tauri/icons from game code
@@ -21,8 +21,9 @@ npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
 PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts \
   tests/act3-map-preview.test.ts tests/act3-diorama-preview.test.ts tests/act4-map-preview.test.ts \
-  tests/act4-orbit-preview.test.ts tests/act4-diorama-preview.test.ts tests/act4-portraits.test.ts
-                      # render map / portrait / route / Act II + III map / diorama previews to PNG without a browser
+  tests/act4-orbit-preview.test.ts tests/act4-diorama-preview.test.ts tests/act4-portraits.test.ts \
+  tests/act5-system-preview.test.ts tests/act5-map-preview.test.ts tests/act5-diorama-preview.test.ts tests/act5-portraits.test.ts
+                      # render map / portrait / route / Act II–V map / diorama / orbit / solar-system previews to PNG
 cd android && KP_ANDROID_KEYSTORE=~/.config/kardashev-project/android/kardashev-release.p12 \
   KP_ANDROID_KEYSTORE_PASSWORD=$(cat ~/.config/kardashev-project/android/keystore-password.txt) ./gradlew assembleRelease
                       # signed Android APK → android/app/build/outputs/apk/release/ (needs JDK 17 + Android SDK:
@@ -72,6 +73,16 @@ src/
     supergrid.ts / provinces.ts / climate.ts / fusion.ts / orbit.ts (+ the Moon) / airegions.ts / heatwall.ts
                   the Act IV systems; planetInit.ts (starting state), planetView.ts (read-only views for map, orbit,
                   dioramas), planetPreview.ts (a ready-made ~2062 world for previews and tests)
+    act5.ts       Act V framework: beginAct5, stages in `s.system.stage` (0 Thermal Line · 1 Foundries · 2 Swarm ·
+                  3 Last Climb · 4 Solar Maximum · 5 Type I), stage gates (big decisions queued at each gate),
+                  `typeIChecklist` (live); act5preset.ts = "Start at Act V" (the Act IV preset compressed to 2068, due dates
+                  moved along with the calendar)
+    eras.ts       era plans and jumps (like plans.ts; `eraStep`, the Act V planner incl. claims, `setLevers`), the last
+                  climb (a jump that stops on K 1.0000 → `reachTypeI`), the era report + Bit's diary
+    foundries.ts / asteroids.ts / swarm.ts (+ the Thermal Line, the dividend) / longevity.ts / earth.ts (garden ↔ forge)
+                  / minds.ts / solarmax.ts / ending.ts (epilogue picks, campaign stats)   the Act V systems;
+                  systemInit.ts, systemView.ts (read-only views for the solar-system view, orbit extras, map, dioramas,
+                  portraits: castAge, bitForm, deskHolder), systemPreview.ts (a ready-made ~2084 world)
     network.ts    regional inference markets: private graph (fiber, leased/own cables), serve efficiency, contracts first
     stack.ts / politics.ts / capital.ts / rivals.ts / jobs.ts / finale.ts   (see SPEC §17)
   content/    data: regions, sites, facilities (with tiers), techs, companies, events (+ events2.ts for Act II), objectives,
@@ -84,9 +95,14 @@ src/
               Act IV: planet.ts (PLANET numbers, provinces, the AIs, fusion designs, supergrid routes, priorities, the
               cast), events4.ts; the 12 Act IV contract kinds live in charter.ts (ACT4_KINDS); MOON_SITE (kind 'moon')
               is in SITE_BY_ID but not in SITES (no map marker, no sea route)
+              Act V: system.ts (SYSTEM numbers, asteroids, seed places, era priorities, Solar Maximum fronts, CAST5 and
+              successors), decisions.ts (the big decisions: EventDefs with `big: true`), events5.ts, epilogues.ts; the 9 Act V
+              contract kinds live in charter.ts (ACT5_KINDS, `vstage`); SPACE_SITES (yards, ring, habitat, asteroids) are
+              in SITE_BY_ID but not in SITES, like the Moon
   world/      map raster decode + sea router (A* over 0.5° ocean, carved canals, closable chokepoints) + sun position
   render/     Pixi v8. stage.ts = low-res render target scaled by whole numbers (one pixel size everywhere) + fade overlay
-    palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn)
+    palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn → Swarmlight)
+    endcard.ts    the Type I end card (480×270 PixelCanvas: the Sun, the swarm, the Earth, the run's numbers)
     pixels.ts     PixelCanvas: indexed-colour drawing (rect/line/ellipse/dither/text) baked with the era palette
     globe.ts      orthographic pixel Earth (landing hero, icons, OG image) with real sun + city lights
     worldMap/     terrain painter, night terminator + city lights, MapScene (markers, links, ships, input, cinematic glides),
@@ -99,14 +115,19 @@ src/
                   by stage and kind, offshore North Sea), launch.ts (pad, rocket, liftoff loop), act3kit.ts, scenery.ts (bands)
                   Act IV: moon.ts (the Moon base by stage, the mass driver, lunar light), fusion.ts (five plant designs,
                   air-capture farms); spaceports extend launch.ts
-    orbit/        Act IV's orbit view: orbitScene.ts (Scene), orbitArt.ts (pure drawing), orbitSprites.ts
+    orbit/        Act IV's orbit view: orbitScene.ts (Scene), orbitArt.ts (pure drawing), orbitSprites.ts; Act V adds the
+                  L4/L5 yards, habitats, beam relays and the storm (`orbitExtras`)
+    system/       Act V's solar-system view: systemScene.ts (Scene; `{ cinematic }` = the Type I pull-back,
+                  `cinematicDone`), systemArt.ts (pure drawing); the Earth & Moon lens; click opens space dioramas
     sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-9;
                   every partner CEO, the faction delegates, Ade and the three rival AIs have looks), charterIcons.ts
-                  (Act III map sprites), act4Icons.ts (Act IV map sprites); worldMap/act4Layers.ts is the Act IV map layer
+                  (Act III map sprites), act4Icons.ts (Act IV map sprites), act5Icons.ts (beam fields); worldMap/act4Layers.ts
+                  and act5Layers.ts (garden/forge tints, beam fields) are the Act IV–V map layers. Portraits take an `age`
+                  (0–3: greying, elder, renewed) and Bit gens 10 (co-steward) and 11 (a free mind)
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
     tutorial.ts   Bit's guided steps: text, target (`data-tut` attribute or `site:<id>`), done(g) check
-    briefings.ts  Act II (`b-*`), Act III (`c-*`) and Act IV (`d-*`) unlock briefings: the owning advisor's 1–3 step
+    briefings.ts  Act II (`b-*`), Act III (`c-*`), Act IV (`d-*`) and Act V (`e-*`) unlock briefings: the owning advisor's 1–3 step
                   spotlight, shown once (each act's briefings only fire in that act)
     showcase.ts   the fake "day 900" world the menu tour flies over
     tour.ts       TourDirector: map glides + campus cuts behind the main menu
@@ -116,6 +137,9 @@ src/
                            own-run licence box, Threshold tracker, Charter HQ / megaproject / launch inspectors
     panels/Act4Panels.tsx  the Planet panel (overview · provinces · grid · fusion · space · climate), the plan screen,
                            the jump time-lapse overlay and report, the Heat Wall tracker, Act IV complete
+    panels/Act5Panels.tsx  the System panel (overview · Earth · foundries · asteroids · swarm · minds · people), the era
+                           plan, the era overlay and report, the Solar Maximum tracker, the Type I ending (cinematic,
+                           epilogues, credits, stats, end card); game.ending drives it
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
@@ -185,6 +209,13 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   partners carry `act: 4` and join the Charter at beginAct4. Act IV events price the Charter side with `ch4(s, n)`
   (2045 scale). **Autopilot takes the first enabled choice during jumps**, so put the sensible default first.
   Checklist objectives are `live` (never ticked off; shown from `o.done(s)`).
+- **Act V gating:** `s.system` exists only from Act V (null before); `s.planet.stage` stays 5. Act V content uses `act: 5`
+  and `vstage` (contract kinds, techs, random events) or `phase` = the system stage (objectives). New hooks
+  (`foundry:growth`, `foundry:drift`, `minds:mood`, `longevity:rate`, `solarmax:<front>`, the Act V growth parts and
+  wellbeing parts, waste-heat warming, the space power in K) only act when `s.system` exists, so Acts I–IV stay
+  byte-identical (Act IV bot: ends 26 Feb 2065). Act V partners carry `act: 5`. Act V events price the Charter side with
+  `ch5(s, n)` (2068 scale) and voice retired advisors through `desk(s, id)` (their successor). Big decisions go in
+  `content/decisions.ts` with `big: true`; the first enabled choice is the autopilot default.
 - **Company vs Charter:** while the blind trust is on, `game.*` company wrappers refuse with a toast (`locked()`); the
   sim actions stay open so advisors and the trustee can act.
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
@@ -252,15 +283,23 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Act IV event / chain | `content/events4.ts` (first choice = the autopilot default) |
 | Act IV contract kind | `CONTRACT_KINDS` (+ `ACT4_KINDS`) in `content/charter.ts`, rules in `sim/charter.ts` (canPost, contractValue, completeProject), a planner wish in `sim/plans.ts`, a Planet tab poster |
 | Re-tune Act IV pacing | `tests/act4.test.ts` + `tests/helpers/act4bot.ts`; `PLANET` numbers (growth cap, tritium, goals, stageMaxDays), planner limits in `sim/plans.ts` |
+| Big decision (Act V) | `content/decisions.ts` (`big: true`, the default first; set a field in `s.system` and read it in the sim + epilogues) |
+| Asteroid / seed place | `ASTEROIDS` / `SEED_PLACES` in `content/system.ts` (asteroids get a diorama site automatically) |
+| Epilogue card | `EPILOGUES` in `content/epilogues.ts` (one card per topic: the first variant whose `when` holds) |
+| Act V contract kind | `CONTRACT_KINDS` (+ `ACT5_KINDS`, `vstage`) in `content/charter.ts`, rules in `sim/charter.ts`, a wish in `sim/eras.ts`, a System tab poster |
+| Re-tune Act V pacing | `tests/act5.test.ts` + `tests/helpers/act5bot.ts`; `SYSTEM` numbers (doubling by dial, seed size, segments, dividend, eraStopK), the reach slowdown in `sim/foundries.ts#growthMult`, planner limits in `sim/eras.ts` |
 
-## Known gaps / next (see SPEC §12, §16, §17, §18, §19)
+## Known gaps / next (see SPEC §12, §16, §17, §18, §19, §20)
 
-**Next: Act V "Type I"** (v0.6.0), **planned in SPEC §20** (2026-11-04): the Thermal Line, foundries, asteroids, the swarm, longevity, the minds in orbit, Solar Maximum and the Type I ending; then M5 polish (SPEC §12). Then the real theme song, code signing (Windows/macOS), a feedback form
+**Next: M5, polish and ship** (SPEC §12): the beta and the balance pass across all five acts, audio, the menu tour, store
+builds — then v1.0.0. Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
 **Still open:**
 - The main menu's background tour (`game/tour.ts` `SHOTS`, `game/showcase.ts`) only flies over Acts I–II: no Charter
-  HQ, megaproject, launch, orbit-view or Moon shots yet.
+  HQ, megaproject, launch, orbit-view, Moon, solar-system or Act V diorama shots yet.
+- Act V (v0.6.0): audio is only the ending cue; rewilding isn't drawn over old megaproject sites; the end card can't be
+  saved inside the Android app (a screenshot is suggested); Act V screens checked in headless desktop and phone emulation only.
 - Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
   lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.

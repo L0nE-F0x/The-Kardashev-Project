@@ -44,8 +44,24 @@ export function newAct5Game(opts: NewGameOptions, ctx: SimContext): GameState {
       gw: def.cat === 'energy' || kind === 'ffleet' || kind === 'sps' ? def.sizes[size - 1] * cf : undefined, opt,
     });
   };
-  // a quarter-century of the planet, compressed: the big Act IV results without playing them
+  // a quarter-century of the planet, compressed: the big Act IV results without playing them.
+  // Everything that was due "soon" in 2045 is moved along with the calendar, so 2068 doesn't open
+  // with a backlog of elections, model launches and Council sessions.
+  const shift = ACT5_START_DAY - s.day;
   s.day = ACT5_START_DAY;
+  for (const r of REGION_IDS) s.blocs[r].nextElection += shift;
+  s.politics.nextSummit += shift;
+  c.council.nextSession += shift;
+  for (const rv of s.market.rivals) rv.nextRelease += shift;
+  s.startups.nextOffer += shift;
+  s.events.nextRoll = ACT5_START_DAY + 30;
+  for (const tn of c.tenders) {
+    tn.postedDay += shift;
+    tn.closesDay += shift;
+    for (const p of tn.pending) p.day += shift;
+  }
+  for (const p of c.projects) if (p.status === 'building') p.startDay += shift;
+  for (const k of Object.keys(s.events.last)) s.events.last[k] += shift;
   for (const r of SUPERGRID_ROUTES) add('link', r.id, 2, r.subsea ? 'tidewater' : 'spanwire');
   const fleets: [string, FusionDesignId, ContractSize][] = [
     ['mega-plains', 'tokamak', 3], ['mega-pacific', 'tokamak', 3], ['mega-sahara', 'tokamak', 3], ['mega-siberia', 'stellarator', 3], ['mega-deccan', 'stellarator', 3],
