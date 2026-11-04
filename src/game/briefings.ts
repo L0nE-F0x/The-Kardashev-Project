@@ -130,7 +130,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-charter',
     advisor: 'sol',
     title: 'The Kardashev Project',
-    when: (s) => s.act >= 3 && !!s.charter && since3(s, 2),
+    when: (s) => s.act === 3 && !!s.charter && since3(s, 2),
     steps: [
       { text: () => 'Welcome to Geneva, Steward. The Charter has its own treasury — the blocs pay dues into it every month — and it’s completely separate from our company’s cash.', target: () => 'charter-stat', mood: 'excited' },
       { text: () => 'Legitimacy is the blocs’ confidence in you; political capital is what you spend in the Council. Deliver projects, spread them fairly, and keep your hands off our own company’s bids.', enter: (g) => g.openCharter('overview'), target: () => 'legitimacy' },
@@ -140,7 +140,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-contracts',
     advisor: 'mira',
     title: 'Contracts',
-    when: (s) => s.act >= 3 && !!s.charter && since3(s, 8),
+    when: (s) => s.act === 3 && !!s.charter && since3(s, 8),
     steps: [
       { text: () => 'The Charter doesn’t build anything itself. You post a contract — what, where, how big — and partners bid on it. The Charter pays its share; they raise the rest.', enter: (g) => g.openCharter('contracts'), target: () => 'post-contract' },
       { text: () => 'Bids come in over two weeks: a price, a timeline and the company’s traits. Cheap partners overrun, fast ones cut corners, reliable ones cost more. Our company bids too — award it and Legitimacy pays.', target: () => 'tenders' },
@@ -150,7 +150,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-trust',
     advisor: 'penny',
     title: 'Two hats',
-    when: (s) => s.act >= 3 && !!s.charter && !!s.flags.trustDecided,
+    when: (s) => s.act === 3 && !!s.charter && !!s.flags.trustDecided,
     steps: [
       { text: (g) => (g.state?.charter?.blindTrust ? 'Our company is in a blind trust now. Your advisors run it on standing orders and its buttons are locked. You can take it back out here — at a price.' : 'You kept both hats. You can still put the company in a blind trust from here any time: Legitimacy up, conflicts much cheaper, but you can’t touch it.'), enter: (g) => g.openCharter('overview'), target: () => 'blind-trust' },
     ],
@@ -159,7 +159,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-council',
     advisor: 'sol',
     title: 'The Council',
-    when: (s) => s.act >= 3 && !!s.charter && since3(s, 30),
+    when: (s) => s.act === 3 && !!s.charter && since3(s, 30),
     steps: [
       { text: () => 'Twelve seats, weighted by size. Every ninety days they vote on whatever is on the agenda — up to three resolutions.', target: () => 'dock-council' },
       { text: () => 'Tabling costs political capital. The forecast shows how every bloc leans. Whip the waverers with capital, or offer a favour from the treasury.', enter: (g) => g.panel !== 'council' && g.openPanel('council'), target: () => 'table-resolution' },
@@ -169,7 +169,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-missions',
     advisor: 'juno',
     title: 'Missions',
-    when: (s) => s.act >= 3 && !!s.charter && since3(s, 60),
+    when: (s) => s.act === 3 && !!s.charter && since3(s, 60),
     steps: [
       { text: () => 'Missions are the big picture: chains of contracts that change the whole world when they’re done. Clean Power for All and Compute for Everyone are open now; more open as the Charter grows.', enter: (g) => g.openCharter('missions'), target: () => 'missions', mood: 'excited' },
       { text: () => 'Every energy contract is built at a megaproject site — one in every bloc. Click one on the map to see its stage and post a contract there.' },
@@ -179,7 +179,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-desk',
     advisor: 'bit',
     title: 'The Charter desk',
-    when: (s) => s.act >= 3 && !!s.charter && since3(s, 100),
+    when: (s) => s.act === 3 && !!s.charter && since3(s, 100),
     steps: [
       { text: () => 'You can delegate the Charter too. Mira can award tenders, Juno can chase late projects, Sol can whip votes, Penny keeps a reserve. And one day — if you trust me — I can run the pipeline.', enter: (g) => g.panel !== 'team' && g.openPanel('team'), target: () => 'charter-desk', mood: 'excited' },
     ],
@@ -188,7 +188,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-world',
     advisor: 'juno',
     title: 'The world',
-    when: (s) => s.act >= 3 && (s.charter?.phase ?? 0) >= 2,
+    when: (s) => s.act === 3 && (s.charter?.phase ?? 0) >= 2,
     steps: [
       { text: () => 'Kardashev 0.75 is 31.6 terawatts. Charter power adds directly, and every project speeds up the world’s own growth.', enter: (g) => g.openCharter('world'), target: () => 'world-k' },
       { text: () => 'This is the carbon budget for two degrees. Burn through it and heatwaves and droughts come more often — and the grid gets much harder to hold.', target: () => 'carbon' },
@@ -199,7 +199,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-kip',
     advisor: 'kip',
     title: 'Launch',
-    when: (s) => s.act >= 3 && (s.charter?.phase ?? 0) >= 2 && !!s.flags.kipJoined,
+    when: (s) => s.act === 3 && (s.charter?.phase ?? 0) >= 2 && !!s.flags.kipJoined,
     steps: [
       { text: () => 'Five places on Earth would make a good launch complex. Equatorial pads give rockets a free push; polar pads see the whole planet.', enter: (g) => g.select({ kind: 'site', id: 'launch-guiana' }), target: () => 'site:launch-guiana', mood: 'excited' },
       { text: () => 'Pick one and post the contract. Then a test satellite full of accelerators, then power from space. One careful step at a time. Mostly careful.' },
@@ -209,7 +209,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-frontier',
     advisor: 'iris',
     title: 'The Frontier',
-    when: (s) => s.act >= 3 && (s.charter?.phase ?? 0) >= 3,
+    when: (s) => s.act === 3 && (s.charter?.phase ?? 0) >= 3,
     steps: [
       { text: () => 'The Council can now cap frontier training runs, license them and set open-weights policy. The cap applies to us too — our big runs will need a Charter licence.', enter: (g) => g.panel !== 'council' && g.openPanel('council'), target: () => 'table-resolution' },
       { text: () => 'The Mandate is on the board: Kardashev 0.75, the Chip Commons, clean power, access for every bloc, a working safety regime, Legitimacy and Kip’s satellite. When it’s done, the Threshold comes.', enter: (g) => g.openCharter('overview'), target: () => 'treasury' },
@@ -219,10 +219,86 @@ export const BRIEFINGS: Briefing[] = [
     id: 'c-threshold',
     advisor: 'sol',
     title: 'The Threshold',
-    when: (s) => s.act >= 3 && !!s.charter?.threshold && !s.charter.threshold.done,
+    when: (s) => s.act === 3 && !!s.charter?.threshold && !s.charter.threshold.done,
     steps: [
       { text: () => 'Three fronts, a hundred and twenty days. Hover each bar to see what’s pushing it up — and what’s holding it down.', target: () => 'threshold', mood: 'worried' },
       { text: () => 'Firm power, HVDC links, the safety programmes, Bit, Legitimacy and access all ease the pressure on their own. The event cards let us act directly. Then the vote.' },
+    ],
+  },  // ════════════════════ Act IV · Planetary ════════════════════
+  {
+    id: 'd-planet',
+    advisor: 'bit',
+    title: 'The planet',
+    when: (s) => s.act === 4 && !!s.planet && !!s.planet.company && !s.planet.jump,
+    steps: [
+      { text: () => 'Act IV! The twelve blocs are provinces of one system now, and the Planet panel (Y) is where you run it: provinces, the supergrid, fusion, space and the climate.', target: () => 'dock-planet', mood: 'excited' },
+      { text: () => 'The checklist on the Overview is the whole act: Kardashev 0.80, one grid, fusion, orbit, the Moon, thriving provinces, warming under 2 °C and AIs we can trust. When it all holds at once, the finale begins.', enter: (g) => g.openPlanet('overview'), target: () => 'planet-checklist' },
+    ],
+  },
+  {
+    id: 'd-plan',
+    advisor: 'bit',
+    title: 'Five-year plans',
+    when: (s) => s.act === 4 && !!s.planet?.planOpen && !s.events.active,
+    steps: [
+      { text: () => 'Between stages, the years jump. Pick up to three priorities and how long the plan runs. A planner posts and awards contracts by your priorities, and decisions are taken on autopilot. I will write it all down.', target: () => 'plan' },
+    ],
+  },
+  {
+    id: 'd-grid',
+    advisor: 'juno',
+    title: 'The supergrid',
+    when: (s) => s.act === 4 && (s.planet?.stage ?? 0) >= 1 && !s.planet?.jump && !s.planet?.planOpen,
+    steps: [
+      { text: () => 'Ten intercontinental routes. Every link joins two provinces into one grid — and the wider the grid stretches east to west, the longer the sun shines on part of it. Less solar wasted, cheaper power, happier provinces.', enter: (g) => g.openPlanet('grid'), target: () => 'planet-grid', mood: 'excited' },
+    ],
+  },
+  {
+    id: 'd-fusion',
+    advisor: 'lena',
+    title: 'The fusion race',
+    when: (s) => s.act === 4 && (s.planet?.stage ?? 0) >= 1 && !s.planet?.jump && !s.planet?.planOpen && s.day - (s.planet?.stageDay ?? s.day) >= 20,
+    steps: [
+      { text: () => 'Four designs, four companies, four sets of odds. A pilot plant tells us if a design works; only then can we build fleets of it. Some will fail. That is what pilots are for.', enter: (g) => g.openPlanet('fusion'), target: () => 'planet-fusion' },
+      { text: () => 'D-T fleets need tritium, and only running fleets breed more — so the first fleets are the slow ones. Later, helium-3 from the Moon opens a cleaner design.' },
+    ],
+  },
+  {
+    id: 'd-provinces',
+    advisor: 'sol',
+    title: 'Provinces and AIs',
+    when: (s) => s.act === 4 && (s.planet?.stage ?? 0) >= 1 && !s.planet?.jump && !s.planet?.planOpen && s.day - (s.planet?.stageDay ?? s.day) >= 45,
+    steps: [
+      { text: () => 'Every bloc is a province now, with people, heat, water and wellbeing. Hover a wellbeing bar to see what drives it. Water and cooling programmes help the hottest ones.', enter: (g) => g.openPlanet('provinces'), target: () => 'planet-provinces' },
+      { text: () => 'You can hand a province to an AI — Bit, or a rival lab’s model — once its trust is high enough and the world safety margin is positive. Each has its own temperament. Watch them.', mood: 'worried' },
+    ],
+  },
+  {
+    id: 'd-climate',
+    advisor: 'iris',
+    title: 'Warming',
+    when: (s) => s.act === 4 && (s.planet?.stage ?? 0) >= 1 && !s.planet?.jump && !s.planet?.planOpen && s.day - (s.planet?.stageDay ?? s.day) >= 90,
+    steps: [
+      { text: () => 'Warming is in degrees now, and it is on the checklist: under 2 °C. Cleaner grids slow it; direct air capture pulls carbon back out. Some provinces will ask about dimming the sun. It is a painkiller, not a cure.', enter: (g) => g.openPlanet('climate'), target: () => 'planet-climate' },
+    ],
+  },
+  {
+    id: 'd-space',
+    advisor: 'kip',
+    title: 'The High Frontier',
+    when: (s) => s.act === 4 && (s.planet?.stage ?? 0) >= 3 && !s.planet?.jump && !s.planet?.planOpen && !s.planet?.heatwall,
+    steps: [
+      { text: () => 'Spaceports, orbital data centres in permanent sunlight, space-solar stations beaming power down, and a base on the Moon. Watch the debris: crowd low orbit and it closes for everyone.', enter: (g) => g.openPlanet('space'), target: () => 'planet-space', mood: 'excited' },
+      { text: () => 'Press V to see it all from orbit. Click the Moon to visit the base.' },
+    ],
+  },
+  {
+    id: 'd-heatwall',
+    advisor: 'sol',
+    title: 'The Heat Wall',
+    when: (s) => s.act === 4 && !!s.planet?.heatwall && !s.planet.heatwall.done,
+    steps: [
+      { text: () => 'Three fronts, a hundred and twenty days: the heat, the debris cascade, and an AI that wants the controls. Hover each bar to see what pushes it — and what holds it back.', target: () => 'heatwall', mood: 'worried' },
     ],
   },
 ];

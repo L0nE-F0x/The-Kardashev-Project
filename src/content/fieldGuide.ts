@@ -322,6 +322,70 @@ At planetary scale, waste heat becomes the binding constraint: a Type I civilisa
 A power plant needs net electricity, day after day: high-field magnets or lasers that work reliably, materials that survive the neutrons, and a way to breed tritium fuel.`,
     game: 'A Charter grant to Sunforge funds a pilot plant. If it finishes, the Act III ending brings sustained ignition — a seed for Act IV’s fusion age.',
   },
+  // ════════════════════ Act IV ════════════════════
+  {
+    id: 'supergrid', title: 'Supergrids and the moving sun', cat: 'energy', icon: 'supergrid', unlock: (s) => (s.planet?.stage ?? 0) >= 1,
+    body: `Solar power peaks at local noon and vanishes at night. A grid that spans many time zones can move power from where the sun is up to where it has set, so less solar is wasted (“curtailed”) and less storage is needed. Proposals for intercontinental links — Africa to Europe, Australia to Asia, a ring around the North Pacific — have been studied for decades.
+
+Very long links use high-voltage direct current, which loses only a few percent per thousand kilometres. Superconducting cable could cut that further, at the cost of keeping the cable cryogenically cold.`,
+    game: 'Supergrid links (and Act III’s HVDC routes) join provinces into grids. The wider the main grid stretches east to west, the more Charter solar and wind on it deliver — up to a quarter more. All twelve provinces in one grid is on the checklist.',
+  },
+  {
+    id: 'fusion-designs', title: 'Tokamaks, stellarators, lasers', cat: 'energy', icon: 'fusion', unlock: (s) => (s.planet?.stage ?? 0) >= 1,
+    body: `There is more than one way to make a star. Tokamaks hold plasma in a doughnut with powerful magnets; new high-temperature superconductors let them be much smaller. Stellarators twist the magnetic field so the plasma is stable without a current flowing in it — fiendish to design, calm to run. Laser (inertial) fusion crushes tiny fuel pellets many times a second. Magnetised-target designs compress plasma with pistons or liquid metal.
+
+Each has different physics risks and different engineering problems. Nobody knows yet which will make the cheapest electricity.`,
+    game: 'Four designs compete, each built by a different partner with its own odds. Fund a pilot plant; if it works (or half-works) you can order fleets of that design at any megaproject site. Every plant built makes the next one about 15% cheaper per doubling.',
+  },
+  {
+    id: 'tritium', title: 'Tritium and helium-3', cat: 'energy', icon: 'fusion', unlock: (s) => (s.planet?.stage ?? 0) >= 2,
+    body: `Most fusion designs burn deuterium (plentiful in seawater) and tritium, which barely exists in nature: the world’s whole stock is a few tens of kilograms. A fusion plant has to breed its own tritium by wrapping the plasma in lithium, which turns into tritium when struck by fusion neutrons.
+
+Helium-3 is an alternative fuel that produces almost no neutrons. There is very little on Earth, but the solar wind has deposited it in lunar soil over billions of years.`,
+    game: 'D-T fleets (built and building) are capped by the tritium supply; running fleets breed more every year, so the first fleets come slowly. A lunar mine supplies helium-3 for the aneutronic D-He3 design.',
+  },
+  {
+    id: 'dac', title: 'Direct air capture', cat: 'world', icon: 'dac', unlock: (s) => (s.planet?.stage ?? 0) >= 1,
+    body: `Direct air capture pulls CO₂ out of ordinary air with chemical sorbents, then releases it as a concentrated gas to be stored — for example by injecting it into basalt, where it turns to stone within a couple of years. It takes a lot of energy, because CO₂ is only about 0.04% of the air.
+
+With abundant clean power, capture at the scale of billions of tonnes a year becomes conceivable, though it is no substitute for not emitting in the first place.`,
+    game: 'Carbon capture farms at megaproject sites remove Gt of CO₂ every year, putting carbon back into the budget. Warming under 2 °C is on the checklist.',
+  },
+  {
+    id: 'geoengineering', title: 'Solar geoengineering', cat: 'world', icon: 'warn', unlock: (s) => (s.planet?.stage ?? 0) >= 2,
+    body: `Spreading a thin haze of reflective particles in the stratosphere would bounce a little sunlight back to space and cool the planet quickly and cheaply — volcanoes do it naturally. But it doesn’t remove any CO₂, its side effects on rainfall are uncertain, and if it ever stopped suddenly the masked warming would return within years (“termination shock”).
+
+Who gets to set the planet’s thermostat is as hard a question as how.`,
+    game: 'A divisive Council resolution: up to 0.4 °C of warming masked while it is in force, building up over years. Stop it and the mask falls away fast.',
+  },
+  {
+    id: 'ai-governance', title: 'AIs that run infrastructure', cat: 'compute', icon: 'ai', unlock: (s) => (s.planet?.stage ?? 0) >= 1,
+    body: `AI systems already forecast demand and balance parts of power grids. Giving them control of whole regions raises old questions in a new form: how do you audit a decision you can’t fully explain, who is liable when it goes wrong, and how do you make sure a human can still say no?
+
+Proposals include written “constitutions” for deployed systems, independent auditor models, and keeping humans in the loop for decisions that can’t be undone.`,
+    game: 'Hand a province to an AI once its trust is high enough and the world safety margin is positive. Each AI has a temperament (growth, caution, openness — and Bit, shaped by what you told it). Good years build trust; incidents cost it.',
+  },
+  {
+    id: 'kessler', title: 'Orbital debris and Kessler syndrome', cat: 'compute', icon: 'debris', unlock: (s) => (s.planet?.stage ?? 0) >= 3,
+    body: `Low Earth orbit holds tens of thousands of tracked objects and millions of smaller fragments, all moving at around eight kilometres a second. A collision creates more fragments, which make further collisions likelier. Past a certain density this becomes a self-sustaining cascade — Kessler syndrome — that could make some orbits unusable for decades.
+
+Remedies include tracking and dodging, de-orbiting dead satellites promptly, and active removal with tugs, nets or lasers.`,
+    game: 'Orbital data centres and launch traffic add debris to low orbit; drag and clean-up programmes remove it. Above 40, collisions start. The finale’s Cascade front feeds on it.',
+  },
+  {
+    id: 'lunar-isru', title: 'Living off the Moon', cat: 'compute', icon: 'moon', unlock: (s) => (s.planet?.stage ?? 0) >= 3,
+    body: `Craters near the Moon’s poles never see sunlight and hold water ice. Split into hydrogen and oxygen, it becomes rocket propellant — far cheaper to lift from the Moon’s weak gravity than from Earth. Lunar soil is also rich in metals and oxygen.
+
+A mass driver — an electromagnetic rail — could throw lunar material into space without any fuel at all, an idea dating back to the 1970s.`,
+    game: 'The Moon base grows outpost → mine → mass driver: propellant makes space contracts cheaper, metals make orbital construction cheaper, and the mine supplies helium-3.',
+  },
+  {
+    id: 'waste-heat', title: 'Waste heat: the Heat Wall', cat: 'scale', icon: 'heat', unlock: (s) => (s.planet?.stage ?? 0) >= 3,
+    body: `Every watt a civilisation uses ends up as heat. Today that is tiny next to the sunlight Earth absorbs, and greenhouse warming matters far more. But energy use that grew a few percent a year for a few centuries would make waste heat itself a climate problem — at around ten petawatts (Type I), comparable to many times today’s greenhouse forcing.
+
+That is one reason people imagine moving energy-hungry industry and computing off-planet, where waste heat can be radiated into space.`,
+    game: 'From stage 3, waste heat (W/m²) adds to each province’s heat index. The Heat Wall finale is the first sign that the climb to Type I has to continue above the sky — Act V.',
+  },
 ];
 
 export const GUIDE_BY_ID: Record<string, GuideEntry> = Object.fromEntries(GUIDE.map((g) => [g.id, g]));

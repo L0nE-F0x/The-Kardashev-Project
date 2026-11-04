@@ -14,6 +14,9 @@ import { aiRegionCount } from '../src/sim/airegions';
 import { worldMargin } from '../src/sim/frontier';
 import { PLANET } from '../src/content/planet';
 import { loadWorld } from './helpers/world';
+import { migrate } from '../src/save/save';
+import { newAct3Game } from '../src/sim/act3';
+import { SAVE_VERSION } from '../src/sim/state';
 
 const ctx = { router: loadWorld().router };
 
@@ -29,6 +32,29 @@ describe('Act IV', () => {
     expect(s.charter?.partners.twistfield).toBeTruthy();
     expect(Number.isFinite(s.stats.K)).toBe(true);
     expect(s.stats.K).toBeGreaterThan(0.745);
+  });
+
+  it('is deterministic through a jump', () => {
+    const run = () => {
+      const s = newAct4Game({ name: 'Det', homeSite: 'n-virginia', seed: 11 }, ctx);
+      for (let d = 0; d < 500; d++) {
+        botDay4(s, ctx);
+        tick(s, ctx);
+      }
+      const c = s.charter!;
+      return JSON.stringify({ day: s.day, stage: s.planet!.stage, jumps: s.planet!.jumps.length, budget: Math.round(c.budget), K: s.stats.K.toFixed(6), projects: c.projects.length, news: s.news.slice(0, 5) });
+    };
+    expect(run()).toEqual(run());
+  }, 60_000);
+
+  it('migrates an Act III save (no planet yet)', () => {
+    const s = newAct3Game({ name: 'Old', homeSite: 'london', seed: 4 });
+    const raw = JSON.parse(JSON.stringify(s));
+    delete raw.planet;
+    raw.version = 4;
+    const m = migrate(raw)!;
+    expect(m.version).toBe(SAVE_VERSION);
+    expect(m.planet).toBeNull();
   });
 
   it('a planning Steward reaches the end of Act IV without stalling', () => {
