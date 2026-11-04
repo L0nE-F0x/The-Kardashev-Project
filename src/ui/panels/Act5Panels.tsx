@@ -912,6 +912,7 @@ function Credits({ onDone }: { onDone: () => void }) {
         <p class="small muted">A cozy-but-real game about the AI boom, and the long climb to Type I.</p>
         <h4>Made by</h4>
         <p>Lone Fox — design, direction and vibes. Built with Claude.</p>
+        <p class="small">Built by ApexForge · ame-apexforge.org</p>
         <h4>Starring</h4>
         {cast.map(([n, id]) => (
           <div key={id} class="row" style={{ gap: '8px', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>

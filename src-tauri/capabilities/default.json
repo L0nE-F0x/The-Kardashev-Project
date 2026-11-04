@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "The game window may close itself (Quit), toggle fullscreen, and check for, install and restart into a new version; nothing else.",
+  "description": "The game window may close itself (Quit), toggle fullscreen, and check for, install and restart into a new version, and open the ApexForge page in the browser; nothing else.",
   "windows": [
     "main"
   ],
@@ -10,6 +10,10 @@
     "core:window:allow-close",
     "core:window:allow-set-fullscreen",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://ame-apexforge.org/*" }]
+    }
   ]
 }

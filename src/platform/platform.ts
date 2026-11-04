@@ -238,6 +238,21 @@ export async function quitApp(): Promise<void> {
   else window.close();
 }
 
+/**
+ * Open a page outside the game, from a link's click handler. The desktop app hands it to the system browser
+ * (tauri-plugin-opener: src-tauri/capabilities/default.json lists the pages it may open) and returns true, so
+ * the link must not also navigate the game window. Everywhere else it returns false and the link does it
+ * itself: a new tab in the browser and the installed web app; the Android app's WebView sends every page
+ * outside /play to the phone's browser (LauncherActivity#shouldOverrideUrlLoading).
+ */
+export function openExternal(url: string): boolean {
+  if (!isDesktopApp) return false;
+  import('@tauri-apps/plugin-opener')
+    .then(({ openUrl }) => openUrl(url))
+    .catch((e) => console.warn('[platform] could not open', url, e));
+  return true;
+}
+
 /** The browser can put the page in fullscreen (Android Chrome yes; iPhone Safari no). */
 export function canFullscreen(): boolean {
   if (isDesktopApp) return false;

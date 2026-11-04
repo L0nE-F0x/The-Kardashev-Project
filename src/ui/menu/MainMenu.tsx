@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { Icon, Window, fmtPlaytime, useGame } from '../components';
+import { BuiltBy, Icon, Window, fmtPlaytime, useGame } from '../components';
 import { logoUrl } from '../logo';
 import { SITE_BY_ID } from '../../content/sites';
 import { DIFFICULTIES, FOUNDERS } from '../../content/difficulty';
@@ -108,15 +108,18 @@ export function MainMenu() {
         {!isStandalone() && item('arrow', isAndroid() ? 'Get the Android app' : canPromptInstall() || game.installAvailable ? 'Install app' : 'Get the app', isAndroid() ? () => game.openMenuScreen('install') : install)}
         {isDesktopApp && item('close', 'Quit', () => void quitApp())}
         <div class="menu-foot small muted">
-          v{APP_VERSION} · Acts I–IV: The Garage · The Scale-Up · The Charter · Planetary
-          {!isDesktopApp && (
-            <>
-              {' · '}
-              <a href="../" class="link">
-                Home page
-              </a>
-            </>
-          )}
+          v{APP_VERSION} · Acts I–V: The Garage · The Scale-Up · The Charter · Planetary · Type I
+          <div class="menu-foot-links">
+            <BuiltBy />
+            {!isDesktopApp && (
+              <>
+                {' · '}
+                <a href="../" class="link">
+                  Home page
+                </a>
+              </>
+            )}
+          </div>
         </div>
       </div>
       {game.tourCaption && <div class="tour-caption frame">{game.tourCaption}</div>}

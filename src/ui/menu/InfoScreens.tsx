@@ -1,4 +1,4 @@
-import { Icon, Portrait, Window, useGame } from '../components';
+import { BuiltBy, Icon, Portrait, Window, useGame } from '../components';
 import { RELEASES } from '../../content/changelog';
 import { ANDROID_APK_URL, canPromptInstall, installHelp, isDesktopApp, promptInstall } from '../../platform/platform';
 
@@ -36,6 +36,9 @@ export function Credits() {
       </div>
       <h4 class="section">Made by</h4>
       <p>Lone Fox — design, direction and vibes. Built with Claude.</p>
+      <p>
+        <BuiltBy />
+      </p>
       <h4 class="section">Thanks to</h4>
       <ul class="credits">
         <li>Natural Earth — public-domain map data (coastlines, regions, rivers, lakes).</li>

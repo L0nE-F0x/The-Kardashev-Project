@@ -307,7 +307,8 @@ code {
 .foot {
   display: flex;
   justify-content: center;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   padding: 26px 16px 40px;
 }
 

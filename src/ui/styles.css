@@ -1030,6 +1030,9 @@ html.crt #game::after {
   margin-top: 8px;
   text-align: center;
 }
+.menu-foot-links {
+  margin-top: 3px;
+}
 /* phones on their side: a slightly denser UI (Settings → UI size scales on top of it) */
 @media (max-height: 460px) and (pointer: coarse) {
   :root {

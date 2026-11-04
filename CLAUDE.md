@@ -148,7 +148,7 @@ src/
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks)
   audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips), music.ts (menu theme MP3 or chiptune fallback, game ambience)
 src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the game bundled; capabilities = close, fullscreen,
-              updater, restart). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
+              updater, restart, opener scoped to the ApexForge page). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
               only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater)
 android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
               /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more

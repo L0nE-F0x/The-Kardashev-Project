@@ -11,6 +11,7 @@ import { CAST4 } from '../content/planet';
 import { CEOS } from '../content/companies';
 import { CAST5 } from '../content/system';
 import { bitForm, castAge, deskHolder } from '../sim/systemView';
+import { isAndroidApp, openExternal } from '../platform/platform';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
 
@@ -182,4 +183,32 @@ export function fmtPlaytime(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+/** A link to a page outside the game: a new tab in the browser, the system browser in the desktop and Android apps. */
+export function ExtLink({ href, children }: { href: string; children: ComponentChildren }) {
+  return (
+    <a
+      href={href}
+      class="link"
+      target={isAndroidApp() ? undefined : '_blank'}
+      rel="noopener"
+      onClick={(e) => {
+        if (openExternal(href)) e.preventDefault();
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+/** The studio behind the game (also in the website's footer, index.html). */
+export const APEXFORGE_URL = 'https://ame-apexforge.org/';
+
+export function BuiltBy() {
+  return (
+    <>
+      Built by <ExtLink href={APEXFORGE_URL}>ApexForge</ExtLink>
+    </>
+  );
 }
