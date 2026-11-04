@@ -58,10 +58,26 @@ jobs:
 
       - run: npm ci
 
+      # In-app updates: every installer is signed with the updater key (repo secrets
+      # TAURI_SIGNING_PRIVATE_KEY + TAURI_SIGNING_PRIVATE_KEY_PASSWORD; the key lives in
+      # ~/.config/kardashev-project/tauri/ on the dev machine) and latest.json goes on the release.
+      # Installed apps read releases/latest/download/latest.json, so they only see a release once
+      # the draft is published.
+      - name: Check the updater key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then echo "::error::TAURI_SIGNING_PRIVATE_KEY secret is missing"; exit 1; fi
+
       - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
+          # latest.json is written once by the updater-json job below, after every platform is up
+          includeUpdaterJson: false
           tagName: v__VERSION__
           releaseName: The Kardashev Project v__VERSION__
           releaseBody: |
@@ -72,6 +88,8 @@ jobs:
             - **macOS:** right-click the app → *Open*, or System Settings → Privacy & Security → *Open Anyway*.
             - **Linux:** `chmod +x` the AppImage and run it (Arch-based distros may need `fuse2`), or install the .deb.
             - **Android:** download `TheKardashevProject-android.apk` on your phone, open it, and allow installs from your browser if asked.
+
+            Already installed? From v0.5.1 the desktop and Android apps offer each new version in the game: press *Update*.
 
             What's new: https://thekardashevproject.netlify.app/#news
           releaseDraft: true
@@ -121,3 +139,51 @@ jobs:
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "The Kardashev Project $GITHUB_REF_NAME" --notes "Android build."
           gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/TheKardashevProject-android.apk" --clobber
+
+  # The updater manifest the installed desktop apps read: one latest.json for every platform, written
+  # after all the signed installers are on the draft release (the matrix jobs would race to merge it).
+  updater-json:
+    name: Updater manifest (latest.json)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Write latest.json from the signatures
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir sigs && cd sigs
+          gh release download "$TAG" -R "$REPO" -p '*.sig'
+          ls -la
+          python3 - "$TAG" "$REPO" <<'PY'
+          import datetime, glob, json, sys
+          tag, repo = sys.argv[1], sys.argv[2]
+          base = f"https://github.com/{repo}/releases/download/{tag}"
+          platforms = {}
+          for keys, suffix in [
+              (["linux-x86_64", "linux-x86_64-appimage"], ".AppImage"),
+              (["linux-x86_64-deb"], ".deb"),
+              (["windows-x86_64", "windows-x86_64-nsis"], "-setup.exe"),
+              (["darwin-aarch64", "darwin-x86_64", "darwin-universal"], ".app.tar.gz"),
+          ]:
+              sig = sorted(glob.glob("*" + suffix + ".sig"))
+              if not sig:
+                  continue
+              entry = {"signature": open(sig[0]).read().strip(), "url": f"{base}/{sig[0][:-4]}"}
+              for k in keys:
+                  platforms[k] = entry
+          for need in ["linux-x86_64", "windows-x86_64", "darwin-aarch64"]:
+              if need not in platforms:
+                  sys.exit(f"no signed updater artifact for {need}")
+          manifest = {
+              "version": tag.lstrip("v"),
+              "notes": "What's new: https://thekardashevproject.netlify.app/#news",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "platforms": platforms,
+          }
+          json.dump(manifest, open("latest.json", "w"), indent=2)
+          print(json.dumps(manifest, indent=2)[:2000])
+          PY
+          gh release upload "$TAG" latest.json -R "$REPO" --clobber

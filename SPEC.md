@@ -456,7 +456,7 @@ installable apps. Approved 2026-11-03 without the feedback form; built the same 
 | Signing | Unsigned for now, with a "how to open it" note on the download page |
 | Settings | Gameplay, Display, Audio, Accessibility (+ Controls and Data) |
 | New game | Save slots, difficulty presets, founder perks, custom start/seed |
-| Phones | Landscape only: locked when installed, "rotate your phone" screen otherwise. *v0.4.2:* browsers go fullscreen on the first tap; Android gets a real app (a Trusted Web Activity APK around the live site, chosen 2026-11-04 over a bundled offline app: it updates with the website and shares Chrome's saves). *v0.5.0:* the APK runs the live site in its own WebView instead, because Xiaomi phones silently block the hand-off to Chrome (the icon did nothing); its saves are its own |
+| Phones | Landscape only: locked when installed, "rotate your phone" screen otherwise. *v0.4.2:* browsers go fullscreen on the first tap; Android gets a real app (a Trusted Web Activity APK around the live site, chosen 2026-11-04 over a bundled offline app: it updates with the website and shares Chrome's saves). *v0.5.0:* the APK runs the live site in its own WebView instead, because Xiaomi phones silently block the hand-off to Chrome (the icon did nothing); its saves are its own. *v0.5.1:* in-app updates: the desktop apps update themselves from signed GitHub releases (Tauri updater), the Android app downloads the new APK and hands it to the phone's installer, both offered in a toast |
 | Menu scene | Cinematic tour: globe fly-overs that cut into real campus dioramas |
 | Extras | What's New, Credits & About. No feedback form for now (revisit when marketing). No analytics |
 | Music | Your theme MP3 on the menu + code-made chiptune ambience in game |

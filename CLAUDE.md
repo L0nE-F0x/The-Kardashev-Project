@@ -123,13 +123,20 @@ src/
   platform/   platform.ts: browser vs installed PWA vs desktop app (quit, fullscreen, install prompt, service worker)
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks)
   audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips), music.ts (menu theme MP3 or chiptune fallback, game ambience)
-src-tauri/    Tauri 2 desktop shell (one window loading play/index.html; capabilities = close + fullscreen only)
+src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the game bundled; capabilities = close, fullscreen,
+              updater, restart). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
+              only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater)
 android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
               /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more
               (v0.5.0): Xiaomi's MIUI/HyperOS silently blocks the hand-off to Chrome, so the icon did nothing. The page
               gets window.KardashevAndroid.saveFile (export a save) and calls window.kpBack (the back gesture), both
-              wrapped in platform.ts (saveTextFile, onHostBack). Version comes from package.json; web changes need no
-              new APK. public/.well-known/assetlinks.json is left over from the TWA (unused, harmless).
+              wrapped in platform.ts (saveTextFile, onHostBack). In-app updates (v0.5.1): the page compares the app's
+              version (user agent `KardashevAndroid/x.y.z`) with the latest GitHub release and calls installUpdate(url):
+              the app downloads the APK (only from this repo's releases) into its cache, UpdateProvider serves it to the
+              phone's installer (ACTION_INSTALL_PACKAGE, not PackageInstaller sessions: those fail on some Xiaomi phones),
+              status comes back through window.kpUpdateStatus. Debug builds may also fetch from http://10.0.2.2 (the
+              emulator's host) for testing. Version comes from package.json; web changes need no new APK.
+              public/.well-known/assetlinks.json is left over from the TWA (unused, harmless).
               QA: the debug APK enables WebView debugging, so `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`
               + raw CDP (Playwright can't attach to a WebView) drives the page in the emulator (AVD `kp`, Android 15).
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
@@ -198,6 +205,11 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
    name must stay fixed). The APK is signed from the repo secrets `ANDROID_KEYSTORE_B64` and
    `ANDROID_KEYSTORE_PASSWORD`; the key itself lives in `~/.config/kardashev-project/android/` on the dev machine.
    **Never lose or change it**: a new key means phones can't update the app.
+4. Publishing the draft also updates the installed apps: the game offers the new version in a toast (desktop: the
+   `updater-json` job's `latest.json`; Android: the latest release vs the app's own version). Desktop updates are
+   signed in CI from the secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the key lives in
+   `~/.config/kardashev-project/tauri/` (kardashev-updater.key + updater-password.txt). **Never lose or change it
+   either**: installed desktop apps only accept updates signed with it.
 
 The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the chiptune is the fallback).
 
@@ -252,6 +264,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 - Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
   lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
+- In-app updates (v0.5.1) were tested end to end with local builds: the Linux AppImage (update, restart, a bad
+  signature refused) and the Android app in the emulator (permission, download, installer). Not yet on Windows,
+  macOS or a real phone; a .deb install may not update itself (the AppImage does).
 - The Windows and macOS installers build in CI but have never been launched on a real machine. The Linux AppImage runs
   on the dev machine (Omarchy/Arch, installed to ~/Applications with a launcher entry).
 - The Android app (v0.4.2) builds and is signed, but hasn't been installed on a real phone yet. Google Play would need

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 — In-app updates (2026-11-04)
+- The installed apps update from inside the game. When a new version is out, a note at the top of the screen offers it: press Update.
+- Desktop (Windows, macOS and the Linux AppImage): the app downloads the new version, checks its signature and restarts into it. Your saves stay where they are.
+- Android: the app downloads the new version and hands it to your phone's installer. The first time, Android asks you to allow the game to install updates.
+- One last download by hand: install 0.5.1 from the website, and later versions come to you. On Android, the game already offers the 0.5.1 download.
+
 ## 0.5.0 — Planetary (2026-11-04)
 - Act IV, Planetary: after the renewal vote the Charter runs the planet as one system, from 2045 to the Heat Wall — about 2065–70.
 - The years move fast: between stages you set a five-year plan (up to three priorities, a reserve, Bit can run it), then watch the map time-lapse while a planner builds and decisions are taken on autopilot. Bit keeps a diary of each chapter.
