@@ -21,7 +21,7 @@ export type FacilityType =
 /** 'own' = accelerators from your fab joint venture (Act II). */
 export type SupplierId = 'lumen' | 'kestrel' | 'own';
 export type TechId = string;
-export type AdvisorId = 'juno' | 'penny' | 'mira' | 'sol' | 'iris' | 'kip' | 'bit';
+export type AdvisorId = 'juno' | 'penny' | 'mira' | 'sol' | 'iris' | 'kip' | 'bit' | 'lena';
 
 /** A batch of identical accelerators. */
 export interface Batch {
@@ -403,7 +403,11 @@ export type ContractKind =
   | 'compute' | 'cable'
   | 'evals' | 'interp'
   | 'launch' | 'orbital' | 'spacesolar'
-  | 'fusion';
+  | 'fusion'
+  // Act IV
+  | 'link' | 'fpilot' | 'ffleet' | 'dac' | 'desal'
+  | 'spaceport' | 'odc' | 'sps' | 'cleanup'
+  | 'moonbase' | 'moonmine' | 'massdriver';
 
 /** S / M / L. */
 export type ContractSize = 1 | 2 | 3;
@@ -433,6 +437,8 @@ export interface Tender {
   bids: Bid[];
   /** Partners still working on a bid, and the day it arrives. */
   pending: { partner: string; day: number }[];
+  /** Act IV: an option the contract carries (a fusion fleet's design). */
+  opt?: string;
 }
 
 /** An awarded contract being built (or finished). */
@@ -464,6 +470,10 @@ export interface Project {
   claimed?: boolean;
   /** Energy projects: average GW delivered once online. */
   gw?: number;
+  /** Act IV: the option the contract carried (a fusion fleet's design). */
+  opt?: string;
+  /** Act IV: offline until this day (a supergrid link fault). */
+  downUntil?: number;
 }
 
 export interface PartnerState {
@@ -594,6 +604,135 @@ export interface CharterState {
   renewal: { day: number; yes: number; no: number; outcome: 'planetary' | 'limited' | 'caretaker' } | null;
 }
 
+// ── Act IV: Planetary ───────────────────────────────────────────────────────────────────────
+/** The AIs that can run provinces: yours and the three rival labs' models. */
+export type AiId = 'bit' | 'apex' | 'weft' | 'sapling';
+export type FusionDesignId = 'tokamak' | 'stellarator' | 'laser' | 'pinch' | 'dhe3';
+/** What a five-year plan puts first. */
+export type Priority = 'grid' | 'fusion' | 'space' | 'provinces' | 'climate' | 'safety';
+export type HeatFront = 'heat' | 'cascade' | 'controls';
+/** Orbital shells: low Earth orbit, geostationary, cislunar. */
+export type Shell = 'leo' | 'geo' | 'cis';
+
+/** A bloc as a province of the planet (Act IV). */
+export interface Province {
+  /** People, billions. */
+  pop: number;
+  /** Heat index (0..100): how hard the hot season bites. */
+  heat: number;
+  /** Water stress (0..100). */
+  water: number;
+  /** Wellbeing (0..100). */
+  wellbeing: number;
+  /** The AI running it, if delegated. */
+  ai: AiId | null;
+  aiSince: number;
+}
+
+export interface FusionDesignState {
+  status: 'idle' | 'pilot' | 'won' | 'partial' | 'failed';
+  /** Pilots funded so far. */
+  tries: number;
+  resolvedDay?: number;
+}
+
+export interface AiState {
+  /** Trust (0..100): how much the blocs and you rely on it. */
+  trust: number;
+  incidents: number;
+  lastIncident: number;
+}
+
+export interface FivePlan {
+  /** Years the jump covers (3..5). */
+  years: number;
+  /** Up to three priorities. */
+  priorities: Priority[];
+  /** Treasury kept in reserve during the jump (share of a year of dues). */
+  reserve: number;
+  /** Let Bit run the plan (needs trust). */
+  bitRuns: boolean;
+}
+
+export interface PlanetSnap {
+  day: number;
+  K: number;
+  tw: number;
+  warming: number;
+  wellbeing: number;
+  fusionGW: number;
+  links: number;
+  orbitGW: number;
+  budget: number;
+  legitimacy: number;
+}
+
+export interface JumpRecord {
+  from: number;
+  to: number;
+  /** The stage the jump led into. */
+  stage: number;
+  plan: FivePlan;
+  before: PlanetSnap;
+  after: PlanetSnap;
+  /** Projects finished during the jump (names). */
+  built: string[];
+  /** The biggest news of the years skipped. */
+  highlights: string[];
+  /** Decisions taken on autopilot during the jump. */
+  auto: string[];
+  /** Bit's diary for the chapter. */
+  diary: string[];
+}
+
+export interface HeatWallState {
+  startDay: number;
+  endDay: number;
+  fronts: Record<HeatFront, { pressure: number; lost: boolean }>;
+  /** The AI that reaches for the controls. */
+  ai: AiId;
+  /** The hottest provinces. */
+  regions: RegionId[];
+  done: boolean;
+  /** Fronts held at the end (0..3). */
+  held?: number;
+}
+
+export interface PlanetState {
+  /** 0 The Mandate · 1 The Supergrid · 2 The Fusion Age · 3 The High Frontier · 4 The Heat Wall · 5 done. */
+  stage: number;
+  begun: number;
+  /** Day the current stage began. */
+  stageDay: number;
+  /** Powers from Act III's renewal vote (a resolution can upgrade them). */
+  powers: 'planetary' | 'limited' | 'caretaker';
+  /** What you did with your company at the Mandate. */
+  company: 'keep' | 'sell' | 'utility' | null;
+  /** The next five-year plan (being drafted). */
+  plan: FivePlan | null;
+  /** A stage gate is reached: the plan screen is waiting for you. */
+  planOpen: boolean;
+  /** A jump in progress (the UI runs it in chunks for the time-lapse). */
+  jump: { from: number; to: number; plan: FivePlan; before: PlanetSnap; stage: number } | null;
+  jumps: JumpRecord[];
+  provinces: Record<RegionId, Province>;
+  /** Cooling masked by solar geoengineering (°C). */
+  mask: number;
+  /** GW of D-T fusion the tritium supply can fuel. */
+  tritium: number;
+  fusion: Record<FusionDesignId, FusionDesignState>;
+  ais: Record<AiId, AiState>;
+  /** −100..100: how your bargains with Bit went. */
+  bitBond: number;
+  /** Steps of Bit's arc done. */
+  bitArc: number;
+  /** Debris per shell (0..100). */
+  debris: Record<Shell, number>;
+  collisions: number;
+  lastCollision: number;
+  heatwall: HeatWallState | null;
+}
+
 export interface ScheduledEvent {
   id: string;
   day: number;
@@ -657,6 +796,8 @@ export interface GameMeta {
   act2Start?: boolean;
   /** Started from the "Start at Act III" preset. */
   act3Start?: boolean;
+  /** Started from the "Start at Act IV" preset. */
+  act4Start?: boolean;
 }
 
 export interface GameState {
@@ -699,7 +840,7 @@ export interface GameState {
   nextId: number;
   savedAt?: number;
   // ── Act II ─────────────────────────────────────────────────────────────────────────────
-  /** 1 = The Garage, 2 = The Scale-Up, 3 = The Charter. */
+  /** 1 = The Garage, 2 = The Scale-Up, 3 = The Charter, 4 = Planetary. */
   act: number;
   /** Act II phase: 1 Gigawatts · 2 The Stack · 3 The Race · 4 The Crunch · 5 done. */
   phase: number;
@@ -717,4 +858,7 @@ export interface GameState {
   // ── Act III ────────────────────────────────────────────────────────────────────────────
   /** The Kardashev Project (null until Act III begins). */
   charter: CharterState | null;
+  // ── Act IV ─────────────────────────────────────────────────────────────────────────────
+  /** The planet as one system (null until Act IV begins). */
+  planet: PlanetState | null;
 }

@@ -24,6 +24,7 @@ import {
   YOU,
   type ContractCat,
 } from '../../content/charter';
+import { DESIGN_IDS, FUSION_DESIGNS, SUPERGRID_ROUTES } from '../../content/planet';
 import { RESOLUTIONS, RESOLUTION_BY_ID } from '../../content/council';
 import { OBJECTIVE_BY_ID, MANDATE_GOALS } from '../../content/objectives';
 import { REGIONS } from '../../content/regions';
@@ -241,11 +242,12 @@ function OverviewTab() {
 }
 
 // ── contracts ────────────────────────────────────────────────────────────────────────────────
-function whereOptions(s: GameState, kind: ContractKind): { id: string; name: string; note?: string }[] {
+export function whereOptions(s: GameState, kind: ContractKind): { id: string; name: string; note?: string }[] {
   const def = CONTRACT_KINDS[kind];
   switch (def.where) {
     case 'mega':
-      return MEGA_SITES.filter((m) => m.mega?.includes(kind))
+      // Act IV's fusion fleets and carbon capture can go at any megaproject site
+      return MEGA_SITES.filter((m) => m.mega?.includes(kind) || kind === 'ffleet' || kind === 'dac')
         .sort((a, b) => (kind === 'solar' ? b.solarCF - a.solarCF : kind === 'wind' ? b.windCF - a.windCF : 0))
         .map((m) => ({ id: m.id, name: m.name, note: `${REGIONS[m.region].short} · stage ${megaView(s, m.id).stage}${kind === 'solar' ? ` · sun ${Math.round(m.solarCF * 100)}%` : kind === 'wind' ? ` · wind ${Math.round(m.windCF * 100)}%` : ''}` }));
     case 'route':
@@ -256,6 +258,10 @@ function whereOptions(s: GameState, kind: ContractKind): { id: string; name: str
       return [...REGION_IDS].sort((a, b) => (s.charter!.access[a] ?? 0) - (s.charter!.access[b] ?? 0)).map((r) => ({ id: r, name: REGIONS[r].name, note: `access ${Math.round(s.charter!.access[r] ?? 0)}` }));
     case 'global':
       return [{ id: 'global', name: 'Worldwide' }];
+    case 'sgroute':
+      return SUPERGRID_ROUTES.map((r) => ({ id: r.id, name: r.name, note: `${REGIONS[r.from].short}–${REGIONS[r.to].short} · ${r.km.toLocaleString()} km${r.subsea ? ' · subsea' : ''}` }));
+    case 'design':
+      return DESIGN_IDS.map((d) => ({ id: d, name: FUSION_DESIGNS[d].name, note: PARTNERS[FUSION_DESIGNS[d].partner]?.short }));
   }
 }
 

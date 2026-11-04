@@ -192,6 +192,35 @@ export const PARTNERS: Record<string, PartnerDef> = {
     ceo: { name: 'Dr. Amara Diallo', vibe: 'Mission director with a spreadsheet for every contingency.' },
     pitches: ['We bring everything back.', 'Boring is beautiful.', 'Our spacecraft have never missed an orbit.'],
   }),
+  // ── Act IV: the fusion race and climate repair (rel0 is their relationship when Act IV begins) ──
+  twistfield: p({
+    id: 'twistfield', name: 'Twistfield Fusion', short: 'Twistfield', sector: 'Fusion (stellarator)', home: 'eur', color: 'vio5', rel0: 50,
+    traits: { rel: 5, speed: 1, cost: 2, ambition: 3, ethics: 5 },
+    quirk: 'A consortium of institutes building a magnetic bottle twisted by supercomputer. Never early, never wrong.',
+    ceo: { name: 'Prof. Greta Lindahl', vibe: 'Forty years on one design; speaks quietly and carries a torus-shaped paperweight.' },
+    pitches: ['Stability is the whole game.', 'Slow is smooth, smooth is fusion.', 'We modelled this a billion times.'],
+  }),
+  kindle: p({
+    id: 'kindle', name: 'Kindle Ignition', short: 'Kindle', sector: 'Fusion (laser)', home: 'atl', color: 'org1', rel0: 50,
+    traits: { rel: 2, speed: 4, cost: 3, ambition: 5, ethics: 3 },
+    quirk: 'Ten shots a second, each a tiny star. Spun out of a weapons lab and still a little twitchy.',
+    ceo: { name: 'Jonah Pike', vibe: 'Talks fast, thinks faster, has a laser tattoo he won’t explain.' },
+    pitches: ['We hit ignition before breakfast.', 'Every shot teaches us something.', 'Repetition rate is destiny.'],
+  }),
+  quickpinch: p({
+    id: 'quickpinch', name: 'Quickpinch Fusion', short: 'Quickpinch', sector: 'Fusion (magnetised target)', home: 'pac', color: 'yel1', rel0: 45,
+    traits: { rel: 2, speed: 5, cost: 5, ambition: 4, ethics: 2 },
+    quirk: 'Pistons, liquid metal and a very loud bang. Cheapest by far, if it works at all.',
+    ceo: { name: 'Rosa Quintero', vibe: 'Garage-startup energy at gigawatt scale; drives a pickup to board meetings.' },
+    pitches: ['Cheap enough to fail twice.', 'Pistons are proven technology.', 'You want a star or a spreadsheet?'],
+  }),
+  carbonfold: p({
+    id: 'carbonfold', name: 'Carbonfold', short: 'Carbonfold', sector: 'Direct air capture', home: 'nor', color: 'grn4', rel0: 50,
+    traits: { rel: 4, speed: 3, cost: 3, ambition: 4, ethics: 4 },
+    quirk: 'Fans the size of cathedrals and sorbents that drink CO₂. Buries it in basalt, where it turns to stone.',
+    ceo: { name: 'Sigrid Aalto', vibe: 'Geologist who fell in love with a fan. Measures success in megatonnes buried.' },
+    pitches: ['Air in, stone out.', 'Every tonne verified, every tonne buried.', 'The atmosphere is a mine now.'],
+  }),
 };
 
 /** Your own company as a bidder. */
@@ -206,8 +235,9 @@ export const DELEGATES: Record<FactionId, { name: string; title: string; vibe: s
 };
 
 // ════════════════════════════════════════ CONTRACTS ════════════════════════════════════════
-export type ContractCat = 'energy' | 'grid' | 'chips' | 'access' | 'safety' | 'space' | 'fusion';
-export type ContractWhere = 'mega' | 'region' | 'route' | 'launch' | 'global';
+export type ContractCat = 'energy' | 'grid' | 'chips' | 'access' | 'safety' | 'space' | 'fusion' | 'planet';
+/** Act IV adds 'sgroute' (a supergrid route) and 'design' (a fusion design id). */
+export type ContractWhere = 'mega' | 'region' | 'route' | 'launch' | 'global' | 'sgroute' | 'design';
 
 export interface ContractKindDef {
   kind: ContractKind;
@@ -229,7 +259,9 @@ export interface ContractKindDef {
   share: number;
   days: [number, number, number];
   cphase: number;
-  /** Partner ids that bid ('you' = your company, when it can). */
+  /** Act IV: the planet stage it opens in (Act IV kinds only exist once the act begins). */
+  stage?: number;
+  /** Partner ids that bid ('you' = your company, when it can). Fusion pilots and fleets add the design's builder. */
   bidders: string[];
   effect: string;
 }
@@ -352,13 +384,90 @@ export const CONTRACT_KINDS: Record<ContractKind, ContractKindDef> = {
     sizes: [1, 1, 1], unit: '', value: 10e9, yearly: 1.0, share: 1, days: [1200, 1200, 1200],
     bidders: ['sunforge'], effect: 'A chance at ignition before the act is out.',
   }),
+  // ════════════════════ Act IV ════════════════════
+  link: k({
+    kind: 'link', name: 'Supergrid link', icon: 'hvdc', cat: 'grid', where: 'sgroute', cphase: 1, stage: 1,
+    blurb: 'An intercontinental superconducting-cable link: one more stitch in a grid that follows the sun around the planet.',
+    sizes: [30, 80, 200], unit: 'GW', value: 1.0e6, yearly: 0.98, share: 0.3, days: [900, 1100, 1300],
+    bidders: ['spanwire', 'halcyon', 'tidewater'], effect: 'Joins two provinces into the supergrid: solar travels with the daylight, so less is wasted (K ↑), power is cheaper and wellbeing rises at both ends.',
+  }),
+  fpilot: k({
+    kind: 'fpilot', name: 'Fusion pilot plant', icon: 'fusion', cat: 'fusion', where: 'design', cphase: 1, stage: 1, fixed: true,
+    blurb: 'Fund a design’s pilot plant to net electricity. Some designs will work. Some won’t.',
+    sizes: [1, 1, 1], unit: '', value: 1, yearly: 1.0, share: 1, days: [1000, 1000, 1000],
+    bidders: [], effect: 'If it works, the design can be built as fleets. If it half-works, fleets cost more. If it fails, try again or back another.',
+  }),
+  ffleet: k({
+    kind: 'ffleet', name: 'Fusion fleet', icon: 'fusion', cat: 'fusion', where: 'mega', cphase: 1, stage: 2,
+    blurb: 'A row of identical fusion plants of a proven design, built like a factory product.',
+    sizes: [20, 60, 150], unit: 'GW', value: 1, yearly: 1.0, share: 0.25, days: [900, 1100, 1300],
+    bidders: ['halcyon'], effect: 'Firm clean power that gets cheaper with every plant (K ↑). D-T designs need tritium, which fleets breed.',
+  }),
+  dac: k({
+    kind: 'dac', name: 'Direct air capture farm', icon: 'co2', cat: 'planet', where: 'mega', cphase: 1, stage: 1,
+    blurb: 'Banks of giant fans pulling CO₂ out of the air, powered by the megaproject next door, burying it as stone.',
+    sizes: [0.5, 1.5, 4], unit: 'Gt CO₂/yr', value: 150e9, yearly: 0.95, share: 0.5, days: [700, 900, 1100],
+    bidders: ['carbonfold', 'halcyon', 'deepvein'], effect: 'Removes carbon every year: warming falls back.',
+  }),
+  desal: k({
+    kind: 'desal', name: 'Water & cooling programme', icon: 'hydro', cat: 'planet', where: 'region', cphase: 1, stage: 1,
+    blurb: 'Desalination plants on cheap power, aquifer recharge and cooling centres for the hot season.',
+    sizes: [1, 2, 3], unit: 'programmes', value: 40e9, yearly: 1.0, share: 0.5, days: [500, 650, 800],
+    bidders: ['brightwater', 'halcyon', 'tidewater'], effect: 'Water stress and heat fall in the province; wellbeing rises.',
+  }),
+  spaceport: k({
+    kind: 'spaceport', name: 'Spaceport expansion', icon: 'launch', cat: 'space', where: 'launch', cphase: 1, stage: 3,
+    blurb: 'More pads, a heavy-lift factory and a tank farm: a launch every few hours.',
+    sizes: [2, 4, 8], unit: 'pads', value: 10e9, yearly: 0.96, share: 0.5, days: [600, 750, 900],
+    bidders: ['parabola', 'karman'], effect: 'Launch cadence ↑: everything in orbit gets cheaper and faster to build.',
+  }),
+  odc: k({
+    kind: 'odc', name: 'Orbital data centre', icon: 'satellite', cat: 'space', where: 'global', cphase: 1, stage: 3,
+    blurb: 'Accelerators in permanent sunlight, cooled by radiators facing the dark: compute without heating the Earth.',
+    sizes: [1, 3, 8], unit: 'GW IT', value: 25e9, yearly: 0.92, share: 0.4, days: [600, 800, 1000],
+    bidders: ['parabola', 'karman', 'cumulus', 'stratum', 'you'], effect: 'Compute in orbit: access ↑ everywhere, less waste heat on Earth. Adds debris to low orbit.',
+  }),
+  sps: k({
+    kind: 'sps', name: 'Space-solar station', icon: 'satellite', cat: 'space', where: 'region', cphase: 1, stage: 3,
+    blurb: 'Kilometres of solar array in geostationary orbit, beaming power down to a rectenna field in the province.',
+    sizes: [2, 6, 15], unit: 'GW', value: 12e9, yearly: 0.93, share: 0.4, days: [800, 1000, 1200],
+    bidders: ['parabola', 'karman', 'halcyon'], effect: 'Clean power day and night, beamed from orbit (K ↑).',
+  }),
+  cleanup: k({
+    kind: 'cleanup', name: 'Debris clean-up', icon: 'satellite', cat: 'space', where: 'global', cphase: 1, stage: 3,
+    blurb: 'Tugs, nets and lasers that drag dead satellites and fragments down to burn up.',
+    sizes: [1, 2, 3], unit: 'scale', value: 6e9, yearly: 1.0, share: 1, days: [300, 400, 500],
+    bidders: ['karman', 'parabola'], effect: 'Debris in low orbit falls (−15 / −30 / −45).',
+  }),
+  moonbase: k({
+    kind: 'moonbase', name: 'Moon outpost', icon: 'launch', cat: 'space', where: 'global', cphase: 1, stage: 3, fixed: true,
+    blurb: 'Habitats, a landing pad and ice mining in a permanently shadowed crater at the south pole.',
+    sizes: [1, 1, 1], unit: '', value: 60e9, yearly: 0.97, share: 0.6, days: [900, 900, 900],
+    bidders: ['parabola', 'karman'], effect: 'Lunar water becomes propellant: space contracts −15%.',
+  }),
+  moonmine: k({
+    kind: 'moonmine', name: 'Lunar mine', icon: 'orders', cat: 'space', where: 'global', cphase: 1, stage: 3, fixed: true,
+    blurb: 'Regolith processing for metals and the rare helium-3 the solar wind left behind.',
+    sizes: [1, 1, 1], unit: '', value: 90e9, yearly: 0.97, share: 0.6, days: [1000, 1000, 1000],
+    bidders: ['deepvein', 'karman', 'parabola'], effect: 'Metals for orbit and helium-3 for aneutronic fusion (opens the D-He3 design).',
+  }),
+  massdriver: k({
+    kind: 'massdriver', name: 'Mass driver', icon: 'launch', cat: 'space', where: 'global', cphase: 1, stage: 3, fixed: true,
+    blurb: 'A magnetic rail across the lunar plain that throws cargo into orbit without a drop of fuel.',
+    sizes: [1, 1, 1], unit: '', value: 120e9, yearly: 0.97, share: 0.6, days: [1200, 1200, 1200],
+    bidders: ['karman', 'halcyon', 'parabola'], effect: 'Lunar metals by the megatonne: orbital construction −25%, much more helium-3.',
+  }),
 };
 
 export const CONTRACT_ORDER: ContractKind[] = ['solar', 'wind', 'nuclear', 'hydro', 'geo', 'hvdc', 'fab', 'hbm', 'pkg', 'euv', 'compute', 'cable', 'evals', 'interp', 'launch', 'orbital', 'spacesolar', 'fusion'];
-export const ENERGY_KINDS: ContractKind[] = ['solar', 'wind', 'nuclear', 'hydro', 'geo'];
+/** Act IV's kinds (posted from the Planet panel; awarded like any other contract). */
+export const ACT4_KINDS: ContractKind[] = ['link', 'fpilot', 'ffleet', 'dac', 'desal', 'spaceport', 'odc', 'sps', 'cleanup', 'moonbase', 'moonmine', 'massdriver'];
+/** Kinds whose projects deliver energy (`gw`), counted in the Charter's terawatts. */
+export const ENERGY_KINDS: ContractKind[] = ['solar', 'wind', 'nuclear', 'hydro', 'geo', 'ffleet', 'sps'];
 export const FIRM_KINDS: ContractKind[] = ['nuclear', 'hydro', 'geo'];
 
 export const CAT_NAMES: Record<ContractCat, string> = {
+  planet: 'Climate & provinces',
   energy: 'Energy', grid: 'Grid', chips: 'Chips', access: 'Access', safety: 'Safety', space: 'Space', fusion: 'Fusion',
 };
 

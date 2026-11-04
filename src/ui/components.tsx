@@ -7,6 +7,7 @@ import { iconUrl, type IconName } from './icons';
 import { ceoPortraitUrl, portraitUrl } from '../render/sprites/portraits';
 import type { Speaker } from '../content/events';
 import { DELEGATES, PARTNERS } from '../content/charter';
+import { CAST4 } from '../content/planet';
 import { CEOS } from '../content/companies';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
@@ -29,7 +30,7 @@ export function Portrait({ id, mood, size, bitGen }: { id: AdvisorId; mood?: Moo
   return <img class="portrait" src={portraitUrl(id, mood ?? 'neutral', gen)} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={id} draggable={false} />;
 }
 
-const ADVISOR_TITLES: Record<string, string> = { juno: 'Juno · Engineering', penny: 'Penny · Finance', mira: 'Mira · Supply chain', sol: 'Sol · Diplomacy', iris: 'Iris · Safety', kip: 'Kip · Space', bit: 'Bit' };
+const ADVISOR_TITLES: Record<string, string> = { juno: 'Juno · Engineering', penny: 'Penny · Finance', mira: 'Mira · Supply chain', sol: 'Sol · Diplomacy', iris: 'Iris · Safety', kip: 'Kip · Space', bit: 'Bit', lena: 'Lena · Fusion' };
 
 /** The name line for an event-card speaker (advisor, partner CEO or faction delegate). */
 export function speakerName(id: Speaker): string {
@@ -39,6 +40,8 @@ export function speakerName(id: Speaker): string {
   if (p) return `${p.ceo.name} · ${p.short}`;
   const d = DELEGATES[key as keyof typeof DELEGATES];
   if (d) return `${d.name} · ${d.title}`;
+  const c4 = CAST4[key];
+  if (c4) return `${c4.name} · ${c4.title}`;
   const c = CEOS[key];
   return c ? `${c.name} · ${c.company}` : key;
 }

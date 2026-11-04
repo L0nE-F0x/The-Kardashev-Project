@@ -2,11 +2,12 @@
  * Read-only views of the Charter for the renderers (world map layers, dioramas) and the UI.
  * Pure functions of GameState — no Pixi, no DOM — so headless previews can use them too.
  */
+import { siteFusion } from './planetView';
 import { ANCHORS, CONTRACT_KINDS, HVDC_ROUTES, MEGA_STAGES, megaGW, PARTNERS, type HvdcRoute } from '../content/charter';
 import { LAUNCH_SITES, MEGA_SITES } from '../content/sites';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { ColorKey } from '../render/palette';
-import type { ContractKind, GameState, Project } from './types';
+import type { ContractKind, GameState, Project, FusionDesignId } from './types';
 
 export interface BuildView {
   builder: string;
@@ -14,6 +15,8 @@ export interface BuildView {
   /** 0..1 */
   progress: number;
   size: number;
+  /** Act IV: a fusion fleet's design. */
+  opt?: string;
 }
 
 export interface MegaView {
@@ -29,6 +32,9 @@ export interface MegaView {
   building: BuildView[];
   /** Energy kinds this site accepts. */
   kinds: ContractKind[];
+  /** Act IV: fusion GW online here by design ('ffleet' projects), and Gt CO₂/yr of air capture online. */
+  fusion: Partial<Record<FusionDesignId, number>>;
+  dacGt: number;
 }
 
 export interface HvdcView {
@@ -102,8 +108,10 @@ export function megaView(s: GameState | null, siteId: string): MegaView {
     gw,
     online: Object.keys(gwByKind) as ContractKind[],
     gwByKind,
-    building: projects.filter((p) => p.status === 'building').map((p) => ({ builder: p.builder, kind: p.kind, progress: frac(p), size: p.size })),
+    building: projects.filter((p) => p.status === 'building').map((p) => ({ builder: p.builder, kind: p.kind, progress: frac(p), size: p.size, opt: p.opt })),
     kinds,
+    fusion: siteFusion(s, siteId),
+    dacGt: projects.filter((p) => p.kind === 'dac' && p.status === 'done').reduce((a, p) => a + CONTRACT_KINDS.dac.sizes[p.size - 1], 0),
   };
 }
 

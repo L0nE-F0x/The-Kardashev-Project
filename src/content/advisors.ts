@@ -15,4 +15,5 @@ export const ADVISORS: Record<AdvisorId, AdvisorDef> = {
   iris: { id: 'iris', name: 'Dr. Iris Vance', role: 'Safety Lead', vibe: 'Calm and principled, not a doomer.' },
   kip: { id: 'kip', name: 'Kip Lindqvist', role: 'Launch & Space', vibe: 'Relentless space optimist.' },
   bit: { id: 'bit', name: 'Bit', role: 'Your AI', vibe: 'Curious, earnest, getting smarter.' },
+  lena: { id: 'lena', name: 'Dr. Lena Moreau', role: 'Fusion', vibe: 'Thirty years of plasma physics; allergic to hype, delighted by data. (Act IV)' },
 };

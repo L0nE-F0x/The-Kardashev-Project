@@ -1,7 +1,7 @@
 import type { RegionId } from './mapcodes';
 import type { ContractKind, SupplierId } from '../sim/types';
 
-export type Backdrop = 'desert' | 'coast' | 'temperate' | 'boreal' | 'plains' | 'tropical' | 'mountain' | 'volcanic' | 'savanna';
+export type Backdrop = 'desert' | 'coast' | 'temperate' | 'boreal' | 'plains' | 'tropical' | 'mountain' | 'volcanic' | 'savanna' | 'lunar';
 
 export interface SiteDef {
   id: string;
@@ -9,8 +9,8 @@ export interface SiteDef {
   region: RegionId;
   lat: number;
   lon: number;
-  /** Act III adds the Charter HQ, megaproject sites and launch-complex candidates (all view-only). */
-  kind: 'build' | 'supplier' | 'cloud' | 'landing' | 'mine' | 'charter' | 'mega' | 'launch';
+  /** Act III adds the Charter HQ, megaproject sites and launch-complex candidates (all view-only); Act IV the Moon. */
+  kind: 'build' | 'supplier' | 'cloud' | 'landing' | 'mine' | 'charter' | 'mega' | 'launch' | 'moon';
   blurb: string;
   backdrop: Backdrop;
   /** Seaport used for deliveries, [lat, lon] (must sit on the world ocean). */
@@ -196,7 +196,17 @@ export const SITES: SiteDef[] = [
   launchSite('launch-arctic', 'Arctic Polar Pad', 'nor', 69.2, 17.0, [69.6, 16.5], 'boreal', 'A fjord-side pad for polar orbits, where satellites see every inch of the Earth.'),
 ];
 
-export const SITE_BY_ID: Record<string, SiteDef> = Object.fromEntries(SITES.map((s) => [s.id, s]));
+/**
+ * Act IV: the Moon base, for its diorama. It is NOT in SITES (it isn't on the world map and has no
+ * sea route); it is reachable by id through SITE_BY_ID / siteDef.
+ */
+export const MOON_SITE: SiteDef = {
+  id: 'moon', name: 'Shackleton Base', region: 'eur', lat: -89.9, lon: 0, port: [5.6, -52.3], kind: 'moon', act: 4, backdrop: 'lunar',
+  blurb: 'The rim of Shackleton crater at the lunar south pole: near-permanent sunlight on the peaks, water ice in the shadows below.',
+  solarCF: 0.8, windCF: 0, water: 0, climateC: -150, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
+};
+
+export const SITE_BY_ID: Record<string, SiteDef> = Object.fromEntries([...SITES, MOON_SITE].map((s) => [s.id, s]));
 export const BUILD_SITES = SITES.filter((s) => s.kind === 'build');
 export const LANDING_SITES = SITES.filter((s) => s.kind === 'landing');
 export const MINE_SITES = SITES.filter((s) => s.kind === 'mine');
