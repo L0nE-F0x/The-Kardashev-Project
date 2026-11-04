@@ -4,6 +4,7 @@ import { FACILITIES, FIRM, GENERATORS } from './facilities';
 import { megaStage } from './charter';
 import { MEGA_SITES } from './sites';
 import { planetChecklist as planetChecklistOf } from '../sim/act4';
+import { typeIChecklist as typeIChecklistOf } from '../sim/act5';
 
 const MEGA_IDS = MEGA_SITES.map((m) => m.id);
 
@@ -141,6 +142,37 @@ OBJECTIVES.push(
   a4({ id: 'a4-aiprov', phase: 1, title: '4 AI provinces, safety margin ≥ 0', hint: 'Delegate to AIs you trust, and keep the world safety margin positive.', advisor: 'iris', goal: true, done: (s) => check(s, 'ai') }),
   a4({ id: 'a4-heatwall', phase: 4, title: 'Come through The Heat Wall', hint: 'Hold the heat, the cascade and the controls for 120 days.', advisor: 'sol', goal: true, done: (s) => !!pl(s)?.heatwall?.done }),
 );
+// ── Act V · Type I (phase = the system's stage) ──
+const a5 = (o: Omit<ObjectiveDef, 'act'>): ObjectiveDef => ({ ...o, act: 5, live: o.goal && o.id !== 'a5-solarmax' && o.id !== 'a5-typei' ? true : undefined });
+const sy5 = (s: GameState) => s.system;
+const check5 = (s: GameState, id: string) => !!s.system && typeIChecklistOf(s).find((g) => g.id === id)?.done === true;
+OBJECTIVES.push(
+  a5({ id: 'a5-line', phase: 0, title: 'Draw the Thermal Line', hint: 'The Council decides how much waste heat Earth’s surface may shed.', advisor: 'iris', done: (s) => !!sy5(s)?.thermalLine }),
+  a5({ id: 'a5-sky', phase: 0, title: 'Decide who owns the sky', hint: 'The Commons, Concessions or Claims.', advisor: 'sol', done: (s) => !!sy5(s)?.ownership }),
+  a5({ id: 'a5-seed', phase: 0, title: 'Plant the first seed foundry', hint: 'System → Foundries: a seed at the Moon, a Lagrange yard or a claimed asteroid.', advisor: 'kip', done: (s) => (sy5(s)?.foundries.length ?? 0) > 0 }),
+  a5({ id: 'a5-plan', phase: 0, title: 'Set the first era plan', hint: 'Priorities, the growth dial, reinvestment, minds or people, then jump.', advisor: 'bit', after: ['a5-line', 'a5-sky'], done: (s) => (sy5(s)?.stage ?? 0) >= 1 }),
+  // stage 1 · the foundries
+  a5({ id: 'a5-survey', phase: 1, title: 'Survey the asteroids', hint: 'System → Asteroids: a survey maps the rocks within reach.', advisor: 'mira', done: (s) => Object.values(sy5(s)?.asteroids ?? {}).some((a) => a.status >= 1) }),
+  a5({ id: 'a5-claims', phase: 1, title: 'Three asteroids claimed', hint: 'Claim surveyed rocks for the Charter (or let the claimants race, under Claims).', advisor: 'sol', done: (s) => Object.values(sy5(s)?.asteroids ?? {}).filter((a) => a.status >= 2).length >= 3 }),
+  a5({ id: 'a5-arcs', phase: 1, title: 'Light two arcs of the swarm', hint: 'The foundries build collectors as fast as there is something to use them.', advisor: 'kip', done: (s) => (sy5(s)?.collectors ?? 0) >= 20 }),
+  // stage 2 · the swarm
+  a5({ id: 'a5-pw', phase: 2, title: 'Reach Kardashev 0.90', hint: 'One petawatt: grid-scale abundance times ten.', advisor: 'bit', done: (s) => s.stats.K >= 0.9 }),
+  a5({ id: 'a5-habitat', phase: 2, title: 'Build a habitat at L5', hint: 'System → Swarm: towns in rotating cylinders.', advisor: 'kip', done: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'habitat' && p.status === 'done') }),
+  // stage 3 · the last climb: the Type I checklist (live; Solar Maximum starts when every item holds at once)
+  a5({ id: 'a5-k99', phase: 3, title: 'Kardashev 0.99', hint: 'About 8 PW: almost all of it caught and used in space.', advisor: 'bit', goal: true, done: (s) => check5(s, 'k99') }),
+  a5({ id: 'a5-under', phase: 3, title: 'Earth within its Thermal Line', hint: 'Surface power (Earth’s own plus beams) at or under the line.', advisor: 'iris', goal: true, done: (s) => check5(s, 'line') }),
+  a5({ id: 'a5-wellbeing', phase: 3, title: 'Every province’s wellbeing ≥ 60', hint: 'Gardens, clinics, beams and the old Act IV levers.', advisor: 'sol', goal: true, done: (s) => check5(s, 'wellbeing') }),
+  a5({ id: 'a5-warming', phase: 3, title: 'Warming under 2.0 °C', hint: 'Waste heat counts now: capture carbon to make room for it.', advisor: 'iris', goal: true, done: (s) => check5(s, 'warming') }),
+  a5({ id: 'a5-escape', phase: 3, title: 'Longevity escape velocity', hint: 'Healthy life expectancy rising more than a year every year.', advisor: 'bit', goal: true, done: (s) => check5(s, 'escape') }),
+  a5({ id: 'a5-minds', phase: 3, title: 'The minds at peace', hint: 'A seat settled and their mood at 50 or more.', advisor: 'iris', goal: true, done: (s) => check5(s, 'minds') }),
+  a5({ id: 'a5-margin', phase: 3, title: 'World safety margin ≥ 0', hint: 'Evals, interpretability and drift sentinels.', advisor: 'iris', goal: true, done: (s) => check5(s, 'margin') }),
+  a5({ id: 'a5-mercury', phase: 3, title: 'Mercury surveyed', hint: 'System → Swarm: the Mercury survey (stage 3).', advisor: 'kip', goal: true, done: (s) => check5(s, 'mercury') }),
+  a5({ id: 'a5-solarmax', phase: 4, title: 'Come through Solar Maximum', hint: 'Hold the storm, the Thermal Line and the minds for 120 days.', advisor: 'sol', goal: true, done: (s) => !!sy5(s)?.solarmax?.done }),
+  a5({ id: 'a5-typei', phase: 4, title: 'Kardashev 1.0000', hint: 'Ten petawatts. Type I.', advisor: 'bit', goal: true, done: (s) => !!sy5(s)?.typeI }),
+);
+/** Act V's Type I checklist ids (the gate itself is typeIChecklist in sim/act5.ts, checked live). */
+export const TYPE_I_GOALS = ['a5-k99', 'a5-under', 'a5-wellbeing', 'a5-warming', 'a5-escape', 'a5-minds', 'a5-margin', 'a5-mercury'];
+
 /** Act IV's planetary checklist ids (the gate itself is planetChecklist in sim/act4.ts, checked live). */
 export const PLANET_GOALS = ['a4-k080', 'a4-grid', 'a4-fusion', 'a4-orbit', 'a4-moon', 'a4-wellbeing', 'a4-warming', 'a4-aiprov'];
 
@@ -156,7 +188,7 @@ export const OBJECTIVE_BY_ID: Record<string, ObjectiveDef> = Object.fromEntries(
 /** Objectives that belong to the current act and phase. */
 export function actObjectives(s: GameState): ObjectiveDef[] {
   const act = s.act ?? 1;
-  const phase = act === 4 ? (s.planet?.stage ?? 0) : act === 3 ? (s.charter?.phase ?? 1) : s.phase;
+  const phase = act === 5 ? (s.system?.stage ?? 0) : act === 4 ? (s.planet?.stage ?? 0) : act === 3 ? (s.charter?.phase ?? 1) : s.phase;
   return OBJECTIVES.filter((o) => (o.act ?? 1) === act && (act === 1 || (o.phase ?? 1) <= phase));
 }
 

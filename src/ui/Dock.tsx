@@ -26,6 +26,9 @@ export function Dock() {
     ...((s.act ?? 1) >= 4 && s.planet
       ? ([['planet', 'globe', 'The Planet: provinces, grid, fusion, space, climate (Y)', s.planet.planOpen ? 1 : undefined]] as [PanelId, IconName, string, number?][])
       : []),
+    ...((s.act ?? 1) >= 5 && s.system
+      ? ([['system', 'swarm', 'The System: the Thermal Line, foundries, asteroids, the swarm, minds, people (X)', s.system.planOpen ? 1 : undefined]] as [PanelId, IconName, string, number?][])
+      : []),
     ['goals', 'goals', 'Goals (G)'],
     ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
     ['news', 'news', 'News (N)'],

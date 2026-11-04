@@ -31,6 +31,8 @@ export interface SlotInfo {
   act2?: boolean;
   act3?: boolean;
   act4?: boolean;
+  /** The year the campaign reached Type I. */
+  typeI?: number;
   gameOver: boolean;
 }
 
@@ -81,6 +83,7 @@ function infoOf(id: string, s: GameState): SlotInfo {
     act2: !!s.flags.act2Complete,
     act3: !!s.flags.act3Complete,
     act4: !!s.flags.act4Complete,
+    typeI: s.system?.typeI ? new Date(Date.UTC(2027, 0, 1) + s.system.typeI * 86_400_000).getUTCFullYear() : undefined,
     gameOver: !!s.meta.gameOver,
   };
 }

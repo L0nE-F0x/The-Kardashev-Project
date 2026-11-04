@@ -37,6 +37,9 @@ export interface Settings {
   // bookkeeping
   lastSeenVersion: string;
   tutorialOffered: boolean;
+  /** New Game+: the best year each difficulty reached Type I, and the Steward founder unlocked. */
+  typeIBest?: Record<string, number>;
+  stewardUnlocked?: boolean;
 }
 
 const KEY = 'kardashev.settings.v1';

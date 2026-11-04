@@ -25,12 +25,13 @@ export function NewsPanel() {
 export function GoalsPanel() {
   const game = useGame();
   const s = game.state!;
+  if ((s.act ?? 1) >= 5 && s.system) return <Act5Goals />;
   if ((s.act ?? 1) >= 3) return <Act3Goals />;
   if ((s.act ?? 1) >= 2) return <Act2Goals />;
   return (
     <Panel title="Act I · The Garage" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
       <p class="small muted" style={{ marginTop: 0 }}>
-        Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Act II makes you a hyperscaler and Act III the steward of the Kardashev Project; Acts IV–V (planetary → Type I) are on the roadmap.
+        Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Act II makes you a hyperscaler and Act III the steward of the Kardashev Project; Act IV runs the planet, and Act V climbs to Type I.
       </p>
       {OBJECTIVES.filter((o) => (o.act ?? 1) === 1).map((o) => {
         const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
@@ -86,6 +87,51 @@ function Act2Goals() {
         </div>
       ))}
       {s.phase < 4 && <div class="small muted">More goals appear as each phase opens.</div>}
+    </Panel>
+  );
+}
+
+
+const STAGE5 = ['The Thermal Line', 'The Foundries', 'The Swarm', 'The Last Climb', 'Solar Maximum'];
+function Act5Goals() {
+  const game = useGame();
+  const s = game.state!;
+  const st = Math.min(4, s.system?.stage ?? 0);
+  const list = actObjectives(s);
+  return (
+    <Panel title="Act V · Type I" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <p class="small muted" style={{ marginTop: 0 }}>
+        Civilisation steward. Stage {st} of 4: {STAGE5[st]}. When the Type I checklist holds (or in 2105), Solar Maximum begins; after it, the last climb runs until Kardashev reaches 1.0000 — your score is the year.
+      </p>
+      {[0, 1, 2, 3, 4].filter((p) => p <= st).map((p) => (
+        <div key={p} class="section">
+          <h4>
+            Stage {p} · {STAGE5[p]}
+          </h4>
+          {list
+            .filter((o) => (o.phase ?? 0) === p)
+            .map((o) => {
+              const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
+              const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
+              return (
+                <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>
+                  <Portrait id={o.advisor} size={32} />
+                  <div class="grow">
+                    <div class="t">
+                      {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                    </div>
+                    <div class="h">{o.hint}</div>
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      ))}
+      {s.system?.typeI && (
+        <button class="btn" onClick={() => (game.openPanel(null), game.replayEnding())}>
+          Watch the ending again
+        </button>
+      )}
     </Panel>
   );
 }

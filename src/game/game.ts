@@ -7,6 +7,10 @@ import { newGame, type NewGameOptions } from '../sim/state';
 import { newAct2Game } from '../sim/act2';
 import { newAct3Game } from '../sim/act3';
 import { newAct4Game } from '../sim/act4preset';
+import { newAct5Game } from '../sim/act5preset';
+import * as ERA from '../sim/eras';
+import { claimAsteroid as claimAst } from '../sim/asteroids';
+import type { EraPlan, EraRecord } from '../sim/types';
 import * as PL from '../sim/plans';
 import * as AI from '../sim/airegions';
 import type { AiId, FivePlan, JumpRecord } from '../sim/types';
@@ -43,10 +47,13 @@ import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | null;
 export type PlanetTab = 'overview' | 'provinces' | 'grid' | 'fusion' | 'space' | 'climate';
+export type SystemTab = 'overview' | 'thermal' | 'foundries' | 'asteroids' | 'swarm' | 'minds' | 'people';
+/** The Type I ending, step by step. */
+export type EndingStep = 'cinematic' | 'epilogue' | 'credits' | 'stats' | 'card';
 export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
-export type Mode = 'title' | 'map' | 'diorama' | 'orbit';
+export type Mode = 'title' | 'map' | 'diorama' | 'orbit' | 'system';
 export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install';
 export type Hover =
   | { kind: 'site'; id: string; clientX: number; clientY: number }
@@ -77,6 +84,8 @@ export interface SceneFactory {
   tour(game: Game): TourDirector;
   /** Act IV: the planet from orbit. */
   orbit?(game: Game): Scene;
+  /** Act V: the inner solar system (cinematic for the Type I ending). */
+  system?(game: Game, opts?: { cinematic?: boolean }): Scene;
 }
 
 /** Game days a time jump advances per frame (the map time-lapses while it runs). */
@@ -112,6 +121,12 @@ export class Game {
   jumpReport: JumpRecord | null = null;
   /** Finish the running jump as fast as possible. */
   jumpFast = false;
+  /** Act V. */
+  systemTab: SystemTab = 'overview';
+  /** The report of the era that just finished (shown until dismissed). */
+  eraReport: EraRecord | null = null;
+  /** The Type I ending in progress: which step, which epilogue card. */
+  ending: { step: EndingStep; index: number; at: number } | null = null;
   charterDraft: { kind?: ContractKind; where?: string } | null = null;
   /** Act II unlock briefing on screen (UI-only; which ones were seen is saved in meta). */
   briefing: { id: string; step: number } | null = null;
@@ -222,12 +237,12 @@ export class Game {
     return listSlots().length >= MAX_SLOTS;
   }
 
-  startNew(opts: NewGameOptions & { act2?: boolean; act3?: boolean; act4?: boolean }): boolean {
+  startNew(opts: NewGameOptions & { act2?: boolean; act3?: boolean; act4?: boolean; act5?: boolean }): boolean {
     if (this.slotsFull()) {
       this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
       return false;
     }
-    this.state = opts.act4 ? newAct4Game(opts, this.ctx) : opts.act3 ? newAct3Game(opts) : opts.act2 ? newAct2Game(opts) : newGame(opts);
+    this.state = opts.act5 ? newAct5Game(opts, this.ctx) : opts.act4 ? newAct4Game(opts, this.ctx) : opts.act3 ? newAct3Game(opts) : opts.act2 ? newAct2Game(opts) : newGame(opts);
     this.slotId = newSlotId();
     refreshStats(this.state);
     this.awayReport = null;
@@ -361,6 +376,31 @@ export class Game {
     return !!this.scenes.orbit && !!this.state?.planet;
   }
 
+  /** Act V: zoom out again, to the inner solar system. */
+  enterSystem(cinematic = false): void {
+    if (!this.scenes.system || !this.state?.system) return;
+    this.mode = 'system';
+    this.dioramaSite = null;
+    this.hover = null;
+    this.stage.setZoomBoost(this.settings.zoom);
+    this.stage.setScene(this.scenes.system(this, { cinematic }));
+    if (!cinematic) sfx('whoosh');
+    this.notify();
+  }
+
+  get hasSystemView(): boolean {
+    return !!this.scenes.system && !!this.state?.system;
+  }
+
+  /** V cycles the views: world map → orbit → solar system (Act V) → world map. */
+  cycleView(): void {
+    if (this.mode === 'orbit') {
+      if (this.hasSystemView) this.enterSystem();
+      else this.enterMap();
+    } else if (this.mode === 'system') this.enterMap();
+    else if (this.hasOrbitView) this.enterOrbit();
+  }
+
   enterDiorama(siteId: string): void {
     this.mode = 'diorama';
     this.dioramaSite = siteId;
@@ -436,6 +476,10 @@ export class Game {
       (!!s.events.active && (this.settings.autoPause || this.eventOpen)) ||
       !!s.planet?.jump ||
       !!this.jumpReport ||
+      !!s.system?.jump ||
+      !!this.eraReport ||
+      (!!s.system?.planOpen && !s.events.active) ||
+      !!this.ending ||
       (!!s.planet?.planOpen && !s.events.active) ||
       !!this.awayReport ||
       this.showActComplete ||
@@ -471,6 +515,21 @@ export class Game {
         }
         this.notify();
       }
+      // Act V: an era (or the last climb) runs a week per frame while the views time-lapse
+      if (s.system?.jump?.last && this.mode === 'map' && this.hasSystemView) this.enterSystem();
+      if (s.system?.jump) {
+        const last = !!s.system.jump.last;
+        const rec = ERA.eraStep(s, this.ctx, this.jumpFast ? 100_000 : last ? JUMP_DAYS_PER_FRAME * 2 : JUMP_DAYS_PER_FRAME);
+        refreshStats(s);
+        if (rec) {
+          this.eraReport = rec.last ? null : rec;
+          this.jumpFast = false;
+          sfx('fanfare');
+          this.save();
+        }
+        this.notify();
+      }
+      this.tickEnding(dt);
       const blocked = this.blocked;
       if (blocked && this.speed !== 0) {
         this.resumeSpeed = this.speed;
@@ -550,6 +609,7 @@ export class Game {
       this.showActComplete = true;
       sfx('fanfare');
     }
+    if (s.flags.endingStart && !s.flags.endingShown && !this.ending) this.startEnding();
     if (s.events.active && !this.settings.autoPause && !s.flags[`seen:${s.events.active.id}:${s.events.active.day}`]) {
       s.flags[`seen:${s.events.active.id}:${s.events.active.day}`] = true;
       sfx('alert');
@@ -1037,6 +1097,137 @@ export class Game {
   postTender(kind: ContractKind, size: ContractSize, where: string, opt?: string) {
     this.charterDraft = null;
     return this.after(CH.postTender(this.state!, kind, size, where, opt), 'confirm');
+  }
+
+  // ── Act V: the system ──
+  setSystemTab(tab: SystemTab): void {
+    this.systemTab = tab;
+    sfx('click');
+    this.notify();
+  }
+
+  openSystem(tab: SystemTab): void {
+    this.systemTab = tab;
+    this.panel = 'system';
+    sfx('click');
+    this.notify();
+  }
+
+  /** Confirm the era plan: the next stage begins and the years start to jump. */
+  confirmEra(plan: EraPlan) {
+    const r = this.after(ERA.confirmEra(this.state!, plan), 'confirm');
+    if (r.ok) {
+      this.panel = null;
+      this.select(null);
+      if (this.mode !== 'map' && this.mode !== 'system') this.enterMap();
+    }
+    return r;
+  }
+
+  /** Change the dial, reinvestment and minds share between eras. */
+  setLevers(dial: number, reinvest: number, minds: number): void {
+    const s = this.state!;
+    ERA.setLevers(s, dial, reinvest, minds);
+    if (s.system?.plan) Object.assign(s.system.plan, { dial: s.system.dial, reinvest: s.system.reinvest, minds: s.system.minds });
+    refreshStats(s);
+    this.notify();
+  }
+
+  setAutopilot(on: boolean): void {
+    const s = this.state!;
+    s.flags.autopilot5 = on;
+    sfx(on ? 'confirm' : 'click');
+    this.toast(on ? '🧭 Autopilot on: the era planner posts and awards contracts between eras.' : '🧭 Autopilot off: the contracts are yours again.', 'info', 'bit');
+    this.notify();
+  }
+
+  claimAsteroid(id: string) {
+    return this.after(claimAst(this.state!, id), 'confirm');
+  }
+
+  showEraReport(rec: EraRecord): void {
+    this.eraReport = rec;
+    this.panel = null;
+    sfx('page');
+    this.notify();
+  }
+
+  dismissEraReport(): void {
+    this.eraReport = null;
+    sfx('click');
+    this.notify();
+  }
+
+  // ── the Type I ending ──
+  /** Kardashev 1.0000: pull back to the solar system, then the epilogues, credits, stats and the end card. */
+  startEnding(): void {
+    const s = this.state;
+    if (!s) return;
+    this.panel = null;
+    this.selection = null;
+    this.ending = { step: 'cinematic', index: 0, at: 0 };
+    if (this.hasSystemView) this.enterSystem(true);
+    playMusic('ending');
+    this.notify();
+  }
+
+  private tickEnding(dt: number): void {
+    const e = this.ending;
+    if (!e) return;
+    e.at += dt;
+    if (e.step === 'cinematic') {
+      const scene = this.stage.getScene() as (Scene & { cinematicDone?: boolean }) | null;
+      if ((scene?.cinematicDone && e.at > 6) || e.at > 16) this.endingNext();
+    }
+  }
+
+  /** The next step of the ending (or the next epilogue card). */
+  endingNext(): void {
+    const e = this.ending;
+    if (!e) return;
+    const order: EndingStep[] = ['cinematic', 'epilogue', 'credits', 'stats', 'card'];
+    if (e.step === 'epilogue' && e.index + 1 < this.epilogueCount) {
+      e.index += 1;
+      e.at = 0;
+      sfx('page');
+    } else {
+      const i = order.indexOf(e.step);
+      if (i + 1 >= order.length) return this.finishEnding();
+      this.ending = { step: order[i + 1], index: 0, at: 0 };
+      sfx('page');
+    }
+    this.notify();
+  }
+
+  /** Set by the UI (how many epilogue cards were picked). */
+  epilogueCount = 10;
+
+  /** After the end card: keep playing past Type I. */
+  finishEnding(): void {
+    const s = this.state;
+    this.ending = null;
+    if (s) {
+      s.flags.endingShown = s.day;
+      s.flags.act5Complete ??= s.day;
+      const year = s.system?.typeI ? new Date(Date.UTC(2027, 0, 1) + s.system.typeI * 86_400_000).getUTCFullYear() : null;
+      if (year) {
+        const best = { ...(this.settings.typeIBest ?? {}) };
+        const d = s.meta.difficulty;
+        if (!best[d] || year < best[d]) best[d] = year;
+        this.updateSettings({ typeIBest: best, stewardUnlocked: true });
+      }
+      this.save();
+    }
+    playMusic(this.act3Music ? 'game3' : 'game2');
+    this.enterMap();
+    this.speed = 1;
+    this.notify();
+  }
+
+  /** Replay the ending from the Goals panel. */
+  replayEnding(): void {
+    if (!this.state?.system?.typeI) return;
+    this.startEnding();
   }
 
   // ── Act IV: the planet ──

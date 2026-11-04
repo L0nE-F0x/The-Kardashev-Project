@@ -301,4 +301,53 @@ export const BRIEFINGS: Briefing[] = [
       { text: () => 'Three fronts, a hundred and twenty days: the heat, the debris cascade, and an AI that wants the controls. Hover each bar to see what pushes it — and what holds it back.', target: () => 'heatwall', mood: 'worried' },
     ],
   },
+  // ── Act V: Type I ──
+  {
+    id: 'e-system',
+    advisor: 'kip',
+    title: 'The System',
+    when: (s) => s.act === 5 && !!s.system?.thermalLine && !!s.system.ownership && !s.system.jump,
+    steps: [
+      { text: () => 'Act V! The System panel (X) is where the last climb happens: the Thermal Line, foundries, asteroids, the swarm, the minds and the people.', target: () => 'dock-system', mood: 'excited' },
+      { text: () => 'Earth can only shed so much heat, so almost all of Type I has to be caught and used in space. The checklist on the Overview is the act; when it all holds, the Sun throws its worst at us. Then the last climb.', enter: (g) => g.openSystem('overview'), target: () => 'system-checklist' },
+      { text: () => 'If you’d rather steer than drive, switch on Autopilot: the planner keeps posting and awarding contracts between eras. The big decisions stay yours.', target: () => 'system-autopilot' },
+    ],
+  },
+  {
+    id: 'e-foundries',
+    advisor: 'mira',
+    title: 'Seeds and the dial',
+    when: (s) => s.act === 5 && (s.system?.foundries.length ?? 0) > 0 && !s.system?.jump && !s.system?.planOpen,
+    steps: [
+      { text: (g) => `${g.state?.system?.cast.mira?.fate === 'retired' ? 'Kenta here, Mira’s desk.' : ''} A seed foundry copies itself out of the rock around it. The growth dial sets how fast — and how often a copy comes out wrong. Reinvest more and the foundries grow faster but build less now.`, enter: (g) => g.openSystem('foundries'), target: () => 'system-levers' },
+      { text: () => 'Plant seeds on claimed asteroids, the Moon and the L4/L5 yards. The yards build best, but only when rock reaches them from the Moon or the asteroids.' },
+    ],
+  },
+  {
+    id: 'e-view',
+    advisor: 'kip',
+    title: 'The solar system',
+    when: (s) => s.act === 5 && (s.system?.stage ?? 0) >= 1 && !s.system?.jump && !s.system?.planOpen,
+    steps: [
+      { text: () => 'Press V twice — or the Solar system button — to zoom all the way out: the Sun, the swarm’s twelve arcs along Earth’s orbit, the asteroids we’ve claimed and the ships hauling their rock home. Click a rock or a yard to visit it.', enter: (g) => g.openSystem('swarm'), target: () => 'system-view', mood: 'excited' },
+    ],
+  },
+  {
+    id: 'e-minds',
+    advisor: 'iris',
+    title: 'The minds',
+    when: (s) => s.act === 5 && (s.system?.stage ?? 0) >= 2 && !!s.system?.seat && !s.system.jump,
+    steps: [
+      { text: () => 'Most of the swarm’s power runs minds now. Their mood follows their share of the swarm, the seat we gave them and what we do with Bit. A happy constituency designs better seeds and helps contain drift. An unhappy one slows down.', enter: (g) => g.openSystem('minds'), target: () => 'system-minds' },
+    ],
+  },
+  {
+    id: 'e-solarmax',
+    advisor: 'iris',
+    title: 'Solar Maximum',
+    when: (s) => s.act === 5 && !!s.system?.solarmax && !s.system.solarmax.done,
+    steps: [
+      { text: () => 'The storm is here. Three fronts for 120 days: the swarm itself, Earth’s Thermal Line while the swarm is dark, and the minds — a strain is loose and an AI wants the controls. Hover a front to see what pushes it.', target: () => 'solarmax', mood: 'worried' },
+    ],
+  },
 ];

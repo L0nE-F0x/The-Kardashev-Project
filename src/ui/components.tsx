@@ -9,6 +9,8 @@ import type { Speaker } from '../content/events';
 import { DELEGATES, PARTNERS } from '../content/charter';
 import { CAST4 } from '../content/planet';
 import { CEOS } from '../content/companies';
+import { CAST5 } from '../content/system';
+import { bitForm, castAge, deskHolder } from '../sim/systemView';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
 
@@ -26,15 +28,23 @@ export function Icon({ name, size, title }: { name: IconName; size?: 'sm' | 'lg'
 
 export function Portrait({ id, mood, size, bitGen }: { id: AdvisorId; mood?: Mood; size?: number; bitGen?: number }) {
   const game = useContext(GameCtx);
-  const gen = bitGen ?? (game?.state ? Math.min(9, game.state.models.length) : 0);
-  return <img class="portrait" src={portraitUrl(id, mood ?? 'neutral', gen)} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={id} draggable={false} />;
+  const s = game?.view ?? game?.state ?? null;
+  const gen = bitGen ?? (s ? bitForm(s) : 0);
+  // Act V: the cast greys (or is renewed); a retired advisor's desk shows their successor
+  const holder = s ? deskHolder(s, id) : id;
+  if (holder !== id) return <img class="portrait" src={ceoPortraitUrl(holder.slice(4), mood ?? 'neutral')} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={holder} draggable={false} />;
+  return <img class="portrait" src={portraitUrl(id, mood ?? 'neutral', gen, s ? castAge(s, id) : 0)} style={size ? { width: `${size}px`, height: `${size}px` } : undefined} alt={id} draggable={false} />;
 }
 
 const ADVISOR_TITLES: Record<string, string> = { juno: 'Juno · Engineering', penny: 'Penny · Finance', mira: 'Mira · Supply chain', sol: 'Sol · Diplomacy', iris: 'Iris · Safety', kip: 'Kip · Space', bit: 'Bit', lena: 'Lena · Fusion' };
 
 /** The name line for an event-card speaker (advisor, partner CEO or faction delegate). */
-export function speakerName(id: Speaker): string {
-  if (!id.startsWith('ceo:')) return ADVISOR_TITLES[id] ?? id;
+export function speakerName(id: Speaker, s?: import('../sim/types').GameState | null): string {
+  if (!id.startsWith('ceo:')) {
+    const holder = s ? deskHolder(s, id as AdvisorId) : id;
+    if (holder === id) return ADVISOR_TITLES[id] ?? id;
+    id = holder as Speaker;
+  }
   const key = id.slice(4);
   const p = PARTNERS[key];
   if (p) return `${p.ceo.name} · ${p.short}`;
@@ -42,6 +52,8 @@ export function speakerName(id: Speaker): string {
   if (d) return `${d.name} · ${d.title}`;
   const c4 = CAST4[key];
   if (c4) return `${c4.name} · ${c4.title}`;
+  const c5 = CAST5[key];
+  if (c5) return `${c5.name} · ${c5.title}`;
   const c = CEOS[key];
   return c ? `${c.name} · ${c.company}` : key;
 }

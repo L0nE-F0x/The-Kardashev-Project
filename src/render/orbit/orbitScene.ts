@@ -12,6 +12,7 @@ import { Container, Sprite, type Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
 import { SITE_BY_ID } from '../../content/sites';
 import { orbitView, type OrbitView } from '../../sim/planetView';
+import { orbitExtras, type OrbitExtras } from '../../sim/systemView';
 import { subsolar } from '../../world/sun';
 import { getEra, hex, C } from '../palette';
 import { PixelCanvas } from '../pixels';
@@ -20,7 +21,10 @@ import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf 
 import { pixelTexture } from '../sprites/mapIcons';
 import { planetView, rectennaKey, sgKey } from '../worldMap/act4Layers';
 import {
+  extrasLabels,
+  lagrangeSpots,
   moonSize,
+  orbitExtrasFx,
   orbitFx,
   orbitLabels,
   orbitLayout,
@@ -119,6 +123,9 @@ export class OrbitScene implements Scene {
   private pointers = new Set<number>();
   private idleUntil = 0;
   private moonHover = false;
+  /** Act V: the yard or habitats under the pointer. */
+  private spotHover: 'l4' | 'l5' | 'aurora' | null = null;
+  private extras: OrbitExtras = orbitExtras(null);
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.skyL, this.moonL, this.backL, this.backFx, this.globeL, this.frontL, this.frontFx, this.labelL);
@@ -179,6 +186,7 @@ export class OrbitScene implements Scene {
     const still = st.reducedMotion;
     const s = this.game.view;
     const ov = orbitView(s);
+    this.extras = orbitExtras(s);
     // the camera: a glide to a point, the user's drag, or a slow drift round the planet
     if (this.glide) {
       const gl = this.glide;
@@ -258,12 +266,35 @@ export class OrbitScene implements Scene {
       { still, lite: battery },
       this.stars,
     );
+    if (this.extras.active) {
+      orbitExtrasFx(
+        {
+          px: (x, y, c, fr) => (fr ? front : back).px(x, y, c),
+          spr: (key, make, x, y, fr) => (fr ? front : back).spr(cachedTexture(`orbit:${key}`, make), x, y),
+        },
+        this.L,
+        this.cam,
+        this.extras,
+        this.time,
+        { still, lite: battery },
+      );
+      // the yard or habitats under the pointer: a white bracket
+      const h = this.spotHover;
+      if (h) {
+        const sp = this.spotAt(h);
+        if (sp) for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+          front.px(sp[0] + dx * 9, sp[1] + dy * 6, C.white);
+          front.px(sp[0] + dx * 8, sp[1] + dy * 6, C.white);
+          front.px(sp[0] + dx * 9, sp[1] + dy * 5, C.white);
+        }
+      }
+    }
     this.backPool.end();
     this.frontPool.end();
   }
 
   private updateLabels(ov: OrbitView) {
-    const list = orbitLabels(this.L, this.cam, ov);
+    const list = this.extras.active ? [...orbitLabels(this.L, this.cam, ov), ...extrasLabels(this.L, this.extras)] : orbitLabels(this.L, this.cam, ov);
     list.forEach((lb, i) => {
       const key = `${lb.text}|${lb.color}`;
       let e = this.labels[i];
@@ -309,6 +340,10 @@ export class OrbitScene implements Scene {
   locate(target: string): { x: number; y: number } | null {
     let p: { x: number; y: number } | null = null;
     if (target === 'moon') p = { x: this.L.moon.x, y: this.L.moon.y };
+    else if (target === 'l4' || target === 'l5' || target === 'aurora') {
+      const sp = this.spotAt(target);
+      if (sp) p = { x: sp[0], y: sp[1] };
+    }
     else if (target.startsWith('site:')) {
       const id = target.slice(5);
       const site = this.siteLatLon(id);
@@ -335,6 +370,23 @@ export class OrbitScene implements Scene {
     return Math.hypot(x - m.x, y - m.y) <= m.r + 5;
   }
 
+  /** Act V: where the L4/L5 yards and the habitats are on screen (null if there's nothing there). */
+  private spotAt(id: 'l4' | 'l5' | 'aurora'): [number, number] | null {
+    const ex = this.extras;
+    if (!ex.active) return null;
+    const sp = lagrangeSpots(this.L);
+    if (id === 'aurora') return ex.habitats > 0 ? [sp.l5[0] - 1, sp.l5[1] + 13] : null;
+    return ex[id] > 0 ? sp[id] : null;
+  }
+
+  private overSpot(x: number, y: number): 'l4' | 'l5' | 'aurora' | null {
+    for (const id of ['l4', 'l5', 'aurora'] as const) {
+      const p = this.spotAt(id);
+      if (p && Math.abs(x - p[0]) <= 10 && Math.abs(y - p[1]) <= (id === 'aurora' ? 12 : 7)) return id;
+    }
+    return null;
+  }
+
   pointerDown(p: PixelPointer) {
     this.pointers.add(p.id);
     if (this.pointers.size > 1) {
@@ -356,10 +408,12 @@ export class OrbitScene implements Scene {
         this.cam.lon0 = d.lon0 - dx / (this.L.r * RAD);
         this.cam.lat0 = Math.max(LAT_MIN, Math.min(LAT_MAX, d.lat0 + dy / (this.L.r * RAD)));
         this.moonHover = false;
+        this.spotHover = null;
         return;
       }
     }
     this.moonHover = this.overMoon(p.x, p.y);
+    this.spotHover = this.moonHover ? null : this.overSpot(p.x, p.y);
   }
 
   pointerUp(p: PixelPointer) {
@@ -368,11 +422,17 @@ export class OrbitScene implements Scene {
     this.down = null;
     this.idleUntil = this.time + 2.5;
     if (!d || d.moved) return;
-    if (this.overMoon(p.x, p.y) && this.game.mode !== 'title') this.game.enterDiorama('moon');
+    if (this.game.mode === 'title') return;
+    if (this.overMoon(p.x, p.y)) this.game.enterDiorama('moon');
+    else {
+      const spot = this.overSpot(p.x, p.y);
+      if (spot) this.game.enterDiorama(spot);
+    }
   }
 
   pointerLeave() {
     this.moonHover = false;
+    this.spotHover = null;
   }
 
   wheel(_p: PixelPointer, deltaY: number) {

@@ -11,6 +11,7 @@
 import { ANCHORS } from '../../content/charter';
 import { siteDef } from '../../content/sites';
 import type { MoonView, OrbitView, PlanetMapView } from '../../sim/planetView';
+import type { OrbitExtras } from '../../sim/systemView';
 import type { RegionId } from '../../content/mapcodes';
 import { drawGlobe, drawStars } from '../globe';
 import { drawText, measureText } from '../font';
@@ -20,7 +21,7 @@ import { satelliteCanvas } from '../sprites/charterIcons';
 import { greatCircle } from '../worldMap/act3Layers';
 import { renderBloom, terrainCanvas } from '../worldMap/terrain';
 import type { MapLod } from '../../world/mapData';
-import { odcCanvas, odcFrameCanvas, spsCanvas, spsFrameCanvas } from './orbitSprites';
+import { foundryCanvas, habitatCylCanvas, odcCanvas, odcFrameCanvas, spsCanvas, spsFrameCanvas } from './orbitSprites';
 
 const RAD = Math.PI / 180;
 export type Vec3 = [number, number, number];
@@ -741,11 +742,189 @@ export function orbitFx(sink: FxSink, L: OrbitLayout, cam: Cam, ov: OrbitView, t
   }
 }
 
+// ── Act V: the Lagrange yards, habitats, more beams, the storm ──────────────────────────────
+/**
+ * The Earth–Moon L4 and L5 points on screen: on the Moon's orbit (an ellipse through the Moon,
+ * seen at a tilt), 60° ahead of and behind it, kept inside the view.
+ */
+export function lagrangeSpots(L: OrbitLayout): { l4: [number, number]; l5: [number, number] } {
+  const k = 0.45;
+  const dx = L.moon.x - L.cx;
+  const dy = (L.moon.y - L.cy) / k;
+  const a = Math.hypot(dx, dy);
+  const phi = Math.atan2(dy, dx);
+  const at = (p: number): [number, number] => {
+    const m = 14;
+    return [Math.round(Math.max(m, Math.min(L.w - m, L.cx + a * Math.cos(p)))), Math.round(Math.max(m + 8, Math.min(L.h - m, L.cy + a * Math.sin(p) * k)))];
+  };
+  return { l4: at(phi - Math.PI / 3), l5: at(phi + Math.PI / 3) };
+}
+
+/** Foundry yard size (0..2) for an output (Mt a year). */
+export const yardSize = (mt: number) => (mt >= 12 ? 2 : mt >= 4 ? 1 : 0);
+
+/**
+ * Act V in orbit: foundry yards at L4 and L5 (bigger for more output, welding sparks and gold
+ * collector panels drifting off), habitat cylinders near L5 with their windows twinkling, a glow
+ * where the Moon's foundry works, more beam relays in geostationary orbit beaming down, a warning
+ * ring flashing round the yards when a strain drifts, and in Solar Maximum's storm aurora
+ * curtains towering over both poles and the stations flickering.
+ */
+export function orbitExtrasFx(sink: FxSink, L: OrbitLayout, cam: Cam, ex: OrbitExtras, t: number, opts: FxOpts = {}): void {
+  if (!ex.active) return;
+  const still = !!opts.still;
+  const T = still ? 7.3 : t;
+  const storm = ex.storm;
+  const flick = (i: number) => storm !== null && !still && hash2(i, Math.floor(T * 7), 91) < 0.25 + storm * 0.25;
+  const spots = lagrangeSpots(L);
+  // ── the yards ──
+  for (const site of ['l4', 'l5'] as const) {
+    const mt = ex[site];
+    if (mt <= 0) continue;
+    const [x, y] = spots[site];
+    const size = yardSize(mt);
+    const spr = foundryCanvas(size);
+    const ox = Math.round(x - spr.w / 2);
+    const oy = Math.round(y - spr.h / 2);
+    if (!flick(site === 'l4' ? 1 : 2)) sink.spr(`foundry:${size}`, () => foundryCanvas(size), ox, oy, true);
+    // welding sparks round the yard
+    const n = 3 + size * 3;
+    for (let k = 0; k < n; k++) {
+      if (!still && hash2(k, Math.floor(T * 4 + k), 93) > 0.45) continue;
+      const a = hash2(k, 1, site === 'l4' ? 94 : 95) * Math.PI * 2;
+      const r = spr.w * 0.5 + 1 + hash2(k, 2, 94) * 4;
+      sink.px(Math.round(x + Math.cos(a) * r), Math.round(y + Math.sin(a) * r * 0.6), hash2(k, Math.floor(T * 3), 96) < 0.3 ? C.white : C.yel1, true);
+    }
+    // collector panels leaving the yard, drifting off into the sunlight
+    if (!still) {
+      for (let k = 0; k < 2 + size; k++) {
+        const u = (T / 6 + k / (2 + size)) % 1;
+        const dir = site === 'l4' ? -1 : 1;
+        const px = Math.round(x + dir * (spr.w / 2 + u * 26));
+        const py = Math.round(y - u * 10 + Math.sin(u * 6 + k) * 2);
+        sink.px(px, py, u < 0.5 ? C.yel1 : C.org2, true);
+        if (u < 0.6) sink.px(px + dir, py, C.org1, true);
+      }
+    }
+    // a strain drifting: a flashing ring
+    if (ex.drift > 0 && (still || Math.floor(T * 3) % 2 === 0)) {
+      const col = ex.drift >= 50 ? C.red3 : C.org1;
+      const R = spr.w / 2 + 5 + (still ? 0 : Math.floor(T * 6) % 2);
+      for (let k = 0; k < 24; k += 2) {
+        const a = (k / 24) * Math.PI * 2;
+        sink.px(Math.round(x + Math.cos(a) * R), Math.round(y + Math.sin(a) * R * 0.7), col, true);
+      }
+      if (still || Math.floor(T * 1.5) % 2 === 0) sink.px(Math.round(x), Math.round(y - spr.h / 2 - 4), col, true);
+    }
+  }
+  // ── habitats near L5 ──
+  const cyl = Math.min(6, ex.habitats);
+  if (cyl > 0) {
+    const [x, y] = spots.l5;
+    const offs = [[-15, 12], [13, 14], [-1, 22], [-27, 3], [25, 5], [5, -14]] as const;
+    const hab = habitatCylCanvas();
+    for (let k = 0; k < cyl; k++) {
+      const hx = Math.round(x + offs[k][0] - hab.w / 2);
+      const hy = Math.round(y + offs[k][1] - hab.h / 2);
+      sink.spr('habitatCyl', habitatCylCanvas, hx, hy, true);
+      // windows twinkling along the lit band
+      for (let j = 0; j < 4; j++) if (still || hash2(k * 7 + j, Math.floor(T * 2), 97) < 0.4) sink.px(hx + 4 + j * 2, hy + 2 + (j % 3), C.yel1, true);
+    }
+  }
+  // ── the Moon's foundry ──
+  if (ex.moon > 0) {
+    const mo = { x: L.moon.x - L.moon.r - 4, y: L.moon.y - L.moon.r - 4 };
+    const [bx, by] = moonBase(L.moon.r);
+    const gx = mo.x + bx + 2;
+    const gy = mo.y + by + 2;
+    sink.px(gx, gy, C.org1, true);
+    sink.px(gx + 1, gy, C.yel1, true);
+    sink.px(gx, gy + 1, C.org2, true);
+    if (still || Math.floor(T * 3) % 2 === 0) sink.px(gx + 1, gy - 1, C.yel2, true);
+    if (ex.moon >= 4) {
+      sink.px(gx - 1, gy + 1, C.org0, true);
+      sink.px(gx + 2, gy + 1, C.org1, true);
+    }
+  }
+  // ── more beam relays in geostationary orbit, beaming down ──
+  if (ex.beamsTW > 0) {
+    const n = Math.max(1, Math.min(8, Math.round(ex.beamsTW / 30)));
+    const shift = still ? 0 : Math.floor(T * 14);
+    for (let i = 0; i < n; i++) {
+      const lon = 12 + (i * 360) / n;
+      const v = geoPoint(L, cam, lon);
+      const p = screen(L, v);
+      const d = depth(L, v);
+      if (d === 'hidden') continue;
+      const big = ex.beamsTW >= 150;
+      const spr = spsCanvas(big);
+      const x = Math.round(p.x - spr.w / 2);
+      const y = Math.round(p.y - spr.h / 2);
+      if (!flick(10 + i)) sink.spr(`sps:${big}`, () => spsCanvas(big), x, y, d === 'front');
+      if (d !== 'front' || flick(20 + i)) continue;
+      const g = toView(18 - (i % 3) * 14, lon, cam);
+      if (g[2] < 0.1) continue;
+      const a = { x: p.x, y: y + spr.h - 1 };
+      const b = screen(L, g);
+      const len = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y)));
+      for (let k = 1; k < len; k++) {
+        const f = k / len;
+        const ph = (k - shift + i * 3) & 3;
+        if (ph < 2) sink.px(Math.round(a.x + (b.x - a.x) * f - 0.5), Math.round(a.y + (b.y - a.y) * f - 0.5), ph === 0 ? C.yel1 : C.pnk1, true);
+      }
+      sink.px(Math.round(b.x - 0.5), Math.round(b.y - 0.5), C.white, true);
+    }
+  }
+  // ── the storm: aurora towering over both poles, day side too ──
+  if (storm !== null) {
+    for (const pole of [1, -1]) {
+      for (let lon = -180; lon < 180; lon += L.r >= 90 ? 2 : 3) {
+        const lat = pole * (64 + Math.sin(lon * 4 * RAD + T * 0.6) * 3 + Math.sin(lon * 9 * RAD) * 1.2);
+        const v = toView(lat, lon, cam);
+        if (v[2] < 0.05) continue;
+        const strength = fbm(lon / 20 + T * 0.4, pole * 5, 409, 2);
+        if (strength < 0.42 - storm * 0.12) continue;
+        if (!still && hash2(lon, Math.floor(T * 6), 98) < 0.25) continue;
+        const p = screen(L, v);
+        const len = 2 + Math.round(strength * (4 + storm * 5) * (L.r / 90));
+        const ox = v[0];
+        const oy = -v[1];
+        const ol = Math.hypot(ox, oy) || 1;
+        const sx = (ox / ol) * Math.sqrt(1 - v[2] * v[2]);
+        const sy = (oy / ol) * Math.sqrt(1 - v[2] * v[2]);
+        for (let k = 0; k <= len; k++) {
+          const px = Math.round(p.x + sx * k * 1.2 - 0.5);
+          const py = Math.round(p.y + sy * k * 1.2 - 0.5);
+          if (k > 1 && bayer(px, py) > 14 - k) continue;
+          sink.px(px, py, k === 0 ? C.grn6 : k < len * 0.45 ? C.grn7 : k < len * 0.8 ? C.cyn6 : storm > 0.6 ? C.pnk1 : C.vio5, true);
+        }
+      }
+    }
+  }
+}
+
+/** Act V's labels: the yards. */
+export function extrasLabels(L: OrbitLayout, ex: OrbitExtras | null): OrbitLabel[] {
+  if (!ex?.active) return [];
+  const out: OrbitLabel[] = [];
+  const spots = lagrangeSpots(L);
+  for (const site of ['l4', 'l5'] as const) {
+    if (ex[site] <= 0) continue;
+    const [x, y] = spots[site];
+    const t = site === 'l5' && ex.habitats > 0 ? 'L5 · AURORA' : `${site.toUpperCase()} YARDS`;
+    const h = foundryCanvas(yardSize(ex[site])).h;
+    out.push({ text: t, x: Math.round(Math.max(2, Math.min(L.w - measureText(t) - 2, x - measureText(t) / 2))), y: Math.round(y + h / 2 + (site === 'l5' && ex.habitats > 0 ? 22 : 3)), color: ex.drift > 0 ? C.org1 : C.yel1 });
+  }
+  return out;
+}
+
 // ── a whole frame (previews) ─────────────────────────────────────────────────────────────────
 export interface FrameInput extends GlobeInput {
   orbit: OrbitView;
   t: number;
   opts?: FxOpts;
+  /** Act V's additions (only drawn when active). */
+  extras?: OrbitExtras | null;
 }
 
 /** Compose a full frame into one canvas (the headless previews; the scene layers these parts itself). */
@@ -772,6 +951,19 @@ export function renderOrbitFrame(pc: PixelCanvas, L: OrbitLayout, f: FrameInput)
     },
     L, f.cam, f.orbit, f.t, f.opts, twinklers(L),
   );
+  if (f.extras?.active) {
+    orbitExtrasFx(
+      {
+        px: (x, y, c, fr) => (fr ? fxFront : fxBack).set(x, y, c),
+        spr: (key, make, x, y, fr) => {
+          let s = memo.get(key);
+          if (!s) memo.set(key, (s = make()));
+          (fr ? fxFront : fxBack).blit(s, x, y);
+        },
+      },
+      L, f.cam, f.extras, f.t, f.opts,
+    );
+  }
   pc.blit(back, 0, 0);
   pc.blit(fxBack, 0, 0);
   const globe = new PixelCanvas(L.globe.size, L.globe.size);
@@ -779,7 +971,7 @@ export function renderOrbitFrame(pc: PixelCanvas, L: OrbitLayout, f: FrameInput)
   pc.blit(globe, L.globe.x, L.globe.y);
   pc.blit(front, 0, 0);
   pc.blit(fxFront, 0, 0);
-  for (const lb of orbitLabels(L, f.cam, f.orbit)) {
+  for (const lb of [...orbitLabels(L, f.cam, f.orbit), ...extrasLabels(L, f.extras ?? null)]) {
     const tmp = new PixelCanvas(measureText(lb.text) + 2, 7);
     drawText(tmp, lb.text, 1, 1, lb.color);
     tmp.outline(C.ink0, true);

@@ -20,12 +20,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
   const [eventRate, setEventRate] = useState<EventRate>('normal');
   const [rivalPace, setRivalPace] = useState<RivalPace>('normal');
   const [seed, setSeed] = useState<number>(randomSeed());
-  const [start, setStart] = useState<1 | 2 | 3 | 4>(1);
+  const [start, setStart] = useState<1 | 2 | 3 | 4 | 5>(1);
   const lod = game.world.lods[1];
   const startCash = (cash ?? DIFFICULTIES[difficulty].cash) + FOUNDERS[founder].cash;
 
   const found = () => {
-    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4 });
+    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4, act5: start === 5 });
   };
 
   return (
@@ -45,7 +45,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
       </div>
 
       <h4 class="section">Where do you start?</h4>
-      <div class="cardgrid four">
+      <div class="cardgrid five">
         <button class={`btn pickcard ${start === 1 ? 'active' : ''}`} onClick={() => setStart(1)} aria-pressed={start === 1}>
           <span class="n">
             <Icon name="hq" size="sm" /> Act I · The Garage
@@ -69,6 +69,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             <Icon name="globe" size="sm" /> Act IV · Planetary
           </span>
           <span class="b">January 2045. A renewed Planetary Charter, fusion lit in a pilot plant, a launch pad — and a whole planet to run.</span>
+        </button>
+        <button class={`btn pickcard ${start === 5 ? 'active' : ''}`} onClick={() => setStart(5)} aria-pressed={start === 5} data-tut="start-act5">
+          <span class="n">
+            <Icon name="swarm" size="sm" /> Act V · Type I
+          </span>
+          <span class="b">January 2068. A hundred terawatts, the Heat Wall behind you, a mass driver on the Moon — and a hundredfold climb to go.</span>
         </button>
       </div>
 
@@ -102,7 +108,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       <h4 class="section">Founders</h4>
       <div class="cardgrid five">
-        {(Object.keys(FOUNDERS) as FounderId[]).map((id) => {
+        {(Object.keys(FOUNDERS) as FounderId[]).filter((id) => !FOUNDERS[id].unlock || game.settings.stewardUnlocked).map((id) => {
           const f = FOUNDERS[id];
           return (
             <button key={id} class={`btn pickcard ${founder === id ? 'active' : ''}`} onClick={() => setFounder(id)} aria-pressed={founder === id}>
@@ -153,7 +159,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       <div class="row between wrap section" style={{ gap: '8px' }}>
         <span class="small muted">
-          {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : ''}
+          {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : start === 5 ? 'Act V · ' : ''}
           {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : start === 3 ? 'public, with Charter Standing 2' : 'Series A in the bank'}
         </span>
         <button class="btn primary big" onClick={found} disabled={game.slotsFull()} data-tip={game.slotsFull() ? 'All 5 slots are in use — delete a company first.' : undefined}>

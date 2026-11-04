@@ -96,7 +96,7 @@ export function PlanetPanel() {
 }
 
 // ── a compact contract poster ──────────────────────────────────────────────────────────────
-function PostContract({ kind, opt, where: fixedWhere, label }: { kind: ContractKind; opt?: string; where?: string; label?: string }) {
+export function PostContract({ kind, opt, where: fixedWhere, label }: { kind: ContractKind; opt?: string; where?: string; label?: string }) {
   const game = useGame();
   const s = game.state!;
   const def = CONTRACT_KINDS[kind];
@@ -143,7 +143,7 @@ function PostContract({ kind, opt, where: fixedWhere, label }: { kind: ContractK
   );
 }
 
-function OpenWork({ kinds }: { kinds: ContractKind[] }) {
+export function OpenWork({ kinds }: { kinds: ContractKind[] }) {
   const game = useGame();
   const c = game.state!.charter!;
   const tenders = c.tenders.filter((t) => kinds.includes(t.kind));
@@ -858,15 +858,15 @@ export function Act4CompleteModal() {
             <Portrait id="kip" mood="excited" size={56} />
             <div class="bubble">
               <b>Kip · Space</b>
-              Earth can’t hold Type I. The Sun can. Act V is on the drawing board.
+              Earth can’t hold Type I. The Sun can. Let’s go and get it.
             </div>
           </div>
           <div class="choices">
             <button class="btn primary choice" onClick={() => game.dismissActComplete()}>
               <span class="t">
-                <Icon name="play" size="sm" /> Keep playing (sandbox)
+                <Icon name="play" size="sm" /> On to Act V · Type I
               </span>
-              <span class="d">Keep climbing toward Type I; Act V is coming.</span>
+              <span class="d">The Thermal Line, the foundries, the swarm — and the last climb to Kardashev 1.0000.</span>
             </button>
           </div>
         </div>

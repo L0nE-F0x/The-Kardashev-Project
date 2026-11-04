@@ -1688,3 +1688,106 @@ ol.steps li {
     margin-bottom: 4px;
   }
 }
+
+/* ── Act V: big decisions and the Type I ending ──────────────────────────────────────────── */
+.modal.bigdecision {
+  width: min(700px, 100%);
+  box-shadow: 0 0 0 2px var(--gold), 0 0 0 6px rgb(251 212 110 / 0.18);
+}
+.modal.bigdecision .head {
+  background: linear-gradient(180deg, var(--panel-2), var(--panel));
+}
+.modal.bigdecision .head h2 {
+  font-size: 22px;
+}
+.modal.bigdecision .story {
+  font-size: 16px;
+}
+.ending {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  pointer-events: auto;
+  background: linear-gradient(180deg, rgb(5 5 12 / 0) 40%, rgb(5 5 12 / 0.55));
+  z-index: 50;
+}
+.ending.cinematic {
+  background: none;
+  place-items: end center;
+  padding-bottom: 8vh;
+  cursor: pointer;
+}
+.ending-k {
+  text-align: center;
+  animation: endingIn 3s steps(12) both;
+  text-shadow: 0 2px 0 #0b0a12;
+}
+.ending-k .label {
+  color: var(--cyan);
+}
+.ending-k .big {
+  font-family: var(--font-pixel);
+  font-size: clamp(36px, 9vw, 84px);
+  color: var(--gold);
+  letter-spacing: 4px;
+}
+.ending-k .sub {
+  font-size: 18px;
+}
+.ending-hint {
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+  animation: endingIn 6s steps(6) both;
+}
+@keyframes endingIn {
+  from {
+    opacity: 0;
+  }
+}
+.ending .modal.epilogue {
+  width: min(620px, 100%);
+}
+.ending .modal .story {
+  font-size: 16px;
+}
+.credits-roll {
+  overflow: hidden;
+  place-items: start center;
+  background: rgb(5 5 12 / 0.7);
+  cursor: pointer;
+}
+.credits-roll .roll {
+  width: min(560px, 100%);
+  text-align: center;
+  animation: creditsRoll 48s linear forwards;
+  padding-top: 100vh;
+}
+.credits-roll .roll h2 {
+  font-family: var(--font-pixel);
+  color: var(--gold);
+  margin: 18px 0 6px;
+}
+.credits-roll .roll h4 {
+  color: var(--cyan);
+  margin: 22px 0 6px;
+}
+@keyframes creditsRoll {
+  to {
+    transform: translateY(-100%);
+  }
+}
+img.endcard {
+  width: 100%;
+  image-rendering: pixelated;
+  border: 2px solid #0b0a12;
+  display: block;
+}
+@media (prefers-reduced-motion: reduce) {
+  .credits-roll .roll {
+    animation: none;
+    padding-top: 12px;
+  }
+}

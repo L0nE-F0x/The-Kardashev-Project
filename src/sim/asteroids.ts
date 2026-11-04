@@ -36,7 +36,8 @@ export function completeSurvey(s: GameState): string[] {
 /** Political capital a Charter claim costs under the ownership rule. */
 export function claimCost(s: GameState): number {
   const own = s.system?.ownership ?? 'commons';
-  return own === 'commons' ? 4 : own === 'concessions' ? 3 : 2;
+  const treaty = s.charter?.council.passed.includes('outer-space-treaty') ? 1 : 0;
+  return (own === 'commons' ? 4 : own === 'concessions' ? 3 : 2) - treaty;
 }
 
 export function canClaim(s: GameState, id: string): string | null {
@@ -78,7 +79,7 @@ export function tickAsteroids(s: GameState): void {
     const owner = rand(s) < 0.55 ? pick(s, ['lodestar', 'vonn', 'karman', 'parabola']) : pick(s, REGION_IDS);
     sy.asteroids[a.id] = { status: 2, owner };
     news(s, `🚩 ${ownerLabel(owner)} stakes a claim on ${a.name}.`, 'info');
-    if (rand(s) < 0.35) queueEvent(s, 'v-claim-dispute', { asteroid: a.id, owner });
+    if (rand(s) < 0.35 && !s.charter?.council.passed.includes('outer-space-treaty')) queueEvent(s, 'v-claim-dispute', { asteroid: a.id, owner });
   }
   // private and licensed seeds: the space economy grows beyond the Charter's own contracts
   if (sy.ownership !== 'commons' && sy.stage >= 1) {

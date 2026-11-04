@@ -13,6 +13,7 @@ import { clamp, fmtMoney, news, pick, rand } from './core';
 import { addRelation } from './politics';
 import { queueEvent } from './events';
 import { addCapital, addLegitimacy, addPartnerRel, chSpend } from './charter';
+import { addModifier } from './effects';
 
 export type Result = { ok: true } | { ok: false; reason: string };
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -211,6 +212,22 @@ function applyResolution(s: GameState, id: string): void {
       break;
     case 'debris-rules':
       addPartnerRel(s, 'parabola', -6);
+      break;
+    // ── Act V ──
+    case 'replicator-limits':
+      if (s.system) s.system.dial = Math.min(3, s.system.dial);
+      addPartnerRel(s, 'vonn', -5);
+      addPartnerRel(s, 'lodestar', -5);
+      break;
+    case 'thermal-tighten':
+      if (s.system?.thermalLine) s.system.thermalLine = Math.max(0.5, s.system.thermalLine - 0.25);
+      c.legitimacy = Math.min(100, c.legitimacy + 4);
+      break;
+    case 'minds-compact':
+      addModifier(s, 'minds:mood', 99_999, 'The minds’ compact', { add: 12 });
+      break;
+    case 'outer-space-treaty':
+      for (const p of ['lodestar', 'vonn', 'karman', 'parabola']) addPartnerRel(s, p, -3);
       break;
   }
 }

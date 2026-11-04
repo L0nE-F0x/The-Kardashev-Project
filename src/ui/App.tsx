@@ -12,6 +12,7 @@ import { GoalsPanel, NewsPanel } from './panels/MiscPanels';
 import { BlocsPanel, CrunchTracker, DealsPanel, TeamPanel } from './panels/Act2Panels';
 import { CharterPanel, CouncilPanel, ThresholdTracker } from './panels/Act3Panels';
 import { HeatWallTracker, JumpOverlay, JumpReportModal, PlanModal, PlanetPanel } from './panels/Act4Panels';
+import { EndingOverlay, EraOverlay, EraPlanModal, EraReportModal, SolarMaxTracker, SystemPanel } from './panels/Act5Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
 import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
 import { MainMenu } from './menu/MainMenu';
@@ -22,6 +23,8 @@ import { BriefingOverlay, TutorialOverlay } from './Tutorial';
 function Hud() {
   const game = useGame();
   if (game.mode === 'title' || !game.state) return <MainMenu />;
+  // the Type I ending takes the whole screen
+  if (game.ending) return <EndingOverlay />;
   const panel = game.panel;
   return (
     <>
@@ -31,6 +34,7 @@ function Hud() {
       <CrunchTracker />
       <ThresholdTracker />
       <HeatWallTracker />
+      <SolarMaxTracker />
       <div class="side">{game.mode === 'map' || game.selection?.kind === 'site' ? <Inspector /> : null}</div>
       {panel === 'compute' && <ComputePanel />}
       {panel === 'orders' && <OrdersPanel />}
@@ -44,6 +48,7 @@ function Hud() {
       {panel === 'charter' && <CharterPanel />}
       {panel === 'council' && <CouncilPanel />}
       {panel === 'planet' && <PlanetPanel />}
+      {panel === 'system' && <SystemPanel />}
       {panel === 'settings' && (
         <Panel title="Settings" icon="settings" class="wide" onClose={() => game.openPanel(null)}>
           <SettingsBody />
@@ -63,9 +68,12 @@ function Hud() {
       <TutorialOverlay />
       <BriefingOverlay />
       <JumpOverlay />
+      <EraOverlay />
       <EventModal />
       <PlanModal />
       <JumpReportModal />
+      <EraPlanModal />
+      <EraReportModal />
       <AwayModal />
       <ActCompleteModal />
       <GameOverModal />

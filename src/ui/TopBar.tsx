@@ -1,6 +1,9 @@
 import { Icon, useGame } from './components';
 import { canFullscreen, enterFullscreen, isFullscreen, isPhone, isStandalone } from '../platform/platform';
 import { warming } from '../sim/climate';
+import { overLine, surfaceTW } from '../sim/swarm';
+import { lineTW } from '../sim/systemView';
+import { fmtTW } from '../sim/core';
 import { avgWellbeing } from '../sim/provinces';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, K_MILESTONES, tierOf } from '../sim/model';
@@ -13,7 +16,8 @@ export function TopBar() {
   const st = s.stats;
   const net = st.revenueMonth - st.costMonth;
   const next = K_MILESTONES.find((m) => m.k > st.K) ?? K_MILESTONES[K_MILESTONES.length - 1];
-  const kStart = 0.729;
+  // past Type I the bar measures the climb toward Type II
+  const kStart = st.K >= 1 ? 1 : 0.729;
   const kProgress = (st.K - kStart) / (next.k - kStart);
   const model = s.models[s.models.length - 1];
   const speeds: [Speed, IconName, string][] = [
@@ -66,6 +70,17 @@ export function TopBar() {
             </div>
           </button>
         )}
+        {s.system && (
+          <button class="stat btnless" onClick={() => game.openSystem('thermal')} data-tut="system-stat" data-tip={`Earth’s surface uses ${fmtTW(surfaceTW(s))} of the ${fmtTW(lineTW(s))} the Thermal Line allows${overLine(s) > 0 ? ` — ${Math.round(overLine(s) * 100)}% over` : ''}.
+Healthy life expectancy ${s.system.lifeExp.toFixed(1)} years, rising ${s.system.lifeRate.toFixed(2)} a year${s.system.escape ? ' (escape velocity)' : ''}.
+Click to open the System (X).`}>
+            <Icon name="thermal" />
+            <div class="col">
+              <span class={`v ${overLine(s) > 0 ? 'bad' : surfaceTW(s) > lineTW(s) * 0.92 ? 'warn' : ''}`}>{Math.round((surfaceTW(s) / Math.max(1, lineTW(s))) * 100)}% of line</span>
+              <span class="s">{s.system.lifeExp.toFixed(0)} healthy years</span>
+            </div>
+          </button>
+        )}
         <div class="stat" data-tip={`Power served to your sites vs. what they need.\nGeneration you own: ${fmtMW(st.playerGenMW)} average.`}>
           <Icon name="power" />
           <div class="col">
@@ -98,7 +113,7 @@ export function TopBar() {
       <div class="kmeter frame" data-tut="kmeter" data-tip={`Kardashev scale: K = (log₁₀ watts − 6) / 10.\nCivilisation uses ${st.worldTW.toFixed(2)} TW.\nNext milestone: K ${next.k.toFixed(2)} — ${next.label}.\nType I = 10 PW = K 1.00.`}>
         <Icon name="k" />
         <div class="col" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <span class="kv">K {st.K.toFixed(5)}</span>
+          <span class={`kv ${st.K >= 0.99 ? 'gold' : ''}`}>K {st.K.toFixed(st.K >= 0.95 ? 4 : 5)}</span>
           <div class="kbar">
             <i style={{ width: `${Math.max(1, Math.min(100, kProgress * 100))}%` }} />
           </div>

@@ -16,12 +16,12 @@ export function EventModal() {
   const choices = def.choices(s, ctx);
   return (
     <div class="scrim">
-      <div class="modal frame" role="dialog" aria-label={def.title(s, ctx)}>
+      <div class={`modal frame ${def.big ? 'bigdecision' : ''}`} role="dialog" aria-label={def.title(s, ctx)}>
         <div class="head">
           <span class="ico">{def.icon}</span>
           <div class="grow">
             <div class="label">
-              {def.category} · {fmtDate(s.day)}
+              {def.big ? 'A big decision' : def.category} · {fmtDate(s.day)}
             </div>
             <h2>{def.title(s, ctx)}</h2>
           </div>
@@ -32,7 +32,7 @@ export function EventModal() {
             <div class="quote" key={i}>
               <SpeakerPortrait id={a.id} mood={a.mood} size={56} />
               <div class="bubble">
-                <b>{speakerName(a.id)}</b>
+                <b>{speakerName(a.id, s)}</b>
                 {a.text}
               </div>
             </div>

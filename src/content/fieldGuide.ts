@@ -386,6 +386,91 @@ A mass driver — an electromagnetic rail — could throw lunar material into sp
 That is one reason people imagine moving energy-hungry industry and computing off-planet, where waste heat can be radiated into space.`,
     game: 'From stage 3, waste heat (W/m²) adds to each province’s heat index. The Heat Wall finale is the first sign that the climb to Type I has to continue above the sky — Act V.',
   },
+  // ── Act V ──
+  {
+    id: 'kardashev-types', title: 'Type I, II and III', cat: 'scale', icon: 'swarm', unlock: (s) => !!s.system,
+    body: `Nikolai Kardashev sorted civilisations by the energy they command: Type I uses roughly the power reaching its planet, Type II its whole star, Type III its galaxy. Carl Sagan made the scale continuous: K = (log₁₀ watts − 6) / 10, so Type I is 10¹⁶ W (ten petawatts), Type II 10²⁶ W and Type III 10³⁶ W.
+
+Humanity used about 19 TW in the 2020s: K ≈ 0.73. The Sun puts out about 3.8×10²⁶ W, so a civilisation using all of it would sit at K ≈ 2.06.`,
+    game: 'Act V ends when K reaches 1.0000; your score is the year. The meter keeps counting afterwards, toward Type II at K 2.00.',
+  },
+  {
+    id: 'waste-heat', title: 'Waste heat as a forcing', cat: 'world', icon: 'thermal', unlock: (s) => !!s.system,
+    body: `Almost every watt civilisation uses ends up as low-grade heat. Today that is tiny next to the greenhouse effect: about 0.04 W/m² averaged over the Earth, against roughly 2.7 W/m² of forcing from greenhouse gases.
+
+But it scales with energy use. Ten petawatts used on the surface would be about 20 W/m² — several times today’s whole greenhouse forcing. Past a few hundred terawatts, heat itself becomes a climate problem, whatever the energy source.`,
+    game: 'The Thermal Line caps how much power Earth’s surface may use (its own plants plus beams). Every W/m² of waste heat adds about half a degree of warming, after a lag. Pulling CO₂ back out makes room for heat.',
+  },
+  {
+    id: 'dyson-swarm', title: 'Dyson swarms', cat: 'scale', icon: 'swarm', unlock: (s) => (s.system?.collectors ?? 0) > 0,
+    body: `In 1960 Freeman Dyson pointed out that an advanced civilisation would eventually surround its star with collectors to catch its light — and would glow in the infrared as a result. A solid shell is impossible; a swarm of independent collectors in their own orbits is not.
+
+Ten petawatts at Earth’s distance from the Sun needs about 25 million km² of collectors at 30% efficiency: three Australias. At ten grams per square metre, that weighs about as much as one 600-metre asteroid.`,
+    game: 'The swarm is twelve arcs along Earth’s orbit, lit as collectors are built. Power only counts when something uses it: compute rings, habitats, the foundries themselves, and beams to Earth.',
+  },
+  {
+    id: 'self-replication', title: 'Machines that build machines', cat: 'compute', icon: 'foundry', unlock: (s) => (s.system?.foundries.length ?? 0) > 0,
+    body: `John von Neumann described, in the 1940s, a machine that could build a copy of itself from raw materials. NASA studied a self-replicating lunar factory in 1980. The appeal is the exponential: a seed that doubles every year becomes a thousand factories in a decade.
+
+The danger is the same exponential. Every copy is a chance for an error to be copied too, which is why such designs lean on verification: signatures, audits and kill switches.`,
+    game: 'Seed foundries double on their own. The growth dial trades speed for the chance that a strain drifts off-spec; sentinels and signed designs cut it. A strain left alone eats its foundry.',
+  },
+  {
+    id: 'asteroid-types', title: 'C, S and M asteroids', cat: 'chips', icon: 'asteroid', unlock: (s) => Object.values(s.system?.asteroids ?? {}).some((a) => a.status >= 1),
+    body: `Most asteroids fall into three broad families. C-types are dark and carbon-rich, with water bound in clay minerals: Bennu and Ryugu, both sampled by spacecraft. S-types are stony, silicate-rich bodies like Eros and Itokawa. M-types, such as Psyche, look like exposed metal — perhaps the cores of shattered protoplanets.
+
+Many are easier to reach than the Moon’s surface in terms of the rocket effort needed, because there is no deep gravity well to climb out of.`,
+    game: 'A foundry on an S-type makes collectors 25% more efficiently, on an M-type compute-ring radiators, on a C-type habitats. Surveys reveal the near-Earth rocks first, the main belt from stage 2.',
+  },
+  {
+    id: 'lagrange', title: 'Lagrange points', cat: 'compute', icon: 'orbit', unlock: (s) => (s.system?.foundries.some((f) => f.site === 'l4' || f.site === 'l5') ?? false),
+    body: `Around any two orbiting bodies there are five points where a small object can keep station with them. Two of them, L4 and L5, sit sixty degrees ahead of and behind the smaller body and are naturally stable: things parked there stay. Jupiter’s L4 and L5 hold thousands of Trojan asteroids.
+
+Gerard O’Neill proposed the Earth–Moon L5 point in the 1970s as a home for space colonies built from lunar material.`,
+    game: 'The L4 and L5 yards build most efficiently, but only if rock reaches them from the Moon (with its mass driver) or the asteroids.',
+  },
+  {
+    id: 'oneill', title: 'O’Neill cylinders', cat: 'world', icon: 'habitat', unlock: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'habitat'),
+    body: `A pair of counter-rotating cylinders several kilometres long, spun so that centrifugal force feels like gravity on the inside walls: land and windows in alternating stripes, with mirrors bringing in sunlight. O’Neill’s 1976 design held a few million people each.
+
+Spin gravity needs no new physics; the challenge is the mass of the shielding and structure, which is why such habitats only make sense when built from material already in space.`,
+    game: 'L5 habitats are a use of the swarm’s power. How they are settled — towns, work stations or private cities — sets how many people live in space.',
+  },
+  {
+    id: 'radiators', title: 'Cooling in space', cat: 'compute', icon: 'ring', unlock: (s) => (s.system?.rings ?? 0) > 0,
+    body: `In vacuum there is no air to carry heat away: everything must be radiated. A radiator sheds heat in proportion to the fourth power of its temperature (the Stefan–Boltzmann law), so warm radiators are far smaller than cool ones. Proposals include liquid-droplet radiators: sheets of molten droplets flung across space and caught again.
+
+For compute in orbit, the radiators — not the chips or the solar panels — are usually the heaviest part.`,
+    game: 'Compute rings need four times the mass per terawatt of collectors, mostly radiators. Radiator research and M-type asteroids make them lighter.',
+  },
+  {
+    id: 'power-beaming', title: 'Beaming power to Earth', cat: 'energy', icon: 'satellite', unlock: (s) => (s.charter?.projects ?? []).some((p) => p.kind === 'beam'),
+    body: `Space-based solar power has been studied since Peter Glaser’s 1968 patent: convert sunlight to microwaves, beam them to a rectenna on the ground, convert back to electricity. The beam is spread wide on purpose — weaker than midday sunlight — so the rectenna fields are kilometres across.
+
+Beamed power avoids the night and the weather, but it still ends up as heat on Earth, like any other power used there.`,
+    game: 'Beam stations deliver swarm power to a province, up to the Thermal Line. Beamed power counts as surface use.',
+  },
+  {
+    id: 'longevity-escape', title: 'Longevity escape velocity', cat: 'world', icon: 'longevity', unlock: (s) => (s.system?.lifeRate ?? 0) >= 0.35,
+    body: `Life expectancy rose by about three months a year through the twentieth century. "Longevity escape velocity", a term popularised by Aubrey de Grey, is the point at which medical progress adds more than a year of remaining healthy life every year — so that, on average, people stop getting closer to the end.
+
+Whether and when that happens is hotly debated. Many researchers expect AI-driven biology to speed the work up dramatically.`,
+    game: 'Healthy life expectancy climbs with the minds’ research and clinics in the provinces. Escape velocity is a Type I checklist item. Who gets treated first is a big decision.',
+  },
+  {
+    id: 'carrington', title: 'The Carrington event', cat: 'world', icon: 'storm', unlock: (s) => (s.system?.stage ?? 0) >= 2,
+    body: `On 1 September 1859 Richard Carrington watched a white-light flare on the Sun. Within a day the largest geomagnetic storm on record hit Earth: auroras as far south as the Caribbean, telegraph lines sparking and running without batteries. A storm that size today would damage satellites and power grids worldwide.
+
+The Sun’s activity rises and falls over an eleven-year cycle; the most violent storms cluster around solar maximum.`,
+    game: 'The finale, Solar Maximum, is a Carrington-class storm on three fronts. Storm hardening, the storm watch and the supergrid soften the hit.',
+  },
+  {
+    id: 'ai-personhood', title: 'Minds and rights', cat: 'compute', icon: 'minds', unlock: (s) => !!s.system?.seat || (s.system?.stage ?? 0) >= 2,
+    body: `Whether an AI system could be a moral patient — something that can be wronged — is an open question in philosophy and AI research. Some researchers argue for precaution: taking the possibility seriously before it is settled, since the cost of being wrong could be large in either direction.
+
+Legal personhood is a separate question: corporations have long had it, rivers have been granted it in some countries.`,
+    game: 'The minds in orbit get (or don’t get) a seat on the Council. Their mood follows their share of the swarm, the seat and what became of Bit; it feeds the finale’s Minds front.',
+  },
 ];
 
 export const GUIDE_BY_ID: Record<string, GuideEntry> = Object.fromEntries(GUIDE.map((g) => [g.id, g]));

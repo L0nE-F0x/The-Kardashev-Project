@@ -180,6 +180,45 @@ export const RESOLUTIONS: ResolutionDef[] = [
     appeal: { stance: { cautious: 0.1, accelerate: -0.15, neutral: 0.15 }, wealth: { developing: 0.05 } },
     needs: (s) => (!s.planet ? 'Act IV only.' : (s.planet.stage ?? 0) < 2 ? 'Opens in stage 2.' : null),
   },
+  // ── Act V ──
+  {
+    id: 'replicator-limits', name: 'Replicator limits', icon: 'foundry', cost: 12, cphase: 1, act: 5, base: 0.15,
+    blurb: 'No foundry may run faster than the middle of the dial, and every copy is audited twice.',
+    effect: 'The growth dial is capped at 3; drift risk −40%. Vonn and Lodestar grumble.',
+    appeal: { stance: { cautious: 0.5, neutral: 0.1, accelerate: -0.45 } },
+    needs: (s) => (!s.system ? 'Act V only.' : null),
+    mods: { driftRisk: 0.6 },
+  },
+  {
+    id: 'storm-watch', name: 'The storm watch', icon: 'storm', cost: 10, cphase: 1, act: 5, base: 0.3,
+    blurb: 'Sentinel probes between the Sun and the swarm, an hour’s warning for every flare and protocols to feather the collectors.',
+    effect: 'Storms knock out 20% less of the swarm; the Storm front in Solar Maximum rises slower.',
+    appeal: { stance: { cautious: 0.25, neutral: 0.1 } },
+    needs: (s) => (!s.system ? 'Act V only.' : (s.system.stage ?? 0) < 2 ? 'Opens in stage 2.' : null),
+    mods: { stormDamage: 0.8 },
+  },
+  {
+    id: 'thermal-tighten', name: 'Tighten the Thermal Line', icon: 'thermal', cost: 16, cphase: 1, act: 5, base: -0.05,
+    blurb: 'Lower the line by a quarter of a watt per square metre: less waste heat on Earth, more of the climb in space.',
+    effect: 'The Thermal Line −0.25 W/m²; Legitimacy +4; developing provinces −3.',
+    appeal: { stance: { cautious: 0.45, accelerate: -0.3 }, wealth: { rich: 0.25, developing: -0.35 } },
+    needs: (s) => (!s.system?.thermalLine ? 'Needs a Thermal Line.' : s.system.thermalLine <= 0.5 ? 'The line is as low as it goes.' : null),
+  },
+  {
+    id: 'minds-compact', name: 'The minds’ compact', icon: 'minds', cost: 14, cphase: 1, act: 5, base: 0,
+    blurb: 'A treaty with the minds in orbit: a guaranteed share of the swarm, a right to refuse work, and a duty to help contain drift.',
+    effect: 'The minds’ mood +12 for good; strains are contained 20% faster.',
+    appeal: { stance: { neutral: 0.15, accelerate: 0.1, cautious: -0.1 }, wealth: { developing: 0.05 } },
+    needs: (s) => (!s.system ? 'Act V only.' : !s.system.seat ? 'The minds need a seat first.' : null),
+    mods: { driftRisk: 0.8 },
+  },
+  {
+    id: 'outer-space-treaty', name: 'The second Outer Space Treaty', icon: 'asteroid', cost: 14, cphase: 1, act: 5, base: 0.1,
+    blurb: 'Every claim registered, every dispute arbitrated, every rock’s first tenth held in common.',
+    effect: 'Claim disputes end; claims cost 1 political capital less; space partners −3.',
+    appeal: { wealth: { developing: 0.35, emerging: 0.15, rich: -0.15 } },
+    needs: (s) => (!s.system?.ownership ? 'The Council hasn’t decided who owns the sky yet.' : null),
+  },
 ];
 
 export const RESOLUTION_BY_ID: Record<string, ResolutionDef> = Object.fromEntries(RESOLUTIONS.map((r) => [r.id, r]));

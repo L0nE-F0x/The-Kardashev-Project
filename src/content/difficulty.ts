@@ -1,7 +1,7 @@
 import type { TechKey } from './techs';
 
 export type Difficulty = 'relaxed' | 'standard' | 'hard';
-export type FounderId = 'classic' | 'safety' | 'hardware' | 'growth' | 'energy';
+export type FounderId = 'classic' | 'safety' | 'hardware' | 'growth' | 'energy' | 'steward';
 export type EventRate = 'off' | 'low' | 'normal' | 'high';
 export type RivalPace = 'slow' | 'normal' | 'fast';
 
@@ -51,7 +51,9 @@ export const RIVAL_PACES: Record<RivalPace, { name: string; mult: number }> = {
 export interface FounderDef {
   id: FounderId;
   name: string;
-  icon: 'shield' | 'compute' | 'cash' | 'solar' | 'hq';
+  icon: 'shield' | 'compute' | 'cash' | 'solar' | 'hq' | 'swarm';
+  /** New Game+: only selectable once a campaign has reached Type I. */
+  unlock?: 'typeI';
   tagline: string;
   perk: string;
   flaw: string;
@@ -85,5 +87,10 @@ export const FOUNDERS: Record<FounderId, FounderDef> = {
     id: 'energy', name: 'Energy Natives', icon: 'solar', tagline: 'Ex-utility engineers who speak fluent grid.',
     perk: 'Solar, wind & batteries 15% cheaper · grid connections 25% sooner', flaw: 'Training efficiency ×0.85',
     mods: { solarCost: 0.85, windCost: 0.85, batteryCost: 0.85, interconnect: 0.75, algoEff: 0.85 }, cash: 0, trust: 0, alignment: 0,
+  },
+  steward: {
+    id: 'steward', name: 'The Steward', icon: 'swarm', unlock: 'typeI', tagline: 'You have done this before. Somehow, you remember.',
+    perk: 'Research +10% · trust +3 · Charter contracts 5% cheaper · foundries 5% faster', flaw: 'Rivals take you seriously from day one (rival boost +10%)',
+    mods: { research: 1.1, charterCost: 0.95, foundryGrowth: 1.05, rivalBoost: 1.1 }, cash: 0, trust: 3, alignment: 0,
   },
 };

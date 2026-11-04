@@ -102,6 +102,7 @@ import {
   siteGlyphs4Key,
 } from './act4Layers';
 import { aiBannerTexture, dacTexture, fusionTexture, sgPulseTexture, terminalTexture } from '../sprites/act4Icons';
+import { act5Lights, act5On, beamClusters, beamKey, beamPatch, earthGroundKey, earthMapView, paintEarth } from './act5Layers';
 
 /** The map tools this scene draws previews for ('fiber' arrives with Act II). */
 type AnyTool = { kind: string; from: string | null } | null;
@@ -262,6 +263,16 @@ export class MapScene implements Scene {
   private planetLod = -1;
   /** Night lights from fusion plants and rectennas, for the LOD they were worked out for. */
   private planetLights: { lod: number; pts: LightPoint[] } = { lod: -1, pts: [] };
+  // ── Act V ──
+  /** Garden ↔ forge ground and the beams' rectenna fields (under Act IV's province overlay). */
+  private readonly systemGroundL = new Container();
+  private earthGround: { lod: number; key: string; pc: PixelCanvas; tex: Texture; wrap: WrapSprite; built: number } | null = null;
+  private beamSprites: { sprite: Sprite; tex: Texture; lat: number; lon: number; ox: number; oy: number }[] = [];
+  private beamSpriteKey = '';
+  private earthSeen: unknown = null;
+  private earthLod = -1;
+  /** Night lights from forge chimneys and beam receivers, for the LOD they were worked out for. */
+  private earthLights: { lod: number; pts: LightPoint[] } = { lod: -1, pts: [] };
   // input
   private down: { x: number; y: number; camX: number; camY: number; moved: boolean } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
@@ -274,7 +285,7 @@ export class MapScene implements Scene {
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.world);
-    this.world.addChild(this.terrainL, this.megaL, this.planetGroundL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
+    this.world.addChild(this.terrainL, this.megaL, this.systemGroundL, this.planetGroundL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
     const initial = this.layer(0);
     this.terrain = new WrapSprite(this.terrainL, initial.terrain);
     this.borders = new WrapSprite(this.overlayL, initial.borders, { alpha: 0.32 });
@@ -348,6 +359,7 @@ export class MapScene implements Scene {
     this.sgPulseKey = '';
     this.sgDownKey = '';
     this.rectennaSpriteKey = '';
+    this.beamSpriteKey = '';
     this.bloomLod = -1;
     if (this.net) this.net.setTexture(this.netLayer().tex, W);
     this.rebuildRegionLabels();
@@ -506,6 +518,7 @@ export class MapScene implements Scene {
     this.updateNetwork(dt);
     this.updateCharter(dt);
     this.updatePlanet(dt);
+    this.updateEarth();
     this.updateLinks();
     this.updateRoutes();
     this.updateShips();
@@ -538,6 +551,8 @@ export class MapScene implements Scene {
     }
     // Act IV: fusion plants and rectenna receivers glow on the night side
     if (this.planetLights.lod === this.lodIndex && this.planetLights.pts.length) pts = [...pts, ...this.planetLights.pts];
+    // Act V: forge chimneys and beam receivers
+    if (this.earthLights.lod === this.lodIndex && this.earthLights.pts.length) pts = [...pts, ...this.earthLights.pts];
     renderLights(L.lod, L.nightPc, pts, L.lightsPc);
     refreshTexture(L.lights);
   }
@@ -1479,6 +1494,91 @@ export class MapScene implements Scene {
     this.updateSgDown(v);
   }
 
+  // ── Act V: what Earth becomes (garden ↔ forge), beams' rectenna fields ─────────────────────
+  private clearEarth() {
+    if (this.earthGround) {
+      this.earthGround.wrap.sprites.forEach((sp) => sp.destroy());
+      releaseTexture(this.earthGround.tex);
+      this.earthGround = null;
+    }
+    this.beamSprites.forEach((b) => {
+      b.sprite.destroy();
+      releaseTexture(b.tex);
+    });
+    this.beamSprites = [];
+    this.beamSpriteKey = '';
+    this.earthSeen = null;
+    const hadLights = this.earthLights.pts.length > 0;
+    this.earthLights = { lod: -1, pts: [] };
+    if (hadLights) this.refreshLights();
+  }
+
+  private updateEarth() {
+    const s = this.game.view;
+    if (!s || !act5On(s)) {
+      if (this.earthGround || this.beamSprites.length || this.earthLights.pts.length) this.clearEarth();
+      return;
+    }
+    const v = earthMapView(s);
+    const fresh = v !== this.earthSeen || this.lodIndex !== this.earthLod;
+    this.earthSeen = v;
+    this.earthLod = this.lodIndex;
+    // the ground: repainted when a province moves by a step (at most every 2 s), or for a new LOD
+    const key = earthGroundKey(v);
+    const G = this.earthGround;
+    const stale = !G || G.lod !== this.lodIndex || (G.key !== key && performance.now() - G.built > 2000);
+    if (stale) {
+      if (G && G.lod === this.lodIndex) {
+        paintEarth(this.lod, v, G.pc);
+        refreshTexture(G.tex);
+        G.key = key;
+        G.built = performance.now();
+      } else {
+        if (G) {
+          G.wrap.sprites.forEach((sp) => sp.destroy());
+          releaseTexture(G.tex);
+        }
+        const pc = paintEarth(this.lod, v);
+        const tex = textureOf(pc);
+        const wrap = new WrapSprite(this.systemGroundL, tex);
+        wrap.setTexture(tex, this.lod.W);
+        // the ground stays under the fields
+        wrap.sprites.forEach((sp, i) => this.systemGroundL.setChildIndex(sp, i));
+        this.earthGround = { lod: this.lodIndex, key, pc, tex, wrap, built: performance.now() };
+      }
+    }
+    // rectenna fields where the swarm's beams come down
+    const bkey = fresh ? `${this.lodIndex}|${beamKey(v)}` : this.beamSpriteKey;
+    const beamsChanged = bkey !== this.beamSpriteKey;
+    if (beamsChanged) {
+      this.beamSpriteKey = bkey;
+      this.beamSprites.forEach((b) => {
+        b.sprite.destroy();
+        releaseTexture(b.tex);
+      });
+      this.beamSprites = [];
+      for (const c of beamClusters(v)) {
+        const patch = beamPatch(c, this.lod);
+        const tex = textureOf(patch.pc);
+        const sprite = new Sprite(tex);
+        this.systemGroundL.addChild(sprite);
+        this.beamSprites.push({ sprite, tex, lat: c.lat, lon: c.lon, ox: patch.ox, oy: patch.oy });
+      }
+    }
+    // night lights: the chimneys follow the ground, the receiver masts the fields
+    if (stale || beamsChanged) {
+      const pts = act5Lights(v, this.lod);
+      const old = this.earthLights;
+      const same = old.lod === this.lodIndex && old.pts.length === pts.length && old.pts.every((p, i) => p.x === pts[i].x && p.y === pts[i].y);
+      this.earthLights = { lod: this.lodIndex, pts };
+      if (!same) this.refreshLights();
+    }
+    for (const b of this.beamSprites) {
+      const p = this.proj(b.lon, b.lat);
+      b.sprite.position.set(Math.floor(this.wrapX(p.x)) + b.ox, Math.floor(p.y) + b.oy);
+    }
+  }
+
   /** Greening and heat haze over the provinces: two shimmer phases swapped a few times a second. */
   private updateProvinces(v: ReturnType<typeof planetView>) {
     const key = provinceKey(v);
@@ -2001,6 +2101,8 @@ export class MapScene implements Scene {
   }
 
   destroy() {
+    if (this.earthGround) releaseTexture(this.earthGround.tex);
+    this.beamSprites.forEach((b) => releaseTexture(b.tex));
     this.root.destroy({ children: true });
   }
 }

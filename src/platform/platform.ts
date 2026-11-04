@@ -84,6 +84,39 @@ export function saveTextFile(name: string, text: string, type = 'application/jso
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+/** Save a PNG (the Type I end card) as a download. The Android app can't save images: share or screenshot there. */
+export function saveImage(name: string, dataUrl: string): boolean {
+  if (androidBridge()) return false;
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return true;
+}
+
+/** Share a PNG through the phone's share sheet, where the browser supports it. */
+export async function shareImage(name: string, dataUrl: string, text: string): Promise<boolean> {
+  try {
+    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+    if (!nav.share) return false;
+    const blob = await (await fetch(dataUrl)).blob();
+    const file = new File([blob], name, { type: 'image/png' });
+    const data: ShareData = { files: [file], text, title: 'The Kardashev Project' };
+    if (nav.canShare && !nav.canShare(data)) return false;
+    await nav.share(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether this browser can share images at all (for showing the button). */
+export function canShareImages(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.share === 'function' && !androidBridge();
+}
+
 /**
  * The Android app's back gesture calls this first: return true when it closed something; when
  * nothing was open the app goes to the background.

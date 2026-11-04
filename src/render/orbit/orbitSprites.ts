@@ -73,3 +73,63 @@ export function spsCanvas(big: boolean): PixelCanvas {
 export function spsFrameCanvas(big: boolean, progress: number): PixelCanvas {
   return scaffold(PixelCanvas.from(big ? SPS : SPS_SMALL, SPS_KEYS), progress);
 }
+
+// ── Act V: foundries at the Lagrange points, habitats ───────────────────────────────────────
+/**
+ * A foundry yard at an Earth–Moon Lagrange point (size 0..2 for more output): a hub with its
+ * furnace glowing, a spine out to two gold solar wings, manipulator arms with welding tips, finished
+ * collector sheets stacked beside it and, on the bigger yards, a copy of itself growing in a
+ * dotted scaffold (the foundries build foundries).
+ */
+export function foundryCanvas(size: number): PixelCanvas {
+  const z = Math.max(0, Math.min(2, size));
+  const W = [13, 17, 23][z];
+  const H = [7, 9, 13][z];
+  const pc = new PixelCanvas(W, H);
+  const cy = z === 2 ? 5 : Math.floor(H / 2);
+  const cx = Math.floor(W / 2);
+  const wing = z + 2;
+  // the solar wings and the spine between them
+  for (let x = 0; x < wing; x++) {
+    for (let y = cy - 2 - (z > 0 ? 1 : 0); y <= cy + 2 + (z > 0 ? 1 : 0); y++) {
+      const c = (x + y) % 2 ? C.yel1 : C.org2;
+      pc.set(x, y, c);
+      pc.set(W - 1 - x, y, c);
+    }
+  }
+  pc.hline(wing, cy, W - wing * 2, C.ink6);
+  // the hub and its furnace
+  pc.ellipse(cx + 0.5, cy + 0.5, 2.2 + z * 0.6, 1.8 + z * 0.4, C.ink8);
+  pc.set(cx - 1 - z, cy - 1, C.white);
+  pc.set(cx, cy, C.yel2);
+  pc.set(cx + 1, cy, C.org1);
+  if (z > 0) pc.set(cx, cy + 1, C.org1);
+  // manipulator arms, welding at the tips
+  pc.line(cx - 2, cy - 1, cx - 3 - z, cy - 2 - z, C.ink7);
+  pc.set(cx - 3 - z, cy - 3 - z, C.yel2);
+  pc.line(cx + 2, cy + 1, cx + 3 + z, cy + 2 + Math.min(1, z), C.ink7);
+  // finished collector sheets stacked above the spine
+  for (let k = 0; k <= z; k++) pc.hline(cx + 2, cy - 2 - k * 2, 3 + z, k % 2 ? C.yel0 : C.org2);
+  // the copy it's building: a dotted scaffold hub with half its wing
+  if (z === 2) {
+    const sy = H - 3;
+    for (let x = cx - 6; x <= cx + 2; x++) if ((x + sy) % 2 === 0) pc.set(x, sy, C.ink5);
+    pc.ellipse(cx - 2.5, sy + 0.5, 1.6, 1.2, C.ink6);
+    pc.set(cx - 3, sy, C.org1);
+    for (let y = sy - 1; y <= sy + 1; y++) pc.set(cx - 7, y, y % 2 ? C.yel0 : C.ink5);
+  }
+  return framed(pc);
+}
+
+const HABITAT = `
+  ..abbbbbbbba..
+  .acgggdgggdca.
+  acdgggdgggdgca
+  .acgggdgggdca.
+  ..abbbbbbbba..
+`;
+
+/** A habitat cylinder side on: end caps catching the sun, a lit band of fields and windows. */
+export function habitatCylCanvas(): PixelCanvas {
+  return framed(PixelCanvas.from(HABITAT, { a: 'ink6', b: 'ink8', c: 'white', g: 'grn6', d: 'cyn5' }));
+}

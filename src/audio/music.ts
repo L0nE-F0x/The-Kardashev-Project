@@ -4,7 +4,7 @@
  */
 import { audioCtx, musicBus } from './engine';
 
-type Track = 'menu' | 'game' | 'game2' | 'game3' | null;
+type Track = 'menu' | 'game' | 'game2' | 'game3' | 'ending' | null;
 
 const THEME_URL = '../audio/theme.mp3';
 let current: Track = null;
@@ -34,6 +34,7 @@ function switchTo(track: Track) {
   else if (track === 'game') startSequencer(GAME_SONG);
   else if (track === 'game2') startSequencer(GAME2_SONG);
   else if (track === 'game3') startSequencer(GAME3_SONG);
+  else if (track === 'ending') startSequencer(ENDING_SONG);
 }
 
 function stopAll() {
@@ -170,6 +171,34 @@ const GAME3_SONG: Song = {
   drums: false,
   padLevel: 0.06,
   sparse: true,
+};
+
+/** The Type I ending: a slow, wide climb in D that never quite settles, so it loops under the credits. */
+const ENDING_SONG: Song = {
+  bpm: 64,
+  chords: [
+    [38, 62, 66, 69, 74],
+    [45, 61, 64, 69, 73],
+    [47, 59, 62, 66, 71],
+    [43, 59, 62, 67, 74],
+    [38, 62, 66, 69, 74],
+    [45, 61, 64, 69, 76],
+    [43, 62, 67, 71, 74],
+    [45, 61, 64, 69, 73],
+  ],
+  melody: [
+    74, null, 76, null, 78, null, 81, null,
+    81, null, null, null, 76, null, null, null,
+    78, null, 76, null, 74, null, 71, null,
+    74, null, null, null, null, null, null, null,
+    74, null, 76, null, 78, null, 81, null,
+    83, null, null, null, 81, null, null, null,
+    79, null, 78, null, 76, null, 74, null,
+    76, null, null, null, 73, null, null, null,
+  ],
+  arp: true,
+  drums: false,
+  padLevel: 0.075,
 };
 
 class Sequencer {

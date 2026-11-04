@@ -9,6 +9,7 @@ import { Game } from './game/game';
 import { MapScene } from './render/worldMap/mapScene';
 import { DioramaScene } from './render/diorama/dioramaScene';
 import { OrbitScene } from './render/orbit/orbitScene';
+import { SystemScene } from './render/system/systemScene';
 import { TourDirector } from './game/tour';
 import { App } from './ui/App';
 import { onHostBack } from './platform/platform';
@@ -27,6 +28,7 @@ async function boot() {
     diorama: (g, siteId) => new DioramaScene(g, siteId),
     tour: (g) => new TourDirector(g),
     orbit: (g) => new OrbitScene(g),
+    system: (g, opts) => new SystemScene(g, opts),
   });
   game.showMenu();
   render(h(App, { game }), document.getElementById('ui')!);
@@ -50,7 +52,8 @@ function back(game: Game): boolean {
   if (game.mode === 'title' || !game.state) return false;
   if (game.tool) game.setTool(null);
   else if (game.panel) game.openPanel(null);
-  else if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
+  else if (game.ending) return true;
+  else if (game.mode === 'diorama' || game.mode === 'orbit' || game.mode === 'system') game.enterMap();
   else if (game.selection) game.select(null);
   else return false;
   return true;
@@ -125,11 +128,14 @@ function bindKeys(game: Game) {
         if ((game.state?.act ?? 1) >= 4) game.openPanel('planet');
         break;
       case 'v':
-        if (game.mode === 'orbit') game.enterMap();
-        else if (game.hasOrbitView) game.enterOrbit();
+        if (game.ending) break;
+        game.cycleView();
         break;
       case 'm':
-        if (game.mode === 'diorama' || game.mode === 'orbit') game.enterMap();
+        if (game.mode === 'diorama' || game.mode === 'orbit' || game.mode === 'system') game.enterMap();
+        break;
+      case 'x':
+        if ((game.state?.act ?? 1) >= 5) game.openPanel('system');
         break;
       case 'Escape':
         back(game);

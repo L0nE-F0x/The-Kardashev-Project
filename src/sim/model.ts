@@ -430,4 +430,5 @@ export const K_MILESTONES = [
   { k: 0.8, label: 'Grid-Scale Abundance' },
   { k: 0.9, label: 'Planetary Engineering' },
   { k: 1.0, label: 'Type I Civilisation' },
+  { k: 2.0, label: 'Type II Civilisation (10²⁶ W — coming later)' },
 ];
