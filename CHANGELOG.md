@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 — Planetary (2026-11-04)
+- Act IV, Planetary: after the renewal vote the Charter runs the planet as one system, from 2045 to the Heat Wall — about 2065–70.
+- The years move fast: between stages you set a five-year plan (up to three priorities, a reserve, Bit can run it), then watch the map time-lapse while a planner builds and decisions are taken on autopilot. Bit keeps a diary of each chapter.
+- Your company’s fate: keep it, sell it to fund the Charter, or hand it over as a public AI utility.
+- A supergrid that follows the sun: ten intercontinental links join the provinces; the wider the grid, the more of the day it sees daylight and the less solar goes to waste.
+- The twelve blocs become provinces with people, heat, water stress and wellbeing — and the hottest ones push back.
+- The fusion race: four designs from four companies with their own odds. Fund pilots, see which work, build fleets that get cheaper, breed tritium, and mine helium-3 on the Moon for a fifth design.
+- AI provinces: hand provinces to Bit or a rival lab’s model (Apex, Weft, Sapling), each with a temperament. Trust is earned and lost; Bit has aims of its own, shaped by what you told it in Act III.
+- Climate repair: warming in degrees, direct air capture, water and cooling programmes, and a Council fight over dimming the sun.
+- Orbit and the Moon: spaceports, orbital data centres, space-solar stations beaming power down, debris to manage, and Shackleton Base growing from an outpost to a mine to a mass driver.
+- A new orbit view (press V): the pixel Earth from space with every station, beam and launch.
+- The finale: The Heat Wall — a record hot season, a debris cascade in orbit and an AI reaching for the controls, all at once — then the cliffhanger into Act V.
+- New: Dr. Lena Moreau (fusion), Moon commander Ade Bello, four new partner companies, the rival AIs as faces, Bit-8 and Bit-9, the Orbital Dawn palette from the start of the act, fusion plants and air-capture farms at the megaprojects, a growing spaceport, six Council resolutions, ten techs, nine Field Guide entries and Act IV briefings.
+- Start a new company straight at Act IV.
+
 ## 0.4.2 — Easy Reading (2026-11-04)
 - A new font that is much easier to read, in the game and on the website: Atkinson Hyperlegible Next. The big titles and the world map stay pixel. Miss the old look? Settings → Accessibility → Text font → Pixel.
 - An Android app: download it from the website or the main menu. Full screen, held sideways, one tap from your home screen, and it updates with the website.

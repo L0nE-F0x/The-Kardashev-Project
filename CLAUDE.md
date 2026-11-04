@@ -1,9 +1,10 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.4 "The Charter"** (M3): Acts I (The Garage), II (The Scale-Up) and III (The Charter) are playable
-end to end, on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and desktop builds).
-v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the Android app.
+Current build: **v0.5 "Planetary"** (M4): Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary)
+are playable end to end, on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
+desktop builds). v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
+Android app.
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 
 ## Commands
@@ -12,13 +13,15 @@ Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 npm run dev           # Vite dev server → http://127.0.0.1:5317 (landing at /, game at /play/)
 npm run build         # typecheck (tsc 7) + production build → dist/ (both pages + service worker)
 npm test              # vitest: sim determinism, Act I bot, Act II bot (preset → IPO), Act III bot (preset → renewal),
+                      # Act IV bot (preset → jumps → the Heat Wall),
                       # offline, saves, routing, map + diorama scenes
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
 npm run gen:assets    # re-render icons, favicon, logo, globe, OG image + src-tauri/icons from game code
 npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
 PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts \
-  tests/act3-map-preview.test.ts tests/act3-diorama-preview.test.ts
+  tests/act3-map-preview.test.ts tests/act3-diorama-preview.test.ts tests/act4-map-preview.test.ts \
+  tests/act4-orbit-preview.test.ts tests/act4-diorama-preview.test.ts tests/act4-portraits.test.ts
                       # render map / portrait / route / Act II + III map / diorama previews to PNG without a browser
 cd android && KP_ANDROID_KEYSTORE=~/.config/kardashev-project/android/kardashev-release.p12 \
   KP_ANDROID_KEYSTORE_PASSWORD=$(cat ~/.config/kardashev-project/android/keystore-password.txt) ./gradlew assembleRelease
@@ -61,6 +64,14 @@ src/
                   your own run licences, rival incidents and licence requests
     trustee.ts / desk.ts   the blind trust's autopilot · the Charter desk (Mira, Juno, Sol, Penny, Kip, Bit)
     threshold.ts  The Threshold (grid · frontier · council fronts), the renewal vote and the ending
+    act4.ts       Act IV framework: beginAct4, stages in `s.planet.stage` (0 Mandate · 1 Supergrid · 2 Fusion Age ·
+                  3 High Frontier · 4 Heat Wall · 5 done), stage gates, `planetChecklist` (live); act4preset.ts =
+                  "Start at Act IV" (the Act III preset fast-forwarded to 2045)
+    plans.ts      five-year plans and time jumps (real daily ticks with `flags.offline = 'jump'`), the planner that
+                  posts/awards contracts by priority, autopilot for events (first enabled choice), the report + Bit's diary
+    supergrid.ts / provinces.ts / climate.ts / fusion.ts / orbit.ts (+ the Moon) / airegions.ts / heatwall.ts
+                  the Act IV systems; planetInit.ts (starting state), planetView.ts (read-only views for map, orbit,
+                  dioramas), planetPreview.ts (a ready-made ~2062 world for previews and tests)
     network.ts    regional inference markets: private graph (fiber, leased/own cables), serve efficiency, contracts first
     stack.ts / politics.ts / capital.ts / rivals.ts / jobs.ts / finale.ts   (see SPEC §17)
   content/    data: regions, sites, facilities (with tiers), techs, companies, events (+ events2.ts for Act II), objectives,
@@ -70,6 +81,9 @@ src/
               Act III: charter.ts (partners, contract kinds, HVDC routes, missions, bloc economics, factions, access,
               CHARTER numbers), council.ts (resolutions), events3.ts; sites.ts adds the Charter HQ, 12 megaproject
               sites (kind 'mega') and 5 launch candidates (kind 'launch')
+              Act IV: planet.ts (PLANET numbers, provinces, the AIs, fusion designs, supergrid routes, priorities, the
+              cast), events4.ts; the 12 Act IV contract kinds live in charter.ts (ACT4_KINDS); MOON_SITE (kind 'moon')
+              is in SITE_BY_ID but not in SITES (no map marker, no sea route)
   world/      map raster decode + sea router (A* over 0.5° ocean, carved canals, closable chokepoints) + sun position
   render/     Pixi v8. stage.ts = low-res render target scaled by whole numbers (one pixel size everywhere) + fade overlay
     palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn)
@@ -83,18 +97,25 @@ src/
                   landing stations, rival campuses), sizes.ts (per-tier sizes), layout.ts (plots), campusArt.ts, draw.ts;
                   Act III: act3Pieces.ts (planner + art dispatch + `act3Key`), charterHQ.ts (Geneva), mega.ts (megaprojects
                   by stage and kind, offshore North Sea), launch.ts (pad, rocket, liftoff loop), act3kit.ts, scenery.ts (bands)
-    sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-7;
-                  every partner CEO and the three faction delegates have looks), charterIcons.ts (Act III map sprites)
+                  Act IV: moon.ts (the Moon base by stage, the mass driver, lunar light), fusion.ts (five plant designs,
+                  air-capture farms); spaceports extend launch.ts
+    orbit/        Act IV's orbit view: orbitScene.ts (Scene), orbitArt.ts (pure drawing), orbitSprites.ts
+    sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-9;
+                  every partner CEO, the faction delegates, Ade and the three rival AIs have looks), charterIcons.ts
+                  (Act III map sprites), act4Icons.ts (Act IV map sprites); worldMap/act4Layers.ts is the Act IV map layer
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
     tutorial.ts   Bit's guided steps: text, target (`data-tut` attribute or `site:<id>`), done(g) check
-    briefings.ts  Act II (`b-*`) and Act III (`c-*`) unlock briefings: the owning advisor's 1–3 step spotlight, shown once
+    briefings.ts  Act II (`b-*`), Act III (`c-*`) and Act IV (`d-*`) unlock briefings: the owning advisor's 1–3 step
+                  spotlight, shown once (each act's briefings only fire in that act)
     showcase.ts   the fake "day 900" world the menu tour flies over
     tour.ts       TourDirector: map glides + campus cuts behind the main menu
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window
     panels/Act2Panels.tsx  Team (advisor jobs), Deals (supply · customers · companies), Blocs, Board & debt, Crunch tracker
     panels/Act3Panels.tsx  Charter (overview · contracts · missions · partners · world), Council, Charter desk,
                            own-run licence box, Threshold tracker, Charter HQ / megaproject / launch inspectors
+    panels/Act4Panels.tsx  the Planet panel (overview · provinces · grid · fusion · space · climate), the plan screen,
+                           the jump time-lapse overlay and report, the Heat Wall tracker, Act IV complete
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
@@ -146,6 +167,13 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   Act III events price the Charter side with `ch3(s, n)` and the company side with `c2(s, n)`. New formula hooks
   (`grid:price`, `grid:carbon`, `market:hbm`, `market:pkg`, `charter:build`, `world:growth`) are modifiers that only
   exist in Act III, so Acts I–II stay byte-identical (Act I bot: day 812; Act II bot: IPO after 5.6 years).
+- **Act IV gating:** `s.planet` exists only from Act IV (null before); `s.charter.phase` stays 6. Act IV content uses
+  `act: 4` and `stage` (contract kinds, techs, resolutions, events, objectives). New hooks (`charter:space`,
+  `orbit:debris`, `grid:faults`, `prov:<region>`, `heatwall:<front>`, the Act IV growth parts, gridYield in siteYield)
+  only act when `s.planet` exists, so Acts I–III stay byte-identical (Act III bot: renewal on 31 Dec 2043). Act IV
+  partners carry `act: 4` and join the Charter at beginAct4. Act IV events price the Charter side with `ch4(s, n)`
+  (2045 scale). **Autopilot takes the first enabled choice during jumps**, so put the sensible default first.
+  Checklist objectives are `live` (never ticked off; shown from `o.done(s)`).
 - **Company vs Charter:** while the blind trust is on, `game.*` company wrappers refuse with a toast (`locked()`); the
   sim actions stay open so advisors and the trustee can act.
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
@@ -202,17 +230,23 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Act III event / chain | `content/events3.ts` |
 | Act III briefing | `game/briefings.ts` (`c-*`, + `data-tut` targets) |
 | Re-tune Act III pacing | `tests/act3.test.ts` + `tests/helpers/act3bot.ts`; `CHARTER` numbers, contract `value`/`days`, world growth in `sim/world.ts`, world alignment drift in `sim/frontier.ts` |
+| Fusion design | `FUSION_DESIGNS` in `content/planet.ts` (+ a partner in `PARTNERS` with `act: 4`, a CEO look, plant art in `render/diorama/fusion.ts`) |
+| Supergrid route | `SUPERGRID_ROUTES` in `content/planet.ts` |
+| AI that can run provinces | `AIS` in `content/planet.ts` + an `AiId`, a face in `portraits.ts` |
+| Act IV event / chain | `content/events4.ts` (first choice = the autopilot default) |
+| Act IV contract kind | `CONTRACT_KINDS` (+ `ACT4_KINDS`) in `content/charter.ts`, rules in `sim/charter.ts` (canPost, contractValue, completeProject), a planner wish in `sim/plans.ts`, a Planet tab poster |
+| Re-tune Act IV pacing | `tests/act4.test.ts` + `tests/helpers/act4bot.ts`; `PLANET` numbers (growth cap, tritium, goals, stageMaxDays), planner limits in `sim/plans.ts` |
 
-## Known gaps / next (see SPEC §12, §16, §17, §18)
+## Known gaps / next (see SPEC §12, §16, §17, §18, §19)
 
-**Next: Act IV "Planetary"** — planned in SPEC §19 (stages with five-year plans and time jumps, the supergrid, provinces,
-climate, a fusion race, AI regions, the orbit view and the Moon, the Heat Wall finale; v0.5.0), waiting for "go".
-**Then Act V** (Type I), to be planned in its own session. Then the real theme song, code signing (Windows/macOS), a feedback form
+**Next: Act V "Type I"** (SPEC §12 M4.5), to be planned in its own session; Act IV's hooks for it close SPEC §19. Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
-**Still open from v0.4 (Act III):**
+**Still open:**
 - The main menu's background tour (`game/tour.ts` `SHOTS`, `game/showcase.ts`) only flies over Acts I–II: no Charter
-  HQ, megaproject or launch shots yet.
+  HQ, megaproject, launch, orbit-view or Moon shots yet.
+- Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
+  lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
 - The Windows and macOS installers build in CI but have never been launched on a real machine. The Linux AppImage runs
   on the dev machine (Omarchy/Arch, installed to ~/Applications with a launcher entry).

@@ -8,8 +8,8 @@ build power, chips, compute and supply lines on a real-Earth pixel map, keep you
 phones), as an Android app, or as a Windows / macOS / Linux download from
 [Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
 
-> Status: **v0.4.2** (v0.4 "The Charter" + "Easy Reading"). Acts I (The Garage), II (The Scale-Up) and III (The Charter) are playable end to
-> end. See `SPEC.md` for the full design and `CHANGELOG.md` for what changed.
+> Status: **v0.5 "Planetary"**. Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary) are
+> playable end to end. See `SPEC.md` for the full design and `CHANGELOG.md` for what changed.
 
 ## Play locally
 
@@ -57,6 +57,11 @@ cd android && ./gradlew assembleRelease   # APK in android/app/build/outputs/apk
   a safety regime; win votes in a Council of twelve blocs with factions, walkouts and a rival consortium; track world
   energy, the carbon budget and compute access; give Kip a launch complex; delegate to a Charter desk (Bit can run it
   once you trust it); then hold The Threshold and win the renewal vote. Start a new company straight at Act III too.
+- **Act IV, Planetary**: run the planet as one system from 2045. Set five-year plans and watch the years time-lapse;
+  decide your company's fate; wire the continents into a supergrid that follows the sun; look after twelve provinces'
+  heat, water and wellbeing; back a race of fusion designs and breed their fuel; hand provinces to AIs (Bit, Apex, Weft,
+  Sapling) you trust; pull carbon from the air; build spaceports, orbital data centres, space solar and a Moon base
+  with a mass driver, all visible in a new orbit view; then survive The Heat Wall. Start straight at Act IV too.
 - **Campus dioramas**: side-view pixel scenes of each site, with animated facilities, weather, real local time of
   day, night lighting and a time-lapse toggle.
 - **Era palettes**: the whole world re-grades as K climbs (preview them in Settings → Display).
@@ -75,7 +80,7 @@ cd android && ./gradlew assembleRelease   # APK in android/app/build/outputs/apk
 Drag to pan · scroll or pinch to zoom · click a site to inspect, double-click to view its campus ·
 Space pause · 1–4 speed · C compute · O orders · R research · F finance · G goals · N news · B Field Guide ·
 L power-line tool · M/Esc back to map · WASD/arrows pan · +/− zoom. Act II: T team · E deals · P blocs · I fiber tool.
-Act III: H the Charter · U the Council.
+Act III: H the Charter · U the Council. Act IV: Y the Planet · V the orbit view.
 
 ## Credits
 

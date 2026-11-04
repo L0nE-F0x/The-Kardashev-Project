@@ -4,11 +4,11 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M3 "The Charter" is built and live** (v0.4.0, patched in v0.4.1 and v0.4.2 "Easy Reading": readable font,
-phone fullscreen, an Android app) on top of M2 "The Scale-Up", M1 "First Light" and M1.5 "The Front Door": Acts I, II
-and III are playable end to end. Section 17 is the Act II plan and section
-18 the Act III plan, both with as-built notes. **Next: M4, Act IV "Planetary"**, planned in section 19 (waiting for
-"go"); Act V gets planned in its own session. Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
+Status: **M4 "Planetary" is built** (v0.5.0, Act IV, section 19 with as-built notes) on top of M3 "The Charter"
+(v0.4.x, including v0.4.2 "Easy Reading": readable font, phone fullscreen, an Android app), M2 "The Scale-Up", M1 "First
+Light" and M1.5 "The Front Door": Acts I–IV are playable end to end. Section 17 is the Act II plan and section
+18 the Act III plan and section 19 the Act IV plan, all with as-built notes. **Next: M4.5, Act V "Type I"**, to be planned
+in its own session (Act IV's hooks for it close section 19). Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
 `CLAUDE.md`.
 
 ---
@@ -367,7 +367,7 @@ controls, the HBM crunch event chain, more dioramas, standing orders. **Full pla
 advisor cast, deeper bloc politics. **Full plan: section 18.**
 
 **M4: Act IV, Planetary.** The supergrid, the fusion race, orbit and the Moon, provinces, AI regions, the Heat Wall.
-**Planned in section 19** (v0.5.0).
+**Built in v0.5.0** (section 19).
 
 **M4.5: Act V, Type I.** The thermal budget, space solar at scale, the final push, the Type I ending. Planned next
 session, building on Act IV's waste heat, orbit and AI systems.
@@ -1080,7 +1080,7 @@ Act III, blind trust, every Charter desk on):
 
 ---
 
-## 19. M4 "Planetary": plan (Act IV)
+## 19. M4 "Planetary": built (v0.5.0)
 
 Act IV, about 2045–70. The renewed Charter becomes the planet's operator. You wire the continents into one
 supergrid that chases the sunlight around the globe, back a race of fusion designs, open the first industry in orbit and
@@ -1089,7 +1089,7 @@ provinces with people, heat and water to look after. Decades pass in stages, wit
 ends at **Kardashev 0.80** (100 TW, "Grid-Scale Abundance") and a three-front finale, **The Heat Wall**, that shows Earth
 alone can't hold a Type I civilisation. Planned 2026-11-04 in three Q&A rounds. **Act V is planned next session.**
 
-**Status: plan only, waiting for "go".**
+**Status: built (v0.5.0), 2026-11-04.** As-built notes and the hooks for Act V are at the end of this section.
 
 ### Decisions (locked 2026-11-04)
 
@@ -1269,3 +1269,41 @@ at least four AI regions · come through The Heat Wall. All numbers are first gu
 **Size, honestly:** this is the biggest act so far, about one and a half times Act III, mostly because the orbit view is a
 whole new scene and the jumps change how time works. The stage structure keeps it buildable in order, and each stage is
 playable as soon as its systems are in. As always: ask before pushing `main`, before tagging and before publishing.
+
+### As built (2026-11-04)
+
+Everything above is in, with these numbers and changes from the guard-rail bot (`tests/act4.test.ts`: Start at Act IV,
+the company handed over as a public utility, the default five-year plans, the planner during play, AIs given provinces
+as trust allows):
+- **Pacing:** the bot jumps 2045→48, 2049→53 and 2059→63, meets the whole checklist by late 2064 and ends the act in
+  February 2065 (~20 years; all three Heat Wall fronts held). Stages fall back to a deadline (stageMaxDays) so a weaker
+  player still reaches the Heat Wall by ~2068–70. The stage clock restarts when a jump ends.
+- **World growth** caps at 5.5%/yr in Act IV (planned 7%: K overshot 0.80 by the early 2060s). The bot reaches K 0.80
+  around 2062 and ~0.81 at the end.
+- **Fusion:** goal lowered to 3 TW from two designs (5 TW was out of reach). Tritium starts at 200 GW of D-T and running
+  fleets breed 1 GW per GW-year (60 / 0.6 starved the fleets). Little Sun can build fleets alongside the design's owner
+  and Halcyon. The Act III Sunforge pilot counts as a working tokamak.
+- **Climate:** direct air capture comes in 1 / 3 / 8 Gt a year (planned 0.5 / 1.5 / 4) so warming can come back under
+  2 °C; the planner caps capture at 45 Gt/yr and stops adding it once warming is under 1.9 °C. Act IV new energy is
+  cleaner and fusion plus the supergrid retire fossil plants faster.
+- **Legitimacy in a big act:** late projects cost Legitimacy by the share that are late, not the count (Act IV runs
+  hundreds); the planner spends fairly across factions (sites in the faction owed the most first), keeps a 15% margin on
+  monthly dues and a reserve; thriving provinces cool their faction's tension. Without these the autopilot years drove
+  Legitimacy to zero.
+- **Company choice:** selling or handing over the company locks it like a permanent blind trust (its board goes too);
+  Act IV's four new partners join the Charter only when Act IV begins, so Act III is unchanged.
+- **Acts I–III unchanged:** Act I bot day 812, Act II IPO after 5.6 years, Act III ends 31 December 2043.
+- **Not done:** province governor portraits, Act IV menu-tour shots, Act IV audio (ambience, launches, the mass driver),
+  the crew lander taking off on the Moon. Phone layouts checked in headless phone emulation only.
+- **Balance (deferred):** the bot meets every checklist item; Legitimacy stays 60–80; a hands-off player would see more
+  walkouts and late projects. Tune in the beta.
+
+### Hooks left for Act V (Type I)
+- **The Heat Wall result** (`planet.heatwall.held`, 0–3) and the waste heat model (`wasteHeat`, W/m² per province): Act
+  V's thermal budget should build on it.
+- **Orbit and the Moon:** `orbitView` (shells, debris, orbital data centres, space solar), the Moon at stage 3 with a mass
+  driver, launch cadence: the start of space solar at scale and the swarm Kip pitches at the end of Act IV.
+- **Bit:** `planet.bitBond` (−100..100), the three aims arcs and `flags.bitAnswer`; Bit-9 is the last sprite level.
+- **AI provinces:** temperaments, trust and incidents per AI; ready for full autopilot plus big decisions.
+- **Plans and jumps:** `plans.ts` (plan, planner, autopilot, report, Bit's diary) can carry Act V's longer timescales.
+
