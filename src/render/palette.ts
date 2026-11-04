@@ -47,8 +47,8 @@ export const KEYS = Object.keys(PALETTE) as ColorKey[];
 export const C = Object.fromEntries(KEYS.map((k, i) => [k, i + 1])) as Record<ColorKey, number>;
 export const TRANSPARENT = 0;
 
-export type Era = 0 | 1 | 2 | 3;
-export const ERA_NAMES = ['Smog & Silicon', 'Grid Rush', 'Solarpunk Bloom', 'Orbital Dawn'] as const;
+export type Era = 0 | 1 | 2 | 3 | 4;
+export const ERA_NAMES = ['Smog & Silicon', 'Grid Rush', 'Solarpunk Bloom', 'Orbital Dawn', 'Swarmlight'] as const;
 
 // ── colour maths ─────────────────────────────────────────────────────────────────────────────
 type RGB = [number, number, number];
@@ -123,6 +123,18 @@ function eraGrade(era: Era, key: ColorKey, c: RGB): RGB {
       else if (fam === 'grn') c = adjust(c, { dh: 10, ds: 0.95 });
       else if (fam === 'night' || fam === 'dusk') c = adjust(c, { dh: 12, ds: 1.15 });
       else if (fam === 'ink') c = mix(c, hexToRgb('#3a3d8a'), 0.06);
+      return c;
+    }
+    case 4: {
+      // Swarmlight (Act V): warm gold sunlight, deep gardened greens, violet-gold nights glittering with the swarm
+      if (fam === 'sky') c = mix(adjust(c, { dh: -6, ds: 1.08, dl: 0.01 }), hexToRgb('#f0d48a'), 0.1);
+      else if (fam === 'grn') c = adjust(c, { ds: 1.24, dl: 0.012, dh: 8 });
+      else if (fam === 'yel' || fam === 'org') c = adjust(c, { ds: 1.12, dl: 0.025, dh: -2 });
+      else if (fam === 'sea') c = adjust(c, { dh: -6, ds: 1.14, dl: 0.01 });
+      else if (fam === 'cyn') c = adjust(c, { ds: 1.12, dl: 0.02 });
+      else if (fam === 'night') c = mix(adjust(c, { dh: 18, ds: 1.1 }), hexToRgb('#4b3a6a'), 0.12);
+      else if (fam === 'dusk') c = mix(adjust(c, { dh: -8, ds: 1.1 }), hexToRgb('#e09a5a'), 0.1);
+      else if (fam === 'ink') c = mix(c, hexToRgb('#4a3f5c'), 0.05);
       return c;
     }
   }

@@ -158,6 +158,29 @@ const ICONS = {
   province: [g('.a.a.a...', 'a.bbb.a..', '.bbcbbb.a', 'abbbbcbb.', '.bbcbbbba', 'abbbbdbb.', '.bbbbbbba', '..bbcbb..', '...a.a.a.'), { a: 'ink9', b: 'grn5', c: 'grn4', d: 'yel0' }],
   // orbit: the Earth inside a tilted ring, a satellite riding it
   orbit: [g('......ded', '..aaaaa..', '.abbccba.', 'fabcbbcaf', 'fabbbbbaf', '.fffffff.', '..abbba..', '...aaa...', '.........'), { a: 'sea2', b: 'sea5', c: 'grn5', d: 'blu5', e: 'white', f: 'ink7' }],
+  // ── Act V ──
+  // the swarm: the Sun ringed by glinting collectors
+  swarm: [g('.a..b..a.', '....b....', 'a..ccc..a', '..cdddc..', 'bbcdedcbb', '..cdddc..', 'a..ccc..a', '....b....', '.a..b..a.'), { a: 'cyn5', b: 'org0', c: 'org1', d: 'yel0', e: 'white' }],
+  // a foundry: a block of machinery with an arm, its copy taking shape beside it
+  foundry: [g('.........', '.aaa.....', '.aba.ccc.', '.aaa.cdc.', '..e..ccc.', '..eeee...', '.fffffff.', '.fgfgfgf.', '.fffffff.'), { a: 'ink6', b: 'cyn5', c: 'ink4', d: 'cyn3', e: 'org1', f: 'ink5', g: 'yel0' }],
+  // an asteroid: a lumpy rock with craters, lit from one side
+  asteroid: [g('.........', '...aaa...', '..abbba..', '.abcbbda.', '.abbbbda.', '.abbcbda.', '..abdda..', '...aaa...', '.........'), { a: 'rck1', b: 'rck4', c: 'rck2', d: 'rck3' }],
+  // a compute ring: a band of glowing racks with radiator fins
+  ring: [g('..aaaaa..', '.ab...ba.', 'ab.c.c.ba', 'a..ddd..a', 'a.cdedc.a', 'a..ddd..a', 'ab.c.c.ba', '.ab...ba.', '..aaaaa..'), { a: 'ink7', b: 'cyn5', c: 'ink5', d: 'vio3', e: 'cyn6' }],
+  // a habitat: a cylinder seen end-on, green land curving round inside
+  habitat: [g('..aaaaa..', '.abbbbba.', 'abcccccba', 'abc...cba', 'abc.d.cba', 'abc...cba', 'abcccccba', '.abbbbba.', '..aaaaa..'), { a: 'ink6', b: 'ink8', c: 'grn5', d: 'sky4' }],
+  // longevity: a heart with a sprouting leaf
+  longevity: [g('....bb...', '...bcb...', '.aa.b.aa.', 'adeaaadea', 'aeeeeeeea', '.aeeeeea.', '..aeeea..', '...aea...', '....a....'), { a: 'red1', b: 'grn3', c: 'grn6', d: 'pnk1', e: 'red3' }],
+  // Mercury: a small cratered grey planet close to a blazing limb
+  mercury: [g('aa.......', 'ba..ccc..', 'aa.cdddc.', 'b.cdedddc', 'a.cddddec', 'b.cdeddcc', 'aa.cdddc.', 'ba..ccc..', 'aa.......'), { a: 'yel1', b: 'org1', c: 'ink4', d: 'ink6', e: 'ink5' }],
+  // a solar storm: a flare looping off the Sun's limb
+  storm: [g('aa.......', 'aab..cc..', 'aab.c..c.', 'aabc....c', 'aab.....c', 'aab....c.', 'aabd..c..', 'aab.dd...', 'aa.......'), { a: 'yel1', b: 'org1', c: 'red3', d: 'org0' }],
+  // the Thermal Line: the Earth under a heat bar with its limit marked
+  thermal: [g('aaaaaaaaa', 'bbbbbbcd.', 'aaaaaaaaa', '.........', '..eeeee..', '.effgffe.', '.efggffe.', '.effffge.', '..eeeee..'), { a: 'ink6', b: 'org1', c: 'red3', d: 'white', e: 'sea2', f: 'sea5', g: 'grn5' }],
+  // a garden province: a tree and grass under the sun
+  garden: [g('......a..', '..bbb....', '.bcbcb...', 'bcbbbcb..', '.bbcbb...', '...d.....', '...d.....', 'eefeeefee', 'eeeeeeeee'), { a: 'yel0', b: 'grn5', c: 'grn6', d: 'snd2', e: 'grn3', f: 'grn6' }],
+  // minds: a constellation of linked points
+  minds: [g('a.......a', '.b.....b.', '..b...b..', '...cac...', '..b.e.b..', '...cac...', '..b...b..', '.b.....b.', 'a.......a'), { a: 'cyn6', b: 'vio3', c: 'cyn4', e: 'white' }],
 } satisfies Record<string, Grid>;
 
 export type IconName = keyof typeof ICONS;

@@ -616,7 +616,7 @@ export class Game {
   private updateEra(): void {
     // the era follows K, or the act, whichever is later (Act II barely moves K but should look like the Grid Rush)
     const act = this.view?.act ?? 1;
-    const byAct = (act >= 4 ? 3 : act >= 3 ? 2 : act >= 2 ? 1 : 0) as Era;
+    const byAct = (act >= 5 ? 4 : act >= 4 ? 3 : act >= 3 ? 2 : act >= 2 ? 1 : 0) as Era;
     const target: Era = this.eraOverride ?? (Math.max(byAct, this.eraForK(this.view?.stats.K ?? kardashev(19.6e12))) as Era);
     if (target !== getEra()) {
       setEra(target);

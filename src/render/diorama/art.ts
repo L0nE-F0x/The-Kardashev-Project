@@ -1008,6 +1008,10 @@ export const BIOMES: Record<Backdrop, Biome> = {
   savanna: { far: [C.snd4, C.rck4], mid: [C.snd5, C.grn5], ground: [C.snd5, C.grn5, C.snd6], farShape: 'flat', deco: 'acacia' },
   // the Moon (Act IV) has its own bands in moon.ts; this keeps the generic ones sensible
   lunar: { far: [C.ink5, C.ink7], mid: [C.ink6, C.ink7], ground: [C.ink7, C.ink6, C.ink8], farShape: 'hills', deco: 'rock' },
+  // Act V places in space draw their own scenes; these keep the generic bands sensible
+  space: { far: [C.night1, C.night2], mid: [C.ink3, C.ink4], ground: [C.ink3, C.ink4, C.ink5], farShape: 'flat', deco: 'rock' },
+  asteroid: { far: [C.rck1, C.rck2], mid: [C.rck2, C.rck3], ground: [C.rck2, C.rck3, C.rck4], farShape: 'hills', deco: 'rock' },
+  habitat: { far: [C.grn3, C.sky4], mid: [C.grn4, C.grn5], ground: [C.grn4, C.grn5, C.snd6], farShape: 'hills', deco: 'tree' },
 };
 
 /** Far ridge silhouette (with aerial-perspective dither toward the sky). */

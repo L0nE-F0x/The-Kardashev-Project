@@ -60,6 +60,7 @@ import { capInForce, COMPUTE_CAP, ownRunStatus, worldFrontier, worldMargin } fro
 import { DESKS, bitTrusted } from '../../sim/desk';
 import { FRONT3_NAMES, frontRise, THRESHOLD_FRONTS } from '../../sim/threshold';
 import { megaView } from '../../sim/charterView';
+import { seedPlaces as seedOptions } from '../../sim/foundries';
 import { nextModelPlan } from '../../sim/ai';
 import { ADVISORS } from '../../content/advisors';
 import type { IconName } from '../icons';
@@ -260,6 +261,8 @@ export function whereOptions(s: GameState, kind: ContractKind): { id: string; na
       return [{ id: 'global', name: 'Worldwide' }];
     case 'sgroute':
       return SUPERGRID_ROUTES.map((r) => ({ id: r.id, name: r.name, note: `${REGIONS[r.from].short}–${REGIONS[r.to].short} · ${r.km.toLocaleString()} km${r.subsea ? ' · subsea' : ''}` }));
+    case 'space':
+      return seedOptions(s);
     case 'design':
       return DESIGN_IDS.map((d) => ({ id: d, name: FUSION_DESIGNS[d].name, note: PARTNERS[FUSION_DESIGNS[d].partner]?.short }));
   }

@@ -407,7 +407,9 @@ export type ContractKind =
   // Act IV
   | 'link' | 'fpilot' | 'ffleet' | 'dac' | 'desal'
   | 'spaceport' | 'odc' | 'sps' | 'cleanup'
-  | 'moonbase' | 'moonmine' | 'massdriver';
+  | 'moonbase' | 'moonmine' | 'massdriver'
+  // Act V
+  | 'seed' | 'survey' | 'sentinel' | 'beam' | 'rewild' | 'clinic' | 'habitat' | 'harden' | 'mercury';
 
 /** S / M / L. */
 export type ContractSize = 1 | 2 | 3;
@@ -733,6 +735,181 @@ export interface PlanetState {
   heatwall: HeatWallState | null;
 }
 
+// ── Act V: Type I ───────────────────────────────────────────────────────────────────────────
+/** Asteroid composition: C (carbon, water), S (stone, silicon), M (metal). */
+export type AsteroidType = 'C' | 'S' | 'M';
+/** Solar Maximum's three fronts. */
+export type MaxFront = 'storm' | 'thermal' | 'minds';
+/** What an era plan puts first. */
+export type EraPriority = 'swarm' | 'foundries' | 'asteroids' | 'minds' | 'people' | 'earth' | 'safety' | 'longevity';
+export type SkyOwnership = 'commons' | 'concessions' | 'claims';
+export type EarthFate = 'garden' | 'provinces' | 'workshop';
+export type LongevityPlan = 'everyone' | 'need' | 'market';
+export type MindsSeat = 'advisory' | 'full' | 'none';
+export type SettlementPlan = 'settle' | 'stations' | 'private';
+export type BitFate = 'costeward' | 'free' | 'leash';
+/** What became of an advisor in Act V: renewed by the treatments and staying, or retired with a successor. */
+export type CastFate = 'renewed' | 'retired';
+/** The Mercury question at the end: plan the full swarm (Type II), or rest at Type I. */
+export type NextStep = 'swarm' | 'rest';
+
+/** A self-replicating foundry: a seed that grows on its own. */
+export interface Foundry {
+  id: string;
+  /** System site: 'moon', 'l4', 'l5' or an asteroid id. */
+  site: string;
+  /** Output capacity, megatonnes of product a year. */
+  cap: number;
+  founded: number;
+  /** Who owns what it makes: 'charter', a partner id or a bloc (claims). */
+  owner: string;
+  /** A strain drifting off-spec here (0 none … 100 out of hand). */
+  drift: number;
+  /** Halted (sterilising, verifying) until this day. */
+  haltedUntil: number;
+}
+
+export interface AsteroidState {
+  /** 0 unknown · 1 surveyed · 2 claimed · 3 a foundry works it. */
+  status: 0 | 1 | 2 | 3;
+  /** 'charter', a partner id or a bloc id once claimed. */
+  owner: string | null;
+}
+
+export interface EraPlan {
+  /** Years the jump covers (5, 7 or 10). */
+  years: number;
+  /** Up to three priorities. */
+  priorities: EraPriority[];
+  /** The growth dial (1 safe … 5 fast). */
+  dial: number;
+  /** Share of foundry output reinvested in more foundries (0.2 … 0.7). */
+  reinvest: number;
+  /** Share of the swarm's power for minds (compute rings); the rest for people (habitats, industry, beams). */
+  minds: number;
+  /** Treasury kept in reserve during the jump (share of a year of dues). */
+  reserve: number;
+  /** Let Bit run the era (needs trust). */
+  bitRuns: boolean;
+}
+
+export interface SystemSnap {
+  day: number;
+  K: number;
+  /** All power civilisation uses, TW. */
+  tw: number;
+  /** Used on Earth's surface (incl. beams), TW. */
+  earthTW: number;
+  /** Collected and used in space, TW. */
+  spaceTW: number;
+  /** Foundry output, Mt a year. */
+  foundryMt: number;
+  segments: number;
+  lifeExp: number;
+  warming: number;
+  wellbeing: number;
+  spacePop: number;
+  budget: number;
+  legitimacy: number;
+}
+
+export interface EraRecord {
+  from: number;
+  to: number;
+  stage: number;
+  plan: EraPlan;
+  before: SystemSnap;
+  after: SystemSnap;
+  built: string[];
+  highlights: string[];
+  auto: string[];
+  diary: string[];
+  /** The last climb (the jump that stops at K 1.0000). */
+  last?: boolean;
+}
+
+export interface SolarMaxState {
+  startDay: number;
+  endDay: number;
+  fronts: Record<MaxFront, { pressure: number; lost: boolean }>;
+  /** The AI that reaches for authority over the foundries. */
+  ai: AiId | 'chorus';
+  /** The foundry where the strain breaks loose. */
+  foundry: string | null;
+  done: boolean;
+  held?: number;
+}
+
+export interface SystemState {
+  /** 0 The Thermal Line · 1 The Foundries · 2 The Swarm · 3 The Last Climb · 4 Solar Maximum · 5 Type I. */
+  stage: number;
+  begun: number;
+  stageDay: number;
+  // ── the big decisions (null until taken) ──
+  /** W/m² over the whole Earth the surface may shed as waste heat. */
+  thermalLine: number | null;
+  ownership: SkyOwnership | null;
+  earth: EarthFate | null;
+  longevity: LongevityPlan | null;
+  seat: MindsSeat | null;
+  settlement: SettlementPlan | null;
+  bitFate: BitFate | null;
+  next: NextStep | null;
+  // ── the levers in force (era plans set them; the System panel can change them between eras) ──
+  dial: number;
+  reinvest: number;
+  minds: number;
+  // ── space ──
+  foundries: Foundry[];
+  asteroids: Record<string, AsteroidState>;
+  /** Swarm collectors, TW of electric capacity. */
+  collectors: number;
+  /** Compute rings (minds), TW they can use. */
+  rings: number;
+  /** Habitats and space industry for people, TW they can use. */
+  habitat: number;
+  /** Beam capacity to Earth's rectennas, TW. */
+  beams: number;
+  /** Share of the collectors knocked out (storms), recovering. */
+  damage: number;
+  /** People living in space, millions. */
+  spacePop: number;
+  /** Storm hardening (0..1): how much of a storm's hit the swarm shrugs off. */
+  hardening: number;
+  /** Drift sentinels (0..1): verification that catches strains early. */
+  sentinels: number;
+  /** Mercury: 0 nothing · 1 the probe is on its way · 2 surveyed. */
+  mercury: number;
+  // ── Earth and people ──
+  /** Garden (+100) ↔ forge (−100) per province. */
+  garden: Record<RegionId, number>;
+  /** Extra warming from waste heat (°C), lagging the heat itself. */
+  heatWarming: number;
+  /** Healthy life expectancy, world average (years). */
+  lifeExp: number;
+  /** Years of life expectancy gained per year (≥ 1 = escape velocity). */
+  lifeRate: number;
+  /** Day longevity escape velocity was reached. */
+  escape: number | null;
+  /** Treatment coverage per province (0..100). */
+  treated: Record<RegionId, number>;
+  // ── minds ──
+  /** The orbital minds' mood (0..100). */
+  mindsMood: number;
+  /** Steps of Bit's last arc done. */
+  bitArc: number;
+  /** What became of the original cast. */
+  cast: Partial<Record<AdvisorId, { fate: CastFate; day: number }>>;
+  // ── plans and jumps ──
+  plan: EraPlan | null;
+  planOpen: boolean;
+  jump: { from: number; to: number; plan: EraPlan; before: SystemSnap; stage: number; auto: string[]; log: string[]; last?: boolean } | null;
+  eras: EraRecord[];
+  solarmax: SolarMaxState | null;
+  /** The day K first reached 1.0000 (the score), or null. */
+  typeI: number | null;
+}
+
 export interface ScheduledEvent {
   id: string;
   day: number;
@@ -798,6 +975,8 @@ export interface GameMeta {
   act3Start?: boolean;
   /** Started from the "Start at Act IV" preset. */
   act4Start?: boolean;
+  /** Started from the "Start at Act V" preset. */
+  act5Start?: boolean;
 }
 
 export interface GameState {
@@ -840,7 +1019,7 @@ export interface GameState {
   nextId: number;
   savedAt?: number;
   // ── Act II ─────────────────────────────────────────────────────────────────────────────
-  /** 1 = The Garage, 2 = The Scale-Up, 3 = The Charter, 4 = Planetary. */
+  /** 1 = The Garage, 2 = The Scale-Up, 3 = The Charter, 4 = Planetary, 5 = Type I. */
   act: number;
   /** Act II phase: 1 Gigawatts · 2 The Stack · 3 The Race · 4 The Crunch · 5 done. */
   phase: number;
@@ -861,4 +1040,7 @@ export interface GameState {
   // ── Act IV ─────────────────────────────────────────────────────────────────────────────
   /** The planet as one system (null until Act IV begins). */
   planet: PlanetState | null;
+  // ── Act V ──────────────────────────────────────────────────────────────────────────────
+  /** Earth, the Moon, the foundries and the swarm as one system (null until Act V begins). */
+  system: SystemState | null;
 }

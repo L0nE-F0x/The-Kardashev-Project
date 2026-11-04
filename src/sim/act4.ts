@@ -27,7 +27,7 @@ export function beginAct4(s: GameState): void {
   s.planet = createPlanet(s);
   // partners new in Act IV (fusion designs, air capture) join the Charter's books
   const c = s.charter;
-  if (c) for (const [id, def] of Object.entries(PARTNERS)) c.partners[id] ??= { rel: def.rel0, won: 0, done: 0, snubs: 0 };
+  if (c) for (const [id, def] of Object.entries(PARTNERS)) if ((def.act ?? 3) <= 4) c.partners[id] ??= { rel: def.rel0, won: 0, done: 0, snubs: 0 };
   queueEvent(s, 'act4-begin');
   scheduleEvent(s, 'company-choice', 8);
   if (s.planet.powers === 'caretaker') scheduleEvent(s, 'second-mandate', 40);

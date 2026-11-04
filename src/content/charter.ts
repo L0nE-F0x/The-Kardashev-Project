@@ -225,6 +225,28 @@ export const PARTNERS: Record<string, PartnerDef> = {
     ceo: { name: 'Sigrid Aalto', vibe: 'Geologist who fell in love with a fan. Measures success in megatonnes buried.' },
     pitches: ['Air in, stone out.', 'Every tonne verified, every tonne buried.', 'The atmosphere is a mine now.'],
   }),
+  // ── Act V ──
+  lodestar: p({
+    id: 'lodestar', name: 'Lodestar Prospecting', short: 'Lodestar', sector: 'Asteroid mining', home: 'lat', color: 'rck5', rel0: 50, act: 5,
+    traits: { rel: 3, speed: 4, cost: 3, ambition: 5, ethics: 3 },
+    quirk: 'Started with one second-hand probe and a hunch about Bennu. Stakes claims first and files the paperwork on the way back.',
+    ceo: { name: 'Marisol “Dusty” Vega', vibe: 'Asteroid prospector from Atacama mining stock. Has a rock from every body she’s claimed on a shelf over her bunk.' },
+    pitches: ['I’ve already got a probe heading that way.', 'Rock is rock. I know rock.', 'Claim it before someone else does.'],
+  }),
+  vonn: p({
+    id: 'vonn', name: 'Vonn Foundries', short: 'Vonn', sector: 'Self-replicating factories', home: 'eur', color: 'cyn4', rel0: 50, act: 5,
+    traits: { rel: 4, speed: 4, cost: 3, ambition: 4, ethics: 4 },
+    quirk: 'Builds the machines that build the machines. Every seed ships with a kill switch and a copy of the licence.',
+    ceo: { name: 'Dr. Yusuf Kaya', vibe: 'Systems engineer, cautious by temperament and exponential by trade. Draws doubling curves on napkins.' },
+    pitches: ['One seed, one year, two seeds.', 'Verified, signed and switchable.', 'Exponentials are patient. So are we.'],
+  }),
+  evergreen: p({
+    id: 'evergreen', name: 'Evergreen Health', short: 'Evergreen', sector: 'Longevity medicine', home: 'fab', color: 'grn6', rel0: 50, act: 5,
+    traits: { rel: 4, speed: 3, cost: 2, ambition: 4, ethics: 4 },
+    quirk: 'The clinic network that turned AI-designed therapies into a yearly check-up. Wants everyone treated; also wants to be paid.',
+    ceo: { name: 'Dr. Mateus Silva', vibe: 'Geriatrician turned founder. Has been “about forty” for a suspiciously long time.' },
+    pitches: ['Healthy years, delivered.', 'Every province, every clinic.', 'Ageing is a disease. We treat diseases.'],
+  }),
 };
 
 /** Your own company as a bidder. */
@@ -240,8 +262,8 @@ export const DELEGATES: Record<FactionId, { name: string; title: string; vibe: s
 
 // ════════════════════════════════════════ CONTRACTS ════════════════════════════════════════
 export type ContractCat = 'energy' | 'grid' | 'chips' | 'access' | 'safety' | 'space' | 'fusion' | 'planet';
-/** Act IV adds 'sgroute' (a supergrid route) and 'design' (a fusion design id). */
-export type ContractWhere = 'mega' | 'region' | 'route' | 'launch' | 'global' | 'sgroute' | 'design';
+/** Act IV adds 'sgroute' (a supergrid route) and 'design' (a fusion design id); Act V 'space' (a seed place or a claimed asteroid). */
+export type ContractWhere = 'mega' | 'region' | 'route' | 'launch' | 'global' | 'sgroute' | 'design' | 'space';
 
 export interface ContractKindDef {
   kind: ContractKind;
@@ -265,6 +287,8 @@ export interface ContractKindDef {
   cphase: number;
   /** Act IV: the planet stage it opens in (Act IV kinds only exist once the act begins). */
   stage?: number;
+  /** Act V: the system stage it opens in (Act V kinds only exist once the act begins). */
+  vstage?: number;
   /** Partner ids that bid ('you' = your company, when it can). Fusion pilots and fleets add the design's builder. */
   bidders: string[];
   effect: string;
@@ -461,11 +485,67 @@ export const CONTRACT_KINDS: Record<ContractKind, ContractKindDef> = {
     sizes: [1, 1, 1], unit: '', value: 120e9, yearly: 0.97, share: 0.6, days: [1200, 1200, 1200],
     bidders: ['karman', 'halcyon', 'parabola'], effect: 'Lunar metals by the megatonne: orbital construction −25%, much more helium-3.',
   }),
+  // ── Act V: the swarm, the foundries and the people ──
+  seed: k({
+    kind: 'seed', name: 'Seed foundry', icon: 'foundry', cat: 'space', where: 'space', cphase: 1, vstage: 0, fixed: true,
+    blurb: 'A factory that builds factories: a few hundred tonnes of machinery that copies itself out of the rock around it.',
+    sizes: [1, 1, 1], unit: '', value: 140e9, yearly: 1.0, share: 0.6, days: [420, 420, 420],
+    bidders: ['vonn', 'parabola', 'karman', 'you'], effect: 'A new foundry that doubles on its own: collectors, compute rings and habitats from the rock.',
+  }),
+  survey: k({
+    kind: 'survey', name: 'Asteroid survey', icon: 'asteroid', cat: 'space', where: 'global', cphase: 1, vstage: 0, fixed: true,
+    blurb: 'A fleet of small probes to map, sample and weigh the rocks within reach.',
+    sizes: [1, 1, 1], unit: '', value: 30e9, yearly: 1.0, share: 0.8, days: [300, 300, 300],
+    bidders: ['lodestar', 'karman'], effect: 'Reveals the next asteroids (near-Earth first; the main belt from stage 2).',
+  }),
+  sentinel: k({
+    kind: 'sentinel', name: 'Drift sentinels', icon: 'evals', cat: 'safety', where: 'global', cphase: 1, vstage: 0,
+    blurb: 'Watchdog machines and audits that check every foundry’s copies against the signed design.',
+    sizes: [1, 2, 3], unit: 'scale', value: 40e9, yearly: 1.0, share: 0.8, days: [360, 450, 540],
+    bidders: ['vonn', 'lattice', 'karman'], effect: 'Strains that drift off-spec are caught early: drift risk falls at every dial.',
+  }),
+  beam: k({
+    kind: 'beam', name: 'Beam station & rectenna', icon: 'satellite', cat: 'planet', where: 'region', cphase: 1, vstage: 1,
+    blurb: 'A microwave link from the swarm to a rectenna field in the province: power from space, under the Thermal Line.',
+    sizes: [20, 60, 150], unit: 'TW', value: 3e9, yearly: 1.0, share: 0.4, days: [500, 650, 800],
+    bidders: ['halcyon', 'parabola', 'karman', 'spanwire'], effect: 'Swarm power delivered to the province (counts against the Thermal Line); cheaper power, wellbeing up.',
+  }),
+  rewild: k({
+    kind: 'rewild', name: 'Rewilding programme', icon: 'garden', cat: 'planet', where: 'region', cphase: 1, vstage: 1,
+    blurb: 'Decommission old plants and mines, restore rivers, forests and grasslands, and move the heavy industry up.',
+    sizes: [1, 2, 3], unit: 'programmes', value: 50e9, yearly: 1.0, share: 0.6, days: [600, 750, 900],
+    bidders: ['carbonfold', 'brightwater', 'tidewater'], effect: 'The province turns toward a garden: wellbeing up, less surface heat, slower local industry.',
+  }),
+  clinic: k({
+    kind: 'clinic', name: 'Longevity clinics', icon: 'longevity', cat: 'planet', where: 'region', cphase: 1, vstage: 1,
+    blurb: 'A network of clinics bringing the yearly treatments to every town in the province.',
+    sizes: [1, 2, 3], unit: 'programmes', value: 60e9, yearly: 1.0, share: 0.5, days: [450, 550, 650],
+    bidders: ['evergreen', 'halcyon'], effect: 'Treatments reach more people in the province: wellbeing up, healthy years up.',
+  }),
+  habitat: k({
+    kind: 'habitat', name: 'L5 habitat', icon: 'habitat', cat: 'space', where: 'global', cphase: 1, vstage: 2,
+    blurb: 'Rotating cylinders kilometres long, with land, water and weather inside: towns in space.',
+    sizes: [1, 2, 4], unit: 'cylinders', value: 120e9, yearly: 1.0, share: 0.5, days: [900, 1100, 1300],
+    bidders: ['halcyon', 'karman', 'vonn', 'parabola'], effect: 'Homes in space: the swarm’s people share grows, wellbeing and Legitimacy up.',
+  }),
+  harden: k({
+    kind: 'harden', name: 'Storm hardening', icon: 'storm', cat: 'space', where: 'global', cphase: 1, vstage: 2,
+    blurb: 'Shielding, spare collectors and fast-safe modes, so a solar storm dims the swarm instead of breaking it.',
+    sizes: [1, 2, 3], unit: 'scale', value: 80e9, yearly: 1.0, share: 0.7, days: [400, 500, 600],
+    bidders: ['karman', 'vonn', 'parabola'], effect: 'The swarm shrugs off more of a storm (hardening ↑).',
+  }),
+  mercury: k({
+    kind: 'mercury', name: 'Mercury survey', icon: 'mercury', cat: 'space', where: 'global', cphase: 1, vstage: 3, fixed: true,
+    blurb: 'Orbiters and landers to map the metals of the innermost planet: the quarry for a full swarm, one day.',
+    sizes: [1, 1, 1], unit: '', value: 160e9, yearly: 1.0, share: 0.7, days: [800, 800, 800],
+    bidders: ['karman', 'lodestar', 'parabola'], effect: 'Mercury is surveyed: the way to Type II is on the map.',
+  }),
 };
 
 export const CONTRACT_ORDER: ContractKind[] = ['solar', 'wind', 'nuclear', 'hydro', 'geo', 'hvdc', 'fab', 'hbm', 'pkg', 'euv', 'compute', 'cable', 'evals', 'interp', 'launch', 'orbital', 'spacesolar', 'fusion'];
 /** Act IV's kinds (posted from the Planet panel; awarded like any other contract). */
 export const ACT4_KINDS: ContractKind[] = ['link', 'fpilot', 'ffleet', 'dac', 'desal', 'spaceport', 'odc', 'sps', 'cleanup', 'moonbase', 'moonmine', 'massdriver'];
+export const ACT5_KINDS: ContractKind[] = ['seed', 'survey', 'sentinel', 'beam', 'rewild', 'clinic', 'habitat', 'harden', 'mercury'];
 /** Kinds whose projects deliver energy (`gw`), counted in the Charter's terawatts. */
 export const ENERGY_KINDS: ContractKind[] = ['solar', 'wind', 'nuclear', 'hydro', 'geo', 'ffleet', 'sps'];
 export const FIRM_KINDS: ContractKind[] = ['nuclear', 'hydro', 'geo'];

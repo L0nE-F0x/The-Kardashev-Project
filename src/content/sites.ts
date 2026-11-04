@@ -1,7 +1,10 @@
 import type { RegionId } from './mapcodes';
 import type { ContractKind, SupplierId } from '../sim/types';
+import { ASTEROIDS } from './system';
 
-export type Backdrop = 'desert' | 'coast' | 'temperate' | 'boreal' | 'plains' | 'tropical' | 'mountain' | 'volcanic' | 'savanna' | 'lunar';
+export type Backdrop = 'desert' | 'coast' | 'temperate' | 'boreal' | 'plains' | 'tropical' | 'mountain' | 'volcanic' | 'savanna' | 'lunar'
+  // ── Act V: places in space ──
+  | 'space' | 'asteroid' | 'habitat';
 
 export interface SiteDef {
   id: string;
@@ -10,7 +13,9 @@ export interface SiteDef {
   lat: number;
   lon: number;
   /** Act III adds the Charter HQ, megaproject sites and launch-complex candidates (all view-only); Act IV the Moon. */
-  kind: 'build' | 'supplier' | 'cloud' | 'landing' | 'mine' | 'charter' | 'mega' | 'launch' | 'moon';
+  kind: 'build' | 'supplier' | 'cloud' | 'landing' | 'mine' | 'charter' | 'mega' | 'launch' | 'moon'
+    // ── Act V (diorama only, not on the world map): the L4/L5 yards, Ring One, the Aurora habitat, the asteroids ──
+    | 'yards' | 'ring' | 'habitat' | 'asteroid';
   blurb: string;
   backdrop: Backdrop;
   /** Seaport used for deliveries, [lat, lon] (must sit on the world ocean). */
@@ -206,7 +211,23 @@ export const MOON_SITE: SiteDef = {
   solarCF: 0.8, windCF: 0, water: 0, climateC: -150, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
 };
 
-export const SITE_BY_ID: Record<string, SiteDef> = Object.fromEntries([...SITES, MOON_SITE].map((s) => [s.id, s]));
+/**
+ * Act V: places in space with dioramas of their own (the L4 and L5 yards, Ring One, the Aurora habitat
+ * and one per asteroid). Like the Moon they are not in SITES; the solar-system view opens them.
+ */
+const space = (id: string, name: string, kind: SiteDef['kind'], backdrop: Backdrop, blurb: string): SiteDef => ({
+  id, name, region: 'eur', lat: 0, lon: 0, port: [5.6, -52.3], kind, act: 5, backdrop, blurb,
+  solarCF: 1, windCF: 0, water: 0, climateC: -270, talent: 1, gridHeadroom: 0, priceMult: 1, slots: 0,
+});
+export const SPACE_SITES: SiteDef[] = [
+  space('l4', 'L4 Yards', 'yards', 'space', 'Earth–Moon L4, sixty degrees ahead of the Moon: foundries turning hauled rock into collectors.'),
+  space('l5', 'L5 Yards', 'yards', 'space', 'Earth–Moon L5, sixty degrees behind the Moon: the yards that build the habitats.'),
+  space('ring', 'Ring One', 'ring', 'space', 'Compute in sunlight that never sets, cooled by radiators the size of countries.'),
+  space('aurora', 'Aurora', 'habitat', 'habitat', 'The first habitat at L5: a rotating cylinder with farms, a river and weather.'),
+  ...ASTEROIDS.map((a) => space(a.id, a.name, 'asteroid', 'asteroid', a.blurb)),
+];
+
+export const SITE_BY_ID: Record<string, SiteDef> = Object.fromEntries([...SITES, MOON_SITE, ...SPACE_SITES].map((s) => [s.id, s]));
 export const BUILD_SITES = SITES.filter((s) => s.kind === 'build');
 export const LANDING_SITES = SITES.filter((s) => s.kind === 'landing');
 export const MINE_SITES = SITES.filter((s) => s.kind === 'mine');
