@@ -275,12 +275,30 @@ export function megaSurveyCanvas(hover = false): PixelCanvas {
   );
 }
 
+/** Act IV: a fusion fleet's halls, each with a window of pink plasma light, more per stage. */
+const HALL = `
+  .aaa.
+  abbba
+  acdca
+  acdca
+`;
+function fusionIcon(stage: number): PixelCanvas {
+  const spots: [number, number][][] = [[], [[0, 0]], [[0, 1], [5, 0]], [[0, 1], [5, 0], [10, 1]]];
+  const pts = spots[stage];
+  const w = Math.max(...pts.map(([x]) => x + 5));
+  const h = Math.max(...pts.map(([, y]) => y + 4));
+  const pc = new PixelCanvas(w, h);
+  for (const [x, y] of pts) stamp(pc, HALL, x, y, { a: 'ink8', b: 'ink9', c: 'ink6', d: 'pnk1' });
+  return pc;
+}
+
 const MEGA_DRAW: Partial<Record<ContractKind, (stage: number) => PixelCanvas>> = {
   solar: solarIcon,
   wind: windIcon,
   nuclear: nuclearIcon,
   hydro: hydroIcon,
   geo: geoIcon,
+  ffleet: fusionIcon,
 };
 
 /**

@@ -82,6 +82,26 @@ import {
   satelliteTexture,
   spaceSolarTexture,
 } from '../sprites/charterIcons';
+import {
+  act4Lights,
+  act4On,
+  aiBanners,
+  bannerSpot,
+  glyphRow4,
+  paintProvinces,
+  paintSupergrid,
+  planetView,
+  provinceKey,
+  rectennaKey,
+  rectennaPatch,
+  sgDownPixels,
+  sgDraws,
+  sgFlow,
+  sgKey,
+  siteGlyphs4,
+  siteGlyphs4Key,
+} from './act4Layers';
+import { aiBannerTexture, dacTexture, fusionTexture, sgPulseTexture, terminalTexture } from '../sprites/act4Icons';
 
 /** The map tools this scene draws previews for ('fiber' arrives with Act II). */
 type AnyTool = { kind: string; from: string | null } | null;
@@ -220,6 +240,28 @@ export class MapScene implements Scene {
   private megaLod = -1;
   private charterSeen: unknown = null;
   private charterLod = -1;
+  // ── Act IV ──
+  /** Province greening + heat haze (two shimmer phases), supergrid faults, aurora pulses. */
+  private readonly planetGroundL = new Container();
+  private readonly sgDownG = new Graphics();
+  private readonly sgPulseL = new Container();
+  private province: { lod: number; key: string; pcs: [PixelCanvas, PixelCanvas]; texs: [Texture, Texture]; wrap: WrapSprite; built: number } | null = null;
+  private rectennaSprites: { sprite: Sprite; tex: Texture; lat: number; lon: number; ox: number; oy: number }[] = [];
+  private rectennaSpriteKey = '';
+  private glyph4Sprites: { sprite: Sprite; site: string; i: number; kind: 'fusion' | 'dac'; building: boolean; progress: number }[] = [];
+  private glyph4Key = '';
+  private bannerSprites: { sprite: Sprite; ai: NonNullable<ReturnType<typeof aiBanners>[number]['ai']>; color: ReturnType<typeof aiBanners>[number]['color']; lat: number; lon: number }[] = [];
+  private bannerKey = '';
+  private sgSprites: { sprite: Sprite; id: string; at: 'a' | 'b' | 'head' }[] = [];
+  private sgSpriteKey = '';
+  private sgPulses: { sprite: Sprite; tail: Sprite; id: string; t: number; speed: number; dir: 1 | -1 }[] = [];
+  private sgPulseKey = '';
+  private sgDownKey = '';
+  private sgFlowAt = -1e9;
+  private planetSeen: unknown = null;
+  private planetLod = -1;
+  /** Night lights from fusion plants and rectennas, for the LOD they were worked out for. */
+  private planetLights: { lod: number; pts: LightPoint[] } = { lod: -1, pts: [] };
   // input
   private down: { x: number; y: number; camX: number; camY: number; moved: boolean } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
@@ -232,7 +274,7 @@ export class MapScene implements Scene {
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.world);
-    this.world.addChild(this.terrainL, this.megaL, this.overlayL, this.netL, this.cutG, this.netPulseL, this.hvdcPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
+    this.world.addChild(this.terrainL, this.megaL, this.planetGroundL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
     const initial = this.layer(0);
     this.terrain = new WrapSprite(this.terrainL, initial.terrain);
     this.borders = new WrapSprite(this.overlayL, initial.borders, { alpha: 0.32 });
@@ -302,6 +344,10 @@ export class MapScene implements Scene {
     this.hvdcSpriteKey = '';
     this.anchorSpriteKey = '';
     this.megaCraneKey = '';
+    this.sgSpriteKey = '';
+    this.sgPulseKey = '';
+    this.sgDownKey = '';
+    this.rectennaSpriteKey = '';
     this.bloomLod = -1;
     if (this.net) this.net.setTexture(this.netLayer().tex, W);
     this.rebuildRegionLabels();
@@ -459,6 +505,7 @@ export class MapScene implements Scene {
     this.updateRivals();
     this.updateNetwork(dt);
     this.updateCharter(dt);
+    this.updatePlanet(dt);
     this.updateLinks();
     this.updateRoutes();
     this.updateShips();
@@ -489,6 +536,8 @@ export class MapScene implements Scene {
       for (const m of this.megaSprites.values()) if (m.tex) extra.push(...m.lights);
       if (extra.length) pts = [...L.lightPts, ...extra];
     }
+    // Act IV: fusion plants and rectenna receivers glow on the night side
+    if (this.planetLights.lod === this.lodIndex && this.planetLights.pts.length) pts = [...pts, ...this.planetLights.pts];
     renderLights(L.lod, L.nightPc, pts, L.lightsPc);
     refreshTexture(L.lights);
   }
@@ -876,7 +925,10 @@ export class MapScene implements Scene {
     // Act III: HVDC links and the orbital test's ground track share the network layer
     const cv = act3On(s) ? charterView(s) : null;
     const act3Key = cv ? `${hvdcKey(cv)}|${cv.orbitalTest}` : '';
-    const key = `${known}|${cables.map((c) => `${c.id}:${c.kind}:${Math.floor(c.built * 40)}:${c.cut}`).join(',')}|${fiber.map((f) => f.id + f.status + f.a + f.b).join(',')}|${act3Key}`;
+    // Act IV: the supergrid paints over the HVDC links
+    const pv = act4On(s) ? planetView(s) : null;
+    const act4Key = pv ? sgKey(pv) : '';
+    const key = `${known}|${cables.map((c) => `${c.id}:${c.kind}:${Math.floor(c.built * 40)}:${c.cut}`).join(',')}|${fiber.map((f) => f.id + f.status + f.a + f.b).join(',')}|${act3Key}|${act4Key}`;
     const L = this.netLayer();
     // while routes are still being worked out (a frame each), paint once at the start and once at the end
     if (L.key !== key && (known === cables.length || !L.key)) {
@@ -887,6 +939,7 @@ export class MapScene implements Scene {
         if (cv.orbitalTest) paintOrbit(L.pc, this.lod);
         paintHvdc(L.pc, this.lod, hvdcDraws(cv, this.lod, (h) => this.hvdcTrackOf(h.route)));
       }
+      if (pv) paintSupergrid(L.pc, this.lod, sgDraws(pv, this.lod, (l) => this.hvdcTrackOf(l.route)));
       refreshTexture(L.tex);
     }
     this.updateCuts(cables);
@@ -1362,6 +1415,294 @@ export class MapScene implements Scene {
       } else this.rocketSprite.visible = false;
     } else if (this.rocketSprite) this.rocketSprite.visible = false;
     for (let i = used; i < this.puffSprites.length; i++) this.puffSprites[i].visible = false;
+  }
+
+  // ── Act IV: the supergrid, fusion and air capture, rectennas, provinces, AI banners ───────
+  private clearPlanet() {
+    if (this.province) {
+      this.province.wrap.sprites.forEach((sp) => sp.destroy());
+      this.province.texs.forEach((t) => releaseTexture(t));
+      this.province = null;
+    }
+    this.rectennaSprites.forEach((r) => {
+      r.sprite.destroy();
+      releaseTexture(r.tex);
+    });
+    this.rectennaSprites = [];
+    this.rectennaSpriteKey = '';
+    this.glyph4Sprites.forEach((g) => g.sprite.destroy());
+    this.glyph4Sprites = [];
+    this.glyph4Key = '';
+    this.bannerSprites.forEach((b) => b.sprite.destroy());
+    this.bannerSprites = [];
+    this.bannerKey = '';
+    this.sgSprites.forEach((e) => e.sprite.destroy());
+    this.sgSprites = [];
+    this.sgSpriteKey = '';
+    this.sgPulses.forEach((p) => {
+      p.sprite.destroy();
+      p.tail.destroy();
+    });
+    this.sgPulses = [];
+    this.sgPulseKey = '';
+    this.sgDownG.clear();
+    this.sgDownKey = '';
+    this.planetSeen = null;
+    const hadLights = this.planetLights.pts.length > 0;
+    this.planetLights = { lod: -1, pts: [] };
+    if (hadLights) this.refreshLights();
+  }
+
+  private updatePlanet(dt: number) {
+    const s = this.game.view;
+    if (!s || !act4On(s)) {
+      if (this.province || this.rectennaSprites.length || this.glyph4Sprites.length || this.bannerSprites.length || this.sgSprites.length || this.sgPulses.length || this.sgDownKey || this.planetLights.pts.length) this.clearPlanet();
+      return;
+    }
+    const v = planetView(s);
+    const fresh = v !== this.planetSeen || this.lodIndex !== this.planetLod;
+    this.planetSeen = v;
+    this.planetLod = this.lodIndex;
+    if (fresh) {
+      const pts = act4Lights(v, this.lod);
+      const old = this.planetLights;
+      const same = old.lod === this.lodIndex && old.pts.length === pts.length && old.pts.every((p, i) => p.x === pts[i].x && p.y === pts[i].y);
+      this.planetLights = { lod: this.lodIndex, pts };
+      if (!same) this.refreshLights();
+    }
+    this.updateProvinces(v);
+    this.updateRectennas(v, fresh);
+    this.updateGlyphs4(v, fresh);
+    this.updateBanners(v, fresh);
+    this.updateSgSprites(v, fresh);
+    this.updateSgPulses(v, dt, fresh);
+    this.updateSgDown(v);
+  }
+
+  /** Greening and heat haze over the provinces: two shimmer phases swapped a few times a second. */
+  private updateProvinces(v: ReturnType<typeof planetView>) {
+    const key = provinceKey(v);
+    const P = this.province;
+    const stale = !P || P.lod !== this.lodIndex || (P.key !== key && performance.now() - P.built > 2000);
+    if (stale) {
+      if (P && P.lod === this.lodIndex) {
+        // same LOD: repaint in place
+        paintProvinces(this.lod, v, 0, P.pcs[0]);
+        paintProvinces(this.lod, v, 1, P.pcs[1]);
+        P.texs.forEach((t) => refreshTexture(t));
+        P.key = key;
+        P.built = performance.now();
+      } else {
+        if (P) {
+          P.wrap.sprites.forEach((sp) => sp.destroy());
+          P.texs.forEach((t) => releaseTexture(t));
+        }
+        const pcs: [PixelCanvas, PixelCanvas] = [paintProvinces(this.lod, v, 0), paintProvinces(this.lod, v, 1)];
+        const texs: [Texture, Texture] = [textureOf(pcs[0]), textureOf(pcs[1])];
+        const wrap = new WrapSprite(this.planetGroundL, texs[0]);
+        wrap.setTexture(texs[0], this.lod.W);
+        this.province = { lod: this.lodIndex, key, pcs, texs, wrap, built: performance.now() };
+      }
+    }
+    const Q = this.province!;
+    const phase = this.game.settings.reducedMotion || !v.showHeat ? 0 : Math.floor(this.time * 2.2) % 2;
+    if (Q.wrap.sprites[0].texture !== Q.texs[phase]) Q.wrap.setTexture(Q.texs[phase], this.lod.W);
+  }
+
+  /** Rectenna fields where space-solar stations beam power down. */
+  private updateRectennas(v: ReturnType<typeof planetView>, fresh: boolean) {
+    const key = fresh ? `${this.lodIndex}|${rectennaKey(v)}` : this.rectennaSpriteKey;
+    if (key !== this.rectennaSpriteKey) {
+      this.rectennaSpriteKey = key;
+      this.rectennaSprites.forEach((r) => {
+        r.sprite.destroy();
+        releaseTexture(r.tex);
+      });
+      this.rectennaSprites = [];
+      for (const r of v.rectennas) {
+        const patch = rectennaPatch(r, this.lod);
+        const tex = textureOf(patch.pc);
+        const sprite = new Sprite(tex);
+        this.planetGroundL.addChild(sprite);
+        this.rectennaSprites.push({ sprite, tex, lat: r.lat, lon: r.lon, ox: patch.ox, oy: patch.oy });
+      }
+    }
+    for (const r of this.rectennaSprites) {
+      const p = this.proj(r.lon, r.lat);
+      r.sprite.position.set(Math.floor(this.wrapX(p.x)) + r.ox, Math.floor(p.y) + r.oy);
+    }
+  }
+
+  /** Fusion plants (by design) and air-capture banks in a row under each megaproject's marker. */
+  private updateGlyphs4(v: ReturnType<typeof planetView>, fresh: boolean) {
+    const key = fresh ? siteGlyphs4Key(v) : this.glyph4Key;
+    if (key !== this.glyph4Key) {
+      this.glyph4Key = key;
+      this.glyph4Sprites.forEach((g) => g.sprite.destroy());
+      this.glyph4Sprites = [];
+      for (const [site, list] of siteGlyphs4(v)) {
+        list.forEach((g, i) => {
+          const tex = g.kind === 'fusion' ? fusionTexture(g.design, g.building, g.progress) : dacTexture(g.building, g.progress);
+          const sprite = new Sprite(tex);
+          this.markerL.addChild(sprite);
+          this.glyph4Sprites.push({ sprite, site, i, kind: g.kind, building: g.building, progress: g.progress });
+        });
+      }
+    }
+    const spin = this.game.settings.reducedMotion ? 0 : Math.floor(this.time * 4) % 2;
+    const bySite = new Map<string, typeof this.glyph4Sprites>();
+    for (const g of this.glyph4Sprites) {
+      if (g.kind === 'dac' && !g.building) g.sprite.texture = dacTexture(false, 1, spin);
+      const list = bySite.get(g.site) ?? [];
+      list.push(g);
+      bySite.set(g.site, list);
+    }
+    for (const [site, list] of bySite) {
+      const marker = this.markers.get(site);
+      if (!marker?.sprite.visible) {
+        list.forEach((g) => (g.sprite.visible = false));
+        continue;
+      }
+      const sd = siteDef(site);
+      const p = this.proj(sd.lon, sd.lat);
+      const spots = glyphRow4(Math.floor(this.wrapX(p.x)), Math.floor(p.y), marker.sprite.texture.height, list.map((g) => ({ w: g.sprite.texture.width, h: g.sprite.texture.height })));
+      list.forEach((g, i) => {
+        g.sprite.visible = true;
+        g.sprite.position.set(spots[i].x, spots[i].y);
+      });
+    }
+  }
+
+  /** A banner in each AI's colour over the provinces it runs, fluttering. */
+  private updateBanners(v: ReturnType<typeof planetView>, fresh: boolean) {
+    const list = aiBanners(v);
+    const key = fresh ? list.map((b) => `${b.region}:${b.ai}`).join(',') : this.bannerKey;
+    if (key !== this.bannerKey) {
+      this.bannerKey = key;
+      this.bannerSprites.forEach((b) => b.sprite.destroy());
+      this.bannerSprites = [];
+      for (const b of list) {
+        const sprite = new Sprite(aiBannerTexture(b.ai, b.color, 0));
+        this.markerL.addChild(sprite);
+        this.bannerSprites.push({ sprite, ai: b.ai, color: b.color, lat: b.lat, lon: b.lon });
+      }
+    }
+    const still = this.game.settings.reducedMotion;
+    this.bannerSprites.forEach((b, i) => {
+      b.sprite.texture = aiBannerTexture(b.ai, b.color, still ? 0 : Math.floor(this.time * 2.5 + i * 0.7) % 2);
+      const p = this.proj(b.lon, b.lat);
+      const tex = b.sprite.texture;
+      const spot = bannerSpot(Math.floor(this.wrapX(p.x)), Math.floor(p.y), tex.width, tex.height);
+      b.sprite.position.set(spot.x, spot.y);
+    });
+  }
+
+  /** Terminals at both ends of every supergrid link that's begun, and the build head on the ones being laid. */
+  private updateSgSprites(v: ReturnType<typeof planetView>, fresh: boolean) {
+    const key = fresh ? `${this.lodIndex}|${sgKey(v)}` : this.sgSpriteKey;
+    if (key !== this.sgSpriteKey) {
+      this.sgSpriteKey = key;
+      this.sgSprites.forEach((e) => e.sprite.destroy());
+      this.sgSprites = [];
+      for (const l of v.links) {
+        if (l.status === 'planned') continue;
+        for (const at of ['a', 'b'] as const) {
+          const sprite = new Sprite(terminalTexture(l.status));
+          this.stationL.addChild(sprite);
+          this.sgSprites.push({ sprite, id: l.route.id, at });
+        }
+        if (l.status === 'building') {
+          const t = this.hvdcTrackOf(l.route);
+          const i = Math.floor(l.progress * (t.pts.length - 1));
+          const sprite = new Sprite(t.sea[i] ? cableShipTexture() : craneTexture(builderColor(l.builder ?? 'halcyon'), true));
+          this.stationL.addChild(sprite);
+          this.sgSprites.push({ sprite, id: l.route.id, at: 'head' });
+        }
+      }
+    }
+    for (const e of this.sgSprites) {
+      const l = v.links.find((x) => x.route.id === e.id);
+      if (!l) continue;
+      const t = this.hvdcTrackOf(l.route);
+      const pts = t.pts;
+      const tex = e.sprite.texture;
+      if (e.at === 'head') {
+        const i = Math.floor(l.progress * (pts.length - 1));
+        const p = pts[i];
+        const x = Math.floor(this.wrapX(p.x));
+        if (t.sea[i]) e.sprite.position.set(x - 3, p.y - 3);
+        else e.sprite.position.set(x - 2, p.y - tex.height + 1);
+      } else {
+        const p = e.at === 'a' ? pts[0] : pts[pts.length - 1];
+        e.sprite.position.set(Math.floor(this.wrapX(p.x)) - Math.floor(tex.width / 2), p.y - tex.height + 2);
+      }
+    }
+  }
+
+  /** Aurora pulses along online links, flowing out of the sunlit end toward the night. Hidden with reduced motion. */
+  private updateSgPulses(v: ReturnType<typeof planetView>, dt: number, fresh: boolean) {
+    this.sgPulseL.visible = !this.game.settings.reducedMotion;
+    // the sun moves slowly: re-check which way each link flows twice a minute
+    const reflow = this.time - this.sgFlowAt > 30;
+    const key = fresh || reflow ? `${this.lodIndex}|${sgKey(v)}` : this.sgPulseKey;
+    const big = this.lodIndex >= 1;
+    if (key !== this.sgPulseKey || reflow) {
+      this.sgPulseKey = key;
+      this.sgFlowAt = this.time;
+      this.sgPulses.forEach((p) => {
+        p.sprite.destroy();
+        p.tail.destroy();
+      });
+      this.sgPulses = [];
+      const now = new Date();
+      for (const l of v.links) {
+        if (l.status !== 'online') continue;
+        const len = this.hvdcTrackOf(l.route).pts.length;
+        const flow = sgFlow(l.route, now);
+        const n = Math.max(2, Math.round((len / 34) * (0.6 + flow.strength * 0.6)));
+        for (let k = 0; k < n; k++) {
+          const tail = new Sprite(big ? sgPulseTexture() : pixelTexture());
+          tail.tint = hex(C.cyn4);
+          const sprite = new Sprite(big ? sgPulseTexture() : pixelTexture());
+          sprite.tint = hex(C.cyn6);
+          this.sgPulseL.addChild(tail, sprite);
+          this.sgPulses.push({ sprite, tail, id: l.route.id, t: k / n, speed: 18 + flow.strength * 26, dir: flow.dir });
+        }
+      }
+    }
+    if (this.game.settings.reducedMotion) return;
+    for (const p of this.sgPulses) {
+      const l = v.links.find((x) => x.route.id === p.id);
+      if (!l) continue;
+      const pts = this.hvdcTrackOf(l.route).pts;
+      if (pts.length < 2) continue;
+      p.t = (p.t + (dt * p.speed) / pts.length) % 1;
+      const along = p.dir > 0 ? p.t : 1 - p.t;
+      const back = p.dir > 0 ? Math.max(0, p.t - 2.5 / pts.length) : Math.min(1, 1 - p.t + 2.5 / pts.length);
+      const q = trackAt(pts, along);
+      const r = trackAt(pts, back);
+      const shift = Math.floor(this.wrapX(q.x)) - q.x;
+      p.sprite.position.set(q.x + shift, q.y);
+      p.tail.position.set(r.x + shift, r.y);
+    }
+  }
+
+  /** Links that are down blink bright red over their dark line. */
+  private updateSgDown(v: ReturnType<typeof planetView>) {
+    const down = v.links.filter((l) => l.status === 'down');
+    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${down.map((l) => l.route.id).join(',')}`;
+    if (key !== this.sgDownKey) {
+      this.sgDownKey = key;
+      this.sgDownG.clear();
+      const W = this.lod.W;
+      const pts = sgDownPixels(sgDraws({ ...v, links: down }, this.lod, (l) => this.hvdcTrackOf(l.route)));
+      if (pts.length) {
+        const shift = this.wrapX(pts[0].x) - pts[0].x;
+        for (const off of [-W, 0, W]) for (const p of pts) this.sgDownG.rect(p.x + shift + off, p.y, 1, 1);
+        this.sgDownG.fill(hex(C.red3));
+      }
+    }
+    this.sgDownG.alpha = this.game.settings.reducedMotion || Math.floor(this.time * 2.5) % 2 === 0 ? 1 : 0;
   }
 
   private routePixels(path: [number, number][]): { x: number; y: number }[] {

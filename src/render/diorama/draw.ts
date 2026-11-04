@@ -434,11 +434,13 @@ export function coolingCells(pc: PixelCanvas, x: number, baseY: number, cells: n
 export { measureText, drawText };
 
 /** A round puff of steam/smoke/spray (radius 1..6) lit from the upper left. */
-export function puffArt(r: number, kind: 'steam' | 'smoke' | 'vapor' | 'mist' | 'exhaust'): PixelCanvas {
+export function puffArt(r: number, kind: 'steam' | 'smoke' | 'vapor' | 'mist' | 'exhaust' | 'dust'): PixelCanvas {
   const s = r * 2 + 1;
   const pc = new PixelCanvas(s, s);
   const [hi, mid, lo] =
-    kind === 'smoke'
+    kind === 'dust'
+      ? [C.ink8, C.ink7, C.ink6]
+      : kind === 'smoke'
       ? [C.ink8, C.ink7, C.ink6]
       : kind === 'vapor'
         ? [C.ice3, C.ice2, C.ice1]

@@ -29,6 +29,8 @@ import {
 } from './act3kit';
 
 const HAZE: Ramp = { hi: C.ink9, lit: C.ink9, mid: C.ink8, shade: C.ink7, dark: C.ink7 };
+/** Act IV: the glow of each fusion design, seen far off in the back band. */
+const FAR_FUSION_GLOW: Record<string, number> = { tokamak: C.pnk1, stellarator: C.vio5, laser: C.yel2, pinch: C.org2, dhe3: C.yel1 };
 
 /** Ground surface colours for a megaproject field, by backdrop. */
 export function fieldColours(b: Backdrop): { a: number; b: number; c: number; crop?: number } {
@@ -47,12 +49,14 @@ export function fieldColours(b: Backdrop): { a: number; b: number; c: number; cr
       return { a: C.snd5, b: C.grn5, c: C.snd6 };
     case 'tropical':
       return { a: C.grn4, b: C.grn3, c: C.snd5 };
+    case 'lunar':
+      return { a: C.ink7, b: C.ink6, c: C.ink8 };
     default:
       return { a: BIOMES[b].ground[0], b: BIOMES[b].ground[1], c: BIOMES[b].ground[2] };
   }
 }
 
-const groundRow = (pc: PixelCanvas, W: number, H: number, b: Backdrop) => {
+export const groundRow = (pc: PixelCanvas, W: number, H: number, b: Backdrop) => {
   const f = fieldColours(b);
   for (let y = H - 3; y < H; y++) for (let x = 0; x < W; x++) pc.set(x, y, y === H - 3 ? f.c : bayer(x, y) < 6 ? f.b : f.a);
 };
@@ -1514,6 +1518,56 @@ export function megaBack(kinds: string[], stage: number, backdrop: Backdrop, off
           }
         }
         for (let k = 3; k < 27; k++) pc.set(x + k, ft - 14, C.sea7);
+      }
+    } else if (s.kind.startsWith('ffleet')) {
+      // Act IV: fusion plants of the fleet's design, each with its glow
+      const design = s.kind.split(':')[1] ?? 'tokamak';
+      const glow = FAR_FUSION_GLOW[design] ?? C.pnk1;
+      for (let x = s.x0 + 22; x < s.x1 - 30; x += Math.round(66 / density)) {
+        const lit = (xx: number, yy: number, c = glow) => {
+          pc.set(xx, yy, c);
+          on.set(xx, yy, c);
+          off.set(xx, yy, c);
+        };
+        if (design === 'stellarator') {
+          pc.ellipse(x + 9, ft, 11, 4.5, C.ink9);
+          pc.hline(x - 1, ft - 2, 20, C.ink8);
+          for (let k = 0; k < 16; k += 2) lit(x + 1 + k, ft - 1 + Math.round(Math.sin(k / 2.5)), k % 4 ? C.vio4 : glow);
+        } else if (design === 'laser') {
+          pc.rect(x - 6, ft - 3, 14, 4, C.ink8);
+          pc.hline(x - 6, ft - 3, 14, C.ink9);
+          pc.circle(x + 12, ft - 3, 4, C.ink9);
+          pc.set(x + 14, ft - 1, C.ink8);
+          lit(x + 12, ft - 3);
+        } else if (design === 'pinch') {
+          pc.rect(x + 2, ft - 9, 5, 10, C.ink8);
+          pc.vline(x + 2, ft - 9, 10, C.ink9);
+          for (let y = ft - 7; y < ft; y += 3) lit(x + 4, y, C.org1);
+          pc.rect(x + 9, ft - 2, 12, 3, C.ink8);
+        } else if (design === 'dhe3') {
+          pc.ellipse(x + 8, ft - 1, 10, 3.2, C.white);
+          for (let k = 0; k < 14; k++) lit(x + 1 + k, ft - 1, k % 3 ? C.yel1 : C.yel2);
+        } else {
+          pc.ellipse(x + 5, ft - 1, 6, 4.5, C.ink9);
+          pc.rect(x - 1, ft - 1, 13, 2, C.ink8);
+          lit(x + 5, ft - 2);
+          lit(x + 4, ft - 2, C.pnk0);
+          pc.rect(x + 13, ft - 2, 13, 3, C.ink8);
+          pc.hline(x + 13, ft - 2, 13, C.ink9);
+        }
+        if (design !== 'dhe3') plume(pc, x + 20, ft - 3, 3, x, 0.55);
+      }
+    } else if (s.kind === 'dac') {
+      // Act IV: walls of air-capture fans
+      for (let x = s.x0 + 12; x < s.x1 - 20; x += Math.round(36 / density)) {
+        pc.rect(x, ft - 5, 17, 6, C.ink8);
+        pc.hline(x, ft - 5, 17, C.ink9);
+        for (let k = 1; k < 16; k += 3) {
+          pc.set(x + k, ft - 3, C.ink5);
+          pc.set(x + k, ft - 1, C.ink6);
+        }
+        on.set(x + 1, ft - 4, C.grn6);
+        off.set(x + 1, ft - 4, C.grn6);
       }
     }
   }

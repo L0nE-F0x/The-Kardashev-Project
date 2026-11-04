@@ -121,6 +121,43 @@ const ICONS = {
   desk: [g('.......a.', '.bbbb..a.', '.bccb.aa.', '.bbbb.dd.', '..bb.....', 'eeeeeeeee', 'e.f...f.e', 'e.f...f.e', 'e.......e'), { a: 'ink7', b: 'ink4', c: 'cyn5', d: 'yel1', e: 'snd4', f: 'snd2' }],
   // factions: three banners, Atlantic blue, Eastern red, Non-aligned green
   faction: [g('a..a..a..', 'abbaccadd', 'abbaccadd', 'ab.ac.ad.', 'a..a..a..', 'a..a..a..', 'a..a..a..', 'a..a..a..', 'aa.aa.aa.'), { a: 'ink6', b: 'blu4', c: 'red3', d: 'grn6' }],
+  // ── Act IV ──
+  // the supergrid: a glowing band of power wrapped round the Earth, a node where it lands
+  supergrid: [g('...aaa...', '.aabbcaa.', 'abbbccbba', 'eeefeeefe', 'abccbbbba', 'abbcbbbba', '.abbbbba.', '..aaaaa..', '.........'), { a: 'sea2', b: 'sea5', c: 'grn5', e: 'cyn5', f: 'white' }],
+  // a fusion fleet: three rings of plasma
+  fusionfleet: [g('.........', '.aaa.aaa.', 'abcbabcba', '.aaa.aaa.', '...aaa...', '..abcba..', '...aaa...', '.........', 'eeeeeeeee'), { a: 'vio3', b: 'pnk0', c: 'white', e: 'ink6' }],
+  // direct air capture: CO₂ drawn into a bank of fans, clean air out
+  dac: [g('.a..a..a.', 'a..a..a..', 'bbbbbbbbb', 'bdcdbdcdb', 'bcecbcecb', 'bdcdbdcdb', 'bbbbbbbbb', '.fffffff.', '.........'), { a: 'ink6', b: 'ink5', c: 'ink8', d: 'ink2', e: 'white', f: 'grn6' }],
+  // desalination: a fresh drop lifted out of the waves
+  desal: [g('....a....', '...aba...', '..abbba..', '.abbcbba.', '.abbbcba.', '..abbba..', 'dd..a..dd', '.ddd.ddd.', 'e.e.e.e.e'), { a: 'sea3', b: 'sea7', c: 'white', d: 'sea5', e: 'ink8' }],
+  // a spaceport: three rockets on a long pad
+  spaceport: [g('....a....', '.a..b..a.', '.b..b..b.', '.c..c..c.', '.b..b..b.', '.b..b..b.', 'ddddddddd', 'd.e.e.e.d', '.........'), { a: 'org0', b: 'white', c: 'blu4', d: 'ink5', e: 'yel1' }],
+  // an orbital data centre: a lit rack between two solar wings, radiators below
+  odc: [g('.........', 'aa.ccc.aa', 'ba.cdc.ab', 'aabcecbaa', 'ba.cdc.ab', 'aa.ccc.aa', '....f....', '...fff...', '....f....'), { a: 'blu3', b: 'blu5', c: 'ink6', d: 'cyn5', e: 'cyn6', f: 'ink8' }],
+  // space solar: a gold array beaming power down to a rectenna
+  sps: [g('aaaa.aaaa', 'abab.baba', 'aaaacaaaa', '....d....', '...ded...', '....e....', '...e.e...', '....e....', '.fffffff.'), { a: 'org2', b: 'yel1', c: 'ink8', d: 'ink9', e: 'pnk1', f: 'ink6' }],
+  // orbital debris: fragments tumbling along a crowded orbit
+  debris: [g('a.....b..', '..c......', 'dd...a..c', '..ddd....', '.b...ddd.', '......a.d', 'c..a.....', '...c...b.', '.a....c..'), { a: 'ink8', b: 'org1', c: 'ink6', d: 'ink4' }],
+  // the Moon, a base light on its shadow side
+  moon: [g('..aaaaa..', '.abbbbca.', 'abcbbbbca', 'abbbbccda', 'abbcbbcda', 'abbbbbcda', '.abbbcde.', '..aaaaa..', '.........'), { a: 'ink5', b: 'ink9', c: 'ink7', d: 'ink6', e: 'yel1' }],
+  // the mass driver: a rail of glowing coils flinging a payload off the Moon
+  massdriver: [g('.......ba', '......c..', '.....dcd.', '....dcd..', '...dcd...', '..dcd....', '.dcd.....', 'eeeeeeeee', 'fefffefff'), { a: 'white', b: 'yel1', c: 'cyn5', d: 'ink6', e: 'ink7', f: 'ink5' }],
+  // the five-year plan: a clipboard of priorities, two ticked
+  plan: [g('...fff...', '.aafgfaa.', 'abbbbbbba', 'abcbdddba', 'abbbbbbba', 'abcbddbba', 'abbbbbbba', 'abebdddba', 'aaaaaaaaa'), { a: 'snd3', b: 'snd8', c: 'grn5', d: 'ink6', e: 'yel0', f: 'ink6', g: 'ink8' }],
+  // a jump: years running through the hourglass, streaking forward
+  jump: [g('.aaaaaaa.', '..bbbbb..', 'd..bbb...', '.d..c....', 'dd..c....', '.d.c.c...', 'd.cbbbc..', '.aaaaaaa.', '.........'), { a: 'snd3', b: 'yel1', c: 'sky5', d: 'cyn5' }],
+  // heat: a thermometer near the top, the air shimmering beside it
+  heat: [g('..aa.....', '.abba.c..', '.abba..c.', '.abba.c..', '.acca..c.', '.acca.c..', 'acccca...', 'acddca...', '.aaaa....'), { a: 'ink8', b: 'white', c: 'red3', d: 'org2' }],
+  // warming: the Earth with a rising red arrow
+  warming: [g('.......e.', '......eee', '..aaa.ded', '.abbca.d.', 'abcbbcad.', 'abbccba..', 'abbbbba..', '.abbba...', '..aaa....'), { a: 'sea2', b: 'sea5', c: 'grn5', d: 'red3', e: 'org1' }],
+  // wellbeing: a contented green face
+  wellbeing: [g('..aaaaa..', '.abbbbba.', 'abcbbbcba', 'abbbbbbba', 'abcbbbcba', 'abbcccbba', '.abbbbba.', '..aaaaa..', '.........'), { a: 'grn2', b: 'grn6', c: 'grn1' }],
+  // an AI: a four-point spark in a rounded chip
+  ai: [g('.aaaaaaa.', 'ab.....ba', 'a...c...a', 'a..cec..a', 'a.ceded.a', 'a..cec..a', 'a...c...a', 'ab.....ba', '.aaaaaaa.'), { a: 'vio3', b: 'vio2', c: 'cyn4', d: 'white', e: 'cyn6' }],
+  // a province: a stretch of land inside its dotted border, the capital starred
+  province: [g('.a.a.a...', 'a.bbb.a..', '.bbcbbb.a', 'abbbbcbb.', '.bbcbbbba', 'abbbbdbb.', '.bbbbbbba', '..bbcbb..', '...a.a.a.'), { a: 'ink9', b: 'grn5', c: 'grn4', d: 'yel0' }],
+  // orbit: the Earth inside a tilted ring, a satellite riding it
+  orbit: [g('......ded', '..aaaaa..', '.abbccba.', 'fabcbbcaf', 'fabbbbbaf', '.fffffff.', '..abbba..', '...aaa...', '.........'), { a: 'sea2', b: 'sea5', c: 'grn5', d: 'blu5', e: 'white', f: 'ink7' }],
 } satisfies Record<string, Grid>;
 
 export type IconName = keyof typeof ICONS;

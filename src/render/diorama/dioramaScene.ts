@@ -15,6 +15,8 @@ import { bucket, itemArt } from './campusArt';
 import { act3Key } from './act3Pieces';
 import { sceneBands, type BandProp, type SceneBands } from './scenery';
 import { launchFlash, rocketPose, type LaunchSpec } from './launch';
+import { astronautFrames, driverPose, earthDisc, lunarSky, lunarStars, lunarSunArt, moonRoverArt, type DriverSpec } from './moon';
+import { terrainCanvas } from '../worldMap/terrain';
 
 interface Plot {
   item: LayoutItem;
@@ -40,6 +42,8 @@ interface Plot {
   live: boolean;
   /** A rocket on its pad (launch complex). */
   rocket?: Rocket;
+  /** A mass driver's capsule (the Moon). */
+  driver?: Driver;
   /** Textures baked for this plot only (released when it goes). */
   own: Texture[];
 }
@@ -56,6 +60,16 @@ interface Rocket {
   flash: Sprite;
   vent: number;
   trail: number;
+}
+
+interface Driver {
+  spec: DriverSpec;
+  sprite: Sprite;
+  glow: Sprite;
+  bloom: Sprite;
+  frames: Texture[];
+  glowFrames: Texture[];
+  bloomFrames: Texture[];
 }
 
 interface PropSprite {
@@ -122,6 +136,8 @@ export class DioramaScene implements Scene {
   private readonly bloomL = new Container();
   private readonly hintL = new Container();
   private readonly site: SiteDef;
+  /** The Moon base: black sky, no weather, astronauts and rovers. */
+  private readonly lunar: boolean;
   private layout: CampusLayout | null = null;
   private vw = 640;
   private vh = 360;
@@ -148,6 +164,10 @@ export class DioramaScene implements Scene {
   private stars = new Sprite();
   private sun = new Sprite();
   private moon = new Sprite();
+  /** The Earth over the lunar horizon (Moon base only). */
+  private earth = new Sprite();
+  private earthKey = '';
+  private earthTex: Texture | null = null;
   private haze = new Sprite();
   private hintL0 = new Sprite();
   private hintR0 = new Sprite();
@@ -174,8 +194,10 @@ export class DioramaScene implements Scene {
     private readonly siteId: string,
   ) {
     this.site = siteDef(siteId);
+    this.lunar = this.site.backdrop === 'lunar';
     this.root.addChild(this.skyL, this.farL, this.cloudL, this.midL, this.midGlowL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
-    this.skyL.addChild(this.skySprite, this.stars, this.sun, this.moon, this.haze);
+    this.skyL.addChild(this.skySprite, this.stars, this.sun, this.moon, this.earth, this.haze);
+    this.earth.visible = false;
     this.world.addChild(this.groundL, this.plotL, this.actorL, this.fxL, this.fgL);
     this.bloomL.blendMode = 'add';
     this.sun.texture = cachedTexture('dio:sun', () => {
@@ -185,6 +207,7 @@ export class DioramaScene implements Scene {
       pc.circle(5.5, 5.5, 2.5, C.yel2);
       return pc;
     });
+    if (this.lunar) this.sun.texture = cachedTexture('dio:lunarsun', lunarSunArt);
     this.moon.texture = cachedTexture('dio:moon', () => {
       const pc = new PixelCanvas(9, 9);
       pc.circle(4.5, 4.5, 4, C.ice2);
@@ -316,6 +339,11 @@ export class DioramaScene implements Scene {
         p.rocket.bloom.destroy();
         p.rocket.flash.destroy();
       }
+      if (p.driver) {
+        p.driver.sprite.destroy();
+        p.driver.glow.destroy();
+        p.driver.bloom.destroy();
+      }
       for (const t of p.own) releaseTexture(t);
     }
     this.plots = [];
@@ -432,6 +460,20 @@ export class DioramaScene implements Scene {
       this.glowL.addChild(flash);
       rocket = { spec: L, sprite: rs, glow: rg, bloom: rb, flash, frames, glowFrames: gf, bloomFrames: bf, vent: 0, trail: 0 };
     }
+    let driver: Driver | undefined;
+    if (live && art.driver) {
+      const D = art.driver;
+      const frames = D.frames.map((pc, k) => cachedTexture(`dio:capsule:${ia.key}:${k}`, () => pc));
+      const gf = D.glow.map((pc, k) => cachedTexture(`dio:capsule:${ia.key}:g${k}`, () => pc));
+      const bf = D.glow.map((pc, k) => cachedTexture(`dio:capsule:${ia.key}:b${k}`, () => bloomOf(pc)));
+      const cs = new Sprite(frames[0]);
+      this.plotL.addChild(cs);
+      const cg = new Sprite(gf[0]);
+      this.glowL.addChild(cg);
+      const cb = new Sprite(bf[0]);
+      this.bloomL.addChild(cb);
+      driver = { spec: D, sprite: cs, glow: cg, bloom: cb, frames, glowFrames: gf, bloomFrames: bf };
+    }
     return {
       item,
       kind: item.kind,
@@ -453,6 +495,7 @@ export class DioramaScene implements Scene {
       sync: !!art.sync,
       live,
       rocket,
+      driver,
       own,
     };
   }
@@ -576,7 +619,7 @@ export class DioramaScene implements Scene {
     // clouds
     this.cloudL.removeChildren();
     this.clouds = [];
-    const n = this.weather === 'clear' ? 3 : this.weather === 'dust' ? 2 : 7;
+    const n = this.lunar ? 0 : this.weather === 'clear' ? 3 : this.weather === 'dust' ? 2 : 7;
     for (let i = 0; i < n; i++) {
       const sp = new Sprite(cachedTexture(`dio:cloud:${i % 4}:${this.weather === 'rain' ? 'g' : 'w'}`, () => cloudArt(i % 4, this.weather === 'rain')));
       sp.y = 12 + hash2(i, 9, 2) * this.vh * 0.25;
@@ -600,7 +643,9 @@ export class DioramaScene implements Scene {
     const count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
     const limit = Math.min(this.sceneW - 20, this.walkLimit());
     for (let i = 0; i < count; i++) {
-      const frames = personFrames(i).map((pc, k) => cachedTexture(`dio:person:${i % 12}:${k}`, () => pc));
+      const frames = this.lunar
+        ? astronautFrames(i).map((pc, k) => cachedTexture(`dio:astronaut:${i % 14}:${k}`, () => pc))
+        : personFrames(i).map((pc, k) => cachedTexture(`dio:person:${i % 12}:${k}`, () => pc));
       const sp = new Sprite(frames[0]);
       this.actorL.addChild(sp);
       const x = 20 + hash2(i, 1, 9) * (limit - 20);
@@ -609,7 +654,7 @@ export class DioramaScene implements Scene {
   }
 
   private pickWeather(): Weather {
-    if (!this.game.settings.weather) return 'clear';
+    if (!this.game.settings.weather || this.lunar) return 'clear';
     const s = this.game.view;
     const day = s?.day ?? 0;
     const r = hash2(Math.floor(day / 3), Math.floor(this.site.lat * 7 + this.site.lon), 17);
@@ -649,6 +694,7 @@ export class DioramaScene implements Scene {
 
   private updateSky(dt: number) {
     if (this.game.dioramaTimelapse) this.timeOffset += dt * 2160 * 1000;
+    if (this.lunar) return this.updateLunarSky(dt);
     const date = this.clock();
     const sub = subsolar(date);
     const alt = sunAltitude(this.site.lat, this.site.lon, sub);
@@ -725,6 +771,65 @@ export class DioramaScene implements Scene {
     this.bloomL.visible = lightsOn > 0.01 && !this.game.settings.batterySaver;
   }
 
+  /**
+   * The Moon: a black sky full of stars that never fades, the sun skimming the far peaks (and
+   * slipping behind them for the lunar night), and the Earth hanging over the rim with its own
+   * day and night. No warm sunset grading: there is no air to scatter the light.
+   */
+  private updateLunarSky(dt: number) {
+    const date = this.clock();
+    const sub = subsolar(date);
+    const sky = lunarSky(date, sub.lon, this.game.settings.dayNight);
+    this.darkness += (sky.dark - this.darkness) * Math.min(1, dt * 2);
+    const b = bands(this.vw, this.vh, this.sceneW);
+    const key = `moon|${this.vw}x${this.vh}|${getEra()}`;
+    if (key !== this.skyKey) {
+      this.skyKey = key;
+      const skyH = this.groundY + 4;
+      const pc = new PixelCanvas(this.vw + 2, skyH);
+      pc.vgradient(0, 0, pc.w, pc.h, [C.ink0, C.ink0, C.ink0, C.night0]);
+      if (this.skyTex) releaseTexture(this.skyTex);
+      this.skyTex = textureOf(pc);
+      this.skySprite.texture = this.skyTex;
+      if (this.starTex) releaseTexture(this.starTex);
+      this.starTex = textureOf(lunarStars(this.vw + 2, skyH));
+      this.stars.texture = this.starTex;
+      if (this.hazeTex) releaseTexture(this.hazeTex);
+      this.hazeTex = textureOf(new PixelCanvas(1, 1));
+      this.haze.texture = this.hazeTex;
+      this.earthKey = '';
+    }
+    this.stars.alpha = 0.95;
+    this.moon.visible = false;
+    this.sun.visible = sky.sun !== null;
+    if (sky.sun !== null) this.sun.position.set(Math.round(this.vw * sky.sun - 8), Math.round(b.farY + b.farH * 0.16 - 8));
+    // the Earth, re-drawn as it turns (and as the terminator crosses it)
+    const r = Math.max(7, Math.round(this.vh * 0.045));
+    const ekey = `${Math.round(sky.earth.lon0 / 3)}|${Math.round(sub.lon / 3)}|${Math.round(sub.lat)}|${Math.round(sky.earth.lat0 / 3)}|${r}|${getEra()}`;
+    if (ekey !== this.earthKey) {
+      this.earthKey = ekey;
+      const lod = this.game.world?.lods?.[1];
+      const terrain = lod ? { pc: terrainCanvas(lod), res: lod.res } : undefined;
+      if (this.earthTex) releaseTexture(this.earthTex);
+      this.earthTex = textureOf(earthDisc(r, sky.earth, sub, terrain));
+      this.earth.texture = this.earthTex;
+    }
+    this.earth.visible = true;
+    this.earth.position.set(Math.round(this.vw * 0.7 - r - 2), Math.round(b.farY - r * 1.2));
+    // grading: a cool earthshine at night, nothing warm; the sky layer stays as it is
+    const d = this.darkness;
+    const tint = (Math.round((1 - 0.78 * d) * 255) << 16) | (Math.round((1 - 0.74 * d) * 255) << 8) | Math.round((1 - 0.48 * d) * 255);
+    this.skyL.tint = 0xffffff;
+    for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    const lightsOn = Math.max(0, Math.min(1, (d - 0.25) * 2.4));
+    this.glowL.alpha = lightsOn;
+    this.backGlowL.alpha = lightsOn;
+    this.midGlowL.alpha = lightsOn;
+    this.bloomL.alpha = lightsOn * 0.55;
+    this.glowL.visible = this.backGlowL.visible = this.midGlowL.visible = lightsOn > 0.01;
+    this.bloomL.visible = lightsOn > 0.01 && !this.game.settings.batterySaver;
+  }
+
   // ── per-frame ─────────────────────────────────────────────────────────────────────────────
   update(dt: number) {
     this.time += dt;
@@ -793,6 +898,7 @@ export class DioramaScene implements Scene {
       this.backGlow.bloom.texture = this.backGlow.bloomFrames[fi];
     }
     for (const p of this.plots) if (p.rocket) this.updateRocket(p, p.rocket, dt);
+    for (const p of this.plots) if (p.driver) this.updateDriver(p, p.driver);
     // hover highlight
     for (const p of this.plots) {
       if (p.kind === 'empty') p.sprite.texture = cachedTexture(`dio:empty:${p.w}:${p === this.hoverPlot}`, () => emptyPlotArt(p.w, p === this.hoverPlot));
@@ -910,6 +1016,13 @@ export class DioramaScene implements Scene {
         max = 5 + Math.random() * 2;
         maxR = size ?? 5;
         break;
+      case 'dust':
+        // regolith thrown up on the Moon: no air, so it arcs and falls straight back
+        vx = (Math.random() - 0.5) * 8;
+        vy = -5 - Math.random() * 5;
+        max = 1 + Math.random() * 0.8;
+        maxR = size ?? 1;
+        break;
       default:
         // spray / cold mist: drifts and falls back
         vx = (Math.random() - 0.5) * 10;
@@ -937,17 +1050,18 @@ export class DioramaScene implements Scene {
       }
       const k = p.life / p.max;
       if (p.kind === 'mist') p.vy += 18 * dt;
+      else if (p.kind === 'dust') p.vy += 9 * dt;
       else p.vy *= 1 - dt * 0.35;
       if (p.drag) p.vx *= Math.max(0, 1 - dt * p.drag);
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      const r = p.kind === 'mist' ? 1 : p.kind === 'exhaust' ? Math.min(p.size, 2 + Math.floor(k * p.size * 1.6)) : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
+      const r = p.kind === 'mist' || p.kind === 'dust' ? 1 : p.kind === 'exhaust' ? Math.min(p.size, 2 + Math.floor(k * p.size * 1.6)) : Math.max(1, Math.min(p.size, 1 + Math.floor(k * (p.size + 1))));
       if (r !== p.r) {
         p.r = r;
         p.sprite.texture = cachedTexture(`dio:puff:${p.kind}:${r}`, () => puffArt(r, p.kind));
       }
       p.sprite.position.set(Math.round(p.x - r), Math.round(p.y - r));
-      p.sprite.alpha = p.kind === 'mist' ? 0.9 : 0.9 * (1 - k * k);
+      p.sprite.alpha = p.kind === 'mist' || p.kind === 'dust' ? 0.9 : 0.9 * (1 - k * k);
       this.particles[n++] = p;
     }
     this.particles.length = n;
@@ -959,7 +1073,7 @@ export class DioramaScene implements Scene {
    */
   private updateRocket(p: Plot, r: Rocket, dt: number) {
     const S = r.spec;
-    const t = this.time + 6;
+    const t = this.time + 6 + (S.offset ?? 0);
     const pose = rocketPose(t, S.period);
     const fw = r.frames[0].width;
     const x = p.x + S.x - Math.floor(fw / 2);
@@ -1010,6 +1124,20 @@ export class DioramaScene implements Scene {
     }
   }
 
+  /** The mass driver: a capsule waits in the breech, streaks down the rail and is flung off the ramp. */
+  private updateDriver(p: Plot, d: Driver) {
+    const pose = driverPose(this.time, d.spec);
+    const x = Math.round(p.x + pose.x - d.spec.ax);
+    const y = Math.round(p.top + pose.y - d.spec.ay);
+    for (const sp of [d.sprite, d.glow, d.bloom]) {
+      sp.visible = pose.visible;
+      sp.position.set(x, y);
+    }
+    d.sprite.texture = d.frames[pose.frame];
+    d.glow.texture = d.glowFrames[pose.frame];
+    d.bloom.texture = d.bloomFrames[pose.frame];
+  }
+
   private updateWalkers(dt: number) {
     const footY = this.groundY + 3;
     for (const w of this.walkers) {
@@ -1045,7 +1173,8 @@ export class DioramaScene implements Scene {
       }
       const dock = docks[Math.floor(Math.random() * docks.length)];
       let tex: Texture;
-      if (!this.viewOnly) tex = cachedTexture('dio:truck', truckArt);
+      if (this.lunar) tex = cachedTexture('dio:moonrover', () => moonRoverArt());
+      else if (!this.viewOnly) tex = cachedTexture('dio:truck', truckArt);
       else {
         const pc = dock.item.piece;
         const kind = pc?.kind === 'gasWorks' || pc?.kind === 'gasYard' ? 'tanker' : this.site.kind === 'mine' ? 'flatbed' : 'box';
@@ -1160,7 +1289,7 @@ export class DioramaScene implements Scene {
     if (this.wheelX) this.game.stage?.canvas?.removeEventListener('wheel', this.wheelX);
     for (const t of this.ownTextures) releaseTexture(t);
     for (const p of this.plots) for (const t of p.own) releaseTexture(t);
-    for (const t of [this.skyTex, this.starTex, this.hazeTex]) if (t) releaseTexture(t);
+    for (const t of [this.skyTex, this.starTex, this.hazeTex, this.earthTex]) if (t) releaseTexture(t);
     for (const sp of this.pool) sp.destroy();
     this.root.destroy({ children: true });
   }

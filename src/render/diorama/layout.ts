@@ -66,7 +66,7 @@ export const plotsOf = (f: Facility) => (f.type === 'hq' ? 0 : FACILITIES[f.type
 /** Layout for a site as seen in `state` (null state = empty site). */
 export function campusLayout(s: GameState | null, siteId: string, viewW: number): CampusLayout {
   const site = siteDef(siteId);
-  if (site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch') return act3Layout(s, site, viewW);
+  if (site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch' || site.kind === 'moon') return act3Layout(s, site, viewW);
   if (site.kind !== 'build') return viewOnlyLayout(site, viewW);
   const items: LayoutItem[] = [];
   let x = EDGE;

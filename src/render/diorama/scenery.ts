@@ -12,6 +12,7 @@ import { backlot, farRidge, foreground, groundStrip, midBand, type RotorSpec } f
 import { bands, type CampusLayout } from './layout';
 import { alpsRidge, jetFrames, lakeBand, sailboat } from './charterHQ';
 import { megaBack } from './mega';
+import { lunarBack, lunarFar, lunarFg, lunarGround, lunarMid } from './moon';
 
 /** An animated prop living in a band (it scrolls with that band's parallax). */
 export interface BandProp {
@@ -75,6 +76,22 @@ export function sceneBands(site: SiteDef, L: CampusLayout, vw: number, vh: numbe
     return out;
   };
   const sc = L.scenery;
+  if (sc?.kind === 'moon') {
+    // the Moon: crater-rim massifs, a crater plain, regolith with rover tracks; no road, no lamps
+    const backH = 40;
+    const mb = sc.stage > 0 ? lunarBack(sc.stage, b.backW, backH, seed) : null;
+    return {
+      seed,
+      far: lunarFar(b.farW, b.farH, seed),
+      mid: lunarMid(b.midW, b.midH, seed),
+      midProps: [],
+      back: mb ? { base: mb.base, glow: mb.glow, y: groundY + 1 - backH, rotors: [], bloom: 0.5 } : undefined,
+      ground: lunarGround(L.width, b.groundH),
+      fg: lunarFg(L.width + 40, b.fgH),
+      lamps: [],
+      walkers: true,
+    };
+  }
   if (sc?.kind === 'geneva') {
     const lake = lakeBand(b.midW, b.midH, seed);
     const lakeFrom = L.lakeFrom ?? L.width;

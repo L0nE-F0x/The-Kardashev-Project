@@ -117,6 +117,7 @@ const ASPECT: Partial<Record<ContractKind, [number, number]>> = {
   nuclear: [1.2, 0.7],
   hydro: [1.0, 0.85],
   geo: [1.1, 0.85],
+  ffleet: [1.2, 0.8],
 };
 
 interface Blob {
@@ -291,6 +292,16 @@ function patchPixel(kind: ContractKind, x: number, y: number, f: number, offshor
       if (gy === 3) return f < 0.9 ? C.ink6 : -1;
       return -1;
     }
+    case 'ffleet': {
+      // Act IV: fusion halls in rows, a plasma window in each, coolant channels between
+      const gx = x % 5;
+      const gy = y % 4;
+      if (gy === 0 && gx <= 2) return C.ink9;
+      if (gy === 1 && gx <= 2) return gx === 1 ? C.pnk1 : C.ink6;
+      if (gy === 1 && gx === 4 && f < 0.85) return C.cyn5;
+      if (gy === 3 && gx <= 3) return f < 0.9 ? C.ink7 : -1;
+      return -1;
+    }
     default:
       return -1;
   }
@@ -328,6 +339,7 @@ export function megaPatchLights(pc: PixelCanvas): { x: number; y: number; c: num
       else if (c === C.ink9) out.push({ x, y, c: C.yel1 });
       else if (c === C.grn5 || c === C.org1) out.push({ x, y, c: C.yel0 });
       else if (c === C.foam) out.push({ x, y, c: C.yel2 });
+      else if (c === C.pnk1) out.push({ x, y, c: C.pnk1 });
     }
   }
   return out;

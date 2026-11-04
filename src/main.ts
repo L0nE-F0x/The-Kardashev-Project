@@ -8,6 +8,7 @@ import { Router } from './world/routing';
 import { Game } from './game/game';
 import { MapScene } from './render/worldMap/mapScene';
 import { DioramaScene } from './render/diorama/dioramaScene';
+import { OrbitScene } from './render/orbit/orbitScene';
 import { TourDirector } from './game/tour';
 import { App } from './ui/App';
 
@@ -24,6 +25,7 @@ async function boot() {
     map: (g) => new MapScene(g),
     diorama: (g, siteId) => new DioramaScene(g, siteId),
     tour: (g) => new TourDirector(g),
+    orbit: (g) => new OrbitScene(g),
   });
   game.showMenu();
   render(h(App, { game }), document.getElementById('ui')!);

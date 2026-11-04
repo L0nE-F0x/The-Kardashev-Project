@@ -90,7 +90,7 @@ const BRAND: Record<string, { name: string; accent: number; accentHi: number }> 
 
 /** The set pieces a non-build site shows, left to right. */
 export function sitePieces(site: SiteDef, s: GameState | null = null): PieceSpec[] {
-  if (site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch') return act3Plan(s, site, 0).pieces;
+  if (site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch' || site.kind === 'moon') return act3Plan(s, site, 0).pieces;
   const b = BRAND[site.supplier ?? ''] ?? { name: site.name.split(/[ ·]/)[0].toUpperCase(), accent: C.cyn4, accentHi: C.cyn5 };
   const p = (kind: PieceKind, variant?: string, label = b.name): PieceSpec => ({ kind, label, accent: b.accent, accentHi: b.accentHi, variant });
   if (site.kind === 'landing') return [p('cableHut', undefined, 'CLS'), p('manhole')];

@@ -14,6 +14,7 @@ import { crawlerCrane, facadeShade, revealFrom, scaffold, towerCrane, transforme
 import { campus, fab, geothermal, hydro, packaging, reactor, restart, smr } from './plants';
 import { clampTier, facilitySize, type ArtType } from './sizes';
 import type { LaunchSpec } from './launch';
+import type { DriverSpec } from './moon';
 
 export { facilitySize, maxTier, type ArtType } from './sizes';
 
@@ -23,8 +24,8 @@ export { facadeShade } from './draw';
 export interface Emitter {
   x: number;
   y: number;
-  /** 'exhaust' is a rocket's plume: big, slow, long-lived puffs. */
-  kind: 'smoke' | 'steam' | 'vapor' | 'mist' | 'exhaust';
+  /** 'exhaust' is a rocket's plume: big, slow, long-lived puffs. 'dust' is lunar regolith kicked up (falls straight back). */
+  kind: 'smoke' | 'steam' | 'vapor' | 'mist' | 'exhaust' | 'dust';
   /** Particles per second. */
   rate: number;
   /** Horizontal spread of spawn positions (px). */
@@ -70,6 +71,8 @@ export interface FacilityArt {
   sync?: boolean;
   /** A rocket standing on this pad (Act III launch complex); the scene animates the launch. */
   launch?: LaunchSpec;
+  /** A mass driver's cargo capsule (Act IV, the Moon); the scene fires it down the rail. */
+  driver?: DriverSpec;
 }
 
 // ── data center ────────────────────────────────────────────────────────────────────────────
@@ -1003,6 +1006,8 @@ export const BIOMES: Record<Backdrop, Biome> = {
   mountain: { far: [C.rck3, C.ice3], mid: [C.grn2, C.grn3], ground: [C.grn3, C.rck4, C.grn4], farShape: 'peaks', deco: 'pine' },
   volcanic: { far: [C.rck2, C.rck3], mid: [C.rck1, C.grn2], ground: [C.rck2, C.grn3, C.rck3], farShape: 'volcano', deco: 'rock' },
   savanna: { far: [C.snd4, C.rck4], mid: [C.snd5, C.grn5], ground: [C.snd5, C.grn5, C.snd6], farShape: 'flat', deco: 'acacia' },
+  // the Moon (Act IV) has its own bands in moon.ts; this keeps the generic ones sensible
+  lunar: { far: [C.ink5, C.ink7], mid: [C.ink6, C.ink7], ground: [C.ink7, C.ink6, C.ink8], farShape: 'hills', deco: 'rock' },
 };
 
 /** Far ridge silhouette (with aerial-perspective dither toward the sky). */

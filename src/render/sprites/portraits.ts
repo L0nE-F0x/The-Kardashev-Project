@@ -14,7 +14,9 @@ interface Look {
   style:
     | 'hardhat' | 'bob' | 'long' | 'curly' | 'bun' | 'spiky' | 'slick' | 'receding' | 'bald' | 'beanie' | 'puff' | 'wavy' | 'updo'
     // ── Act III ──
-    | 'crop' | 'ponytail' | 'messy' | 'sidepart' | 'pompadour' | 'longwavy' | 'locs' | 'cap' | 'helmet' | 'gele';
+    | 'crop' | 'ponytail' | 'messy' | 'sidepart' | 'pompadour' | 'longwavy' | 'locs' | 'cap' | 'helmet' | 'gele'
+    // ── Act IV ──
+    | 'pixie' | 'braid' | 'undercut' | 'bandana' | 'shag';
   glasses?: boolean | 'thin';
   beard?: boolean;
   headset?: boolean;
@@ -74,6 +76,17 @@ interface Look {
   streak?: number;
   /** Greying temples (colour). */
   temples?: number;
+  // ── Act IV extras ──
+  /** A glowing plasma ring behind the head [dark, light]. */
+  torus?: [number, number];
+  /** A spacesuit: a metal neck ring over the suit. */
+  eva?: boolean;
+  /** A small tattoo on the neck (colour). */
+  tattoo?: number;
+  /** A check pattern on the shirt (colour). */
+  plaid?: number;
+  /** A low lunar horizon across the background [dark, light]. */
+  horizon?: [number, number];
 }
 
 const LOOKS: Record<Exclude<AdvisorId, 'bit'>, Look> = {
@@ -84,6 +97,8 @@ const LOOKS: Record<Exclude<AdvisorId, 'bit'>, Look> = {
   iris: { bg: [C.blu2, C.blu4], skin: [C.skn4, C.skn5, C.skn6], hair: [C.ink7, C.ink8], cloth: [C.ink8, C.ink9, C.white], style: 'bun', glasses: true, coat: true },
   // Kip: the space kid — swept spikes, aviator goggles up on his forehead, a mission patch on his flight suit
   kip: { bg: [C.sky1, C.sky2], skin: [C.skn4, C.skn5, C.skn6], hair: [C.yel0, C.yel1], cloth: [C.org0, C.org1, C.org2], style: 'spiky', goggles: C.sky4, patch: C.blu4 },
+  // Dr. Lena Moreau: thirty years of plasma physics — a silver pixie cut, thin glasses, a lab coat over violet, a plasma ring behind her
+  lena: { bg: [C.blu1, C.blu2], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink6, C.ink8], cloth: [C.ink8, C.ink9, C.white], style: 'pixie', glasses: 'thin', suit: { shirt: C.vio3 }, pin: C.pnk0, torus: [C.vio4, C.pnk1], lines: true, earrings: C.pnk1 },
 };
 
 function background(pc: PixelCanvas, [dark, light]: [number, number], stars = false) {
@@ -460,6 +475,89 @@ function hair(pc: PixelCanvas, L: Look) {
       pc.rect(23, 10, 2, 4, dk);
       break;
     }
+    // ── Act IV ──
+    case 'pixie':
+      // a short silver crop: choppy on top, a fringe swept across to the right, ears showing
+      pc.ellipse(16, 8.8, 8.6, 5.6, dk);
+      pc.rect(8, 9, 2, 4, dk);
+      pc.rect(23, 9, 2, 3, dk);
+      for (const [x, y] of [[9, 4], [12, 3], [15, 2], [18, 2], [21, 3], [23, 5]] as const) pc.set(x, y, dk);
+      pc.line(10, 9, 15, 6, lt);
+      pc.line(13, 9, 19, 6, lt);
+      pc.line(11, 6, 15, 4, lt);
+      pc.line(17, 4, 21, 5, lt);
+      pc.set(22, 7, lt);
+      pc.set(9, 10, lt);
+      pc.hline(18, 10, 4, dk);
+      break;
+    case 'braid': {
+      // hair drawn back, a braid wrapped round the crown like a circlet
+      pc.ellipse(16, 9.2, 8.5, 5.6, dk);
+      pc.rect(8, 9, 2, 5, dk);
+      pc.rect(23, 9, 2, 5, dk);
+      for (let a = 190; a <= 350; a += 5) {
+        const r = (a * Math.PI) / 180;
+        const x = Math.round(16 + Math.cos(r) * 8.2);
+        const y = Math.round(8.4 + Math.sin(r) * 4.6);
+        const [b0, b1] = L.band ?? [dk, lt];
+        pc.set(x, y, (a / 5) % 2 ? b1 : b0);
+        pc.set(x, y - 1, (a / 5) % 2 ? b0 : b1);
+      }
+      pc.line(12, 8, 15, 7, lt);
+      pc.line(17, 7, 20, 8, lt);
+      break;
+    }
+    case 'undercut':
+      // shaved sides, a long top swept over to the right
+      pc.ellipse(16, 9.2, 8.2, 5, dk);
+      for (let y = 8; y < 14; y++) for (const x of [8, 9, 23, 24]) if ((x + y) % 2) pc.set(x, y, dk);
+      pc.ellipse(15.5, 5.6, 8.2, 3.6, lt);
+      pc.line(8, 6, 13, 3, dk);
+      pc.line(12, 8, 20, 4, dk);
+      pc.line(16, 8, 24, 5, dk);
+      pc.set(25, 6, lt);
+      pc.set(25, 7, lt);
+      pc.set(24, 8, dk);
+      break;
+    case 'bandana': {
+      // a cloud of curls round the face, a bandana knotted on top
+      const [bd, bl] = L.band ?? [C.red2, C.red3];
+      for (let i = 0; i < 16; i++) {
+        const a = Math.PI * 0.9 + (i / 15) * Math.PI * 1.2;
+        pc.circle(16 + Math.cos(a) * 9, 11 + Math.sin(a) * 8, 2.4, i % 2 ? dk : lt);
+      }
+      pc.rect(6, 12, 4, 10, dk);
+      pc.rect(23, 12, 4, 10, dk);
+      for (const [x, y] of [[7, 14], [6, 18], [8, 21], [25, 15], [24, 19], [26, 21]] as const) pc.set(x, y, lt);
+      pc.ellipse(16, 6.2, 8.4, 3.6, bl);
+      pc.hline(8, 8, 17, bd);
+      pc.hline(9, 9, 15, bd);
+      for (const [x, y] of [[11, 5], [14, 4], [18, 5], [21, 6], [12, 7], [19, 7]] as const) pc.set(x, y, C.white);
+      // the knot and its tails
+      pc.rect(22, 4, 2, 2, bd);
+      pc.set(24, 3, bl);
+      pc.set(25, 2, bl);
+      pc.set(24, 6, bl);
+      break;
+    }
+    case 'shag':
+      // shoulder-length layers with a blunt fringe
+      pc.ellipse(16, 9.5, 9.5, 6.5, dk);
+      for (let y = 10; y < 24; y++) {
+        const w = y < 16 ? 3 : y < 20 ? 3 : 2;
+        pc.rect(7 - (y > 17 && y < 21 ? 1 : 0), y, w, 1, dk);
+        pc.rect(23 + (y > 17 && y < 21 ? 1 : 0), y, w, 1, dk);
+      }
+      for (const [x, y] of [[7, 24], [9, 23], [24, 24], [22, 23]] as const) pc.set(x, y, dk);
+      pc.rect(9, 9, 15, 2, dk);
+      for (let x = 10; x < 23; x += 2) pc.set(x, 10, lt);
+      pc.line(11, 5, 15, 4, lt);
+      pc.line(17, 4, 21, 5, lt);
+      for (let y = 12; y < 23; y += 3) {
+        pc.set(8, y, lt);
+        pc.set(24, y + 1, lt);
+      }
+      break;
   }
   if (L.tips) for (let y = 20; y < S; y++) for (let x = 0; x < S; x++) if (pc.get(x, y) === dk || pc.get(x, y) === lt) pc.set(x, y, L.tips);
   if (L.streak) {
@@ -626,6 +724,26 @@ function accessories(pc: PixelCanvas, L: Look) {
     pc.set(8, 15, C.ink8);
     pc.set(24, 14, C.white);
   }
+  // ── Act IV extras ──
+  if (L.plaid) {
+    for (let y = 25; y < S; y++) for (let x = 3; x < 29; x++) if (L.cloth.includes(pc.get(x, y)) && (x % 4 === 1 || y % 4 === 2)) pc.set(x, y, (x % 4 === 1 && y % 4 === 2) ? L.cloth[0] : L.plaid);
+  }
+  if (L.eva) {
+    // the suit's metal neck ring, a hose port and a chest display
+    pc.ellipse(16, 24.5, 8.5, 2.6, C.ink5);
+    pc.ellipse(16, 24.2, 7, 1.7, C.ink8);
+    pc.ellipse(16, 23.8, 5.2, 1.1, C.ink6);
+    pc.hline(10, 23, 3, C.white);
+    pc.set(21, 25, C.ink9);
+    pc.rect(19, 28, 3, 2, C.ink2);
+    pc.set(20, 28, C.grn6);
+    pc.set(21, 29, C.org1);
+  }
+  if (L.tattoo) {
+    // a laser beam zig-zagging across the neck between two mirrors
+    for (const [x, y] of [[13, 23], [14, 22], [15, 23], [16, 22], [17, 23]] as const) pc.set(x, y, L.tattoo);
+    pc.set(18, 22, C.white);
+  }
   if (L.glasses === 'thin') {
     pc.box(10, 12, 5, 4, C.ink6);
     pc.box(18, 12, 5, 4, C.ink6);
@@ -653,6 +771,7 @@ function accessories(pc: PixelCanvas, L: Look) {
 }
 
 function bit(pc: PixelCanvas, gen: number, mood: Mood) {
+  if (gen >= 8) return bitPlanetary(pc, Math.min(9, gen), mood);
   if (gen >= 6) return bitOracle(pc, Math.min(7, gen), mood);
   if (gen >= 4) return bitNext(pc, Math.min(5, gen), mood);
   background(pc, [C.ink2, C.ink3]);
@@ -968,6 +1087,448 @@ function bitOracle(pc: PixelCanvas, gen: number, mood: Mood) {
   if (seven) ring(true);
 }
 
+/** Bit's glowing eyes and small mouth on a face plate (shared by the later generations). */
+function bitFace(pc: PixelCanvas, mood: Mood, glow: number, glow2: number, ey = 13, my = 18) {
+  if (mood === 'happy' || mood === 'excited') {
+    for (const ex of [11, 18]) {
+      pc.set(ex, ey + 1, glow);
+      pc.set(ex + 1, ey, glow);
+      pc.set(ex + 2, ey, glow);
+      pc.set(ex + 3, ey + 1, glow);
+    }
+    if (mood === 'excited') for (const [x, y] of [[8, ey - 3], [24, ey - 3], [9, ey - 4], [23, ey - 4]] as const) pc.set(x, y, glow2);
+  } else if (mood === 'worried') {
+    pc.rect(12, ey, 2, 3, glow);
+    pc.rect(19, ey, 2, 3, glow);
+    pc.line(10, ey - 2, 13, ey - 1, glow2);
+    pc.line(19, ey - 1, 22, ey - 2, glow2);
+  } else if (mood === 'angry') {
+    pc.rect(11, ey, 3, 2, glow);
+    pc.rect(19, ey, 3, 2, glow);
+    pc.line(10, ey - 2, 13, ey - 1, glow2);
+    pc.line(19, ey - 1, 22, ey - 2, glow2);
+  } else {
+    pc.rect(11, ey - 1, 3, 4, glow2);
+    pc.rect(19, ey - 1, 3, 4, glow2);
+    pc.rect(12, ey, 1, 2, glow);
+    pc.rect(20, ey, 1, 2, glow);
+    pc.set(13, ey - 1, C.white);
+    pc.set(21, ey - 1, C.white);
+  }
+  if (mood === 'excited') {
+    pc.rect(14, my, 5, 2, glow2);
+    pc.hline(15, my, 3, glow);
+  } else if (mood === 'worried' || mood === 'angry') {
+    pc.hline(14, my + 1, 5, glow2);
+    if (mood === 'worried') pc.set(14, my, glow2);
+  } else {
+    pc.set(13, my, glow2);
+    pc.hline(14, my + 1, 5, glow);
+    pc.set(19, my, glow2);
+  }
+}
+
+/** The portrait frame's rounded corners (cleared after a full-bleed background). */
+function clearCorners(pc: PixelCanvas) {
+  for (let y = 0; y < 2; y++) {
+    for (let x = 0; x < 2; x++) {
+      if (x + y >= 2) continue;
+      pc.set(x, y, 0);
+      pc.set(S - 1 - x, y, 0);
+      pc.set(x, S - 1 - y, 0);
+      pc.set(S - 1 - x, S - 1 - y, 0);
+    }
+  }
+}
+
+/**
+ * Bit-8 (the planetary steward: a head like a small blue world, clouds and a continent on its
+ * shell, an aurora crown, two satellites in orbit round it, floating over Earth's limb) and Bit-9
+ * (an eclipse: a dark face ringed by a sun's corona, the first panels of a lattice round it — the
+ * shape of Act V — and Earth as a blue dot).
+ */
+function bitPlanetary(pc: PixelCanvas, gen: number, mood: Mood) {
+  const nine = gen >= 9;
+  const sky = new PixelCanvas(S, S);
+  sky.vgradient(0, 0, S, S, nine ? [C.ink0, C.night0, C.vio0, C.vio1, C.dusk1] : [C.night0, C.night1, C.night2, C.blu0]);
+  pc.blit(sky, 0, 0);
+  clearCorners(pc);
+  const stars = nine
+    ? [[2, 3, C.white], [29, 2, C.yel1], [4, 25, C.vio5], [28, 27, C.white], [26, 8, C.pnk1], [3, 14, C.ice2], [30, 18, C.cyn6]]
+    : [[3, 2, C.white], [28, 3, C.cyn6], [2, 10, C.ice2], [29, 12, C.white], [23, 1, C.yel1], [6, 6, C.blu5]];
+  for (const [x, y, c] of stars) pc.set(x, y, c);
+  if (!nine) {
+    // Earth's limb below: a curve of ocean, a ribbon of atmosphere and a few city lights
+    for (let y = 22; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        if (!pc.get(x, y)) continue;
+        const d = Math.hypot(x + 0.5 - 16, y + 0.5 - 62) - 37;
+        if (d < -1.5) pc.set(x, y, d < -5 ? C.sea1 : (x + y) % 5 === 0 ? C.grn3 : C.sea2);
+        else if (d < -0.5) pc.set(x, y, C.cyn5);
+        else if (d < 0.6) pc.set(x, y, C.cyn3);
+      }
+    }
+    for (const [x, y] of [[5, 29], [9, 28], [24, 28], [27, 30], [20, 30]] as const) pc.set(x, y, C.yel1);
+  }
+  // orbit / corona behind the head
+  const back = (front: boolean) => {
+    if (nine) return;
+    for (let a = 0; a < 360; a += 2) {
+      const r = (a * Math.PI) / 180;
+      const inFront = Math.sin(r) > 0;
+      if (inFront !== front) continue;
+      // a gold ring tilted one way, a cyan one the other
+      const x1 = 16 + Math.cos(r) * 14.2;
+      const y1 = 14 + Math.sin(r) * 3 + Math.cos(r) * 3.2;
+      pc.set(Math.round(x1), Math.round(y1), front ? C.yel1 : C.org2);
+      const x2 = 16 + Math.cos(r) * 13.4;
+      const y2 = 14 + Math.sin(r) * 2.6 - Math.cos(r) * 4.4;
+      pc.set(Math.round(x2), Math.round(y2), front ? C.cyn6 : C.cyn4);
+    }
+  };
+  if (nine) {
+    // the corona: long and short rays round the disc, warm to the tips
+    for (let a = 0; a < 360; a += 15) {
+      const r = (a * Math.PI) / 180;
+      const long = (a / 15) % 2 === 0;
+      const len = long ? 14.5 : 12.2;
+      for (let d = 10.5; d < len; d += 0.5) {
+        const c = d < 11.6 ? C.yel2 : d < 12.8 ? C.yel1 : d < 13.8 ? C.org2 : C.org1;
+        pc.set(Math.round(16 + Math.cos(r) * d), Math.round(14 + Math.sin(r) * d * 0.95), c);
+      }
+    }
+    pc.circle(16, 14, 11.2, C.yel1);
+    pc.circle(16, 14, 10.4, C.yel2);
+    pc.ring(16, 14, 11.6, C.org2);
+    // lattice panels catching the light: arcs of the first shell at a wider radius
+    for (const [a0, a1] of [[200, 238], [262, 300], [-38, -4], [118, 150]] as const) {
+      for (let a = a0; a <= a1; a += 3) {
+        const r = (a * Math.PI) / 180;
+        const x = Math.round(16 + Math.cos(r) * 14.8);
+        const y = Math.round(14 + Math.sin(r) * 13.6);
+        pc.set(x, y, (a - a0) % 9 === 0 ? C.ink9 : C.ink6);
+        if ((a - a0) % 9 === 0) pc.set(x, y + 1, C.yel0);
+      }
+    }
+    // the dark disc: Bit's face where the sun should be
+    pc.circle(16, 14, 9.4, C.vio0);
+    pc.circle(15.5, 13.5, 8.4, C.night0);
+    rimLight(pc, [C.vio0], C.dusk3, 2, 26);
+    // Earth: a pale blue dot with its little Moon
+    pc.circle(25.5, 27.5, 1.6, C.sea5);
+    pc.set(25, 27, C.sky4);
+    pc.set(26, 28, C.grn5);
+    pc.set(28, 26, C.ink8);
+    // shoulders: a faint glow of light below the disc
+    for (let x = 10; x < 23; x++) if ((x & 1) === 0) pc.set(x, 29, C.dusk3);
+    for (let x = 12; x < 21; x++) pc.set(x, 30, (x & 1) ? C.dusk4 : C.dusk3);
+    bitFace(pc, mood, C.white, C.cyn6, 13, 18);
+    return;
+  }
+  back(false);
+  // the head: a little world
+  const shell = C.sea6;
+  pc.ellipse(16, 14, 10.3, 9.2, shell);
+  for (let y = 4; y < 24; y++) {
+    for (let x = 5; x < 27; x++) {
+      if (pc.get(x, y) !== shell) continue;
+      const dx = x + 0.5 - 16;
+      const dy = y + 0.5 - 14;
+      // lit from the upper left, the terminator on the right
+      const lit = -dx * 0.6 - dy * 0.5;
+      if (lit < -5.5) pc.set(x, y, C.sea3);
+      else if (lit < -3) pc.set(x, y, C.sea4);
+      else if (lit > 5) pc.set(x, y, C.sea7);
+    }
+  }
+  // a continent and clouds on the shell, outside the face plate
+  for (const [x, y, c] of [[7, 9, C.grn5], [8, 8, C.grn6], [8, 9, C.grn5], [7, 10, C.grn4], [9, 7, C.grn6], [22, 19, C.grn4], [23, 18, C.grn3], [24, 17, C.grn3], [10, 5, C.white], [11, 5, C.ice2], [20, 5, C.ice2], [21, 6, C.ice1], [6, 15, C.white], [7, 16, C.ice2], [25, 11, C.ice1], [24, 22, C.ice1]] as const) pc.set(x, y, c);
+  rimLight(pc, [C.sea3, C.sea4, C.sea6, C.sea7], C.cyn5, 4, 24);
+  pc.set(9, 7, C.white);
+  pc.set(10, 6, C.white);
+  // the face plate
+  pc.ellipse(16, 14.5, 7.4, 6, C.night0);
+  pc.ellipse(16, 14.5, 6.6, 5.2, C.blu0);
+  // an aurora over the north pole: curtains rising off the shell
+  for (let a = 222; a <= 318; a += 4) {
+    const r = (a * Math.PI) / 180;
+    const len = 2 + (((a - 222) / 4) % 3 === 1 ? 2 : ((a - 222) / 4) % 3 === 2 ? 1 : 0);
+    for (let k = 0; k < len; k++) {
+      const d = 10.6 + k;
+      const x = Math.round(16 + Math.cos(r) * d * 0.98);
+      const y = Math.round(14 + Math.sin(r) * d * 0.9);
+      pc.set(x, y, k === 0 ? C.grn6 : k === 1 ? C.cyn5 : k === 2 ? C.cyn6 : C.white);
+    }
+  }
+  back(true);
+  // two satellites riding the rings
+  for (const [x, y] of [[27, 18], [5, 18]] as const) {
+    pc.set(x, y, C.white);
+    pc.set(x - 1, y, C.blu5);
+    pc.set(x + 1, y, C.blu5);
+  }
+  bitFace(pc, mood, C.white, C.cyn6, 13, 18);
+}
+
+// ── the rival AIs (Act IV): abstract faces, not people ──────────────────────────────────────
+/** Apex (Meridian): a faceted red crystal with a visor of light. Sharp, geometric, impatient. */
+function apexAvatar(pc: PixelCanvas, mood: Mood) {
+  background(pc, [C.ink0, C.red0]);
+  // a perspective grid on the floor, a scatter of red points in the dark above
+  for (const bx of [-14, -4, 6, 16, 26, 36, 46]) pc.line(16 + (bx - 16) * 0.35, 21, bx, 31, C.red1);
+  for (const y of [22, 24, 27]) pc.hline(0, y, S, C.red1);
+  for (let y = 21; y < S; y++) for (let x = 0; x < S; x++) if (!((x < 2 && y > S - 3 && x + S - 1 - y < 2) || (x > S - 3 && y > S - 3 && S * 2 - 2 - x - y < 2)) && pc.get(x, y) === 0) pc.set(x, y, 0);
+  clearCorners(pc);
+  for (const [x, y] of [[3, 4], [28, 6], [5, 17], [26, 18], [22, 2], [9, 3]] as const) pc.set(x, y, C.red2);
+  // shoulders: an angular plinth
+  for (let y = 24; y < S; y++) {
+    const half = 6 + (y - 24) * 1.4;
+    for (let x = Math.round(16 - half); x <= Math.round(16 + half); x++) if (pc.get(x, y)) pc.set(x, y, x < 16 ? C.ink2 : C.ink1);
+  }
+  pc.line(16 - 6, 24, 16 - 16, 31, C.red3);
+  pc.line(16 + 6, 24, 16 + 16, 31, C.red2);
+  pc.hline(10, 24, 13, C.red3);
+  pc.vline(16, 25, 7, C.red2);
+  // the crystal head: a diamond with four facets
+  const top: [number, number] = [16, 1];
+  const left: [number, number] = [5, 13];
+  const right: [number, number] = [27, 13];
+  const bot: [number, number] = [16, 24];
+  const inTri = (px: number, py: number, a: [number, number], b: [number, number], c: [number, number]) => {
+    const d = (p: [number, number], q: [number, number], r: [number, number]) => (p[0] - r[0]) * (q[1] - r[1]) - (q[0] - r[0]) * (p[1] - r[1]);
+    const P: [number, number] = [px + 0.5, py + 0.5];
+    const d1 = d(P, a, b);
+    const d2 = d(P, b, c);
+    const d3 = d(P, c, a);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  };
+  const mid: [number, number] = [14, 12];
+  for (let y = 0; y < 26; y++) {
+    for (let x = 3; x < 30; x++) {
+      if (inTri(x, y, top, left, mid)) pc.set(x, y, C.red3);
+      else if (inTri(x, y, top, right, mid)) pc.set(x, y, C.red2);
+      else if (inTri(x, y, left, bot, mid)) pc.set(x, y, C.red2);
+      else if (inTri(x, y, right, bot, mid)) pc.set(x, y, C.red1);
+    }
+  }
+  // edges catching the light
+  pc.line(top[0], top[1], left[0], left[1], C.org0);
+  pc.line(top[0], top[1], mid[0], mid[1], C.org1);
+  pc.line(left[0], left[1], mid[0], mid[1], C.org0);
+  pc.line(mid[0], mid[1], bot[0], bot[1], C.red3);
+  pc.set(16, 1, C.yel2);
+  pc.set(15, 3, C.org2);
+  pc.set(10, 8, C.org2);
+  // the visor: a dark band with slit eyes
+  pc.hline(8, 12, 17, C.ink0);
+  pc.hline(7, 13, 19, C.ink0);
+  pc.hline(8, 14, 17, C.ink0);
+  const eye = mood === 'angry' ? C.yel1 : C.white;
+  const glow = C.org2;
+  if (mood === 'happy' || mood === 'excited') {
+    for (const ex of [10, 18]) {
+      pc.set(ex, 14, glow);
+      pc.hline(ex + 1, 13, 3, eye);
+      pc.set(ex + 4, 14, glow);
+    }
+    if (mood === 'excited') for (const [x, y] of [[6, 10], [26, 10], [5, 16], [27, 16]] as const) pc.set(x, y, C.yel1);
+  } else if (mood === 'angry') {
+    pc.line(9, 12, 13, 14, eye);
+    pc.line(23, 12, 19, 14, eye);
+    pc.set(14, 14, glow);
+    pc.set(18, 14, glow);
+  } else if (mood === 'worried') {
+    pc.line(9, 14, 13, 12, eye);
+    pc.line(23, 14, 19, 12, eye);
+  } else {
+    pc.hline(9, 13, 5, eye);
+    pc.hline(19, 13, 5, eye);
+    pc.set(9, 13, glow);
+    pc.set(23, 13, glow);
+  }
+  // a mouth: a notch in the lower facets
+  if (mood === 'happy' || mood === 'excited') {
+    pc.line(13, 18, 16, 20, C.ink0);
+    pc.line(19, 18, 16, 20, C.ink0);
+  } else if (mood === 'angry' || mood === 'worried') {
+    pc.line(13, 20, 16, 18, C.ink0);
+    pc.line(19, 20, 16, 18, C.ink0);
+  } else pc.hline(14, 19, 5, C.ink0);
+}
+
+/** Weft (Lattice): a round face woven of violet threads on a loom, knots for eyes. Careful, thorough. */
+function weftAvatar(pc: PixelCanvas, mood: Mood) {
+  background(pc, [C.vio1, C.vio2]);
+  // the loom: warp threads strung top to bottom, a beam across the bottom
+  for (let x = 2; x < S; x += 3) for (let y = 0; y < S; y++) if (pc.get(x, y)) pc.set(x, y, y % 4 === 0 ? C.vio4 : C.vio3);
+  for (let x = 0; x < S; x++) {
+    if (pc.get(x, 27)) pc.set(x, 27, C.snd3);
+    if (pc.get(x, 28)) pc.set(x, 28, C.snd2);
+  }
+  // the threads the face is woven from, hanging down to the beam
+  for (const x of [11, 13, 15, 17, 19, 21]) for (let y = 23; y < 27; y++) pc.set(x, y, (x + y) % 3 ? C.vio5 : C.pnk1);
+  // the head: an over-under weave in a round frame
+  for (let y = 2; y < 25; y++) {
+    for (let x = 4; x < 29; x++) {
+      const nx = (x + 0.5 - 16) / 10.5;
+      const ny = (y + 0.5 - 13) / 10.5;
+      const d = nx * nx + ny * ny;
+      if (d > 1) continue;
+      const over = ((x >> 1) + (y >> 1)) & 1;
+      // weft (horizontal) on the over squares, warp (vertical) on the under ones
+      let c = over ? ((y & 1) ? C.vio5 : C.pnk1) : ((x & 1) ? C.vio4 : C.vio5);
+      if (x > 18 && d > 0.4) c = over ? C.vio4 : C.vio3;
+      pc.set(x, y, c);
+    }
+  }
+  pc.ring(16, 13, 10.8, C.vio0);
+  pc.ring(16, 13, 11.6, C.yel0);
+  for (let a = 0; a < 360; a += 30) {
+    const r = (a * Math.PI) / 180;
+    pc.set(Math.round(16 + Math.cos(r) * 11.2), Math.round(13 + Math.sin(r) * 11.2), C.yel2);
+  }
+  // eyes and mouth: dark knots tied into the cloth, each with a bright bead
+  const k = C.vio0;
+  const bead = C.white;
+  const ey = 12;
+  if (mood === 'happy' || mood === 'excited') {
+    for (const ex of [10, 18]) {
+      pc.set(ex, ey + 1, k);
+      pc.set(ex + 1, ey, k);
+      pc.set(ex + 2, ey, k);
+      pc.set(ex + 3, ey + 1, k);
+    }
+    if (mood === 'excited') for (const [x, y] of [[3, 4], [28, 5], [2, 20], [29, 21]] as const) pc.set(x, y, C.yel1);
+  } else {
+    for (const ex of [11, 18]) {
+      pc.rect(ex, ey - 1, 3, 3, k);
+      pc.set(ex + 1, ey, bead);
+    }
+    if (mood === 'worried') {
+      pc.line(10, ey - 3, 13, ey - 4, k);
+      pc.line(18, ey - 4, 21, ey - 3, k);
+    } else if (mood === 'angry') {
+      pc.line(10, ey - 4, 13, ey - 3, k);
+      pc.line(18, ey - 3, 21, ey - 4, k);
+    }
+  }
+  const my = 17;
+  if (mood === 'excited') {
+    pc.rect(14, my, 4, 2, k);
+    pc.hline(15, my + 1, 2, C.pnk0);
+  } else if (mood === 'happy') {
+    pc.set(13, my, k);
+    pc.hline(14, my + 1, 4, k);
+    pc.set(18, my, k);
+  } else if (mood === 'worried' || mood === 'angry') {
+    // a wavering stitch
+    for (const [x, y] of [[13, my + 1], [14, my], [15, my + 1], [16, my], [17, my + 1], [18, my]] as const) pc.set(x, y, k);
+  } else {
+    for (const x of [13, 15, 17]) pc.set(x, my, k);
+    pc.hline(14, my + 1, 4, k);
+  }
+}
+
+/** Sapling (Orchard): a green seedling of a face with leaves sprouting on top. Open, cheap, a little reckless. */
+function saplingAvatar(pc: PixelCanvas, mood: Mood) {
+  background(pc, [C.grn1, C.grn2]);
+  for (const [x, y, c] of [[4, 5, C.yel1], [27, 8, C.grn7], [3, 17, C.grn6], [28, 20, C.yel0], [24, 3, C.white], [7, 12, C.grn5]] as const) pc.set(x, y, c);
+  // shoulders: two broad leaves cupping the head
+  for (const side of [-1, 1]) {
+    for (let y = 22; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const lx = (x + 0.5 - (16 + side * 8)) / 9;
+        const ly = (y + 0.5 - 31) / 7;
+        if (lx * lx + ly * ly <= 1 && pc.get(x, y)) pc.set(x, y, side < 0 ? C.grn4 : C.grn3);
+      }
+    }
+    // the midrib
+    for (let t = 0; t < 9; t++) pc.set(Math.round(16 + side * (2 + t)), Math.round(31 - t * 0.7), side < 0 ? C.grn6 : C.grn5);
+  }
+  // the stem and its leaves (they droop when worried, stand up when angry or excited)
+  const droop = mood === 'worried';
+  const perk = mood === 'angry' || mood === 'excited';
+  pc.vline(16, 1, 5, C.grn4);
+  const leaf = (cx: number, cy: number, rx: number, ry: number, light: number, dark: number, vein: number, tilt: number) => {
+    for (let y = Math.floor(cy - ry - 2); y <= Math.ceil(cy + ry + 2); y++) {
+      for (let x = Math.floor(cx - rx - 2); x <= Math.ceil(cx + rx + 2); x++) {
+        const dx = x + 0.5 - cx;
+        const dy = y + 0.5 - cy;
+        const u = dx * Math.cos(tilt) + dy * Math.sin(tilt);
+        const v = -dx * Math.sin(tilt) + dy * Math.cos(tilt);
+        if ((u / rx) ** 2 + (v / ry) ** 2 <= 1) pc.set(x, y, v < 0 ? light : dark);
+        if (Math.abs(v) < 0.5 && Math.abs(u) < rx - 0.8) pc.set(x, y, vein);
+      }
+    }
+  };
+  const tl = droop ? 0.75 : perk ? -0.75 : -0.35;
+  leaf(11.5, droop ? 4.5 : 3, 4.4, 2, C.grn7, C.grn5, C.grn8, -tl);
+  leaf(20.5, droop ? 4 : 2.6, 4.8, 2.2, C.grn7, C.grn5, C.grn8, tl);
+  if (mood === 'excited') leaf(16, 0.5, 1.6, 1, C.grn8, C.grn6, C.yel1, 0);
+  // the head: a plump green bud, lit from the upper left
+  pc.ellipse(16, 15, 9.6, 8.8, C.grn6);
+  for (let y = 6; y < 25; y++) {
+    for (let x = 6; x < 27; x++) {
+      if (pc.get(x, y) !== C.grn6) continue;
+      const lit = -(x + 0.5 - 16) * 0.55 - (y + 0.5 - 15) * 0.5;
+      if (lit < -4.5) pc.set(x, y, C.grn4);
+      else if (lit < -2) pc.set(x, y, C.grn5);
+      else if (lit > 4.5) pc.set(x, y, C.grn7);
+    }
+  }
+  pc.set(10, 9, C.grn8);
+  pc.set(11, 8, C.grn8);
+  pc.set(9, 10, C.grn8);
+  // a seam where the bud is opening
+  for (let y = 7; y < 11; y++) pc.set(16 + ((y & 1) ? 0 : 1), y, C.grn4);
+  // big friendly eyes
+  const ey = 14;
+  if (mood === 'happy' || mood === 'excited') {
+    for (const ex of [11, 18]) {
+      pc.set(ex, ey + 1, C.ink0);
+      pc.set(ex + 1, ey, C.ink0);
+      pc.set(ex + 2, ey, C.ink0);
+      pc.set(ex + 3, ey + 1, C.ink0);
+    }
+    pc.set(10, 17, C.pnk1);
+    pc.set(22, 17, C.pnk1);
+    if (mood === 'excited') for (const [x, y] of [[5, 9], [27, 12], [6, 21]] as const) pc.set(x, y, C.yel1);
+  } else {
+    for (const ex of [11, 19]) {
+      pc.rect(ex, ey - 1, 3, 3, C.ink0);
+      pc.set(ex, ey - 1, C.white);
+      pc.set(ex + 2, ey + 1, C.grn2);
+    }
+    if (mood === 'worried') {
+      pc.line(10, ey - 3, 13, ey - 4, C.grn3);
+      pc.line(19, ey - 4, 22, ey - 3, C.grn3);
+    } else if (mood === 'angry') {
+      pc.line(10, ey - 4, 13, ey - 3, C.grn2);
+      pc.line(19, ey - 3, 22, ey - 4, C.grn2);
+    }
+  }
+  const my = 19;
+  if (mood === 'excited') {
+    pc.rect(14, my, 4, 2, C.grn2);
+    pc.hline(14, my, 4, C.ink0);
+    pc.set(15, my + 1, C.pnk0);
+  } else if (mood === 'happy') {
+    pc.set(13, my, C.ink0);
+    pc.hline(14, my + 1, 4, C.ink0);
+    pc.set(18, my, C.ink0);
+  } else if (mood === 'worried') {
+    pc.hline(14, my + 1, 2, C.ink0);
+    pc.set(16, my, C.ink0);
+    pc.set(17, my + 1, C.ink0);
+  } else if (mood === 'angry') {
+    pc.set(13, my + 1, C.ink0);
+    pc.hline(14, my, 4, C.ink0);
+    pc.set(18, my + 1, C.ink0);
+  } else pc.hline(14, my, 4, C.grn3);
+}
+
+const AVATARS: Record<string, (pc: PixelCanvas, mood: Mood) => void> = { apex: apexAvatar, weft: weftAvatar, sapling: saplingAvatar };
+
 // ── CEOs (Act II) ─────────────────────────────────────────────────────────────────────────────
 export type CeoId =
   | 'meridian' | 'lattice' | 'orchard' | 'kestrel' | 'littlesun' | 'veldt' | 'board'
@@ -975,7 +1536,9 @@ export type CeoId =
   | 'halcyon' | 'brightwater' | 'sunforge' | 'spanwire' | 'tidewater' | 'deepvein' | 'saltflat' | 'lumen'
   | 'stackwell' | 'hanbit' | 'bondline' | 'cumulus' | 'stratum' | 'parabola' | 'karman'
   // ── Act III faction delegates ──
-  | 'atlantic' | 'eastern' | 'nonaligned';
+  | 'atlantic' | 'eastern' | 'nonaligned'
+  // ── Act IV partners and cast ──
+  | 'twistfield' | 'kindle' | 'quickpinch' | 'carbonfold' | 'ade';
 
 const CEO_LOOKS: Record<CeoId, Look> = {
   // Dana Voss — platinum swept-back hair, black turtleneck, Meridian red
@@ -1030,9 +1593,22 @@ const CEO_LOOKS: Record<CeoId, Look> = {
   eastern: { bg: [C.red2, C.red3], skin: [C.skn4, C.skn5, C.skn6], hair: [C.ink1, C.ink3], cloth: [C.ink1, C.ink2, C.ink3], style: 'sidepart', temples: C.ink7, mandarin: true, lines: true, pin: C.red3 },
   // Nkechi Adeyemi (Non-aligned) — speaks for four billion people: a tall green-and-gold gele, coral beads
   nonaligned: { bg: [C.grn6, C.grn8], skin: [C.skn0, C.skn1, C.skn2], hair: [C.ink0, C.ink2], cloth: [C.grn3, C.grn4, C.grn5], style: 'gele', hat: [C.grn3, C.grn5], earrings: C.yel0, necklace: C.org1, weave: [C.yel0, C.grn6, C.yel1, C.grn4] },
+  // ── Act IV partners ──
+  // Prof. Greta Lindahl — forty years on one design: a white crown braid, round glasses, a knitted cardigan, the twisted ring behind her
+  twistfield: { bg: [C.vio3, C.vio5], skin: [C.skn4, C.skn5, C.skn6], hair: [C.snd6, C.snd8], cloth: [C.grn1, C.grn2, C.grn3], style: 'braid', band: [C.snd5, C.white], glasses: 'thin', knit: C.ink9, lines: true, earrings: C.vio5 },
+  // Jonah Pike — talks fast, thinks faster: a bleached undercut, stubble, a black tee and the laser tattoo he won't explain
+  kindle: { bg: [C.org0, C.org1], skin: [C.skn4, C.skn5, C.skn6], hair: [C.snd4, C.yel1], cloth: [C.ink0, C.ink1, C.ink3], style: 'undercut', stubble: true, tattoo: C.red3, earrings: C.ink9 },
+  // Rosa Quintero — garage-startup energy: a cloud of curls under a red bandana, gold hoops, a denim work shirt
+  quickpinch: { bg: [C.yel0, C.yel1], skin: [C.skn2, C.skn3, C.skn4], hair: [C.ink0, C.ink2], cloth: [C.blu2, C.blu3, C.blu4], style: 'bandana', band: [C.red2, C.red3], earrings: C.yel0, lips: C.red3, freckles: true },
+  // Sigrid Aalto — the geologist who fell in love with a fan: ginger shag, freckles, a field vest over a flannel shirt
+  carbonfold: { bg: [C.grn3, C.grn5], skin: [C.skn4, C.skn5, C.skn6], hair: [C.org0, C.org1], cloth: [C.red1, C.red2, C.red3], style: 'shag', freckles: true, plaid: C.ink2, vest: [C.grn1, C.grn2], ruddy: true },
+  // ── Act IV cast ──
+  // Ade Bello — Moon base commander, ex-navy: a close crop and a neat beard, the EVA suit, the Moon and Earth behind him
+  ade: { bg: [C.night1, C.night3], skin: [C.skn0, C.skn1, C.skn2], hair: [C.ink0, C.ink2], cloth: [C.ink7, C.ink9, C.white], style: 'crop', beard: true, eva: true, patch: C.blu4, stars: true, horizon: [C.rck2, C.rck4] },
 };
 
-export const CEO_IDS = Object.keys(CEO_LOOKS) as CeoId[];
+/** Everyone with a portrait of their own (`ceo:<id>` speakers): partners, delegates, the Act IV cast and the rival AIs. */
+export const CEO_IDS = [...Object.keys(CEO_LOOKS), ...Object.keys(AVATARS)] as (CeoId | 'apex' | 'weft' | 'sapling')[];
 
 /** Someone without a portrait of their own: a grey-suited executive. */
 const GENERIC_CEO: Look = { bg: [C.ink3, C.ink4], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink2, C.ink4], cloth: [C.ink1, C.ink2, C.ink4], style: 'wavy', suit: { shirt: C.ink9, tie: C.blu3 } };
@@ -1040,7 +1616,9 @@ const GENERIC_CEO: Look = { bg: [C.ink3, C.ink4], skin: [C.skn3, C.skn4, C.skn5]
 /** Raw canvas for a CEO portrait (unknown ids get a generic executive). */
 export function ceoPortraitCanvas(id: string, mood: Mood = 'neutral'): PixelCanvas {
   const pc = new PixelCanvas(S, S);
-  drawPerson(pc, CEO_LOOKS[id as CeoId] ?? GENERIC_CEO, mood);
+  const avatar = AVATARS[id];
+  if (avatar) avatar(pc, mood);
+  else drawPerson(pc, CEO_LOOKS[id as CeoId] ?? GENERIC_CEO, mood);
   return pc;
 }
 
@@ -1082,6 +1660,30 @@ export function portraitCanvas(id: AdvisorId, mood: Mood = 'neutral', bitGen = 1
 /** Hair is drawn once into a scratch layer: behind the head, then again only where it frames the face. */
 function drawPerson(pc: PixelCanvas, L: Look, mood: Mood) {
   background(pc, L.bg, L.stars);
+  if (L.horizon) {
+    // a lunar horizon low behind the shoulders, with Earth hanging over it
+    const [hd, hl] = L.horizon;
+    for (let x = 0; x < S; x++) {
+      const top = 21 + Math.round(Math.sin(x / 4.5) * 0.8 + (x > 22 ? (x - 22) * 0.25 : 0));
+      for (let y = top; y < S; y++) if (pc.get(x, y)) pc.set(x, y, y === top ? hl : (x * 7 + y * 3) % 11 === 0 ? hl : hd);
+    }
+    pc.circle(26.5, 6.5, 2.6, C.sea5);
+    pc.set(26, 5, C.grn6);
+    pc.set(27, 7, C.white);
+    pc.set(25, 7, C.sea7);
+    for (const [x, y] of [[28, 8], [28, 7], [27, 9]] as const) pc.set(x, y, C.sea3);
+  }
+  if (L.torus) {
+    // a ring of plasma behind the head, its near side brighter
+    const [td, tl] = L.torus;
+    for (let a = 0; a < 360; a += 3) {
+      const r = (a * Math.PI) / 180;
+      const x = Math.round(16 + Math.cos(r) * 13);
+      const y = Math.round(12 + Math.sin(r) * 4.2);
+      if (pc.get(x, y)) pc.set(x, y, Math.sin(r) > 0.2 ? tl : td);
+    }
+    for (const [x, y] of [[4, 11], [28, 13], [9, 16], [23, 8]] as const) pc.set(x, y, C.white);
+  }
   const h = new PixelCanvas(S, S);
   hair(h, L);
   const front = L.style === 'hardhat' || L.style === 'beanie' || L.style === 'cap' || L.style === 'helmet' || L.style === 'gele';

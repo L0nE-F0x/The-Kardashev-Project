@@ -27,6 +27,8 @@ export interface LaunchSpec {
   y: number;
   /** Seconds per launch cycle; 0 = it just stands on the pad. */
   period: number;
+  /** Seconds this pad runs ahead in the cycle (Act IV spaceports stagger their pads). */
+  offset?: number;
   /** Boil-off vents on the rocket (offsets from its bottom centre) that puff while it stands. */
   vents: [number, number][];
 }
@@ -129,12 +131,15 @@ export function rocketFrames(r: Ramp4): { frames: PixelCanvas[]; glow: PixelCanv
   return { frames, glow };
 }
 
+/** Seconds into a launch cycle when the engines light (longer cycles stand longer on the pad). */
+export const igniteAt = (period: number) => Math.max(8.5, period - 11.5);
+
 /** Where the rocket is in its launch cycle (t in seconds since the cycle began). */
 export function rocketPose(t: number, period: number): { dy: number; frame: number; phase: 'pad' | 'ignite' | 'flight' | 'gone'; burn: number } {
   if (period <= 0) return { dy: 0, frame: 0, phase: 'pad', burn: 0 };
   const u = ((t % period) + period) % period;
-  const IGNITE = 8.5;
-  const LIFT = 10;
+  const IGNITE = igniteAt(period);
+  const LIFT = IGNITE + 1.5;
   const frame = 1 + (Math.floor(u * 14) % 3);
   if (u < IGNITE) return { dy: 0, frame: 0, phase: 'pad', burn: 0 };
   if (u < LIFT) return { dy: 0, frame, phase: 'ignite', burn: (u - IGNITE) / (LIFT - IGNITE) };
@@ -164,7 +169,11 @@ export function launchFlash(): PixelCanvas {
 export const PAD_W = 136;
 export const PAD_H = 132;
 
-export function launchPad(r: Ramp4, liftoff: boolean, backdrop: Backdrop): FacilityArt {
+/**
+ * A pad with its service tower and the rocket. `liftoff` runs the launch cycle (20 s, the Act III
+ * cliffhanger); Act IV spaceports pass their pad number and a staggered `period`/`offset`.
+ */
+export function launchPad(r: Ramp4, liftoff: boolean, backdrop: Backdrop, opts: { pad?: number; period?: number; offset?: number } = {}): FacilityArt {
   const W = PAD_W;
   const H = PAD_H;
   const deck = H - 13;
@@ -220,7 +229,7 @@ export function launchPad(r: Ramp4, liftoff: boolean, backdrop: Backdrop): Facil
     pc.rect(rx - 7, deck - 2, 15, 2, C.ink5); // launch mount
     pc.hline(rx - 7, deck - 2, 15, C.ink7);
     for (const lx of [rx - 6, rx + 5]) pc.vline(lx, deck - 6, 4, C.ink4); // hold-down clamps
-    drawText(pc, 'PAD 1', 22, deck + 3, C.ink5);
+    drawText(pc, `PAD ${opts.pad ?? 1}`, 22, deck + 3, C.ink5);
     // the service tower: a lattice with platforms, the crew access arm, a lightning rod on top
     const ttop = 10;
     for (let y = ttop; y < deck; y++) {
@@ -267,7 +276,8 @@ export function launchPad(r: Ramp4, liftoff: boolean, backdrop: Backdrop): Facil
     glows.push(g);
   }
   const rk = rocketFrames(r);
-  const launch: LaunchSpec = { frames: rk.frames, glow: rk.glow, body: ROCKET_BODY, x: rx, y: deck - 2, period: liftoff ? 20 : 0, vents: [[5, -66], [-5, -40]] };
+  const launch: LaunchSpec = { frames: rk.frames, glow: rk.glow, body: ROCKET_BODY, x: rx, y: deck - 2, period: liftoff ? (opts.period ?? 20) : 0, vents: [[5, -66], [-5, -40]] };
+  if (opts.offset) launch.offset = opts.offset;
   return { base: frames, glow: glows, points: {}, fps: 1, launch };
 }
 
