@@ -4,9 +4,11 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.DisplayCutout;
 import android.view.View;
 import android.view.Window;
@@ -27,7 +29,15 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 import android.window.OnBackInvokedDispatcher;
 
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -39,12 +49,16 @@ import java.nio.charset.StandardCharsets;
  * phones (Xiaomi's MIUI / HyperOS) silently block one app from starting another, so tapping the
  * icon did nothing. Everything here runs in this app's process.
  *
- * The page talks to the app through window.KardashevAndroid (saveFile) and window.kpBack (the
- * back gesture), both wrapped in src/platform/platform.ts.
+ * The page talks to the app through window.KardashevAndroid (saveFile, installUpdate) and calls
+ * window.kpBack (the back gesture) and window.kpUpdateStatus (update progress), all wrapped in
+ * src/platform/platform.ts.
  */
 public class LauncherActivity extends Activity {
     private static final int REQ_OPEN_FILE = 1;
     private static final int REQ_SAVE_FILE = 2;
+    private static final int REQ_INSTALL = 3;
+    /** In-app updates only come from this project's GitHub releases. */
+    private static final String RELEASES = "https://github.com/L0nE-F0x/The-Kardashev-Project/releases/download/";
 
     private FrameLayout root;
     private WebView web;
@@ -52,6 +66,8 @@ public class LauncherActivity extends Activity {
     private String launchUrl;
     private ValueCallback<Uri[]> fileCallback;
     private String pendingSave;
+    /** An update waiting for the "install unknown apps" permission. */
+    private String pendingUpdate;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -89,6 +105,10 @@ public class LauncherActivity extends Activity {
         if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             WebView.setWebContentsDebuggingEnabled(true);
         }
+        // a finished update leaves its APK behind
+        //noinspection ResultOfMethodCallIgnored
+        UpdateProvider.file(this).delete();
+
         createWebView();
         web.loadUrl(launchUrl);
 
@@ -178,6 +198,98 @@ public class LauncherActivity extends Activity {
                 }
             });
         }
+
+        /** Update the app: download the release's APK and hand it to the phone's installer. */
+        @JavascriptInterface
+        public void installUpdate(String url) {
+            runOnUiThread(() -> startUpdate(url));
+        }
+    }
+
+    // ── in-app updates ───────────────────────────────────────────────────────────────────────
+    // The game itself updates with the website; this replaces the app around it. The APK is the
+    // release's, signed with the same key as this app (Android refuses anything else). The classic
+    // installer hand-off is used, not PackageInstaller sessions, which fail on some Xiaomi phones.
+
+    private boolean debuggable() {
+        return (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
+    }
+
+    private void updateStatus(String phase, String detail) {
+        if (web == null) return;
+        web.evaluateJavascript("window.kpUpdateStatus&&window.kpUpdateStatus(" + JSONObject.quote(phase) + "," + JSONObject.quote(detail == null ? "" : detail) + ")", null);
+    }
+
+    private void startUpdate(String url) {
+        // only this project's releases (and, in debug builds, the emulator's host for testing)
+        if (url == null || !(url.startsWith(RELEASES) || (debuggable() && url.startsWith("http://10.0.2.2:")))) {
+            updateStatus("failed", "not a release of this app");
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            // once: the player allows this app to install its own updates (Settings opens on its switch)
+            pendingUpdate = url;
+            updateStatus("permission", null);
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+            } catch (ActivityNotFoundException e) {
+                pendingUpdate = null;
+                updateStatus("failed", "no settings screen for installing apps");
+            }
+            return;
+        }
+        downloadUpdate(url);
+    }
+
+    private void downloadUpdate(String url) {
+        updateStatus("downloading", null);
+        File apk = UpdateProvider.file(this);
+        new Thread(() -> {
+            try {
+                //noinspection ResultOfMethodCallIgnored
+                apk.getParentFile().mkdirs();
+                // GitHub answers with a redirect to its file host (https to https, which this follows)
+                HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                c.setInstanceFollowRedirects(true);
+                c.setConnectTimeout(20000);
+                c.setReadTimeout(30000);
+                int code = c.getResponseCode();
+                if (code != 200) throw new IOException("the download answered " + code);
+                try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(apk)) {
+                    byte[] buf = new byte[16384];
+                    for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+                } finally {
+                    c.disconnect();
+                }
+                PackageInfo info = getPackageManager().getPackageArchiveInfo(apk.getPath(), 0);
+                if (info == null || !getPackageName().equals(info.packageName)) throw new IOException("the download isn't this app");
+                runOnUiThread(this::openInstaller);
+            } catch (Exception e) {
+                runOnUiThread(() -> updateStatus("failed", e.getMessage()));
+            }
+        }).start();
+    }
+
+    @SuppressWarnings("deprecation")
+    private void openInstaller() {
+        Intent install = new Intent(Intent.ACTION_INSTALL_PACKAGE)
+                .setData(UpdateProvider.uri(this))
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                .putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                .putExtra(Intent.EXTRA_RETURN_RESULT, true);
+        try {
+            startActivityForResult(install, REQ_INSTALL);
+            updateStatus("installing", null);
+        } catch (ActivityNotFoundException e) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(UpdateProvider.uri(this), UpdateProvider.APK_TYPE)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION));
+                updateStatus("installing", null);
+            } catch (ActivityNotFoundException e2) {
+                updateStatus("failed", "no installer on this phone");
+            }
+        }
     }
 
     @Override
@@ -186,6 +298,10 @@ public class LauncherActivity extends Activity {
         if (request == REQ_OPEN_FILE) {
             if (fileCallback != null) fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
             fileCallback = null;
+        } else if (request == REQ_INSTALL) {
+            // when the update installs, Android replaces this app and this never runs
+            if (result == RESULT_CANCELED) updateStatus("cancelled", null);
+            else if (result != RESULT_OK) updateStatus("failed", "the installer said no (" + result + ")");
         } else if (request == REQ_SAVE_FILE) {
             String text = pendingSave;
             pendingSave = null;
@@ -285,6 +401,13 @@ public class LauncherActivity extends Activity {
         super.onResume();
         if (web != null) web.onResume();
         immersive();
+        if (pendingUpdate != null) {
+            // back from the "install unknown apps" switch
+            String url = pendingUpdate;
+            pendingUpdate = null;
+            if (Build.VERSION.SDK_INT < 26 || getPackageManager().canRequestPackageInstalls()) downloadUpdate(url);
+            else updateStatus("cancelled", null);
+        }
     }
 
     @Override

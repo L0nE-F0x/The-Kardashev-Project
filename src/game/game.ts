@@ -35,7 +35,8 @@ import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
 import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
 import { musicUnlocked, playMusic } from '../audio/music';
-import { canFullscreen, canPromptInstall, enterFullscreen, initInstallPrompt, isPhone, isStandalone, onInstallChange, registerServiceWorker } from '../platform/platform';
+import { canFullscreen, canPromptInstall, checkAppUpdate, enterFullscreen, initInstallPrompt, isPhone, isStandalone, onInstallChange, registerServiceWorker } from '../platform/platform';
+import type { AppUpdate, AppUpdateStatus } from '../platform/platform';
 import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
@@ -123,6 +124,8 @@ export class Game {
   settings: Settings = loadSettings();
   eraOverride: Era | null = null;
   updateReady: (() => void) | null = null;
+  /** The installed app (desktop or Android) has a newer release; `hidden` after "Later" until the next start. */
+  appUpdate: { version: string; install: AppUpdate['install']; status: AppUpdateStatus; hidden: boolean } | null = null;
   installAvailable = false;
   /** Demo world shown behind the main menu. */
   showcase: GameState | null = null;
@@ -164,6 +167,7 @@ export class Game {
       this.updateReady = apply;
       this.notify();
     });
+    this.watchAppUpdates();
     this.autoFullscreen();
     document.addEventListener('fullscreenchange', () => this.notify());
   }
@@ -365,6 +369,35 @@ export class Game {
     this.stage.setZoomBoost(this.settings.zoom * 2);
     this.stage.setScene(this.scenes.diorama(this, siteId));
     sfx('whoosh');
+    this.notify();
+  }
+
+  /** The installed apps look for a newer release a few seconds after starting, then every six hours. */
+  private watchAppUpdates(): void {
+    const look = async () => {
+      if (this.appUpdate) return;
+      const u = await checkAppUpdate();
+      if (!u) return;
+      this.appUpdate = { version: u.version, install: u.install, status: { phase: 'ready' }, hidden: false };
+      this.notify();
+    };
+    window.setTimeout(() => void look(), 6000);
+    window.setInterval(() => void look(), 6 * 3600 * 1000);
+  }
+
+  /** Update the installed app now (the game is saved first: the app restarts or gets replaced). */
+  installAppUpdate(): void {
+    const u = this.appUpdate;
+    if (!u || (u.status.phase !== 'ready' && u.status.phase !== 'failed' && u.status.phase !== 'cancelled')) return;
+    this.save();
+    u.install((status) => {
+      u.status = status;
+      this.notify();
+    });
+  }
+
+  hideAppUpdate(): void {
+    if (this.appUpdate) this.appUpdate.hidden = true;
     this.notify();
   }
 

@@ -33,14 +33,27 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "app", "dmg", "appimage", "deb"],
+    "targets": [
+      "nsis",
+      "app",
+      "dmg",
+      "appimage",
+      "deb"
+    ],
     "publisher": "Lone Fox",
     "copyright": "© 2026 Lone Fox",
     "category": "SimulationGame",
     "shortDescription": "A cozy-but-real pixel-art sim of the AI boom",
     "longDescription": "Build power, chips, compute and supply lines on a real Earth, train your models, weather the crises, and lift civilisation up the Kardashev scale.",
     "homepage": "https://thekardashevproject.netlify.app",
-    "icon": ["icons/128x128@2x.png", "icons/128x128.png", "icons/64x64.png", "icons/32x32.png", "icons/icon.icns", "icons/icon.ico"],
+    "icon": [
+      "icons/128x128@2x.png",
+      "icons/128x128.png",
+      "icons/64x64.png",
+      "icons/32x32.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "windows": {
       "nsis": {
         "installMode": "currentUser"
@@ -53,6 +66,18 @@
     "linux": {
       "deb": {
         "section": "games"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIyMzc1MUFCOUM4QjBGNDkKUldSSkQ0dWNxMUUzSW5QZ3RYSllIQ1VVeE1FZmMyV0lkZkZta09HSjFOemhsaUpvNFlERzVCNEUK",
+      "endpoints": [
+        "https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

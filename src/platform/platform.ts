@@ -6,8 +6,10 @@
 
 export const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+const REPO = 'L0nE-F0x/The-Kardashev-Project';
+
 /** The Android app (the live site in the app's own WebView): always the latest release's APK. */
-export const ANDROID_APK_URL = 'https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk';
+export const ANDROID_APK_URL = `https://github.com/${REPO}/releases/latest/download/TheKardashevProject-android.apk`;
 
 const LAUNCH_KEY = 'kardashev.launchedAsApp';
 try {
@@ -21,6 +23,8 @@ try {
 /** What the Android app (android/app/src/main/java/…/LauncherActivity.java) gives the page. */
 interface AndroidBridge {
   saveFile(name: string, text: string): void;
+  /** Since v0.5.1: download this APK and hand it to the phone's installer; progress comes back through window.kpUpdateStatus. */
+  installUpdate?(url: string): void;
 }
 
 function androidBridge(): AndroidBridge | null {
@@ -86,6 +90,106 @@ export function saveTextFile(name: string, text: string, type = 'application/jso
  */
 export function onHostBack(fn: () => boolean): void {
   if (typeof window !== 'undefined') (window as Window & { kpBack?: () => boolean }).kpBack = fn;
+}
+
+// ── in-app updates for the installed apps ───────────────────────────────────────────────────
+// The browser and the installed web app update through the service worker (registerServiceWorker).
+// The desktop app carries its own copy of the game, so it updates itself from GitHub releases (Tauri's
+// updater: signed, see plugins.updater in src-tauri/tauri.conf.json). The Android app already runs the
+// live site, so this only updates the small app around it, from the latest release's APK.
+
+export type AppUpdateStatus =
+  | { phase: 'ready' }
+  | { phase: 'downloading'; fraction: number | null }
+  | { phase: 'permission' } // Android: allow the app to install updates
+  | { phase: 'installing' }
+  | { phase: 'browser' } // Android apps from before v0.5.1: the APK downloads in the browser
+  | { phase: 'cancelled' }
+  | { phase: 'failed'; reason: string };
+
+/** A newer release of the installed app. */
+export interface AppUpdate {
+  version: string;
+  /** Download and install it. The desktop app restarts into the new version; Android hands over to its installer. */
+  install(onStatus: (s: AppUpdateStatus) => void): void;
+}
+
+/** x.y.z → one comparable number (the Android versionCode formula in android/app/build.gradle). */
+function versionNumber(v: string): number {
+  const [a = 0, b = 0, c = 0] = v.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
+  return a * 10000 + b * 100 + c;
+}
+
+/** Is there a newer release of this installed app? Null in the browser, in dev, offline, or when up to date. */
+export async function checkAppUpdate(): Promise<AppUpdate | null> {
+  if (!import.meta.env.PROD) return null;
+  try {
+    if (isDesktopApp) return await checkDesktopUpdate();
+    if (isAndroidApp()) return await checkAndroidUpdate();
+  } catch {
+    /* offline, rate-limited or no release yet: try again later */
+  }
+  return null;
+}
+
+async function checkDesktopUpdate(): Promise<AppUpdate | null> {
+  const { check } = await import('@tauri-apps/plugin-updater');
+  const update = await check();
+  if (!update) return null;
+  return {
+    version: update.version,
+    install(onStatus) {
+      let total = 0;
+      let got = 0;
+      onStatus({ phase: 'downloading', fraction: null });
+      void (async () => {
+        try {
+          await update.downloadAndInstall((e) => {
+            if (e.event === 'Started') total = e.data.contentLength ?? 0;
+            else if (e.event === 'Progress') {
+              got += e.data.chunkLength;
+              onStatus({ phase: 'downloading', fraction: total ? Math.min(1, got / total) : null });
+            } else if (e.event === 'Finished') onStatus({ phase: 'installing' });
+          });
+          // Windows has already closed the app to run the installer; elsewhere, restart into it
+          const { relaunch } = await import('@tauri-apps/plugin-process');
+          await relaunch();
+        } catch (err) {
+          onStatus({ phase: 'failed', reason: String((err as Error)?.message ?? err) });
+        }
+      })();
+    },
+  };
+}
+
+async function checkAndroidUpdate(): Promise<AppUpdate | null> {
+  // the app's own version (its user agent ends in KardashevAndroid/x.y.z), not the website's
+  const current = /KardashevAndroid\/([\d.]+)/.exec(navigator.userAgent)?.[1];
+  if (!current) return null;
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } });
+  if (!res.ok) return null;
+  const release = (await res.json()) as { tag_name?: string; assets?: { name: string; browser_download_url: string }[] };
+  const latest = release.tag_name?.replace(/^v/, '');
+  const apk = release.assets?.find((a) => a.name === 'TheKardashevProject-android.apk')?.browser_download_url;
+  if (!latest || !apk || versionNumber(latest) <= versionNumber(current)) return null;
+  return {
+    version: latest,
+    install(onStatus) {
+      const bridge = androidBridge();
+      if (!bridge?.installUpdate) {
+        // the app opens links outside the game in the browser, which downloads the APK
+        window.location.href = apk;
+        onStatus({ phase: 'browser' });
+        return;
+      }
+      (window as Window & { kpUpdateStatus?: (phase: string, detail?: string) => void }).kpUpdateStatus = (phase, detail) => {
+        if (phase === 'failed') onStatus({ phase, reason: detail || 'unknown error' });
+        else if (phase === 'downloading') onStatus({ phase, fraction: null });
+        else if (phase === 'permission' || phase === 'installing' || phase === 'cancelled') onStatus({ phase });
+      };
+      bridge.installUpdate(apk);
+    },
+  };
 }
 
 export async function quitApp(): Promise<void> {

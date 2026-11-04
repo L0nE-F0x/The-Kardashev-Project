@@ -8,6 +8,7 @@ import { COMPANIES } from '../content/companies';
 import { CHOKEPOINT_BY_ID } from '../world/routing';
 import { closedChokepoints } from '../sim/effects';
 import { fmtDays, fmtMW } from '../sim/core';
+import { isAndroid } from '../platform/platform';
 import type { AdvisorId } from '../sim/types';
 
 /** Scrolling news ticker along the bottom. */
@@ -220,9 +221,58 @@ export function FpsCounter() {
   return <div class="fps">{game.fps} fps</div>;
 }
 
-/** The PWA found a newer version. */
+/** The installed app (desktop or Android) has a newer release: update it from inside the game. */
+function AppUpdateToast() {
+  const game = useGame();
+  const u = game.appUpdate!;
+  const st = u.status;
+  const later = (
+    <button class="btn small" onClick={() => game.hideAppUpdate()}>
+      Later
+    </button>
+  );
+  let body;
+  if (st.phase === 'ready')
+    body = (
+      <>
+        <span>Version {u.version} is out.</span>
+        <button class="btn small primary" onClick={() => game.installAppUpdate()}>
+          Update
+        </button>
+        {later}
+      </>
+    );
+  else if (st.phase === 'downloading') body = <span>Downloading version {u.version}{st.fraction !== null ? ` · ${Math.round(st.fraction * 100)}%` : '…'}</span>;
+  else if (st.phase === 'permission') body = <span>Allow the game to install updates, then come back.</span>;
+  else if (st.phase === 'installing') body = <span>{isAndroid() ? 'Installing: confirm on screen, then open the game again.' : 'Installing: the game restarts in a moment.'}</span>;
+  else if (st.phase === 'browser')
+    body = (
+      <>
+        <span>The new app is downloading in your browser: open it to install.</span>
+        {later}
+      </>
+    );
+  else
+    body = (
+      <>
+        <span data-tip={st.phase === 'failed' ? st.reason : undefined}>{st.phase === 'cancelled' ? 'Update cancelled.' : 'The update didn’t work.'}</span>
+        <button class="btn small primary" onClick={() => game.installAppUpdate()}>
+          Try again
+        </button>
+        {later}
+      </>
+    );
+  return (
+    <div class="update frame interactive" role="status">
+      {body}
+    </div>
+  );
+}
+
+/** A newer version: the installed app's own update first, else the web app's (service worker). */
 export function UpdateToast() {
   const game = useGame();
+  if (game.appUpdate && !game.appUpdate.hidden) return <AppUpdateToast />;
   if (!game.updateReady) return null;
   return (
     <div class="update frame interactive">
