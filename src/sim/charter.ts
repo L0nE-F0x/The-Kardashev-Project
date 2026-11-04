@@ -31,6 +31,10 @@ import { queueEvent, scheduleEvent } from './events';
 import { facilityIT, facilityMW, DAYS_PER_MONTH, alignmentOf } from './model';
 import { addRelation, addRelationAll, blocIT } from './politics';
 import { emptyCharterLedger } from './charterInit';
+import { FUSION_DESIGNS, PLANET, SUPERGRID_BY_ID } from '../content/planet';
+import { fleetBlocked, fleetCF, fleetValuePerGW, pilotBlocked, resolvePilot, startPilot } from './fusion';
+import { canLaunch, cleanUp, moonStage, orbitGW, spaceCostMult } from './orbit';
+import { aiAccessBonus } from './airegions';
 
 export type Result = { ok: true } | { ok: false; reason: string };
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -98,10 +102,16 @@ const yearsSince2035 = (s: GameState) => Math.max(0, yearsElapsed(s.day) - 8);
 export const unitsOf = (def: ContractKindDef, size: ContractSize) => def.sizes[size - 1];
 
 /** Total project value of a contract (the Charter pays `share` of it). */
-export function contractValue(s: GameState, kind: ContractKind, size: ContractSize, where: string): number {
+export function contractValue(s: GameState, kind: ContractKind, size: ContractSize, where: string, opt?: string): number {
   const def = CONTRACT_KINDS[kind];
   let v = def.value * unitsOf(def, size) * Math.pow(def.yearly, yearsSince2035(s));
   if (kind === 'hvdc') v *= HVDC_BY_ID[where]?.km ?? 2000;
+  // Act IV
+  if (kind === 'link') v *= SUPERGRID_BY_ID[where]?.km ?? 3000;
+  if (kind === 'fpilot') v = FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS]?.pilot ?? 30e9;
+  if (kind === 'ffleet') v = unitsOf(def, size) * fleetValuePerGW(s, (opt ?? 'tokamak') as keyof typeof FUSION_DESIGNS);
+  if (s.planet && def.cat === 'space' && def.stage) v *= spaceCostMult(s);
+  if (kind === 'odc' || kind === 'sps') v *= moonStage(s) >= 2 ? 0.85 : 1;
   if (where === 'mega-northsea') v *= 1.25;
   if (where === 'mega-siberia') v *= 1.15;
   if (def.cat === 'space' && passed(s, 'orbital-commons')) v *= 0.8;
@@ -110,16 +120,19 @@ export function contractValue(s: GameState, kind: ContractKind, size: ContractSi
 }
 
 /** The Charter's share of a contract before bids (the "estimate" the UI shows). */
-export function contractEstimate(s: GameState, kind: ContractKind, size: ContractSize, where: string): { value: number; share: number; days: number } {
+export function contractEstimate(s: GameState, kind: ContractKind, size: ContractSize, where: string, opt?: string): { value: number; share: number; days: number } {
   const def = CONTRACT_KINDS[kind];
-  const value = contractValue(s, kind, size, where);
-  return { value, share: value * def.share, days: Math.round(def.days[size - 1] * techMult(s, 'charterSpeed') * (def.cat === 'space' && passed(s, 'orbital-commons') ? 0.8 : 1)) };
+  const value = contractValue(s, kind, size, where, opt);
+  let days = def.days[size - 1];
+  if (kind === 'fpilot') days = FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS]?.pilotDays ?? days;
+  if (kind === 'ffleet') days /= FUSION_DESIGNS[(opt ?? 'tokamak') as keyof typeof FUSION_DESIGNS]?.speed ?? 1;
+  return { value, share: value * def.share, days: Math.round(days * techMult(s, 'charterSpeed') * (def.cat === 'space' && passed(s, 'orbital-commons') ? 0.8 : 1)) };
 }
 
 /** What each partner would bid, before noise (also used by the UI to explain traits). */
 function makeBid(s: GameState, t: Tender, partner: string): Bid {
   const tr = traitsOf(s, partner);
-  const est = contractEstimate(s, t.kind, t.size, t.where);
+  const est = contractEstimate(s, t.kind, t.size, t.where, t.opt);
   const rel = partner === YOU ? 50 : s.charter!.partners[partner]?.rel ?? 50;
   let price = est.share * (1.25 - 0.08 * tr.cost) * (rel >= 70 ? 0.92 : rel < 35 ? 1.06 : 1) * (0.92 + rand(s) * 0.16);
   let days = est.days * (1.3 - 0.09 * tr.speed) * (1 - 0.03 * (tr.ambition - 3)) * (0.93 + rand(s) * 0.14);
@@ -137,7 +150,7 @@ function makeBid(s: GameState, t: Tender, partner: string): Bid {
 
 /** Best-value score of a bid: lower is better (price, time and reliability). */
 export function bidScore(s: GameState, t: Tender, b: Bid): number {
-  const est = contractEstimate(s, t.kind, t.size, t.where);
+  const est = contractEstimate(s, t.kind, t.size, t.where, t.opt);
   const tr = traitsOf(s, b.partner);
   return (b.price / Math.max(1, est.share)) * Math.sqrt(b.days / Math.max(1, est.days)) * (1.2 - 0.05 * tr.rel);
 }
@@ -147,6 +160,8 @@ export function bidScore(s: GameState, t: Tender, b: Bid): number {
 export function youCanBid(s: GameState, kind: ContractKind): boolean {
   if (!CONTRACT_KINDS[kind].bidders.includes(YOU)) return false;
   if (s.finance.cash < 0) return false;
+  // Act IV: a company you sold or handed over isn't yours to bid with
+  if (s.planet?.company === 'sell' || s.planet?.company === 'utility') return false;
   const nameplate = (types: string[]) => s.facilities.filter((f) => types.includes(f.type) && f.status === 'online').reduce((a, f) => a + facilityMW(f), 0);
   switch (kind) {
     case 'solar': return nameplate(['solar']) >= 300;
@@ -155,6 +170,7 @@ export function youCanBid(s: GameState, kind: ContractKind): boolean {
     case 'compute': return s.stats.itMW >= 100;
     case 'cable': return s.network.own.length > 0 || s.network.leases.length > 0;
     case 'orbital': return s.models.length >= 4;
+    case 'odc': return s.stats.itMW >= 500;
     case 'evals':
     case 'interp': return s.alloc.safety >= 0.05;
     default: return true;
@@ -162,20 +178,28 @@ export function youCanBid(s: GameState, kind: ContractKind): boolean {
 }
 
 /** Partners (not your company) able and willing to bid on this kind right now. */
-export function partnerBidders(s: GameState, kind: ContractKind): string[] {
-  return eligible(s, kind).filter((x) => x !== YOU);
+export function partnerBidders(s: GameState, kind: ContractKind, where = '', opt?: string): string[] {
+  return eligible(s, kind, where, opt).filter((x) => x !== YOU);
 }
 
-function eligible(s: GameState, kind: ContractKind): string[] {
+/** Who bids: the kind's usual bidders, plus (Act IV) the fusion design's own builder. */
+export function biddersFor(kind: ContractKind, where: string, opt?: string): string[] {
   const def = CONTRACT_KINDS[kind];
+  if (kind === 'fpilot') return [FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS]?.partner ?? 'sunforge'];
+  if (kind === 'ffleet') return [FUSION_DESIGNS[(opt ?? 'tokamak') as keyof typeof FUSION_DESIGNS]?.partner ?? 'sunforge', ...def.bidders];
+  return def.bidders;
+}
+
+function eligible(s: GameState, kind: ContractKind, where = '', opt?: string): string[] {
   const out: string[] = [];
-  for (const id of def.bidders) {
+  const list = biddersFor(kind, where, opt);
+  for (const id of list) {
     if (id === YOU) {
       if (youCanBid(s, kind)) out.push(id);
       continue;
     }
     const p = s.charter!.partners[id];
-    const sole = def.bidders.filter((x) => x !== YOU).length === 1;
+    const sole = list.filter((x) => x !== YOU).length === 1;
     if (!p || p.rel < (sole ? 10 : 25)) continue;
     if (activeProjects(s, id) >= partnerCapacity(PARTNERS[id].traits)) continue;
     out.push(id);
@@ -184,17 +208,32 @@ function eligible(s: GameState, kind: ContractKind): string[] {
 }
 
 /** Why a contract can't be posted here right now, or null. */
-export function canPost(s: GameState, kind: ContractKind, size: ContractSize, where: string): string | null {
+export function canPost(s: GameState, kind: ContractKind, size: ContractSize, where: string, opt?: string): string | null {
   const c = s.charter;
   if (!c) return 'The Charter doesn’t exist yet.';
   const def = CONTRACT_KINDS[kind];
   if (c.phase < def.cphase) return `Opens in phase ${def.cphase}.`;
+  if (def.stage !== undefined) {
+    if (!s.planet) return 'Opens in Act IV.';
+    if (s.planet.stage < def.stage) return `Opens in stage ${def.stage}.`;
+  }
   if (def.fixed && size !== 1) return 'This contract comes in one size.';
   switch (def.where) {
     case 'mega': {
       const site = SITE_BY_ID[where];
       if (!site || site.kind !== 'mega') return 'Pick a megaproject site.';
-      if (!site.mega?.includes(kind)) return `${site.name} can’t host this.`;
+      if (!site.mega?.includes(kind) && kind !== 'ffleet' && kind !== 'dac') return `${site.name} can’t host this.`;
+      break;
+    }
+    case 'sgroute':
+      if (!SUPERGRID_BY_ID[where]) return 'Pick a supergrid route.';
+      if (c.projects.some((p) => p.kind === 'link' && p.where === where && p.status !== 'cancelled')) return 'That route already has a link.';
+      if (s.planet && s.planet.powers !== 'planetary' && c.capital < PLANET.approvalCapital) return `Your powers are limited: the Council has to approve each link (${PLANET.approvalCapital} political capital).`;
+      break;
+    case 'design': {
+      if (!FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS]) return 'Pick a fusion design.';
+      const why = pilotBlocked(s, where as keyof typeof FUSION_DESIGNS);
+      if (why) return why;
       break;
     }
     case 'route':
@@ -217,20 +256,39 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
     if (c.projects.some((p) => p.kind === kind && p.status !== 'cancelled')) return 'Already under way.';
   }
   if (kind === 'fusion' && c.projects.some((p) => p.kind === 'fusion' && p.status !== 'cancelled')) return 'Sunforge already has its grant.';
-  if (c.tenders.some((t) => t.kind === kind && t.where === where)) return 'A tender for this is already open.';
+  // Act IV
+  if (kind === 'ffleet') {
+    if (!opt || !FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS]) return 'Pick a fusion design.';
+    const why = fleetBlocked(s, opt as keyof typeof FUSION_DESIGNS, unitsOf(def, size));
+    if (why) return why;
+  }
+  if ((kind === 'odc' || kind === 'sps' || kind === 'cleanup' || kind === 'moonbase') && !canLaunch(s)) return 'Needs a launch complex or a spaceport first.';
+  const liveKind = (k: ContractKind) => c.projects.some((p) => p.kind === k && p.status !== 'cancelled');
+  const doneKind = (k: ContractKind) => c.projects.some((p) => p.kind === k && p.status === 'done');
+  if (kind === 'moonbase' && liveKind('moonbase')) return 'The Moon outpost is already under way.';
+  if (kind === 'moonmine' && (!doneKind('moonbase') || liveKind('moonmine'))) return liveKind('moonmine') ? 'The lunar mine is already under way.' : 'Needs the Moon outpost first.';
+  if (kind === 'massdriver' && (!doneKind('moonmine') || liveKind('massdriver'))) return liveKind('massdriver') ? 'The mass driver is already under way.' : 'Needs the lunar mine first.';
+  if (c.tenders.some((t) => t.kind === kind && t.where === where && (t.opt ?? '') === (opt ?? ''))) return 'A tender for this is already open.';
   if (c.tenders.length >= 8) return 'Eight tenders are already open. Award or close one first.';
-  if (!eligible(s, kind).length) return 'No partner is able or willing to bid right now.';
+  if (!eligible(s, kind, where, opt).length) return 'No partner is able or willing to bid right now.';
   return null;
 }
 
 // ════════════════════════════════════════ ACTIONS ════════════════════════════════════════
-export function postTender(s: GameState, kind: ContractKind, size: ContractSize, where: string): Result {
-  const why = canPost(s, kind, size, where);
+export function postTender(s: GameState, kind: ContractKind, size: ContractSize, where: string, opt?: string): Result {
+  const why = canPost(s, kind, size, where, opt);
   if (why) return fail(why);
   const c = s.charter!;
   const def = CONTRACT_KINDS[kind];
-  const region: RegionId = def.where === 'region' ? (where as RegionId) : def.where === 'route' ? HVDC_BY_ID[where].from : def.where === 'global' ? 'eur' : SITE_BY_ID[where].region;
-  const bidders = eligible(s, kind);
+  const region: RegionId =
+    def.where === 'region' ? (where as RegionId)
+    : def.where === 'route' ? HVDC_BY_ID[where].from
+    : def.where === 'sgroute' ? SUPERGRID_BY_ID[where].from
+    : def.where === 'design' ? PARTNERS[FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS].partner]?.home ?? 'eur'
+    : def.where === 'global' ? 'eur'
+    : SITE_BY_ID[where].region;
+  if (kind === 'link' && s.planet && s.planet.powers !== 'planetary') addCapital(s, -PLANET.approvalCapital);
+  const bidders = eligible(s, kind, where, opt);
   // the four keenest (relationship, then a little luck); your company always gets a look in
   const ranked = bidders
     .filter((x) => x !== YOU)
@@ -245,14 +303,15 @@ export function postTender(s: GameState, kind: ContractKind, size: ContractSize,
     size,
     where,
     region,
-    value: contractValue(s, kind, size, where),
+    value: contractValue(s, kind, size, where, opt),
     postedDay: s.day,
     closesDay: s.day + CHARTER.tenderDays,
     bids: [],
     pending: ranked.map((partner) => ({ partner, day: s.day + randInt(s, 2, 14) })),
+    opt,
   };
   c.tenders.push(t);
-  news(s, `📜 Tender posted: ${def.name} (${sizeText(def, size)}) at ${whereName(where)}. ${ranked.length} bidders interested.`, 'info');
+  news(s, `📜 Tender posted: ${def.name}${opt && FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS] ? ` (${FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS].name})` : ''} (${sizeText(def, size)}) at ${whereName(where)}. ${ranked.length} bidders interested.`, 'info');
   return OK;
 }
 
@@ -320,9 +379,11 @@ export function awardBid(s: GameState, tenderId: string, bidIndex: number): Resu
     progress: 0,
     status: 'building',
     troubles: 0,
-    gw: def.cat === 'energy' ? unitsOf(def, t.size) : undefined,
+    gw: def.cat === 'energy' ? unitsOf(def, t.size) : t.kind === 'ffleet' ? unitsOf(def, t.size) * fleetCF(s, (t.opt ?? 'tokamak') as keyof typeof FUSION_DESIGNS) : t.kind === 'sps' ? unitsOf(def, t.size) * 0.95 : undefined,
+    opt: t.opt,
   };
   c.projects.push(p);
+  if (t.kind === 'fpilot') startPilot(s, t.where as keyof typeof FUSION_DESIGNS);
   c.tenders = c.tenders.filter((x) => x !== t);
   // relationships: the winner is happy; a cheaper loser remembers
   if (b.partner !== YOU) {
@@ -350,6 +411,10 @@ export function cancelProject(s: GameState, projectId: string): Result {
   const p = s.charter?.projects.find((x) => x.id === projectId);
   if (!p || p.status !== 'building') return fail('Nothing to cancel.');
   p.status = 'cancelled';
+  if (p.kind === 'fpilot' && s.planet) {
+    const st = s.planet.fusion[p.where as keyof typeof FUSION_DESIGNS];
+    if (st?.status === 'pilot') st.status = 'idle';
+  }
   if (p.builder !== YOU) addPartnerRel(s, p.builder, -20);
   addLegitimacy(s, -4);
   news(s, `✗ The Charter cancels ${CONTRACT_KINDS[p.kind].name} at ${whereName(p.where)}. ${partnerName(s, p.builder)} is furious.`, 'bad');
@@ -411,6 +476,7 @@ export function canSetBlindTrust(s: GameState, on: boolean): string | null {
   const c = s.charter;
   if (!c) return 'The Charter doesn’t exist yet.';
   if (c.blindTrust === on) return null;
+  if (!on && (s.planet?.company === 'sell' || s.planet?.company === 'utility')) return s.planet.company === 'sell' ? 'You sold your company.' : 'Your company belongs to the Charter now.';
   if (on && s.day - c.trustDay < TRUST_COOLDOWN && c.trustDay > 0) return `You left the trust recently — the blocs won’t believe you for another ${Math.ceil((TRUST_COOLDOWN - (s.day - c.trustDay)) / 30.4)} months.`;
   return null;
 }
@@ -475,8 +541,10 @@ export function computeAccess(s: GameState): Record<RegionId, number> {
     if (passed(s, 'open-weights')) v += 5;
     if (passed(s, 'staged-release')) v += 2;
     if (passed(s, 'closed-frontier') && WEALTH[r] === 'developing') v -= 3;
-    // the frontier keeps moving: standing still means falling behind
-    v -= 1.2 * years;
+    // the frontier keeps moving: standing still means falling behind (it slows once the world catches up)
+    v -= 1.2 * Math.min(years, 12) + (years > 12 ? 0.5 * (years - 12) : 0);
+    // Act IV: compute in orbit reaches everyone, and AIs open up the provinces they run
+    if (s.planet) v += Math.min(15, 1.5 * orbitGW(s)) + aiAccessBonus(s, r);
     out[r] = clamp(v, 0, 100);
   }
   return out;
@@ -616,7 +684,10 @@ function monthly(s: GameState): void {
   let d = (target - c.legitimacy) * 0.05;
   if (c.blindTrust) d += 0.4;
   if (c.projects.some((p) => p.status === 'building' && p.arrears > 0)) d -= 1.5;
-  d -= Math.min(3, c.projects.filter((p) => isLate(s, p)).length * 0.5);
+  const late = c.projects.filter((p) => isLate(s, p)).length;
+  // Act IV runs hundreds of projects: what matters is the share that's late, not the count
+  if (s.planet) d -= Math.min(3, (8 * late) / Math.max(4, c.projects.filter((p) => p.status === 'building').length));
+  else d -= Math.min(3, late * 0.5);
   d -= Object.keys(c.council.walkouts).length;
   if (c.budget < 0) d -= 2;
   addLegitimacy(s, d);
@@ -733,8 +804,34 @@ function completeProject(s: GameState, p: Project): void {
     case 'fusion':
       s.flags.fusionPilot = s.day;
       break;
+    // ── Act IV ──
+    case 'link': {
+      const r = SUPERGRID_BY_ID[p.where];
+      if (r) {
+        for (const reg of [r.from, r.to]) {
+          addModifier(s, `region:${reg}:price`, 99_999, `${r.name}: cheaper power`, { mult: 0.94 });
+          addRelation(s, reg, 4);
+        }
+        scheduleEvent(s, 'link-online', 3, { route: r.id });
+      }
+      break;
+    }
+    case 'fpilot':
+      resolvePilot(s, p.where as keyof typeof FUSION_DESIGNS);
+      break;
+    case 'cleanup':
+      cleanUp(s, p.size);
+      break;
+    case 'odc':
+      if (s.planet) s.planet.debris.leo = clamp(s.planet.debris.leo + 2 * unitsOf(def, p.size), 0, 100);
+      break;
+    case 'moonbase':
+    case 'moonmine':
+    case 'massdriver':
+      scheduleEvent(s, `moon-${p.kind}`, 5, {});
+      break;
   }
-  const what = def.cat === 'energy' ? `${fmtMW((p.gw ?? 0) * 1000)} of clean power` : def.name.toLowerCase();
+  const what = def.cat === 'energy' || p.kind === 'ffleet' || p.kind === 'sps' ? `${fmtMW((p.gw ?? 0) * 1000)} of clean power` : def.name.toLowerCase();
   news(s, `🎉 ${partnerName(s, p.builder)} finishes ${def.name} at ${whereName(p.where)}: ${what} online${late ? ' (late)' : ''}.`, 'good');
 }
 

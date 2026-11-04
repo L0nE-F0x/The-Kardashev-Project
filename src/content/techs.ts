@@ -41,7 +41,17 @@ export type TechKey =
   | 'charterSpeed'
   | 'accessGain'
   | 'alignGain'
-  | 'legitGain';
+  | 'legitGain'
+  // ── Act IV ──
+  | 'fusionOdds'
+  | 'fusionCost'
+  | 'tritiumBreed'
+  | 'linkYield'
+  | 'spaceCost'
+  | 'debrisGrowth'
+  | 'aiIncident'
+  | 'dacEff'
+  | 'wellbeingGain';
 
 export interface TechDef {
   id: string;
@@ -58,6 +68,8 @@ export interface TechDef {
   phase?: number;
   /** Act III: the Charter phase it becomes available in. */
   cphase?: number;
+  /** Act IV: the planet stage it becomes available in. */
+  stage?: number;
 }
 
 export const TECH_CATEGORIES: Record<TechCategory, { name: string; icon: string }> = {
@@ -139,6 +151,17 @@ export const TECHS: TechDef[] = [
   // ── Policy ──
   { id: 'open-tendering', name: 'Open Tendering Platform', cat: 'policy', cost: 240, act: 3, requires: ['policy-desk'], blurb: 'Every bid, score and award published in real time.', effect: 'Legitimacy gains ×1.25; Charter contracts 5% cheaper.', mods: { legitGain: 1.25, charterCost: 0.95 } },
   { id: 'citizen-assemblies', name: 'Citizen Assemblies', cat: 'policy', cost: 280, act: 3, cphase: 2, requires: ['local-content'], blurb: 'Randomly chosen citizens deliberate on every megaproject.', effect: 'Access grows 25% faster; Legitimacy gains ×1.15.', mods: { accessGain: 1.25, legitGain: 1.15 } },
+  // ── Act IV · Planetary ──
+  { id: 'hts-magnets', name: 'Next-Gen HTS Magnets', cat: 'energy', cost: 520, act: 4, stage: 1, blurb: 'Superconducting tape that holds a stronger field in a smaller coil.', effect: 'Fusion pilots more likely to work (×1.15); fleets 10% cheaper.', mods: { fusionOdds: 1.15, fusionCost: 0.9 } },
+  { id: 'breeding-blankets', name: 'Lithium Breeding Blankets', cat: 'energy', cost: 560, act: 4, stage: 2, requires: ['hts-magnets'], blurb: 'Wrap the plasma in lithium and every fusion neutron breeds the next fuel.', effect: 'Fusion fleets breed tritium 60% faster.', mods: { tritiumBreed: 1.6 } },
+  { id: 'fusion-factories', name: 'Fusion Plant Factories', cat: 'energy', cost: 640, act: 4, stage: 2, requires: ['hts-magnets'], blurb: 'Build the plant on an assembly line and ship it in modules.', effect: 'Fusion fleets 20% cheaper.', mods: { fusionCost: 0.8 } },
+  { id: 'superconducting-cable', name: 'Superconducting Cable', cat: 'hardware', cost: 540, act: 4, stage: 1, blurb: 'Cryogenic cable that carries a continent’s power with almost no loss.', effect: 'The supergrid’s daylight bonus ×1.3.', mods: { linkYield: 1.3 } },
+  { id: 'sorbent-dac', name: 'Moisture-Swing Sorbents', cat: 'energy', cost: 480, act: 4, stage: 1, blurb: 'Sorbents that drink CO₂ when dry and let it go when wet — no heat needed.', effect: 'Air capture removes 40% more.', mods: { dacEff: 1.4 } },
+  { id: 'rapid-reuse', name: 'Rapid Reuse Heavy Lift', cat: 'hardware', cost: 600, act: 4, stage: 3, blurb: 'Rockets that land, refuel and fly again before lunch.', effect: 'Everything in space 15% cheaper.', mods: { spaceCost: 0.85 } },
+  { id: 'debris-tracking', name: 'Debris Tracking & Avoidance', cat: 'hardware', cost: 460, act: 4, stage: 3, blurb: 'Every fragment catalogued and every satellite dodging on its own.', effect: 'Debris builds up 40% slower.', mods: { debrisGrowth: 0.6 } },
+  { id: 'constitutional-dispatch', name: 'Constitutional Dispatch', cat: 'safety', cost: 560, act: 4, stage: 1, blurb: 'AIs that run grids under a written, auditable constitution.', effect: 'AI incidents in provinces 40% rarer.', mods: { aiIncident: 0.6 } },
+  { id: 'ai-auditors', name: 'AI Auditors', cat: 'safety', cost: 620, act: 4, stage: 2, requires: ['constitutional-dispatch'], blurb: 'Smaller, trusted models that watch the big ones every second of the day.', effect: 'AI incidents 35% rarer; world alignment grows 15% faster.', mods: { aiIncident: 0.65, alignGain: 1.15 } },
+  { id: 'universal-services', name: 'Universal Basic Services', cat: 'policy', cost: 500, act: 4, stage: 1, blurb: 'Cheap power turned into free water, cooling, transport and compute for everyone.', effect: 'Province wellbeing ×1.06.', mods: { wellbeingGain: 1.06 } },
 ];
 
 export const TECH_BY_ID: Record<string, TechDef> = Object.fromEntries(TECHS.map((t) => [t.id, t]));

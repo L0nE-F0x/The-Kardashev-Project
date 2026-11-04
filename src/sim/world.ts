@@ -10,6 +10,14 @@ import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { GameState } from './types';
 import { clamp, yearsElapsed } from './core';
 import { modAdd, techMult } from './effects';
+import { PLANET } from '../content/planet';
+import { SITE_BY_ID } from '../content/sites';
+import { allJoined, gridGrowth, gridYield, inMainGrid } from './supergrid';
+import { fusionTW } from './fusion';
+import { aiGrowth } from './airegions';
+import { avgWellbeing } from './provinces';
+import { moonStage, orbitGW } from './orbit';
+import { warming } from './climate';
 
 /** Growth weight by wealth: developing blocs grow fastest. */
 const GROWTH_WEIGHT = { rich: 0.65, emerging: 1.1, developing: 1.55 } as const;
@@ -28,6 +36,8 @@ export function siteYield(s: GameState, siteId: string): number {
   if (missionDone(s, 'backbone')) y *= 1.15;
   const linked = hvdcOnline(s).some((id) => HVDC_ROUTES.find((r) => r.id === id)?.mega === siteId);
   if (linked) y *= 1.1;
+  // Act IV: on the supergrid, energy follows the daylight (and an AI may dispatch it)
+  if (s.planet) y *= gridYield(s, (SITE_BY_ID[siteId]?.region ?? siteId) as RegionId);
   return y;
 }
 
@@ -73,6 +83,16 @@ export function growthParts(s: GameState): { label: string; v: number }[] {
     { label: 'Carbon overshoot', v: c.world.carbonGt < 0 ? -0.004 : 0 },
     { label: 'Setbacks', v: modAdd(s, 'world:growth') },
   ];
+  if (s.planet) {
+    parts.push(
+      { label: 'The supergrid', v: gridGrowth(s) },
+      { label: 'Fusion abundance', v: Math.min(0.012, 0.004 * fusionTW(s)) },
+      { label: 'AI-run provinces', v: aiGrowth(s) },
+      { label: 'Province wellbeing', v: (avgWellbeing(s) - 50) / 1500 },
+      { label: 'Orbit & the Moon', v: 0.0008 * moonStage(s) + Math.min(0.003, 0.0003 * orbitGW(s)) },
+      { label: 'Heat stress', v: -Math.max(0, warming(s) - 1.9) * 0.01 },
+    );
+  }
   return parts.filter((x) => x.v !== 0);
 }
 
@@ -80,7 +100,7 @@ export function worldGrowth(s: GameState): number {
   return clamp(
     growthParts(s).reduce((a, x) => a + x.v, 0),
     0,
-    CHARTER.maxGrowth,
+    s.planet ? PLANET.maxGrowth : CHARTER.maxGrowth,
   );
 }
 
@@ -89,7 +109,8 @@ export function newCleanShare(s: GameState): number {
   const c = s.charter;
   if (!c) return 0.35;
   const years = yearsElapsed(s.day - c.founded);
-  return clamp(0.35 + 0.02 * years + 0.06 * c.world.charterTW + (missionDone(s, 'clean-power') ? 0.15 : 0) + (passed(s, 'fossil-freeze') ? 0.15 : 0), 0.2, 0.95);
+  const act4 = s.planet ? 0.12 + Math.min(0.15, 0.05 * fusionTW(s)) + (allJoined(s) ? 0.05 : 0) : 0;
+  return clamp(0.35 + 0.02 * years + 0.06 * c.world.charterTW + (missionDone(s, 'clean-power') ? 0.15 : 0) + (passed(s, 'fossil-freeze') ? 0.15 : 0) + act4, 0.2, s.planet ? 0.99 : 0.95);
 }
 
 /** One day of the world. */
@@ -113,7 +134,9 @@ export function tickWorld(s: GameState): void {
     // cheap Charter power next door pushes fossil plants into early retirement
     const fossil = b.tw * (1 - b.clean);
     const localShare = (local[r] ?? 0) / 1000 / Math.max(0.1, b.tw);
-    const retire = (fossil * (0.012 + 0.05 * Math.min(1, localShare) + (passed(s, 'fossil-freeze') ? 0.006 : 0))) / 365;
+    // Act IV: cheap firm fusion and the supergrid push the rest of the fossil fleet out faster
+    const act4Retire = s.planet ? (inMainGrid(s, r) ? 0.02 : 0) + 0.03 * Math.min(1, fusionTW(s) / 5) : 0;
+    const retire = (fossil * (0.012 + 0.05 * Math.min(1, localShare) + (passed(s, 'fossil-freeze') ? 0.006 : 0) + act4Retire)) / 365;
     cleanTW += Math.min(fossil, retire);
     b.tw += added;
     b.clean = clamp(cleanTW / b.tw, 0, 0.99);

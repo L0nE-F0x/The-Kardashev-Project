@@ -10,6 +10,7 @@ import { crisisCost, currentCapability, frontier, openBest } from '../sim/model'
 import { DIFFICULTIES } from './difficulty';
 import { ACT2_EVENTS } from './events2';
 import { ACT3_EVENTS } from './events3';
+import { ACT4_EVENTS } from './events4';
 
 export type Mood = 'neutral' | 'happy' | 'worried' | 'angry' | 'excited';
 export type Ctx = Record<string, string | number>;
@@ -768,7 +769,7 @@ function severity(s: GameState): number {
   return s.research.done.includes('evals') ? 0.6 : 1;
 }
 
-EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS);
+EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS, ...ACT4_EVENTS);
 
 export const EVENT_BY_ID: Record<string, EventDef> = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
 export type { RegionDef };

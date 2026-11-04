@@ -10,6 +10,8 @@ import type { ColorKey } from '../render/palette';
 import type { TechKey } from './techs';
 import { SITE_BY_ID } from './sites';
 import { REGIONS } from './regions';
+import { FUSION_DESIGNS, SUPERGRID_BY_ID } from './planet';
+import type { FusionDesignId } from '../sim/types';
 
 // ════════════════════════════════════════ PARTNERS ════════════════════════════════════════
 export interface Traits {
@@ -401,13 +403,13 @@ export const CONTRACT_KINDS: Record<ContractKind, ContractKindDef> = {
     kind: 'ffleet', name: 'Fusion fleet', icon: 'fusion', cat: 'fusion', where: 'mega', cphase: 1, stage: 2,
     blurb: 'A row of identical fusion plants of a proven design, built like a factory product.',
     sizes: [20, 60, 150], unit: 'GW', value: 1, yearly: 1.0, share: 0.25, days: [900, 1100, 1300],
-    bidders: ['halcyon'], effect: 'Firm clean power that gets cheaper with every plant (K ↑). D-T designs need tritium, which fleets breed.',
+    bidders: ['halcyon', 'littlesun'], effect: 'Firm clean power that gets cheaper with every plant (K ↑). D-T designs need tritium, which fleets breed.',
   }),
   dac: k({
     kind: 'dac', name: 'Direct air capture farm', icon: 'co2', cat: 'planet', where: 'mega', cphase: 1, stage: 1,
     blurb: 'Banks of giant fans pulling CO₂ out of the air, powered by the megaproject next door, burying it as stone.',
-    sizes: [0.5, 1.5, 4], unit: 'Gt CO₂/yr', value: 150e9, yearly: 0.95, share: 0.5, days: [700, 900, 1100],
-    bidders: ['carbonfold', 'halcyon', 'deepvein'], effect: 'Removes carbon every year: warming falls back.',
+    sizes: [1, 3, 8], unit: 'Gt CO₂/yr', value: 120e9, yearly: 0.95, share: 0.5, days: [700, 900, 1100],
+    bidders: ['carbonfold', 'deepvein', 'saltflat', 'brightwater'], effect: 'Removes carbon every year: warming falls back.',
   }),
   desal: k({
     kind: 'desal', name: 'Water & cooling programme', icon: 'hydro', cat: 'planet', where: 'region', cphase: 1, stage: 1,
@@ -681,7 +683,9 @@ export function missionProgress(s: GameState, m: MissionDef): { goals: [number, 
 /** Where a contract is: a readable name. */
 export function whereName(where: string): string {
   if (where === 'global') return 'Worldwide';
-  const route = HVDC_BY_ID[where];
+  const route = HVDC_BY_ID[where] ?? SUPERGRID_BY_ID[where];
   if (route) return route.name;
+  const design = FUSION_DESIGNS[where as FusionDesignId];
+  if (design) return `${design.name} pilot`;
   return SITE_BY_ID[where]?.name ?? REGIONS[where as RegionId]?.name ?? where;
 }

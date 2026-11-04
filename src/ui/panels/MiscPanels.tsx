@@ -33,7 +33,7 @@ export function GoalsPanel() {
         Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Act II makes you a hyperscaler and Act III the steward of the Kardashev Project; Acts IV–V (planetary → Type I) are on the roadmap.
       </p>
       {OBJECTIVES.filter((o) => (o.act ?? 1) === 1).map((o) => {
-        const done = s.objectives.done.includes(o.id);
+        const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
         const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
         return (
           <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>
@@ -69,7 +69,7 @@ function Act2Goals() {
           {list
             .filter((o) => (o.phase ?? 1) === p)
             .map((o) => {
-              const done = s.objectives.done.includes(o.id);
+              const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
               const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
               return (
                 <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>
@@ -109,7 +109,7 @@ function Act3Goals() {
           {list
             .filter((o) => (o.phase ?? 1) === p)
             .map((o) => {
-              const done = s.objectives.done.includes(o.id);
+              const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
               const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
               return (
                 <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>

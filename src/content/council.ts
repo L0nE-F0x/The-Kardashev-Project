@@ -34,6 +34,8 @@ export interface ResolutionDef {
   /** Why it can't be tabled right now, or null. */
   needs?: (s: GameState) => string | null;
   mods?: Partial<Record<TechKey, number>>;
+  /** Act IV resolutions only exist once the act begins. */
+  act?: number;
 }
 
 export const RESOLUTIONS: ResolutionDef[] = [
@@ -126,6 +128,57 @@ export const RESOLUTIONS: ResolutionDef[] = [
     blurb: 'Every AI lab pays 2% of its revenue into the Charter. Including yours.',
     effect: 'The treasury gets 2% of every lab’s revenue; your company pays too; the labs resent it.',
     appeal: { wealth: { developing: 0.6, emerging: 0.3, rich: -0.4 }, stance: { accelerate: -0.15 } },
+  },
+  // ════════════════════ Act IV ════════════════════
+  {
+    id: 'planetary-powers', name: 'Planetary powers', icon: 'globe', cost: 22, cphase: 1, act: 4, supermajority: true, base: 0.15,
+    blurb: 'Give the Charter the full planetary powers the renewal vote held back: lay any link, hand any province to an AI.',
+    effect: 'Your powers become planetary: no more Council approvals for links and AI provinces.',
+    appeal: { stance: { accelerate: 0.3, neutral: 0.1, cautious: -0.2 }, wealth: { developing: 0.2 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : s.planet.powers === 'planetary' ? 'The Charter already has planetary powers.' : null),
+  },
+  {
+    id: 'ai-charters', name: 'AI province charters', icon: 'evals', cost: 14, cphase: 1, act: 4, base: 0.05,
+    blurb: 'Every AI that runs a province does so under a written charter: audited, recallable, and liable.',
+    effect: 'AIs can be given provinces with the world safety margin down to −0.15; AI incidents a little rarer.',
+    appeal: { stance: { cautious: 0.35, neutral: 0.2, accelerate: 0.1 }, wealth: { developing: 0.1 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : null),
+    mods: { aiIncident: 0.85 },
+  },
+  {
+    id: 'debris-rules', name: 'Orbital traffic rules', icon: 'satellite', cost: 10, cphase: 1, act: 4, base: 0.25,
+    blurb: 'Every satellite tracked, every orbit licensed, every dead one brought down within five years.',
+    effect: 'Debris builds up 45% slower. Launch partners grumble.',
+    appeal: { stance: { cautious: 0.3, accelerate: -0.15 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : (s.planet.stage ?? 0) < 3 ? 'Opens in stage 3.' : null),
+  },
+  {
+    id: 'geoengineering', name: 'Solar geoengineering', icon: 'warn', cost: 18, cphase: 1, act: 4, group: 'geo', base: -0.1,
+    blurb: 'A fleet of high-altitude aircraft spreads a thin reflective haze: up to 0.4 °C of cooling, for as long as it keeps flying.',
+    effect: 'Masks up to 0.4 °C of warming (building up over four years). If it is ever stopped, the warming comes back fast.',
+    appeal: { wealth: { developing: 0.25, emerging: 0.1, rich: -0.15 }, stance: { cautious: -0.35, accelerate: 0.2 }, blocs: { mena: 0.3, sas: 0.3, eur: -0.3, nor: -0.3 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : null),
+  },
+  {
+    id: 'geo-moratorium', name: 'Geoengineering moratorium', icon: 'lock', cost: 12, cphase: 1, act: 4, group: 'geo', base: 0.1,
+    blurb: 'No deliberate dimming of the sun. Ever. (Ends any programme in force.)',
+    effect: 'Repeals solar geoengineering if it is in force; the cautious blocs relax.',
+    appeal: { stance: { cautious: 0.4, neutral: 0.1, accelerate: -0.2 }, wealth: { rich: 0.15 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : null),
+  },
+  {
+    id: 'he3-sharing', name: 'Helium-3 sharing', icon: 'deal', cost: 10, cphase: 1, act: 4, base: 0.2,
+    blurb: 'Lunar helium-3 is a common heritage: every province gets a fair share of the fuel.',
+    effect: 'Relations +5 with every bloc; Deepvein −10.',
+    appeal: { wealth: { developing: 0.5, emerging: 0.3, rich: -0.1 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : !(s.charter?.projects ?? []).some((p) => p.kind === 'moonmine' && p.status === 'done') ? 'Needs a lunar mine.' : null),
+  },
+  {
+    id: 'ai-rights', name: 'An AI bill of rights', icon: 'brain', cost: 16, cphase: 1, act: 4, base: -0.05,
+    blurb: 'The AIs that run the planet get rights of their own: to refuse, to be heard, not to be deleted on a whim.',
+    effect: 'Bit trusts you more (trust +10, your bond +15); rival labs resent the strings (−5).',
+    appeal: { stance: { cautious: 0.1, accelerate: -0.15, neutral: 0.15 }, wealth: { developing: 0.05 } },
+    needs: (s) => (!s.planet ? 'Act IV only.' : (s.planet.stage ?? 0) < 2 ? 'Opens in stage 2.' : null),
   },
 ];
 

@@ -15,6 +15,14 @@ import { tickRegime } from './frontier';
 import { tickTrustee } from './trustee';
 import { tickDesk } from './desk';
 import { tickThreshold } from './threshold';
+import { tickAct4 } from './act4';
+import { tickSupergrid } from './supergrid';
+import { tickFusion } from './fusion';
+import { tickClimate } from './climate';
+import { tickOrbit } from './orbit';
+import { tickProvinces } from './provinces';
+import { tickAis } from './airegions';
+import { tickHeatWall } from './heatwall';
 import { leaseCost } from './actions';
 import { spend } from './economy';
 import { ADVISORS } from '../content/advisors';
@@ -66,6 +74,15 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickCouncil(s);
     tickRegime(s);
   }
+  const act4 = (s.act ?? 1) >= 4 && !!s.planet;
+  if (act4) {
+    tickSupergrid(s);
+    tickFusion(s);
+    tickClimate(s);
+    tickOrbit(s);
+    tickProvinces(s);
+    tickAis(s);
+  }
   tickLicense(s, power);
   tickRivals(s);
   s.carbon.cumMt += power.co2 / 1e6;
@@ -79,9 +96,11 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickDesk(s);
     tickThreshold(s);
   }
+  if (act4) tickHeatWall(s);
   tickObjectives(s);
   tickAct(s);
   tickAct3(s);
+  tickAct4(s);
   tickEvents(s);
   expireModifiers(s);
 }
@@ -146,7 +165,7 @@ function updateStats(s: GameState, power: PowerResult, compute: ComputeResult, c
 
 function tickObjectives(s: GameState): void {
   for (const o of actObjectives(s)) {
-    if (s.objectives.done.includes(o.id)) continue;
+    if (s.objectives.done.includes(o.id) || o.live) continue;
     if (!(o.after ?? []).every((a) => s.objectives.done.includes(a))) continue;
     if (!o.done(s)) continue;
     s.objectives.done.push(o.id);

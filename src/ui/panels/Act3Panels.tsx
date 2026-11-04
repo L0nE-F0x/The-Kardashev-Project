@@ -702,7 +702,7 @@ function AgendaTab() {
   const s = game.state!;
   const c = s.charter!;
   const k = c.council;
-  const available = RESOLUTIONS.filter((r) => !k.passed.includes(r.id) && !k.agenda.includes(r.id));
+  const available = RESOLUTIONS.filter((r) => !k.passed.includes(r.id) && !k.agenda.includes(r.id) && (r.act ?? 3) <= (s.act ?? 3));
   return (
     <>
       <div class="section" data-tut="agenda">

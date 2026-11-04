@@ -3,6 +3,7 @@ import { currentCapability, facilityMW } from '../sim/model';
 import { FACILITIES, FIRM, GENERATORS } from './facilities';
 import { megaStage } from './charter';
 import { MEGA_SITES } from './sites';
+import { planetChecklist as planetChecklistOf } from '../sim/act4';
 
 const MEGA_IDS = MEGA_SITES.map((m) => m.id);
 
@@ -19,8 +20,10 @@ export interface ObjectiveDef {
   goal?: boolean;
   /** Act this objective belongs to (default 1). */
   act?: number;
-  /** Act II phase it appears in (Act III: the Charter's phase). */
+  /** Act II phase it appears in (Act III: the Charter's phase; Act IV: the planet's stage). */
   phase?: number;
+  /** A condition that must hold, not a milestone: never ticked off, always shown live (Act IV checklist). */
+  live?: boolean;
 }
 
 const dcOnlineWithChips = (s: GameState) =>
@@ -108,6 +111,39 @@ OBJECTIVES.push(
   a3({ id: 'a3-renewal', phase: 5, title: 'The renewal vote', hint: 'The Council decides whether the Charter gets planetary powers.', advisor: 'sol', goal: true, after: ['a3-threshold'], done: (s) => !!ch(s)?.renewal }),
 );
 
+// ── Act IV · Planetary (phase = the planet's stage) ──
+const a4 = (o: Omit<ObjectiveDef, 'act'>): ObjectiveDef => ({ ...o, act: 4, live: o.goal && o.id !== 'a4-heatwall' ? true : undefined });
+const pl = (s: GameState) => s.planet;
+const chKinds = (s: GameState, kinds: string[], doneOnly = false) => (ch(s)?.projects ?? []).some((p) => kinds.includes(p.kind) && (doneOnly ? p.status === 'done' : p.status !== 'cancelled'));
+const check = (s: GameState, id: string) => !!s.planet && planetChecklistOf(s).find((g) => g.id === id)?.done === true;
+OBJECTIVES.push(
+  a4({ id: 'a4-company', phase: 0, title: 'Decide your company’s future', hint: 'Keep it, sell it, or hand it to the Charter as a public utility.', advisor: 'penny', done: (s) => !!pl(s)?.company }),
+  a4({ id: 'a4-plan', phase: 0, title: 'Set the first five-year plan', hint: 'Pick up to three priorities and a reserve; then the years jump.', advisor: 'bit', after: ['a4-company'], done: (s) => (pl(s)?.stage ?? 0) >= 1 }),
+  // stage 1 · the supergrid
+  a4({ id: 'a4-link', phase: 1, title: 'Lay a supergrid link', hint: 'Planet → Grid. A link joins two provinces; the wider the grid, the more of the day it sees the sun.', advisor: 'juno', done: (s) => chKinds(s, ['link']) }),
+  a4({ id: 'a4-pilots', phase: 1, title: 'Fund two fusion pilots', hint: 'Planet → Fusion. Four designs, four sets of odds. Some will fail.', advisor: 'lena', done: (s) => Object.values(pl(s)?.fusion ?? {}).reduce((a, f) => a + f.tries, 0) >= 2 }),
+  a4({ id: 'a4-ai', phase: 1, title: 'Hand a province to an AI', hint: 'Planet → AI provinces. Needs trust and a non-negative world safety margin.', advisor: 'iris', done: (s) => Object.values(pl(s)?.provinces ?? {}).some((p) => p.ai) }),
+  a4({ id: 'a4-water', phase: 1, title: 'Help a province in trouble', hint: 'Planet → Provinces: a water & cooling programme where wellbeing is lowest.', advisor: 'sol', done: (s) => chKinds(s, ['desal', 'dac']) }),
+  // stage 2 · the fusion age
+  a4({ id: 'a4-fleet', phase: 2, title: 'Build a fusion fleet', hint: 'Planet → Fusion: once a design works, order fleets at megaproject sites.', advisor: 'lena', done: (s) => chKinds(s, ['ffleet'], true) }),
+  a4({ id: 'a4-k077', phase: 2, title: 'Reach Kardashev 0.77', hint: '50 TW.', advisor: 'bit', done: (s) => s.stats.K >= 0.77 }),
+  // stage 3 · the high frontier
+  a4({ id: 'a4-spaceport', phase: 3, title: 'Expand a spaceport', hint: 'Planet → Space. More pads, more launches, cheaper orbit.', advisor: 'kip', done: (s) => chKinds(s, ['spaceport']) }),
+  a4({ id: 'a4-moonbase', phase: 3, title: 'Found the Moon outpost', hint: 'Planet → Space → the Moon.', advisor: 'kip', done: (s) => chKinds(s, ['moonbase'], true) }),
+  // the planetary checklist (live; the Heat Wall starts when every item holds at once)
+  a4({ id: 'a4-k080', phase: 1, title: 'Kardashev 0.80', hint: '100 TW: fusion, a supergrid that follows the sun, power from orbit.', advisor: 'bit', goal: true, done: (s) => check(s, 'k80') }),
+  a4({ id: 'a4-grid', phase: 1, title: 'A supergrid joining every province', hint: 'Links (and Act III’s HVDC routes) until all twelve provinces share one grid.', advisor: 'juno', goal: true, done: (s) => check(s, 'grid') }),
+  a4({ id: 'a4-fusion', phase: 1, title: 'Fusion from two designs, 5 TW', hint: 'Two working designs, built as fleets.', advisor: 'lena', goal: true, done: (s) => check(s, 'fusion') }),
+  a4({ id: 'a4-orbit', phase: 1, title: 'Orbital compute (2 GW)', hint: 'Orbital data centres: compute in permanent sunlight.', advisor: 'kip', goal: true, done: (s) => check(s, 'orbit') }),
+  a4({ id: 'a4-moon', phase: 1, title: 'A Moon base with a mass driver', hint: 'Outpost, then a mine, then the mass driver.', advisor: 'kip', goal: true, done: (s) => check(s, 'moon') }),
+  a4({ id: 'a4-wellbeing', phase: 1, title: 'Every province’s wellbeing ≥ 50', hint: 'Power, water, cooling, access — and keep the AIs honest.', advisor: 'sol', goal: true, done: (s) => check(s, 'wellbeing') }),
+  a4({ id: 'a4-warming', phase: 1, title: 'Warming under 2.0 °C', hint: 'Clean the grid, retire fossil plants, capture carbon from the air.', advisor: 'iris', goal: true, done: (s) => check(s, 'warming') }),
+  a4({ id: 'a4-aiprov', phase: 1, title: '4 AI provinces, safety margin ≥ 0', hint: 'Delegate to AIs you trust, and keep the world safety margin positive.', advisor: 'iris', goal: true, done: (s) => check(s, 'ai') }),
+  a4({ id: 'a4-heatwall', phase: 4, title: 'Come through The Heat Wall', hint: 'Hold the heat, the cascade and the controls for 120 days.', advisor: 'sol', goal: true, done: (s) => !!pl(s)?.heatwall?.done }),
+);
+/** Act IV's planetary checklist ids (the gate itself is planetChecklist in sim/act4.ts, checked live). */
+export const PLANET_GOALS = ['a4-k080', 'a4-grid', 'a4-fusion', 'a4-orbit', 'a4-moon', 'a4-wellbeing', 'a4-warming', 'a4-aiprov'];
+
 /** The Charter Mandate: when it is met, The Threshold begins. */
 export const MANDATE_GOALS = ['a3-k075', 'a3-clean', 'a3-chips', 'a3-access40', 'a3-regime', 'a3-legit', 'a3-orbital'];
 
@@ -120,12 +156,12 @@ export const OBJECTIVE_BY_ID: Record<string, ObjectiveDef> = Object.fromEntries(
 /** Objectives that belong to the current act and phase. */
 export function actObjectives(s: GameState): ObjectiveDef[] {
   const act = s.act ?? 1;
-  const phase = act === 3 ? (s.charter?.phase ?? 1) : s.phase;
+  const phase = act === 4 ? (s.planet?.stage ?? 0) : act === 3 ? (s.charter?.phase ?? 1) : s.phase;
   return OBJECTIVES.filter((o) => (o.act ?? 1) === act && (act === 1 || (o.phase ?? 1) <= phase));
 }
 
 export function visibleObjectives(s: GameState): ObjectiveDef[] {
-  return actObjectives(s).filter((o) => !s.objectives.done.includes(o.id) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
+  return actObjectives(s).filter((o) => !s.objectives.done.includes(o.id) && !(o.live && o.done(s)) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
 }
 
 export function goalsMetForSeriesA(s: GameState): boolean {

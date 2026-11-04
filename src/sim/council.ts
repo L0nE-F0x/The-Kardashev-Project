@@ -190,6 +190,28 @@ function applyResolution(s: GameState, id: string): void {
     case 'run-licensing':
       c.regime.alignment += 0.1;
       break;
+    // ── Act IV ──
+    case 'planetary-powers':
+      if (s.planet) s.planet.powers = 'planetary';
+      addLegitimacy(s, 3);
+      break;
+    case 'geo-moratorium':
+      for (const r of REGION_IDS) if (s.blocs[r]?.stance === 'cautious') addRelation(s, r, 4);
+      break;
+    case 'he3-sharing':
+      for (const r of REGION_IDS) addRelation(s, r, 5);
+      addPartnerRel(s, 'deepvein', -10);
+      break;
+    case 'ai-rights':
+      if (s.planet) {
+        s.planet.ais.bit.trust = Math.min(100, s.planet.ais.bit.trust + 10);
+        s.planet.bitBond = Math.min(100, s.planet.bitBond + 15);
+      }
+      for (const lab of ['meridian', 'lattice', 'orchard']) addPartnerRel(s, lab, -5);
+      break;
+    case 'debris-rules':
+      addPartnerRel(s, 'parabola', -6);
+      break;
   }
 }
 

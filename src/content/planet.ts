@@ -15,7 +15,7 @@ export const PLANET = {
   /** K 0.80: 100 TW, "Grid-Scale Abundance". */
   targetTW: 100,
   /** World growth can run hotter in Act IV (5% cap in Act III). */
-  maxGrowth: 0.07,
+  maxGrowth: 0.055,
   heatWallDays: 120,
   /** 1 Jan 2070: The Heat Wall starts by then even if the checklist isn't met. */
   deadline: dayOf(2070),
@@ -24,8 +24,8 @@ export const PLANET = {
   /** Years a five-year plan can jump. */
   jumpYears: [3, 4, 5] as const,
   /** GW of D-T fusion the tritium supply can fuel at the start, and how fast fleets breed more (GW per GW-year). */
-  tritium0: 60,
-  breed: 0.6,
+  tritium0: 200,
+  breed: 1.0,
   /** GW of D-He3 fusion the Moon's helium-3 can fuel: a mine, then a mass driver. */
   he3Mine: 40,
   he3Driver: 150,
@@ -40,7 +40,7 @@ export const PLANET = {
   warming0: 1.45,
   warmingPerGt: 0.0011,
   /** Checklist numbers (first guesses for the guard-rail bot). */
-  goalFusionTW: 5,
+  goalFusionTW: 3,
   goalOrbitGW: 2,
   goalWellbeing: 50,
   goalWarming: 2.0,

@@ -29,6 +29,7 @@ export interface SlotInfo {
   act?: number;
   act2?: boolean;
   act3?: boolean;
+  act4?: boolean;
   gameOver: boolean;
 }
 
@@ -78,6 +79,7 @@ function infoOf(id: string, s: GameState): SlotInfo {
     act: s.act ?? 1,
     act2: !!s.flags.act2Complete,
     act3: !!s.flags.act3Complete,
+    act4: !!s.flags.act4Complete,
     gameOver: !!s.meta.gameOver,
   };
 }

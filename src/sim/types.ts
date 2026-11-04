@@ -713,7 +713,7 @@ export interface PlanetState {
   /** A stage gate is reached: the plan screen is waiting for you. */
   planOpen: boolean;
   /** A jump in progress (the UI runs it in chunks for the time-lapse). */
-  jump: { from: number; to: number; plan: FivePlan; before: PlanetSnap; stage: number } | null;
+  jump: { from: number; to: number; plan: FivePlan; before: PlanetSnap; stage: number; auto: string[]; log: string[] } | null;
   jumps: JumpRecord[];
   provinces: Record<RegionId, Province>;
   /** Cooling masked by solar geoengineering (°C). */
