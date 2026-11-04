@@ -29,6 +29,7 @@ import { warming } from './climate';
 import { worldMargin } from './frontier';
 import { fairShare, spendShare } from './council';
 import { FACTION_IDS, factionOf } from '../content/charter';
+import { headroomTW } from './swarm';
 
 type Result = { ok: true } | { ok: false; reason: string };
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -90,8 +91,7 @@ export function confirmPlan(s: GameState, plan: FivePlan): Result {
 
 // ════════════════════════════════════════ THE JUMP ════════════════════════════════════════
 /** Take every waiting decision on autopilot (the first choice that's available), logging it. */
-export function autoResolve(s: GameState): void {
-  const log = s.planet?.jump?.auto;
+export function autoResolve(s: GameState, log: string[] | undefined = s.planet?.jump?.auto): void {
   for (let guard = 0; guard < 25; guard++) {
     if (!s.events.active && s.events.queue.length) {
       s.events.active = s.events.queue.shift()!;
@@ -351,7 +351,9 @@ export function plannerTick(s: GameState, plan: FivePlan): void {
     awardBid(s, t.id, i);
   }
   const maxOpen = 5;
-  for (const pr of [...plan.priorities, 'energy' as const]) {
+  // Act V: no new energy on Earth's surface when it is up against the Thermal Line
+  const nearLine = !!s.system?.thermalLine && headroomTW(s) < 40;
+  for (const pr of [...plan.priorities, ...(nearLine ? [] : ['energy' as const])]) {
     if (c.tenders.length >= maxOpen) return;
     for (const w of wishes(s, pr)) {
       if (openTender(s, w)) continue;

@@ -11,6 +11,8 @@ import { DIFFICULTIES } from './difficulty';
 import { ACT2_EVENTS } from './events2';
 import { ACT3_EVENTS } from './events3';
 import { ACT4_EVENTS } from './events4';
+import { ACT5_EVENTS } from './events5';
+import { DECISIONS } from './decisions';
 
 export type Mood = 'neutral' | 'happy' | 'worried' | 'angry' | 'excited';
 export type Ctx = Record<string, string | number>;
@@ -48,6 +50,10 @@ export interface EventDef {
   actOnly?: number;
   /** Act III: the Charter phase needed. */
   cphase?: number;
+  /** Act V: a civilisation-scale decision, shown as a full-screen card. */
+  big?: boolean;
+  /** Act V: the system stage needed (random pool). */
+  vstage?: number;
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
@@ -769,7 +775,7 @@ function severity(s: GameState): number {
   return s.research.done.includes('evals') ? 0.6 : 1;
 }
 
-EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS, ...ACT4_EVENTS);
+EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS, ...ACT4_EVENTS, ...ACT5_EVENTS, ...DECISIONS);
 
 export const EVENT_BY_ID: Record<string, EventDef> = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
 export type { RegionDef };

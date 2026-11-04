@@ -105,6 +105,15 @@ export function fmtMW(mw: number): string {
   return `${mw.toFixed(mw < 10 ? 1 : 0)} MW`;
 }
 
+/** Terawatts, readable: 0.4 → "400 GW", 85 → "85 TW", 4200 → "4.20 PW". */
+export function fmtTW(tw: number): string {
+  const a = Math.abs(tw);
+  if (a >= 1000) return `${(tw / 1000).toFixed(2)} PW`;
+  if (a >= 100) return `${tw.toFixed(0)} TW`;
+  if (a >= 1) return `${tw.toFixed(1)} TW`;
+  return `${(tw * 1000).toFixed(0)} GW`;
+}
+
 /** 1.2e26 → "1.2×10²⁶" */
 export function fmtSci(v: number, digits = 1): string {
   if (v <= 0) return '0';

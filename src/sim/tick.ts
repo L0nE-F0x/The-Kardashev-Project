@@ -23,6 +23,15 @@ import { tickOrbit } from './orbit';
 import { tickProvinces } from './provinces';
 import { tickAis } from './airegions';
 import { tickHeatWall } from './heatwall';
+import { tickAct5 } from './act5';
+import { tickFoundries } from './foundries';
+import { tickAsteroids } from './asteroids';
+import { spaceTW, tickSwarm } from './swarm';
+import { tickLongevity } from './longevity';
+import { tickEarth } from './earth';
+import { tickMinds } from './minds';
+import { tickSolarMax } from './solarmax';
+import { defaultEra, planner5Tick } from './eras';
 import { leaseCost } from './actions';
 import { spend } from './economy';
 import { ADVISORS } from '../content/advisors';
@@ -83,6 +92,15 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickProvinces(s);
     tickAis(s);
   }
+  const act5 = (s.act ?? 1) >= 5 && !!s.system;
+  if (act5) {
+    tickFoundries(s);
+    tickAsteroids(s);
+    tickSwarm(s);
+    tickLongevity(s);
+    tickEarth(s);
+    tickMinds(s);
+  }
   tickLicense(s, power);
   tickRivals(s);
   s.carbon.cumMt += power.co2 / 1e6;
@@ -97,10 +115,16 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickThreshold(s);
   }
   if (act4) tickHeatWall(s);
+  if (act5) {
+    tickSolarMax(s);
+    // autopilot: the era planner keeps running between jumps when the player hands it the wheel
+    if (s.flags.autopilot5 && !s.flags.offline && s.day % 7 === 0 && !s.system!.typeI) planner5Tick(s, s.system!.plan ?? defaultEra(s));
+  }
   tickObjectives(s);
   tickAct(s);
   tickAct3(s);
   tickAct4(s);
+  tickAct5(s);
   tickEvents(s);
   expireModifiers(s);
 }
@@ -135,6 +159,8 @@ function updateStats(s: GameState, power: PowerResult, compute: ComputeResult, c
   st.margin = st.alignment - c;
   // Act III: the world's energy is a living system (Acts I–II keep the closed form)
   st.worldTW = (s.charter ? s.charter.world.tw + s.charter.world.charterTW : worldBaselineTW(s.day)) + power.genMW / 1e6;
+  // Act V: power collected and used in space counts too
+  if (s.system) st.worldTW += spaceTW(s);
   st.K = kardashev(st.worldTW * 1e12);
   st.inferQuality = inferQuality(s, c);
   st.inferDemand = inferDemand(s, c) * RENTAL.perf;

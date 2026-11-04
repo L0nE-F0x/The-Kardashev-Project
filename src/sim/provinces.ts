@@ -16,6 +16,12 @@ import { inMainGrid } from './supergrid';
 import { warming } from './climate';
 import { fusionTW } from './fusion';
 import { wasteHeat } from './planetView';
+import { overLine } from './swarm';
+
+/** Beam stations delivering to a province (Act V), TW. */
+function beamTWIn(s: GameState, r: RegionId): number {
+  return (s.charter?.projects ?? []).filter((p) => p.kind === 'beam' && p.status === 'done' && p.where === r).reduce((a, p) => a + CONTRACT_KINDS.beam.sizes[p.size - 1], 0);
+}
 
 /** Water & cooling programmes finished in a province. */
 function programmes(s: GameState, r: RegionId): number {
@@ -51,6 +57,19 @@ export function wellbeingTarget(s: GameState, r: RegionId): { v: number; parts: 
     [p.ai ? `${AIS[p.ai].name} runs it` : 'Run by the Charter', p.ai ? AIS[p.ai].care * 10 : 0],
     ['Recent shocks', modAdd(s, `prov:${r}`)],
   ];
+  // Act V: gardens or the workshop, healthy years, power from the swarm, the Thermal Line
+  const sy = s.system;
+  if (sy) {
+    const g = sy.garden[r];
+    parts.push([g >= 0 ? 'Gardens and wild places' : 'Heavy industry', g >= 0 ? g / 12 : g / 25]);
+    parts.push(['Healthy years', (sy.treated[r] / 100) * 7]);
+    const avgT = REGION_IDS.reduce((a, x) => a + sy.treated[x], 0) / REGION_IDS.length;
+    if (sy.longevity === 'market' && sy.treated[r] < 30 && avgT > 45) parts.push(['Left behind by the clinics', -6]);
+    const beam = beamTWIn(s, r);
+    if (beam > 0) parts.push(['Power from the swarm', Math.min(4, beam / 30)]);
+    const over = overLine(s);
+    if (over > 0) parts.push(['Over the Thermal Line', -Math.min(12, over * 40)]);
+  }
   const v = parts.reduce((a, x) => a + x[1], 0) * techMult(s, 'wellbeingGain');
   return { v: clamp(v, 0, 100), parts: parts.filter((x) => Math.abs(x[1]) >= 0.5) };
 }

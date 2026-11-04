@@ -19,7 +19,8 @@ export function rawWarming(s: GameState): number {
 
 /** Warming felt today (°C). */
 export function warming(s: GameState): number {
-  return rawWarming(s) - (s.planet?.mask ?? 0);
+  // Act V: waste heat warms the planet too (the Thermal Line)
+  return rawWarming(s) - (s.planet?.mask ?? 0) + (s.system?.heatWarming ?? 0);
 }
 
 /** Air capture running, Gt CO₂ a year. */

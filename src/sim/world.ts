@@ -4,6 +4,9 @@
  * Charter builds clean power. The Charter's own projects add on top. Emissions burn the carbon budget.
  * Acts I–II keep the old closed-form world (worldBaselineTW), so they are unchanged.
  */
+import { avgGarden, surfaceTW } from './swarm';
+import { lineTW } from './systemView';
+import { avgTreated } from './longevity';
 import { CHARTER, CONTRACT_KINDS, ENERGY_KINDS, HVDC_ROUTES, WEALTH } from '../content/charter';
 import { MEGA_SITES } from '../content/sites';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
@@ -91,6 +94,16 @@ export function growthParts(s: GameState): { label: string; v: number }[] {
       { label: 'Province wellbeing', v: (avgWellbeing(s) - 50) / 1500 },
       { label: 'Orbit & the Moon', v: 0.0008 * moonStage(s) + Math.min(0.003, 0.0003 * orbitGW(s)) },
       { label: 'Heat stress', v: -Math.max(0, warming(s) - 1.9) * 0.01 },
+    );
+  }
+  if (s.system) {
+    const sy = s.system;
+    const ratio = surfaceTW(s) / Math.max(1, lineTW(s));
+    parts.push(
+      { label: 'Up against the Thermal Line', v: sy.thermalLine ? -clamp((ratio - 0.8) * 0.25, 0, 0.06) : 0 },
+      { label: avgGarden(s) >= 0 ? 'Industry moving up' : 'Earth’s workshop', v: -0.008 * (avgGarden(s) / 100) },
+      { label: 'Minds in orbit', v: Math.min(0.01, 0.002 * Math.log10(1 + sy.rings / 10)) * (sy.mindsMood / 60) },
+      { label: 'Healthy years', v: 0.003 * (avgTreated(s) / 100) },
     );
   }
   return parts.filter((x) => x.v !== 0);

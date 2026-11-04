@@ -51,7 +51,16 @@ export type TechKey =
   | 'debrisGrowth'
   | 'aiIncident'
   | 'dacEff'
-  | 'wellbeingGain';
+  | 'wellbeingGain'
+  // ── Act V ──
+  | 'foundryGrowth'
+  | 'driftRisk'
+  | 'collectorMass'
+  | 'ringMass'
+  | 'longevity'
+  | 'stormDamage'
+  | 'feed'
+  | 'mindsMood';
 
 export interface TechDef {
   id: string;
@@ -70,6 +79,8 @@ export interface TechDef {
   cphase?: number;
   /** Act IV: the planet stage it becomes available in. */
   stage?: number;
+  /** Act V: the system stage it becomes available in. */
+  vstage?: number;
 }
 
 export const TECH_CATEGORIES: Record<TechCategory, { name: string; icon: string }> = {
@@ -162,6 +173,16 @@ export const TECHS: TechDef[] = [
   { id: 'constitutional-dispatch', name: 'Constitutional Dispatch', cat: 'safety', cost: 560, act: 4, stage: 1, blurb: 'AIs that run grids under a written, auditable constitution.', effect: 'AI incidents in provinces 40% rarer.', mods: { aiIncident: 0.6 } },
   { id: 'ai-auditors', name: 'AI Auditors', cat: 'safety', cost: 620, act: 4, stage: 2, requires: ['constitutional-dispatch'], blurb: 'Smaller, trusted models that watch the big ones every second of the day.', effect: 'AI incidents 35% rarer; world alignment grows 15% faster.', mods: { aiIncident: 0.65, alignGain: 1.15 } },
   { id: 'universal-services', name: 'Universal Basic Services', cat: 'policy', cost: 500, act: 4, stage: 1, blurb: 'Cheap power turned into free water, cooling, transport and compute for everyone.', effect: 'Province wellbeing ×1.06.', mods: { wellbeingGain: 1.06 } },
+  // ── Act V ──
+  { id: 'signed-replication', name: 'Signed Replication', cat: 'safety', cost: 700, act: 5, vstage: 0, blurb: 'Every copy a foundry makes carries a cryptographic signature of its design, checked by its neighbours.', effect: 'Strains drift off-spec 35% less often.', mods: { driftRisk: 0.65 } },
+  { id: 'thin-film', name: 'Thin-Film Collectors', cat: 'energy', cost: 720, act: 5, vstage: 1, blurb: 'Collectors a few microns thick: a square kilometre weighs less than a truck.', effect: 'Collectors need 25% less mass.', mods: { collectorMass: 0.75 } },
+  { id: 'seed-compaction', name: 'Seed Compaction', cat: 'hardware', cost: 760, act: 5, vstage: 1, requires: ['signed-replication'], blurb: 'A seed that fits in one launch and still knows how to build everything.', effect: 'Foundries grow 10% faster.', mods: { foundryGrowth: 1.1 } },
+  { id: 'lagrange-logistics', name: 'Lagrange Logistics', cat: 'hardware', cost: 680, act: 5, vstage: 1, blurb: 'Tugs, catapults and depots that keep rock flowing to the yards.', effect: 'The yards are 30% better fed.', mods: { feed: 1.3 } },
+  { id: 'senolytics', name: 'AI-Designed Senolytics', cat: 'policy', cost: 740, act: 5, vstage: 1, blurb: 'Therapies that clear out ageing cells, designed and trialled by minds in a month.', effect: 'Healthy life expectancy climbs 25% faster.', mods: { longevity: 1.25 } },
+  { id: 'radiator-alloys', name: 'Liquid-Droplet Radiators', cat: 'hardware', cost: 800, act: 5, vstage: 2, blurb: 'Sheets of falling molten droplets that shed heat to space and are caught again.', effect: 'Compute rings need 25% less mass.', mods: { ringMass: 0.75 } },
+  { id: 'storm-modes', name: 'Storm-Safe Modes', cat: 'safety', cost: 780, act: 5, vstage: 2, blurb: 'Collectors that feather edge-on to a solar storm and wake up afterwards.', effect: 'Storms knock out 35% less of the swarm.', mods: { stormDamage: 0.65 } },
+  { id: 'minds-compact', name: 'The Minds Compact', cat: 'policy', cost: 820, act: 5, vstage: 2, requires: ['signed-replication'], blurb: 'A written bargain between people and the minds in orbit: what each owes the other.', effect: 'The minds are happier; strains are caught 15% sooner.', mods: { mindsMood: 1.2, driftRisk: 0.85 } },
+  { id: 'cellular-rejuvenation', name: 'Cellular Rejuvenation', cat: 'policy', cost: 900, act: 5, vstage: 3, requires: ['senolytics'], blurb: 'Resetting the epigenetic clock of whole organs, safely.', effect: 'Healthy life expectancy climbs 30% faster.', mods: { longevity: 1.3 } },
 ];
 
 export const TECH_BY_ID: Record<string, TechDef> = Object.fromEntries(TECHS.map((t) => [t.id, t]));

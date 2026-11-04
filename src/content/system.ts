@@ -23,11 +23,11 @@ export const SYSTEM = {
   /** The Thermal Line choices (W/m²), the sensible default first. */
   lines: [1.0, 0.5, 1.5] as const,
   /** Foundry doubling time in months at 40% reinvestment, by growth dial 1..5. */
-  doubling: [40, 30, 22, 16, 12],
+  doubling: [58, 44, 34, 26, 19],
   /** Chance each doubling sets a strain drifting, by dial (sentinels cut it). */
   driftPerDoubling: [0.004, 0.012, 0.03, 0.06, 0.11],
   /** Output capacity a new seed starts with, Mt a year. */
-  seedMt: 0.08,
+  seedMt: 0.12,
   /** Megatonnes of product per TW: thin-film collectors (~40 TW a Mt), compute-ring radiators, habitats. */
   mtPerTW: { collectors: 0.025, rings: 0.1, habitat: 0.15 },
   /** What a foundry draws, TW per Mt/yr of capacity. */
@@ -53,7 +53,9 @@ export const SYSTEM = {
   goalWellbeing: 60,
   goalWarming: 2.0,
   /** The Charter's share of the space economy's power, as income: $ per TW-year, by ownership. */
-  dividend: { commons: 0.6e9, concessions: 0.4e9, claims: 0.18e9 },
+  dividend: { commons: 0.2e9, concessions: 0.13e9, claims: 0.06e9 },
+  /** Era jumps (not the last climb) end early at this K, so the finale comes before Type I. */
+  eraStopK: 0.99,
 };
 
 export const STAGE5_NAMES = ['The Thermal Line', 'The Foundries', 'The Swarm', 'The Last Climb', 'Solar Maximum', 'Type I'];

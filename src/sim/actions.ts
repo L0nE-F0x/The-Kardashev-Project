@@ -55,6 +55,7 @@ export function techAvailable(s: GameState, techId: string): boolean {
   if (t.phase && (s.act ?? 1) === 2 && s.phase < t.phase) return false;
   if (t.cphase && (s.act ?? 1) >= 3 && (s.charter?.phase ?? 0) < t.cphase) return false;
   if (t.stage && (s.act ?? 1) >= 4 && (s.planet?.stage ?? 0) < t.stage) return false;
+  if (t.vstage !== undefined && (s.system?.stage ?? -1) < t.vstage) return false;
   return true;
 }
 const fail = (reason: string): Result => ({ ok: false, reason });

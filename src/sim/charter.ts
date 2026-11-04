@@ -37,6 +37,9 @@ import { canLaunch, cleanUp, moonStage, orbitGW, spaceCostMult } from './orbit';
 import { aiAccessBonus } from './airegions';
 
 export type Result = { ok: true } | { ok: false; reason: string };
+import { plantSeed, seedOwner, seedPlaces } from './foundries';
+import { completeSurvey, unknownInReach } from './asteroids';
+
 const fail = (reason: string): Result => ({ ok: false, reason });
 const OK: Result = { ok: true };
 
@@ -110,7 +113,7 @@ export function contractValue(s: GameState, kind: ContractKind, size: ContractSi
   if (kind === 'link') v *= SUPERGRID_BY_ID[where]?.km ?? 3000;
   if (kind === 'fpilot') v = FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS]?.pilot ?? 30e9;
   if (kind === 'ffleet') v = unitsOf(def, size) * fleetValuePerGW(s, (opt ?? 'tokamak') as keyof typeof FUSION_DESIGNS);
-  if (s.planet && def.cat === 'space' && def.stage) v *= spaceCostMult(s);
+  if (s.planet && def.cat === 'space' && (def.stage || def.vstage !== undefined)) v *= spaceCostMult(s);
   if (kind === 'odc' || kind === 'sps') v *= moonStage(s) >= 2 ? 0.85 : 1;
   if (where === 'mega-northsea') v *= 1.25;
   if (where === 'mega-siberia') v *= 1.15;
@@ -217,6 +220,11 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
     if (!s.planet) return 'Opens in Act IV.';
     if (s.planet.stage < def.stage) return `Opens in stage ${def.stage}.`;
   }
+  if (def.vstage !== undefined) {
+    if (!s.system) return 'Opens in Act V.';
+    if (s.system.stage < def.vstage) return `Opens in stage ${def.vstage}.`;
+    if (s.system.typeI && def.cat === 'space' && kind === 'mercury') return 'Mercury is already surveyed.';
+  }
   if (def.fixed && size !== 1) return 'This contract comes in one size.';
   switch (def.where) {
     case 'mega': {
@@ -250,6 +258,9 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
       break;
     case 'global':
       break;
+    case 'space':
+      if (!seedPlaces(s).some((p) => p.id === where)) return 'Pick the Moon, a Lagrange yard or an asteroid the Charter may work.';
+      break;
   }
   if (kind === 'orbital' || kind === 'spacesolar') {
     if (!c.projects.some((p) => p.kind === 'launch' && p.status === 'done')) return 'Needs a finished launch complex.';
@@ -268,6 +279,14 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
   if (kind === 'moonbase' && liveKind('moonbase')) return 'The Moon outpost is already under way.';
   if (kind === 'moonmine' && (!doneKind('moonbase') || liveKind('moonmine'))) return liveKind('moonmine') ? 'The lunar mine is already under way.' : 'Needs the Moon outpost first.';
   if (kind === 'massdriver' && (!doneKind('moonmine') || liveKind('massdriver'))) return liveKind('massdriver') ? 'The mass driver is already under way.' : 'Needs the lunar mine first.';
+  // Act V
+  if (kind === 'survey') {
+    if (!unknownInReach(s).length) return (s.system?.stage ?? 0) < 2 ? 'Every near-Earth asteroid in reach is mapped; the main belt opens in stage 2.' : 'Every asteroid in reach is mapped.';
+    if (liveKind('survey') && c.projects.some((p) => p.kind === 'survey' && p.status === 'building')) return 'A survey is already under way.';
+  }
+  if (kind === 'mercury' && liveKind('mercury')) return 'The Mercury survey is already under way.';
+  if ((kind === 'seed' || kind === 'habitat' || kind === 'harden' || kind === 'mercury' || kind === 'survey') && !canLaunch(s)) return 'Needs a launch complex or a spaceport first.';
+  if (kind === 'seed' && c.projects.filter((p) => p.kind === 'seed' && p.status === 'building').length >= 4) return 'Four seeds are already on their way.';
   if (c.tenders.some((t) => t.kind === kind && t.where === where && (t.opt ?? '') === (opt ?? ''))) return 'A tender for this is already open.';
   if (c.tenders.length >= 8) return 'Eight tenders are already open. Award or close one first.';
   if (!eligible(s, kind, where, opt).length) return 'No partner is able or willing to bid right now.';
@@ -285,7 +304,7 @@ export function postTender(s: GameState, kind: ContractKind, size: ContractSize,
     : def.where === 'route' ? HVDC_BY_ID[where].from
     : def.where === 'sgroute' ? SUPERGRID_BY_ID[where].from
     : def.where === 'design' ? PARTNERS[FUSION_DESIGNS[where as keyof typeof FUSION_DESIGNS].partner]?.home ?? 'eur'
-    : def.where === 'global' ? 'eur'
+    : def.where === 'global' || def.where === 'space' ? 'eur'
     : SITE_BY_ID[where].region;
   if (kind === 'link' && s.planet && s.planet.powers !== 'planetary') addCapital(s, -PLANET.approvalCapital);
   const bidders = eligible(s, kind, where, opt);
@@ -829,6 +848,38 @@ function completeProject(s: GameState, p: Project): void {
     case 'moonmine':
     case 'massdriver':
       scheduleEvent(s, `moon-${p.kind}`, 5, {});
+      break;
+    // ── Act V ──
+    case 'seed':
+      if (s.system) {
+        plantSeed(s, p.where, seedOwner(s, p.where, p.builder));
+        if (s.system.foundries.length === 1) scheduleEvent(s, 'v-first-seed', 3, { site: p.where });
+      }
+      break;
+    case 'survey':
+      if (s.system) completeSurvey(s);
+      break;
+    case 'sentinel':
+      if (s.system) s.system.sentinels = clamp(s.system.sentinels + [0.2, 0.35, 0.5][p.size - 1] * (1 - s.system.sentinels), 0, 0.92);
+      break;
+    case 'beam':
+      if (s.system) s.system.beams += units;
+      break;
+    case 'harden':
+      if (s.system) s.system.hardening = clamp(s.system.hardening + [0.15, 0.25, 0.35][p.size - 1] * (1 - s.system.hardening), 0, 0.92);
+      break;
+    case 'habitat':
+      addLegitimacy(s, 2);
+      if (s.system && !s.flags.firstHabitat) {
+        s.flags.firstHabitat = s.day;
+        scheduleEvent(s, 'v-aurora', 4, {});
+      }
+      break;
+    case 'mercury':
+      if (s.system) {
+        s.system.mercury = 2;
+        scheduleEvent(s, 'v-mercury', 3, {});
+      }
       break;
   }
   const what = def.cat === 'energy' || p.kind === 'ffleet' || p.kind === 'sps' ? `${fmtMW((p.gw ?? 0) * 1000)} of clean power` : def.name.toLowerCase();
