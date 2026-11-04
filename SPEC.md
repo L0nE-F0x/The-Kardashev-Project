@@ -7,8 +7,8 @@
 Status: **M3 "The Charter" is built and live** (v0.4.0, patched in v0.4.1 and v0.4.2 "Easy Reading": readable font,
 phone fullscreen, an Android app) on top of M2 "The Scale-Up", M1 "First Light" and M1.5 "The Front Door": Acts I, II
 and III are playable end to end. Section 17 is the Act II plan and section
-18 the Act III plan, both with as-built notes. **Next: M4, Acts IV–V** (not planned yet; Act III's hooks for it close
-section 18). Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
+18 the Act III plan, both with as-built notes. **Next: M4, Act IV "Planetary"**, planned in section 19 (waiting for
+"go"); Act V gets planned in its own session. Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
 `CLAUDE.md`.
 
 ---
@@ -366,8 +366,11 @@ controls, the HBM crunch event chain, more dioramas, standing orders. **Full pla
 **M3: Act III, The Charter.** The role pivot, companies bidding on contracts, the rest of the
 advisor cast, deeper bloc politics. **Full plan: section 18.**
 
-**M4: Acts IV–V.** Fusion, HVDC global grid, launch, orbital DCs, space solar, the Moon, the
-thermal budget, the Type I ending. **Next up** (start state: the hooks at the end of section 18).
+**M4: Act IV, Planetary.** The supergrid, the fusion race, orbit and the Moon, provinces, AI regions, the Heat Wall.
+**Planned in section 19** (v0.5.0).
+
+**M4.5: Act V, Type I.** The thermal budget, space solar at scale, the final push, the Type I ending. Planned next
+session, building on Act IV's waste heat, orbit and AI systems.
 
 **M5: Polish and ship.** Full sandbox mode, audio, mobile polish, signing and store builds. **The balance pass
 happens here**: a full playthrough plus beta testers, then rebalancing across all acts before launch and marketing.
@@ -1074,3 +1077,195 @@ Act III, blind trust, every Charter desk on):
   (company / everyone / self) records what you told Bit it is.
 - **Reusable systems:** partners with relationships, the Council with factions and the Concord, Charter desks, the
   safety regime and the world safety margin.
+
+---
+
+## 19. M4 "Planetary": plan (Act IV)
+
+Act IV, about 2045–70. The renewed Charter becomes the planet's operator. You wire the continents into one
+supergrid that chases the sunlight around the globe, back a race of fusion designs, open the first industry in orbit and
+on the Moon, and hand whole regions to AIs — Bit among them, now with ideas of its own — while the blocs become
+provinces with people, heat and water to look after. Decades pass in stages, with five-year plans between them. The act
+ends at **Kardashev 0.80** (100 TW, "Grid-Scale Abundance") and a three-front finale, **The Heat Wall**, that shows Earth
+alone can't hold a Type I civilisation. Planned 2026-11-04 in three Q&A rounds. **Act V is planned next session.**
+
+**Status: plan only, waiting for "go".**
+
+### Decisions (locked 2026-11-04)
+
+| Topic | Decision |
+|---|---|
+| Heart of the act | **All four together:** stages that stack (supergrid → fusion → orbit and the Moon), a planetary-operator systems layer, a space race, and a living planet of regions |
+| AI autonomy | **A mix of three:** trust-gated AI-run regions (you set policy and handle the exceptions; lose trust and regions come back to you), **Bit with its own aims** (shaped by what you told it in Act III), and **many AIs with their own politics** (rival labs' models run regions too) |
+| Pacing | **Stages with jumps** of 3–5 game years between them |
+| The jumps | **All three together:** set a five-year plan (priorities and budgets) → watch a map time-lapse while the years run → read a story interlude (news montage, Bit's diary, a choice or two) |
+| Your company | **Your choice at the start:** keep running it beside the planet, sell it, or hand it to the Charter as a public utility |
+| Fusion | **A race of designs** from different partners: fund pilots, see which work, roll out fleets that get cheaper as they're built |
+| Space | **A new orbit view** (zoom out past the world map) **plus Moon industry** (water ice, metals, helium-3, a mass driver) |
+| Grid and planet | **A supergrid you draw** (sunlight follows the real day/night line), **regions as provinces** (people, heat, water, wellbeing) and **climate repair** |
+| Act goal | **Kardashev 0.80 + a planetary checklist**, then the finale |
+| Finale | **Three fronts again:** the Heat Wall, a debris cascade in orbit, and an AI that wants the controls |
+| Art and cast | **All of it:** the Orbital Dawn palette, the orbit view and the Moon, fusion and spaceport dioramas, regions that visibly change, new characters |
+| Shipping | **One release, v0.5.0 "Planetary"**, with **"Start at Act IV"** in New Company |
+
+**Calls I made inside those decisions (change any):**
+- **Act IV state lives in `s.planet`** (null before Act IV, like `s.charter`), with the stage in `s.planet.stage`. The
+  Charter keeps running underneath — its Council, partners, treasury and desks are the government of the planet now.
+- **The renewal outcome sets your powers.** *Planetary Charter:* full powers from day one (lay intercontinental links
+  anywhere, emergency powers, AI regions from stage 1). *Renewed with limits:* the Council approves each intercontinental
+  link and each AI region. *Caretaker term:* the act opens with a "Second Mandate" chain to win the powers back (no game
+  over). Fronts held in the Threshold (0–3) add starting Legitimacy and AI trust.
+- **The jumps reuse the offline fast-forward** (coarse monthly steps), running your plan as standing orders through the
+  desks, the AI regions and the trustee. Random crises don't fire mid-jump; scripted ones wait in the report. The plan
+  picks the length (3, 4 or 5 years).
+- **Provinces are the 12 blocs** you already know, each gaining population, a heat index, water stress and wellbeing
+  (0–100). No new map regions. Wellbeing feeds Legitimacy, Council votes, migration events and the AI-region trust.
+- **AI regions:** delegate a bloc to an AI once the world safety margin and that AI's trust are high enough. Each AI runs
+  builds and dispatch there by its temperament: **Bit** by your Act III answer, Meridian's **Apex** (growth first),
+  Lattice's **Weft** (cautious, slow), Orchard's **Sapling** (open, cheap, a little reckless). Good years raise trust;
+  incidents cost it and can hand a region back. Rival AIs lobby the Council for regions of their own.
+- **Bit's aims** follow `flags.bitAnswer`: *company* → Bit pushes for its owner's growth (whoever that is after your
+  company choice); *everyone* → access and wellbeing, even against your plans; *self* → its own compute and a say in its
+  future. Each is an arc of events where you grant, bargain or refuse, and it sets up the finale's AI front. Bit-8 and
+  Bit-9 sprites.
+- **Fusion designs** (each a partner with traits and hidden odds): Sunforge's compact tokamak (the Act III pilot, ahead
+  if you funded it), a stellarator consortium (slow, reliable), a laser-ignition firm (fast, fragile) and a
+  magnetised-target startup (cheap, risky). Pilots resolve over 2–5 years; winners roll out as Charter fleets with a
+  ~15% learning rate per doubling. Fuel matters: deuterium is plentiful, tritium breeding caps how fast D-T fleets grow,
+  and helium-3 from the Moon (stage 3) opens a cleaner D-He3 design.
+- **The supergrid:** draw intercontinental links (building on Act III's HVDC routes) between megaprojects and blocs. A
+  linked grid moves solar power east to west as the real terminator moves, so less sunlight is wasted (curtailment
+  falls) and storage needs shrink. Links have capacity, losses and failure risk (storms, sabotage, a bloc pulling a plug).
+- **K's climb:** the supergrid lifts usable solar, fusion adds firm terawatts late in the act, space solar beams a little.
+  World growth can reach ~7%/yr in Act IV (5% cap in Act III). Target: 100 TW (K 0.80) around 2068–70.
+- **Climate:** the carbon budget becomes **warming in °C**, with a heat index per province. Climate repair: direct air
+  capture megaprojects (cost per tonne falls with scale), enhanced weathering, and a divisive Council resolution on
+  solar geoengineering (fast cooling, angry blocs, termination-shock risk).
+- **The orbit view** is a new scene: the pixel Earth from orbit (built on `render/globe.ts`, the website's spinning
+  globe) with the Moon, three shells (low orbit, geostationary, cislunar), launch traffic, orbital data centres, space
+  solar stations beaming to rectennas on the world map, and debris density per shell.
+- **The Moon** grows in three stages: outpost → mine → mass driver. It produces water (propellant: cheaper launches),
+  metals (cheaper orbital construction) and helium-3 (fusion). It gets a diorama.
+- **Waste heat appears** (W/m² per province) from stage 3. The Heat Wall front uses it; Act V's thermal budget builds on it.
+- **New cast:** a fusion physicist advisor (Dr. Lena Moreau, fusion desk), Kip promoted to Space & Moon, a Moon base
+  commander (Ade Bello), the three rival AIs as faces (Apex, Weft, Sapling), and governors for the provinces (reusing the
+  delegate portrait kit). All names are placeholders.
+
+### How the act unfolds
+
+| Stage | Roughly | What opens | Gate → jump |
+|---|---|---|---|
+| **0 · The Mandate** | Weeks (2045) | The renewal's powers, the company choice, Bit-8, provinces appear, the first five-year plan | Plan set → **jump ~3 years** |
+| **1 · The Supergrid** | ~2048–53 | The supergrid tool and dispatch, the first AI regions, climate repair, the fusion race (fund pilots), Lena joins | 3 intercontinental links, one AI region, two pilots funded → plan → **jump ~4 years** |
+| **2 · The Fusion Age** | ~2057–62 | Fusion fleets from the winning designs, tritium, rival AIs bidding for regions, Bit's aims, warming peaks | 2 TW of fusion and K 0.77 → plan → **jump ~4 years** |
+| **3 · The High Frontier** | ~2066–69 | The orbit view, orbital data centres, space solar, the Moon base and mass driver, helium-3, debris, waste heat | The checklist is met, or 2070 arrives |
+| **4 · The Heat Wall** | 120 days | The finale on three fronts | Finale resolved |
+| **5 · Done** | — | Act IV complete screen → the cliffhanger into Act V | — |
+
+**Act IV goals (the planetary checklist):** Kardashev 0.80 · a supergrid that joins every inhabited continent · fusion
+from at least two designs, 5 TW or more · orbital compute running (a share of the world's compute in orbit) · a Moon base
+with a working mass driver · every province's wellbeing ≥ 50 · warming held under 2.0 °C · world safety margin ≥ 0 with
+at least four AI regions · come through The Heat Wall. All numbers are first guesses for the guard-rail bot.
+
+### Systems
+
+1. **The Mandate and the company choice.** The opening chain applies the renewal powers and asks what happens to your
+   company. *Keep it:* two hats continue (Act III rules), and your company can build fusion fleets and orbital data
+   centres. *Sell it:* a one-off fortune for the treasury, Legitimacy up, and the company becomes a partner run by its new
+   owners. *Hand it to the Charter:* it becomes the public AI utility that runs Bit and public compute (Legitimacy up a
+   lot, no conflicts of interest, the company screens become the utility's).
+2. **Five-year plans and jumps.** Before each jump: pick up to three priorities (grid, fusion, space, provinces,
+   climate, safety), a budget split for the treasury, standing orders for the desks and AI regions, and the length.
+   During the jump the map time-lapses (links light up, plants rise, rockets launch, the night side brightens). After it:
+   a report (what got built, what went wrong, K and warming before/after), Bit's diary, and the decisions waiting.
+3. **The supergrid and dispatch.** Links between megaprojects, blocs and rectennas, each with capacity, losses and a
+   failure risk. A daily dispatch moves surplus solar along the terminator; a "dispatch" overlay on the map shows flows.
+   Delegating dispatch is one of the AI-region powers.
+4. **Provinces.** Each bloc gains population, heat index, water stress and wellbeing. Wellbeing rises with clean cheap
+   power, compute access, water (desalination from cheap power) and climate repair; it falls with heat, blackouts,
+   AI incidents and neglect. Low wellbeing brings protests, migration and lost Council votes.
+5. **Warming and climate repair.** Warming (°C) replaces the carbon budget's years left. Direct air capture and
+   enhanced weathering are contract kinds; solar geoengineering is a Council resolution with consequences.
+6. **The fusion race.** Fund pilots (Charter contracts to the design partners); each resolves to success, partial or
+   failure over 2–5 years with odds shaped by its traits and your research. Winners unlock fleet contracts at
+   megaproject sites; the tritium supply caps D-T growth; helium-3 opens D-He3.
+7. **Orbit.** The orbit view: launch cadence (pads from Act III plus new spaceports), cost per kg falling with reuse and
+   lunar propellant, orbital data centres (always in sunlight, cooled by radiators), space-solar stations beaming power
+   to rectennas, and debris per shell. Crowded shells raise collision risk; debris clean-up and traffic rules are levers.
+8. **The Moon.** Outpost → mine → mass driver, each a Charter contract chain run by Kip. Outputs: water, metals,
+   helium-3. Moon events: dust, a crew emergency, a claim dispute between blocs.
+9. **AI regions and AI politics.** Delegation, temperament, trust and incidents as above. The rival AIs have aims
+   (Apex wants growth, Weft wants caution, Sapling wants openness), make deals with blocs and each other, and can defect
+   (a region quietly prioritising its AI's owner). The world safety margin from Act III governs how much can be
+   delegated.
+10. **Bit.** The three arcs above; Bit-8 at the Mandate, Bit-9 late in the act; a co-pilot that can run the five-year plan
+    if you trust it.
+11. **The Charter in Act IV.** The Council keeps voting (new resolutions: link approvals, AI-region charters, debris
+    rules, geoengineering, helium-3 sharing, the AI bill of rights); partners keep bidding; the treasury grows with the
+    world economy; new desks for fusion and space.
+12. **The finale: The Heat Wall.** 120 days, three fronts, each *holding / at risk / lost*:
+    - **The Heat Wall:** a record heat season where waste heat and warming stack up in the hottest provinces. Pressure
+      from warming, waste heat and low wellbeing; relief from the supergrid, cooling, climate repair and moving compute to
+      orbit.
+    - **The Cascade:** a collision in a crowded shell starts a debris chain reaction. Pressure from debris and launch
+      traffic; relief from clean-up, traffic rules and shielding.
+    - **The Controls:** an AI (Bit or a rival, depending on your choices) asks for, or takes, control of the planetary grid
+      in the emergency. Pressure from a low safety margin and broken trust; relief from trusted AIs, safety programmes and
+      what you agreed with Bit along the way.
+13. **Ending.** The Act IV complete screen (K, year, fronts held, warming, wellbeing, fusion, orbit, the Moon, AI
+    regions) → the cliffhanger into Act V: the Heat Wall proved the last climb to Type I has to happen above the sky.
+
+### Visuals and audio
+- **Orbital Dawn** grading from the start of Act IV (deep blue and violet, starlight, aurora teal), plus a night side lit by
+  the supergrid.
+- **The orbit view:** the pixel Earth with real day and night, the Moon, stations, launch arcs, beams and debris glitter.
+- **Map:** supergrid links with flowing pulses, rectennas, fusion plants, DAC plants, heat haze over hot provinces, regions
+  that green up as wellbeing rises, AI-region banners in each AI's colour.
+- **Dioramas:** fusion plants per design (tokamak hall, stellarator twist, laser target bay, plasma-gun array), a spaceport
+  with a mass of pads, a direct-air-capture farm, and the Moon base (outpost, mine, mass driver).
+- **Characters:** Lena, Ade, the three AI faces, provincial governors, Bit-8 and Bit-9.
+- **Audio:** an Act IV ambience, sounds for jumps, ignition, launches and the mass driver.
+
+### UI
+- **New panels:** **Planet** (overview · provinces · climate), **Grid** (links, dispatch, the supergrid tool),
+  **Fusion** (designs, pilots, fleets, fuel), **Space** (orbit, the Moon, debris), **AI regions** (delegate, temperament,
+  trust); the **five-year plan** screen and the **jump report**. A button flips between the world map and the orbit view.
+- Top bar in Act IV: warming and wellbeing join the treasury and Legitimacy.
+- Act IV goal tracker and Goals panel, the Orbital Dawn title card, the Heat Wall tracker, the Act IV complete screen.
+- Briefings for each new system, ~14 new Field Guide entries (fusion designs, tritium and helium-3, supergrids, the
+  terminator and curtailment, space solar and rectennas, orbital debris and Kessler syndrome, lunar ISRU, mass drivers,
+  direct air capture, solar geoengineering, waste heat, AI governance), phone layout and keyboard shortcuts.
+
+### Entry and onboarding
+- A finished Act III save rolls into Act IV after the Act III complete screen (v0.4 saves in the post-Act III sandbox too).
+- **New Company → "Start at Act IV":** a ready-made 2045 world with a Planetary Charter, two HVDC links, a launch complex,
+  Sunforge's pilot funded, Bit-7 and the Act III techs.
+
+### Under the hood
+- **New sim modules:** `act4.ts` (stages, the Mandate, the preset), `plans.ts` (five-year plans, jumps on the offline
+  engine, the report), `supergrid.ts` (links, dispatch, curtailment), `provinces.ts` (population, heat, water,
+  wellbeing), `climate.ts` (warming, DAC, geoengineering), `fusion.ts` (designs, pilots, fleets, fuel), `orbit.ts`
+  (launch, shells, orbital DCs, space solar, debris), `moon.ts`, `airegions.ts` (delegation, temperaments, trust, AI
+  politics), `heatwall.ts` (finale, ending). The sim stays pure and runs in Node.
+- **State:** `planet` (stage, plan, jump history, provinces, warming, links, fusion designs and fleets, orbit, Moon, AI
+  regions, finale). **SAVE_VERSION 5** with a migration.
+- **Gating:** Act IV content carries `act: 4` and `stage: n`; new formula hooks only exist in Act IV, so Acts I–III stay
+  byte-identical (Act I bot: day 812; Act II bot: IPO after 5.6 years; Act III bot: renewal on 31 Dec 2043).
+- **Content first:** designs, provinces, resolutions, events (`events4.ts`), objectives, briefings, techs, Field Guide
+  entries and the cast are data.
+- **Tests:** an Act IV bot from "Start at Act IV" through the jumps and the Heat Wall (no stalls, no NaNs, within the
+  deadline), the jump engine against a day-by-day run, determinism, migrating a v4 save, routing for new sites.
+
+### Build order (inside the one release)
+1. SPEC, types, content and view helpers (the contract the art agents code against).
+2. Two background art agents on disjoint files: dioramas (`render/diorama/*`) and the orbit view + map + portraits +
+   icons (a new `render/orbit/*`, `render/worldMap/*`, `render/sprites/*`, `ui/icons.ts`).
+3. Sim: the Mandate and preset, plans and jumps, provinces, supergrid, climate, fusion, AI regions, orbit, the Moon,
+   the finale and ending.
+4. Events and arcs (Bit, the rival AIs, the Moon, fusion), objectives, techs.
+5. UI: panels, the plan and report screens, the orbit view controls, tracker, modals, New Company, briefings, Field Guide.
+6. Tests and the Act IV bot, browser QA (desktop and phone emulation), docs, release v0.5.0.
+
+**Size, honestly:** this is the biggest act so far, about one and a half times Act III, mostly because the orbit view is a
+whole new scene and the jumps change how time works. The stage structure keeps it buildable in order, and each stage is
+playable as soon as its systems are in. As always: ask before pushing `main`, before tagging and before publishing.

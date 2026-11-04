@@ -205,8 +205,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 ## Known gaps / next (see SPEC §12, §16, §17, §18)
 
-**Next: Acts IV–V** (SPEC §12 M4: Planetary — the global grid, fusion, orbital compute, the Moon — then Type I; Act III's
-hooks for them are at the end of SPEC §18). Then the real theme song, code signing (Windows/macOS), a feedback form
+**Next: Act IV "Planetary"** — planned in SPEC §19 (stages with five-year plans and time jumps, the supergrid, provinces,
+climate, a fusion race, AI regions, the orbit view and the Moon, the Heat Wall finale; v0.5.0), waiting for "go".
+**Then Act V** (Type I), to be planned in its own session. Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
 **Still open from v0.4 (Act III):**
