@@ -111,11 +111,14 @@ interface LodLayer {
   lightPts: LightPoint[];
 }
 
-/** Three copies of a full-map sprite, for horizontal wrap-around. */
+/**
+ * Copies of a full-map sprite for horizontal wrap-around. The camera sits in [0, W), and a wide
+ * phone can show more than one map width at the zoomed-out level, so draw up to x = 3W.
+ */
 class WrapSprite {
   readonly sprites: Sprite[];
   constructor(parent: Container, tex: Texture, opts: { alpha?: number; blend?: 'multiply' | 'add' | 'normal' } = {}) {
-    this.sprites = [-1, 0, 1].map(() => {
+    this.sprites = [-1, 0, 1, 2].map(() => {
       const s = new Sprite(tex);
       s.alpha = opts.alpha ?? 1;
       if (opts.blend) s.blendMode = opts.blend;

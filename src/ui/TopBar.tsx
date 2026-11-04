@@ -1,4 +1,5 @@
 import { Icon, useGame } from './components';
+import { canFullscreen, enterFullscreen, isFullscreen, isPhone, isStandalone } from '../platform/platform';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, K_MILESTONES, tierOf } from '../sim/model';
 import type { Speed } from '../game/game';
@@ -92,6 +93,11 @@ export function TopBar() {
           </div>
         </div>
       </div>
+      {isPhone() && !isStandalone() && canFullscreen() && !isFullscreen() && (
+        <button class="btn fsbtn frame" onClick={() => void enterFullscreen()} data-tip="Fullscreen" aria-label="Fullscreen">
+          <Icon name="fullscreen" size="sm" />
+        </button>
+      )}
     </div>
   );
 }

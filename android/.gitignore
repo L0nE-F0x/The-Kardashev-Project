@@ -1,0 +1,11 @@
+# Gradle and Android Studio output
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+# signing keys never go in the repo
+*.p12
+*.jks
+*.keystore

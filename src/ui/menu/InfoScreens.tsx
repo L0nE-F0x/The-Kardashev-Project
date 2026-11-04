@@ -1,6 +1,6 @@
 import { Icon, Portrait, Window, useGame } from '../components';
 import { RELEASES } from '../../content/changelog';
-import { canPromptInstall, installHelp, isDesktopApp, promptInstall } from '../../platform/platform';
+import { ANDROID_APK_URL, canPromptInstall, installHelp, isDesktopApp, promptInstall } from '../../platform/platform';
 
 export function WhatsNew() {
   const game = useGame();
@@ -39,7 +39,7 @@ export function Credits() {
       <h4 class="section">Thanks to</h4>
       <ul class="credits">
         <li>Natural Earth — public-domain map data (coastlines, regions, rivers, lakes).</li>
-        <li>Pixelify Sans and Silkscreen — pixel fonts under the SIL Open Font License.</li>
+        <li>Atkinson Hyperlegible Next (Braille Institute), Silkscreen and Pixelify Sans — fonts under the SIL Open Font License.</li>
         <li>PixiJS, Preact, Vite and Tauri — the open-source tools underneath.</li>
         <li>Nikolai Kardashev and Carl Sagan — for the scale that gives the game its goal.</li>
       </ul>
@@ -57,6 +57,25 @@ export function InstallHelp() {
         <p>You’re already playing the desktop app. 🎉</p>
       ) : (
         <>
+          {how === 'android' && (
+            <>
+              <h4 class="section">Android app</h4>
+              <p>The best way to play on an Android phone: full screen, held sideways, one tap from your home screen. It updates itself.</p>
+              <a class="btn primary" href={ANDROID_APK_URL}>
+                <Icon name="arrow" size="sm" /> Download the Android app (APK)
+              </a>
+              <ol class="steps">
+                <li>Open the downloaded file.</li>
+                <li>
+                  If Android asks, allow your browser to <b>install unknown apps</b>, then tap <b>Install</b>.
+                </li>
+                <li>
+                  Open <b>Kardashev</b> from your home screen. If you added the game to your home screen before, remove that old icon.
+                </li>
+              </ol>
+              <h4 class="section">Or install it from Chrome</h4>
+            </>
+          )}
           <p>Install The Kardashev Project as an app: its own icon, full screen, and it works offline.</p>
           {canPromptInstall() && (
             <button class="btn primary" onClick={() => void promptInstall()}>
@@ -84,7 +103,7 @@ export function InstallHelp() {
               </li>
             </ol>
           )}
-          {how === 'menu' && !canPromptInstall() && (
+          {(how === 'menu' || how === 'android') && !canPromptInstall() && (
             <ol class="steps">
               <li>
                 Open your browser’s menu (⋮ or ⋯) and choose <b>Install app</b> or <b>Add to Home screen</b>.

@@ -72,7 +72,7 @@
             <a class="btn primary big" href="./play/">▶ Play in your browser</a>
             <a class="btn big" href="#download" id="cta-get">Install / download</a>
           </div>
-          <p class="small muted">Free · Acts I–III available now · desktop, phones (landscape) and installable as an app.</p>
+          <p class="small muted">Free · Acts I–III available now · desktop, Android and iPhone (landscape), installable as an app.</p>
         </div>
         <div class="hero-globe">
           <canvas id="globe" width="200" height="200" aria-label="A spinning pixel Earth with the real night side"></canvas>
@@ -135,6 +135,7 @@
           <article class="card frame" id="install-card">
             <h3>As an app</h3>
             <p>Its own icon, full screen and offline play — on Android, iPhone/iPad and desktop.</p>
+            <a class="btn" id="android-btn" href="https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk">⬇ Android app (.apk)</a>
             <button class="btn" id="install-btn" hidden>Install the app</button>
             <div id="install-help" class="small"></div>
           </article>
@@ -148,7 +149,8 @@
               <ul>
                 <li><b>Windows:</b> on the SmartScreen notice, click <i>More info → Run anyway</i>.</li>
                 <li><b>macOS:</b> right-click the app → <i>Open</i>, or System Settings → Privacy &amp; Security → <i>Open Anyway</i>.</li>
-                <li><b>Linux:</b> make the AppImage executable (<code>chmod +x</code>) and run it, or install the .deb.</li>
+                <li><b>Linux:</b> make the AppImage executable (<code>chmod +x</code>) and run it (Arch-based distros may need the <code>fuse2</code> package), or install the .deb on Debian and Ubuntu.</li>
+                <li><b>Android:</b> open the downloaded .apk and, if asked, allow your browser to install apps.</li>
               </ul>
             </details>
           </article>
@@ -164,7 +166,7 @@
         <div class="frame aboutbox">
           <h2>About</h2>
           <p>The Kardashev Project is a hobby game by <b>Lone Fox</b>, built with Claude. Companies, people and events are fictional; the geography and the physics are real.</p>
-          <p class="small muted">Map data: Natural Earth (public domain). Fonts: Pixelify Sans and Silkscreen (SIL Open Font License). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.</p>
+          <p class="small muted">Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next, Silkscreen and Pixelify Sans (SIL Open Font License). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.</p>
         </div>
       </section>
     </main>

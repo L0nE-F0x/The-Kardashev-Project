@@ -4,8 +4,9 @@
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
 
-Status: **M3 "The Charter" is built and live** (v0.4.0, patched in v0.4.1) on top of M2 "The Scale-Up", M1 "First
-Light" and M1.5 "The Front Door": Acts I, II and III are playable end to end. Section 17 is the Act II plan and section
+Status: **M3 "The Charter" is built and live** (v0.4.0, patched in v0.4.1 and v0.4.2 "Easy Reading": readable font,
+phone fullscreen, an Android app) on top of M2 "The Scale-Up", M1 "First Light" and M1.5 "The Front Door": Acts I, II
+and III are playable end to end. Section 17 is the Act II plan and section
 18 the Act III plan, both with as-built notes. **Next: M4, Acts IV–V** (not planned yet; Act III's hooks for it close
 section 18). Section 13 lists the locked decisions and section 15 tracks what's implemented. Developer notes live in
 `CLAUDE.md`.
@@ -231,8 +232,9 @@ Company CEOs also get portraits and personalities.
   cool/violet, highlights lean warm), with ordered dithering for gradients.
 - **Modern lighting on top:** a night light-map (windows, lamps, beacons), low-res bloom that stays
   pixelated, weather (rain, snow, smog, heat shimmer), clouds and shadows.
-- **UI stays crisp:** an HTML/DOM overlay using a pixel font at whole-number sizes and 9-slice
-  pixel frames.
+- **UI stays crisp:** an HTML/DOM overlay with 9-slice pixel frames. *Changed in v0.4.2:* text uses a smooth,
+  highly legible font (Atkinson Hyperlegible Next) because the pixel fonts were hard to read, especially on phones;
+  big titles stay pixel (Silkscreen) and the old all-pixel look is a Settings option.
 
 ### Era palettes (colour grading follows K)
 | Era | K range | Mood |
@@ -451,7 +453,7 @@ installable apps. Approved 2026-11-03 without the feedback form; built the same 
 | Signing | Unsigned for now, with a "how to open it" note on the download page |
 | Settings | Gameplay, Display, Audio, Accessibility (+ Controls and Data) |
 | New game | Save slots, difficulty presets, founder perks, custom start/seed |
-| Phones | Landscape only: locked when installed, "rotate your phone" screen otherwise |
+| Phones | Landscape only: locked when installed, "rotate your phone" screen otherwise. *v0.4.2:* browsers go fullscreen on the first tap; Android gets a real app (a Trusted Web Activity APK around the live site, chosen 2026-11-04 over a bundled offline app: it updates with the website and shares Chrome's saves) |
 | Menu scene | Cinematic tour: globe fly-overs that cut into real campus dioramas |
 | Extras | What's New, Credits & About. No feedback form for now (revisit when marketing). No analytics |
 | Music | Your theme MP3 on the menu + code-made chiptune ambience in game |

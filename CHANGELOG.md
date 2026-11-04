@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 — Easy Reading (2026-11-04)
+- A new font that is much easier to read, in the game and on the website: Atkinson Hyperlegible Next. The big titles and the world map stay pixel. Miss the old look? Settings → Accessibility → Text font → Pixel.
+- An Android app: download it from the website or the main menu. Full screen, held sideways, one tap from your home screen, and it updates with the website.
+- Phones in the browser go full screen on your first tap, and a button in the top bar brings it back. Phone browsers now offer the app from the main menu.
+- A tidier layout on small phones held sideways (the top bar keeps its numbers), and the game keeps clear of camera cutouts.
+- Fix: no more gap at the edge of the world map on wide phone screens.
+
 ## 0.4.1 — Geneva fixes (2026-11-04)
 - Starting a new company at Act III no longer opens with a leftover Act II summit or a wave of elections; in Act III the Charter’s Council takes over from the old summits.
 

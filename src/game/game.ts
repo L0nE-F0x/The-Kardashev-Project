@@ -31,7 +31,7 @@ import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
 import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
 import { musicUnlocked, playMusic } from '../audio/music';
-import { canPromptInstall, initInstallPrompt, onInstallChange, registerServiceWorker } from '../platform/platform';
+import { canFullscreen, canPromptInstall, enterFullscreen, initInstallPrompt, isPhone, isStandalone, onInstallChange, registerServiceWorker } from '../platform/platform';
 import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
@@ -148,6 +148,23 @@ export class Game {
       this.updateReady = apply;
       this.notify();
     });
+    this.autoFullscreen();
+    document.addEventListener('fullscreenchange', () => this.notify());
+  }
+
+  /**
+   * Phones in a browser tab lose a third of a landscape screen to the address bar and system bars:
+   * the first tap of the visit goes fullscreen (browsers only allow it inside a tap). After that the
+   * top bar's fullscreen button brings it back if the player leaves.
+   */
+  private autoFullscreen(): void {
+    if (!isPhone() || isStandalone() || !canFullscreen()) return;
+    const go = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse') return;
+      window.removeEventListener('pointerup', go, true);
+      if (this.settings.phoneFullscreen) void enterFullscreen();
+    };
+    window.addEventListener('pointerup', go, true);
   }
 
   get ctx() {

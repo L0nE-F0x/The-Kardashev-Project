@@ -6,10 +6,14 @@
 
 export const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
+/** The Android app (a Trusted Web Activity around the live site): always the latest release's APK. */
+export const ANDROID_APK_URL = 'https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk';
+
 const LAUNCH_KEY = 'kardashev.launchedAsApp';
 try {
-  // the installed app starts at /play/?app=1 (see the manifest's start_url)
-  if (new URLSearchParams(window.location.search).has('app')) window.sessionStorage.setItem(LAUNCH_KEY, '1');
+  // the installed web app starts at /play/?app=1 (the manifest's start_url), the Android app at /play/?app=android
+  const app = new URLSearchParams(window.location.search).get('app');
+  if (app !== null) window.sessionStorage.setItem(LAUNCH_KEY, app || '1');
 } catch {
   /* storage blocked */
 }
@@ -21,8 +25,9 @@ export function isStandalone(): boolean {
     if ((navigator as Navigator & { standalone?: boolean }).standalone === true) return true;
     // The manifest asks for fullscreen, but F11 or a tiling window manager's fullscreen matches too:
     // only trust it when this session was launched from the installed app.
-    if (window.matchMedia('(display-mode: fullscreen)').matches) return window.sessionStorage.getItem(LAUNCH_KEY) === '1';
-    return false;
+    if (window.matchMedia('(display-mode: fullscreen)').matches) return window.sessionStorage.getItem(LAUNCH_KEY) !== null;
+    // the Android app runs in Chrome; whatever display mode it reports, it was launched as an app
+    return window.sessionStorage.getItem(LAUNCH_KEY) === 'android';
   } catch {
     return false;
   }
@@ -31,6 +36,10 @@ export function isStandalone(): boolean {
 export function isIOS(): boolean {
   const ua = navigator.userAgent;
   return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && navigator.maxTouchPoints > 1);
+}
+
+export function isAndroid(): boolean {
+  return /Android/i.test(navigator.userAgent);
 }
 
 export function isPhone(): boolean {
@@ -47,6 +56,40 @@ export async function quitApp(): Promise<void> {
   else window.close();
 }
 
+/** The browser can put the page in fullscreen (Android Chrome yes; iPhone Safari no). */
+export function canFullscreen(): boolean {
+  if (isDesktopApp) return false;
+  try {
+    return !!document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === 'function';
+  } catch {
+    return false;
+  }
+}
+
+export function isFullscreen(): boolean {
+  return typeof document !== 'undefined' && !!document.fullscreenElement;
+}
+
+/**
+ * Phones in a browser tab: go fullscreen (hiding the address bar and system bars) and hold
+ * landscape. Must run inside a tap. Resolves false when the browser refuses.
+ */
+export async function enterFullscreen(): Promise<boolean> {
+  if (!canFullscreen() || isFullscreen()) return isFullscreen();
+  try {
+    await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+  } catch {
+    return false;
+  }
+  try {
+    // only works in fullscreen, and only on phones and tablets
+    await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape');
+  } catch {
+    /* not supported here */
+  }
+  return true;
+}
+
 export async function toggleFullscreen(): Promise<void> {
   const w = window.__TAURI__?.window?.getCurrentWindow();
   if (w) {
@@ -55,7 +98,7 @@ export async function toggleFullscreen(): Promise<void> {
   }
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
-    else await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+    else await enterFullscreen();
   } catch {
     /* not allowed here (iOS) */
   }
@@ -102,9 +145,10 @@ export async function promptInstall(): Promise<boolean> {
 }
 
 /** How the player installs here when there is no prompt to show. */
-export function installHelp(): 'ios' | 'safari-mac' | 'menu' | null {
+export function installHelp(): 'ios' | 'safari-mac' | 'android' | 'menu' | null {
   if (isDesktopApp || isStandalone()) return null;
   if (isIOS()) return 'ios';
+  if (isAndroid()) return 'android';
   const ua = navigator.userAgent;
   if (ua.includes('Safari') && !ua.includes('Chrome') && ua.includes('Mac')) return 'safari-mac';
   return 'menu';

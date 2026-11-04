@@ -14,7 +14,6 @@ body.landing {
   font-family: var(--font);
   font-size: 17px;
   line-height: 1.5;
-  -webkit-font-smoothing: none;
 }
 body.landing * {
   image-rendering: auto;
@@ -57,7 +56,7 @@ a {
   gap: 8px;
   color: var(--text);
   text-decoration: none;
-  font-family: var(--font-label);
+  font-family: var(--font-pixel);
   font-size: 13px;
 }
 .brand img {

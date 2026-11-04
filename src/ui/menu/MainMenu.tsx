@@ -9,7 +9,42 @@ import { SettingsBody } from './SettingsScreen';
 import { FieldGuideBody } from './FieldGuide';
 import { Credits, InstallHelp, WhatsNew } from './InfoScreens';
 import { importSave } from '../../save/save';
-import { canPromptInstall, isDesktopApp, isStandalone, promptInstall, quitApp } from '../../platform/platform';
+import { canPromptInstall, isAndroid, isDesktopApp, isIOS, isPhone, isStandalone, promptInstall, quitApp } from '../../platform/platform';
+
+const BANNER_KEY = 'kardashev.appBannerDismissed';
+
+/** Phones in a browser: offer the app (Android) or the home-screen install (iPhone), once until dismissed. */
+function AppBanner() {
+  const game = useGame();
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return window.localStorage.getItem(BANNER_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  if (hidden || isDesktopApp || isStandalone() || !isPhone() || !(isAndroid() || isIOS()) || game.menuScreen !== 'main') return null;
+  const dismiss = () => {
+    setHidden(true);
+    try {
+      window.localStorage.setItem(BANNER_KEY, '1');
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return (
+    <div class="appbanner frame interactive">
+      <Icon name="fullscreen" />
+      <span class="grow small">{isAndroid() ? 'Play full screen with the Android app.' : 'Add the game to your Home Screen to play full screen.'}</span>
+      <button class="btn small primary" onClick={() => game.openMenuScreen('install')}>
+        {isAndroid() ? 'Get the app' : 'How'}
+      </button>
+      <button class="btn small ghost" onClick={dismiss} aria-label="Not now">
+        <Icon name="close" size="sm" />
+      </button>
+    </div>
+  );
+}
 import type { IconName } from '../icons';
 
 function ago(ms: number): string {
@@ -70,7 +105,7 @@ export function MainMenu() {
           game.openMenuScreen('whatsnew');
         }, newVersion)}
         {item('people', 'Credits', () => game.openMenuScreen('credits'))}
-        {!isStandalone() && item('arrow', canPromptInstall() || game.installAvailable ? 'Install app' : 'Get the app', install)}
+        {!isStandalone() && item('arrow', isAndroid() ? 'Get the Android app' : canPromptInstall() || game.installAvailable ? 'Install app' : 'Get the app', isAndroid() ? () => game.openMenuScreen('install') : install)}
         {isDesktopApp && item('close', 'Quit', () => void quitApp())}
         <div class="menu-foot small muted">
           v{APP_VERSION} · Acts I–III: The Garage · The Scale-Up · The Charter
@@ -85,6 +120,7 @@ export function MainMenu() {
         </div>
       </div>
       {game.tourCaption && <div class="tour-caption frame">{game.tourCaption}</div>}
+      <AppBanner />
 
       {screen === 'new' && <NewCompany tutorialDefault={tutorialNew ? true : undefined} key={tutorialNew ? 't' : 'n'} />}
       {screen === 'load' && <LoadGame />}

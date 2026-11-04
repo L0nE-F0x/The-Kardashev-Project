@@ -9,7 +9,7 @@ import { terrainCanvas } from '../render/worldMap/terrain';
 import { subsolar } from '../world/sun';
 import { iconUrl, type IconName } from '../ui/icons';
 import { RELEASES, APP_VERSION } from '../content/changelog';
-import { canPromptInstall, initInstallPrompt, installHelp, isStandalone, onInstallChange, promptInstall, registerServiceWorker } from '../platform/platform';
+import { canPromptInstall, initInstallPrompt, installHelp, isAndroid, isStandalone, onInstallChange, promptInstall, registerServiceWorker } from '../platform/platform';
 
 const REPO = 'L0nE-F0x/The-Kardashev-Project';
 
@@ -90,10 +90,18 @@ function escapeHtml(s: string): string {
 initInstallPrompt();
 const installBtn = document.getElementById('install-btn') as HTMLButtonElement | null;
 const installHelpBox = document.getElementById('install-help');
+const androidBtn = document.getElementById('android-btn');
+// Android visitors: the app download is the main way in
+if (androidBtn && isAndroid()) {
+  androidBtn.classList.add('primary');
+  const cta = document.getElementById('cta-get');
+  if (cta) cta.textContent = 'Get the Android app';
+}
 function refreshInstall() {
   if (!installBtn || !installHelpBox) return;
   if (isStandalone()) {
     installBtn.hidden = true;
+    if (androidBtn) androidBtn.hidden = true;
     installHelpBox.textContent = 'You’re already using the installed app. 🎉';
     return;
   }
@@ -105,7 +113,9 @@ function refreshInstall() {
       ? 'On iPhone/iPad: open in <b>Safari</b>, tap <b>Share</b> → <b>Add to Home Screen</b>.'
       : how === 'safari-mac'
         ? 'In Safari on a Mac: <b>File → Add to Dock…</b>'
-        : 'Open the game, then use your browser’s menu → <b>Install app</b> (Chrome, Edge, Android).';
+        : how === 'android'
+          ? 'Or in Chrome: open the game, then menu ⋮ → <b>Install app</b>.'
+          : 'Open the game, then use your browser’s menu → <b>Install app</b> (Chrome, Edge).';
 }
 installBtn?.addEventListener('click', () => void promptInstall());
 onInstallChange(refreshInstall);

@@ -5,7 +5,7 @@ import { defaultSettings, saveSettings } from '../../save/settings';
 import { downloadSave, exportSave, importSave, loadSlot, wipeAllData } from '../../save/save';
 import { EVENT_RATES, type EventRate } from '../../content/difficulty';
 import { SITE_BY_ID } from '../../content/sites';
-import { isDesktopApp, toggleFullscreen } from '../../platform/platform';
+import { canFullscreen, isDesktopApp, isPhone, isStandalone, toggleFullscreen } from '../../platform/platform';
 
 type Tab = 'gameplay' | 'display' | 'audio' | 'access' | 'controls' | 'data';
 const TABS: [Tab, string][] = [
@@ -158,6 +158,9 @@ function Display() {
       <Toggle label="CRT filter" hint="Scanlines and a soft vignette, for that old-monitor glow." value={st.crt} onChange={(v) => game.updateSettings({ crt: v })} />
       <Toggle label="Battery saver" hint="Draw at ~30 fps with fewer particles." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
       <Toggle label="FPS counter" value={st.fps} onChange={(v) => game.updateSettings({ fps: v })} />
+      {isPhone() && !isStandalone() && canFullscreen() && (
+        <Toggle label="Fullscreen on phones" hint="Hide the address bar on your first tap. The fullscreen button in the top bar does it any time." value={st.phoneFullscreen} onChange={(v) => game.updateSettings({ phoneFullscreen: v })} />
+      )}
       <div class="setting opt">
         <span class="txt">
           <span class="l">Era palette</span>
@@ -199,7 +202,17 @@ function Access() {
   const st = game.settings;
   return (
     <>
-      <Toggle label="Readable font" hint="A plain font for all text instead of the pixel font." value={st.readableFont} onChange={(v) => game.updateSettings({ readableFont: v })} />
+      <Choice
+        label="Text font"
+        hint="Clean is built for easy reading. Pixel is the original retro look. Device uses your system's own font."
+        value={st.textFont}
+        options={[
+          ['clean', 'Clean'],
+          ['pixel', 'Pixel'],
+          ['system', 'Device'],
+        ]}
+        onChange={(v) => game.updateSettings({ textFont: v })}
+      />
       <Choice
         label="Colour-blind safe colours"
         hint="Good/bad states switch to colours that stay distinct."

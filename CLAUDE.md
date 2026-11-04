@@ -3,6 +3,7 @@
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
 Current build: **v0.4 "The Charter"** (M3): Acts I (The Garage), II (The Scale-Up) and III (The Charter) are playable
 end to end, on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and desktop builds).
+v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the Android app.
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 
 ## Commands
@@ -19,6 +20,10 @@ npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to sk
 PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts \
   tests/act3-map-preview.test.ts tests/act3-diorama-preview.test.ts
                       # render map / portrait / route / Act II + III map / diorama previews to PNG without a browser
+cd android && KP_ANDROID_KEYSTORE=~/.config/kardashev-project/android/kardashev-release.p12 \
+  KP_ANDROID_KEYSTORE_PASSWORD=$(cat ~/.config/kardashev-project/android/keystore-password.txt) ./gradlew assembleRelease
+                      # signed Android APK → android/app/build/outputs/apk/release/ (needs JDK 17 + Android SDK:
+                      # JAVA_HOME / ANDROID_HOME; CI has both). Without the KP_ vars it builds unsigned.
 ```
 
 In the browser console, `window.game` is the live `Game` (state, actions, `setEraOverride(0..3)`, `enterDiorama(siteId)`,
@@ -98,9 +103,13 @@ src/
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks)
   audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips), music.ts (menu theme MP3 or chiptune fallback, game ambience)
 src-tauri/    Tauri 2 desktop shell (one window loading play/index.html; capabilities = close + fullscreen only)
+android/      the Android app: a Trusted Web Activity (Bubblewrap-generated Gradle project) that opens the LIVE site at
+              /play/?app=android full screen and landscape. Version comes from package.json; twa-manifest.json records
+              the settings. Web changes need no new APK. public/.well-known/assetlinks.json (the release key's SHA-256)
+              lets it hide Chrome's address bar — it must match the signing key.
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
-.github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers on a draft GitHub release
+.github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + the Android APK on a draft GitHub release
 ```
 
 ## Conventions
@@ -113,7 +122,16 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 - **Sim/render split:** the sim must stay runnable in Node (tests). UI reads `game.state` (or `game.view`, which is
   the showcase world during the menu tour); mutations go through `game.*` action wrappers (they refresh stats,
   play sounds, toast errors and honour the confirm-spend setting).
-- **Platform split:** game code never touches Tauri/Electron APIs directly — only `src/platform/platform.ts`.
+- **Platform split:** game code never touches Tauri/Electron APIs directly — only `src/platform/platform.ts`
+  (also phone fullscreen, Android detection, the APK link, the install prompt).
+- **Fonts:** `--font` (Atkinson Hyperlegible Next: all running text, buttons, numbers), `--font-label` (small labels;
+  their rules set capitals + `--caps-track`), `--font-pixel` (Silkscreen: `h2` titles, the website's section titles
+  and brand only). Never set a pixel font on body text. Settings → Accessibility → Text font switches `html.font-pixel`
+  (the pre-0.4.2 Pixelify + Silkscreen look) or `html.font-system`. In-world text (map labels, logo) is PixelCanvas art.
+- **Phones:** landscape only. Short screens (`max-height: 520px`) get the compact rules; `(max-width: 820px) and
+  (min-height: 521px)` is for narrow *tall* windows. Short coarse-pointer screens get `--ui-auto: 0.88` on top of the
+  player's UI size. `#ui` is inset by the safe areas (camera cutouts). Phone QA: headless Chrome with phone emulation
+  (Pixel-class 915×412 and 780×360 at DPR 2.6–3, plus ~863×300 for a browser tab with its address bar).
 - **Content first:** new facilities/techs/events/sites/objectives are data in `src/content/`. Events are
   `EventDef`s with `weight`/`setup`/`choices[].apply` — keep choices to real trade-offs, give 2 advisor lines, and
   price crises with `cc(s, n)` so difficulty scales them.
@@ -142,8 +160,12 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 1. Bump `version` in `package.json` (the game, website, PWA and desktop builds all read it) and add a
    `## x.y.z — Title (date)` section to `CHANGELOG.md` (it feeds What's New in game and on the website).
 2. Commit and push `main` → Netlify deploys the site and the web game; installed PWAs get an "update ready" toast.
-3. For desktop builds: `git tag vx.y.z && git push origin vx.y.z` → GitHub Actions builds the installers into a
-   **draft** release. Publish the draft and the website's Download buttons pick it up.
+3. For desktop builds and the Android app: `git tag vx.y.z && git push origin vx.y.z` → GitHub Actions builds the
+   installers and `TheKardashevProject-android.apk` into a **draft** release. Publish the draft and the website's
+   Download buttons pick it up (the APK link is `releases/latest/download/TheKardashevProject-android.apk`, so the asset
+   name must stay fixed). The APK is signed from the repo secrets `ANDROID_KEYSTORE_B64` and
+   `ANDROID_KEYSTORE_PASSWORD`; the key itself lives in `~/.config/kardashev-project/android/` on the dev machine.
+   **Never lose or change it**: a new key means phones can't update the app, and `assetlinks.json` must match it.
 
 The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the chiptune is the fallback).
 
@@ -190,9 +212,11 @@ hooks for them are at the end of SPEC §18). Then the real theme song, code sign
 **Still open from v0.4 (Act III):**
 - The main menu's background tour (`game/tour.ts` `SHOTS`, `game/showcase.ts`) only flies over Acts I–II: no Charter
   HQ, megaproject or launch shots yet.
-- Act III panels have never been checked at phone width in a real browser (the QA Chrome window ignores resizes on this
-  tiling window manager); they only have small-screen CSS fallbacks.
-- The Windows and macOS installers build in CI but have never been launched on a real machine.
+- Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
+- The Windows and macOS installers build in CI but have never been launched on a real machine. The Linux AppImage runs
+  on the dev machine (Omarchy/Arch, installed to ~/Applications with a launcher entry).
+- The Android app (v0.4.2) builds and is signed, but hasn't been installed on a real phone yet. Google Play would need
+  an `.aab` (`./gradlew bundleRelease`) and a Play Console account.
 
 **Balance is deliberately deferred** to a pre-launch beta (full playthrough + beta testers, then a rebalancing pass
 across all acts). Until then, balance bots are guard rails only: every act must be completable with no stalls or NaNs,

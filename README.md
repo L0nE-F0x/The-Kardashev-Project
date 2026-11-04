@@ -5,9 +5,10 @@ build power, chips, compute and supply lines on a real-Earth pixel map, keep you
 (eventually) guide civilisation from **K ≈ 0.73 to Type I**.
 
 **Play:** https://thekardashevproject.netlify.app — in the browser, installed as an app (offline, landscape on
-phones), or as a Windows / macOS / Linux download from [Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
+phones), as an Android app, or as a Windows / macOS / Linux download from
+[Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
 
-> Status: **v0.4 "The Charter"**. Acts I (The Garage), II (The Scale-Up) and III (The Charter) are playable end to
+> Status: **v0.4.2** (v0.4 "The Charter" + "Easy Reading"). Acts I (The Garage), II (The Scale-Up) and III (The Charter) are playable end to
 > end. See `SPEC.md` for the full design and `CHANGELOG.md` for what changed.
 
 ## Play locally
@@ -22,6 +23,12 @@ Desktop app (needs Rust and the [Tauri prerequisites](https://v2.tauri.app/start
 ```bash
 npm run desktop:dev     # the game in a native window
 npm run desktop:build   # installers in src-tauri/target/release/bundle/
+```
+
+Android app (a Trusted Web Activity that opens the live site full screen; needs JDK 17 and the Android SDK):
+
+```bash
+cd android && ./gradlew assembleRelease   # APK in android/app/build/outputs/apk/release/
 ```
 
 ## What's in it
@@ -72,5 +79,5 @@ Act III: H the Charter · U the Council.
 
 ## Credits
 
-Made by Lone Fox, built with Claude. Map data © Natural Earth (public domain). Fonts: Pixelify Sans and
-Silkscreen (SIL OFL). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.
+Made by Lone Fox, built with Claude. Map data © Natural Earth (public domain). Fonts: Atkinson Hyperlegible
+Next, Silkscreen and Pixelify Sans (SIL OFL). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.

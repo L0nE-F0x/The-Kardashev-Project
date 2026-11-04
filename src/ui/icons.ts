@@ -45,6 +45,7 @@ const ICONS = {
   map: [`aaaaaaaaa\nabbbcbbba\nabcccbbba\nabbcccbba\nabbbbcbba\nabbbbbbba\nabbcbbbba\nabbbbbbba\naaaaaaaaa`, { a: 'ink1', b: 'sea5', c: 'grn5' }],
   sound: [`....a....\n...aa..b.\n.aaba.b..\n.abba.b.b\n.abba.b.b\n.aaba.b..\n...aa..b.\n....a....\n.........`, { a: 'ink8', b: 'cyn5' }],
   mute: [`....a....\n...aa....\n.aaba.b.b\n.abba..b.\n.abba..b.\n.aaba.b.b\n...aa....\n....a....\n.........`, { a: 'ink8', b: 'red3' }],
+  fullscreen: [g('aaa...aaa', 'ab.....ba', 'a.......a', '.........', '.........', '.........', 'a.......a', 'ab.....ba', 'aaa...aaa'), { a: 'ink9', b: 'ink6' }],
   arrow: [`.........\n....a....\n...aa....\n..aaaaaa.\n.aaaaaaa.\n..aaaaaa.\n...aa....\n....a....\n.........`, { a: 'ink9' }],
   co2: [`.........\n..aaa....\n.abbba...\nabbbbbaa.\nabbbbbbba\n.aaaaaaa.\n.........\n.c.c.c...\n.........`, { a: 'ink5', b: 'ink7', c: 'ink6' }],
   guide: [`.aaa.aaa.\nabbbcbbba\nabddcddba\nabbbcbbba\nabddcddba\nabbbcbbba\nabddcddba\naaaacaaaa\n.........`, { a: 'ink1', b: 'ink9', c: 'cyn4', d: 'ink6' }],

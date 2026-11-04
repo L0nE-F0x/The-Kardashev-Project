@@ -1,7 +1,9 @@
 /**
  * Renders the brand assets from the game's own pixel code:
  *   public/favicon.ico, public/icons/*.png (Pixel Earth app icons), public/og-image.png,
- *   public/logo.png, public/globe.png, and the desktop app icons in src-tauri/icons/.
+ *   public/logo.png, public/globe.png, the desktop app icons in src-tauri/icons/ and the Android app's
+ *   launcher, adaptive and splash icons in android/app/src/main/res/ (run it again after regenerating
+ *   the Android project with Bubblewrap, which resamples the web icons).
  * Every size is drawn natively (or scaled by a whole number) so the pixels stay crisp —
  * `tauri icon` would resample with a smoothing filter.
  *
@@ -23,6 +25,7 @@ import { encodePngRgba } from './lib/png';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const TAURI_ICONS = path.join(ROOT, 'src-tauri/icons');
+const ANDROID_RES = path.join(ROOT, 'android/app/src/main/res');
 fs.mkdirSync(path.join(PUBLIC, 'icons'), { recursive: true });
 fs.mkdirSync(TAURI_ICONS, { recursive: true });
 
@@ -203,6 +206,39 @@ console.log('desktop icons');
     ]),
   );
   console.log('  src-tauri/icons/icon.icns');
+}
+
+// ── Android app icons (the Trusted Web Activity in android/) ─────────────────────────────
+// One game pixel per dp where the density allows (mdpi ×1, xhdpi ×2, xxhdpi ×3, xxxhdpi ×4);
+// hdpi (×1.5) is drawn natively at its own size instead of being resampled.
+if (fs.existsSync(ANDROID_RES)) {
+  console.log('android icons');
+  const densities: [dir: string, mult: number][] = [
+    ['mdpi', 1],
+    ['hdpi', 1.5],
+    ['xhdpi', 2],
+    ['xxhdpi', 3],
+    ['xxxhdpi', 4],
+  ];
+  const dpIcon = (dir: string, file: string, dp: number, mult: number, draw: (base: number) => PixelCanvas) => {
+    const whole = Number.isInteger(mult);
+    const out = path.join(ANDROID_RES, dir);
+    fs.mkdirSync(out, { recursive: true });
+    writePng(file, draw(whole ? dp : dp * mult), whole ? mult : 1, out);
+  };
+  for (const [d, mult] of densities) {
+    // legacy launcher icon (48 dp): the rounded space tile
+    dpIcon(`mipmap-${d}`, 'ic_launcher.png', 48, mult, (b) => icon(b, { bg: 'rounded', r: b * 0.39 }));
+    // adaptive icon layer (82 dp inside the 108 dp canvas): full-bleed tile, globe inside the safe zone
+    dpIcon(`mipmap-${d}`, 'ic_maskable.png', 82, mult, (b) => icon(b, { bg: 'square', r: b * 0.3 }));
+  }
+  // splash (300 dp): a bare globe in big pixels, 4 dp each, on the app's background colour
+  for (const [d, mult] of densities) {
+    const out = path.join(ANDROID_RES, `drawable-${d}`);
+    fs.mkdirSync(out, { recursive: true });
+    writePng('splash.png', icon(75, { bg: 'none', r: 27 }), 4 * mult, out);
+  }
+  writePng('store_icon.png', icon(64, { bg: 'rounded', r: 25 }), 8, path.join(ROOT, 'android'));
 }
 
 // ── logo + standalone globe ───────────────────────────────────────────────────────────────

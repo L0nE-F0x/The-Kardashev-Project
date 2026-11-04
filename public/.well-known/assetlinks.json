@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.lonefox.kardashevproject",
+      "sha256_cert_fingerprints": ["A0:31:2A:81:4D:E8:AC:A4:B0:AE:F1:02:3A:0B:EA:75:E9:34:AE:1F:3F:E0:6C:B9:55:6D:2D:4C:80:F0:23:B1"]
+    }
+  }
+]
