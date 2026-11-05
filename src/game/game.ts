@@ -798,7 +798,15 @@ export class Game {
       .filter((e) => e && e.unlock !== 'start');
     // the dock's badge counts them anyway: stay quiet while Bit is talking, and say several in one line
     if (!fresh.length || (this.state?.meta.tutorialStep ?? -1) >= 0) return;
-    this.toast(fresh.length === 1 ? `New Field Guide entry: ${fresh[0].title}` : `${fresh.length} new Field Guide entries: ${fresh.map((e) => e.title).join(' · ')}`, 'info', 'bit');
+    this.toast(
+      fresh.length === 1
+        ? `New Field Guide entry: ${fresh[0].title}`
+        : fresh.length <= 3
+          ? `${fresh.length} new Field Guide entries: ${fresh.map((e) => e.title).join(' · ')}`
+          : `${fresh.length} new Field Guide entries — they’re waiting in the Field Guide (B).`,
+      'info',
+      'bit',
+    );
   }
 
   guideBadge(): number {
