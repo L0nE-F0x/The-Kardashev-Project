@@ -2,11 +2,11 @@ import { Bar, Icon, KV, Panel, pct, useGame } from './components';
 import { SITE_BY_ID, siteDef } from '../content/sites';
 import { REGIONS, STANCE_LABEL } from '../content/regions';
 import { FACILITIES, BUILDABLE } from '../content/facilities';
-import { CHIP_SUPPLIERS, COMPANIES, RENTAL } from '../content/companies';
+import { CHIP_SUPPLIERS, COMPANIES } from '../content/companies';
 import type { RegionId } from '../content/mapcodes';
 import type { FacilityType } from '../sim/types';
 import { fmtDays, fmtMoney, fmtMW, fmtNum } from '../sim/core';
-import { buildCost, buildDays, chipSpec, dcCapacityUnits, facilityIT, facilityMW, facilityPkgUnits, tierMult, gridHeadroomLeft, gridLeadDays, gridPrice, GRID_FEE_PER_MW, landCost, nextTier, pueAt, siteSlots, supplierDailyRate, upgradeCost, upgradeDays } from '../sim/model';
+import { buildCost, buildDays, chipSpec, dcCapacityUnits, facilityIT, facilityMW, facilityPkgUnits, tierMult, gridHeadroomLeft, gridLeadDays, gridPrice, GRID_FEE_PER_MW, landCost, nextTier, pueAt, rentalPrice, siteSlots, supplierDailyRate, upgradeCost, upgradeDays } from '../sim/model';
 import { canBuild, canBuyLand, canUpgrade, gridOptions, slotsUsed, stakePrice } from '../sim/actions';
 import { CABLES } from '../content/network';
 import { MINE_BY_ID, MATERIALS } from '../content/stack';
@@ -369,7 +369,7 @@ function SupplierInspector({ id }: { id: string }) {
       )}
       {site.kind === 'cloud' && (
         <div class="section">
-          <KV rows={[['Renting', `${s.rental.units.toLocaleString()} accelerators`], ['Price', `${fmtMoney(RENTAL.pricePerMonth, 0)} per chip-month`]]} />
+          <KV rows={[['Renting', `${s.rental.units.toLocaleString()} accelerators`], ['Price', `${fmtMoney(rentalPrice(s), 0)} per chip-month`]]} />
           <button class="btn primary" style={{ marginTop: '8px' }} onClick={() => game.openPanel('compute')}>
             <Icon name="compute" size="sm" /> Manage rental
           </button>
