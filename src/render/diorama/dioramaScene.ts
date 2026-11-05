@@ -871,6 +871,8 @@ export class DioramaScene implements Scene {
       road: this.mode === 'earth' && this.bandsInfo?.walkers !== false && L?.scenery?.kind !== 'moon',
       air: !this.airless && this.mode !== 'habitat',
       rainy: this.weather === 'rain' || this.weather === 'snow',
+      // the habitat's footpath runs lower than the Earth pavement
+      lane: this.mode === 'habitat' ? 10 : 7,
     };
   }
 

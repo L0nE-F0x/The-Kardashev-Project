@@ -43,6 +43,8 @@ export interface LifeEnv {
   /** Air: birds and drones. */
   air: boolean;
   rainy: boolean;
+  /** Ground row (below groundY) the people's feet land on, give or take two (the pavement: 7). */
+  lane: number;
 }
 
 /** An advisor (or Bit) out on campus. */
@@ -391,7 +393,7 @@ export class Life {
 
   // ── per frame ─────────────────────────────────────────────────────────────────────────────
   private footY(w: Walker): number {
-    return this.env!.groundY + 7 + w.lane;
+    return this.env!.groundY + this.env!.lane + w.lane;
   }
 
   update(dt: number, env: LifeEnv, reducedMotion: boolean) {
@@ -643,7 +645,7 @@ export class Life {
     d.sprite.texture = this.dogTex(d.colour, f);
     const cx = Math.round(d.x);
     d.sprite.scale.x = d.dir < 0 ? -1 : 1;
-    const foot = env.groundY + 9;
+    const foot = env.groundY + env.lane + 2;
     d.sprite.position.set(d.dir < 0 ? cx + 4 : cx - 4, foot - 6);
     d.sprite.zIndex = foot;
     d.sprite.tint = litAt(d.x);
