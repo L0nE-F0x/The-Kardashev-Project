@@ -124,8 +124,13 @@ export function worldGrowth(s: GameState): number {
     0,
     s.planet ? PLANET.maxGrowth : CHARTER.maxGrowth,
   );
-  // Act V: Earth's own economy stops growing at the Thermal Line (the rest of the climb is in space)
-  if (s.system?.thermalLine) return Math.min(g, PLANET.maxGrowth * clamp((1 - earthOwnTW(s) / lineTW(s)) / 0.12, 0, 1));
+  // Act V: Earth's own economy stops growing at the Thermal Line (the rest of the climb is in space),
+  // and over the line (a tighter line, a hot summer) its plants wind down until it is back under it
+  if (s.system?.thermalLine) {
+    const over = earthOwnTW(s) / lineTW(s) - 1;
+    if (over > 0) return -Math.min(0.03, 0.005 + over);
+    return Math.min(g, PLANET.maxGrowth * clamp(-over / 0.12, 0, 1));
+  }
   return g;
 }
 

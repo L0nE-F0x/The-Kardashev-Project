@@ -4,6 +4,7 @@
  */
 import { CONTRACT_KINDS, HVDC_BY_ID } from '../content/charter';
 import { OBJECTIVES } from '../content/objectives';
+import { EVENTS } from '../content/events';
 import { SITE_BY_ID } from '../content/sites';
 import { TECHS } from '../content/techs';
 import type { ContractKind, GameState } from './types';
@@ -29,6 +30,19 @@ function addDone(s: GameState, kind: ContractKind, where: string, size: 1 | 2 | 
 }
 
 export const ACT4_START_DAY = Math.round((Date.UTC(2045, 0, 1) - Date.UTC(2027, 0, 1)) / 86_400_000);
+
+/**
+ * A preset skips the acts before `act`: their one-off story cards count as told, so they don't surface
+ * decades late (Bit asking its Bit-6 question in 2089). `keep` spares cards that still offer something
+ * live (Bit's offer to take the Charter's co-pilot desk is still worth making in 2045).
+ */
+export function retireEarlierStories(s: GameState, act: number, keep: string[] = []): void {
+  for (const def of EVENTS) {
+    if (!def.once || !def.weight || keep.includes(def.id)) continue;
+    const of = def.act ?? (def.vstage !== undefined ? 5 : def.cphase ? 3 : def.phase ? 2 : 1);
+    if (of < act) s.events.last[def.id] ??= s.day - 1;
+  }
+}
 
 export function newAct4Game(opts: NewGameOptions, ctx: SimContext): GameState {
   const s = newAct3Game(opts);
@@ -84,6 +98,7 @@ export function newAct4Game(opts: NewGameOptions, ctx: SimContext): GameState {
   c.council.walkouts = {};
   c.council.late = {};
   Object.assign(s.flags, { liftoff: s.day, act3Complete: s.day, act3Shown: true });
+  retireEarlierStories(s, 4, ['bit-7q']);
   beginAct4(s);
   s.events.active = s.events.queue.shift() ?? null;
   if (s.events.active) s.events.last[s.events.active.id] = s.day;

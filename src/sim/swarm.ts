@@ -74,12 +74,24 @@ export function buildMt(s: GameState): number {
   return out * (1 - sy.reinvest);
 }
 
+/**
+ * Why the yards aren't adding to the swarm right now, or null. They stand down for Solar Maximum (from the
+ * day the Type I checklist holds until the last climb begins), so the climb to 1.0000 comes after the storm.
+ */
+export function buildHeld(s: GameState): string | null {
+  const sy = s.system;
+  if (!sy || sy.typeI || sy.jump?.last) return null;
+  if (sy.solarmax) return 'The yards stand down for Solar Maximum: the swarm grows again in the last climb.';
+  if (sy.stage === 3 && s.flags.v3ready) return 'The yards are bracing for Solar Maximum: the swarm grows again in the last climb.';
+  return null;
+}
+
 // ════════════════════════════════════════ THE DAILY TICK ════════════════════════════════════════
 export function tickSwarm(s: GameState): void {
   const sy = s.system;
   if (!sy) return;
   // 1. build: collectors first if they lag the users, then both together in step
-  let mass = buildMt(s) / 365;
+  let mass = buildHeld(s) ? 0 : buildMt(s) / 365;
   if (mass > 0) {
     const m = massPerTW(s);
     const users = sy.rings + sy.habitat + foundryDrawTW(s) + Math.min(sy.beams, Math.max(0, headroomTW(s) + beamsUsed(s)));
@@ -110,13 +122,20 @@ export function tickSwarm(s: GameState): void {
   if (s.day % 30 === 0) {
     const over = overLine(s);
     if (over > 0) {
-      addLegitimacy(s, -Math.min(3, 1 + over * 10));
+      // in proportion: a sliver over the line is a grumble, a tenth over is a crisis
+      addLegitimacy(s, -Math.min(3, over * 30));
       if (!s.flags.offline && s.day - Number(s.flags.lineWarned ?? -9999) > 365) {
         s.flags.lineWarned = s.day;
         news(s, `🌡 Earth is running ${Math.round(over * 100)}% over the Thermal Line. The provinces feel it.`, 'bad');
       }
     }
   }
+}
+
+/** Wellbeing on Earth from the people's share of the swarm: goods made in orbit, room in the habitats (up to +4). */
+export function habitatWellbeing(s: GameState): number {
+  const sy = s.system;
+  return sy ? Math.min(4, 1.5 * Math.log10(1 + sy.habitat / 20)) : 0;
 }
 
 /** Habitat cylinders finished (each adds a town of its own). */

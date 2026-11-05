@@ -19,12 +19,12 @@ import { scheduleEvent, queueEvent } from '../sim/events';
 import { addRelation, addRelationAll } from '../sim/politics';
 import { addCapital, addLegitimacy, addPartnerRel, chEarn, chSpend } from '../sim/charter';
 import { addTrust } from '../sim/airegions';
-import { containDrift, foundryById, foundryMt, placeName, plantSeed } from '../sim/foundries';
+import { containDrift, doublingMonths, driftGrowth, foundryById, foundryMt, placeName, plantSeed, verifyCost, verifyFoundry } from '../sim/foundries';
 import { ownerLabel } from '../sim/asteroids';
 import { pressure5, mindsAiName } from '../sim/solarmax';
 import { startLastClimb } from '../sim/eras';
 import { deskHolder, segmentsLit } from '../sim/systemView';
-import { headroomTW, spaceTW } from '../sim/swarm';
+import { headroomTW, overLine, spaceTW } from '../sim/swarm';
 import { warming } from '../sim/climate';
 import { crisisMult } from '../sim/model';
 
@@ -70,7 +70,11 @@ function castCard(id: AdvisorId, icon: string, title: string, body: (s: GameStat
     choices: (s) => {
       const retire = { label: own === 'retired' ? 'Let them go, with thanks' : 'Let them retire', detail: succ ? `${CAST5[succ].name} takes the desk (${CAST5[succ].title}).` : 'They step back.', apply: () => setCast(s, id, 'retired') };
       const stay = { label: own === 'renewed' ? 'Of course' : 'Ask them to take the treatments and stay', detail: treatments(s) ? `${ADVISORS[id].name} stays, renewed.` : 'The therapies aren’t ready yet.', disabled: treatments(s) ? false : 'The therapies aren’t ready yet', apply: () => setCast(s, id, 'renewed') };
-      if (!succ) return [stay];
+      if (!succ) {
+        // nobody to hand the desk to: if the therapies aren't ready, the moment waits a year
+        if (treatments(s)) return [stay];
+        return [{ label: 'Not yet', detail: `The therapies aren’t ready yet. ${ADVISORS[id].name.replace(/^Dr\. /, '').split(' ')[0]} will ask again in a year.`, apply: () => scheduleEvent(s, `cast-${id}`, 365) }];
+      }
       return own === 'renewed' ? [stay, retire] : [retire, stay];
     },
   };
@@ -119,7 +123,7 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: 'ceo:lodestar', text: 'Point me at a rock. I’ll tell you what it’s worth by Tuesday.', mood: 'excited' },
     ],
     choices: (s) => {
-      const next = () => { scheduleEvent(s, 'cast-juno', 120); scheduleEvent(s, 'cast-mira', 320); scheduleEvent(s, 'bit5-1', 200); };
+      const next = () => { scheduleEvent(s, 'cast-mira', 320); scheduleEvent(s, 'bit5-1', 200); };
       return [
         { label: 'Seed the near-Earth rocks first', detail: 'A free seed on the nearest surveyed asteroid (or the Moon). Lodestar +5.', apply: () => { const ast = Object.entries(sys(s).asteroids).find(([, a]) => a.status >= 1); plantSeed(s, ast?.[0] ?? 'moon', 'charter', 0.6); if (ast) sys(s).asteroids[ast[0]] = { status: 3, owner: ast[1].owner ?? 'charter' }; addPartnerRel(s, 'lodestar', 5); next(); } },
         { label: 'Verification before speed', detail: 'Drift risk −30% for three years; foundries grow 4% slower meanwhile.', apply: () => { addModifier(s, 'foundry:drift', 1095, 'Verification first', { mult: 0.7 }); addModifier(s, 'foundry:growth', 1095, 'Verification first', { mult: 0.96 }); next(); } },
@@ -138,7 +142,15 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: desk(s, 'juno'), text: 'Ring One is the biggest thing anyone has ever built. Next year it won’t be.', mood: 'excited' },
     ],
     choices: (s) => {
-      const next = () => { queueEvent(s, 'v-seat'); scheduleEvent(s, 'cast-kip', 60); scheduleEvent(s, 'cast-sol', 160); scheduleEvent(s, 'cast-lena', 280); scheduleEvent(s, 'bit5-2', 220); };
+      // Juno's knees wait for the therapies' stage (she would rather take them than retire)
+      const next = () => {
+        queueEvent(s, 'v-seat');
+        scheduleEvent(s, 'cast-kip', 60);
+        if (!sys(s).cast.juno && !s.events.scheduled.some((e) => e.id === 'cast-juno')) scheduleEvent(s, 'cast-juno', 110);
+        scheduleEvent(s, 'cast-sol', 160);
+        scheduleEvent(s, 'cast-lena', 280);
+        scheduleEvent(s, 'bit5-2', 220);
+      };
       return [
         { label: 'Harden the swarm early', detail: 'Storm hardening +15%. The Sun’s cycle peaks in a decade or two.', apply: () => { sys(s).hardening = clamp(sys(s).hardening + 0.15 * (1 - sys(s).hardening), 0, 0.92); next(); } },
         { label: 'Beam power home', detail: 'Beam capacity +20 TW to the hottest province (within the line); its relation +4.', apply: () => { sys(s).beams += 20; addRelation(s, hottest(s), 4); next(); } },
@@ -158,8 +170,21 @@ export const ACT5_EVENTS: EventDef[] = [
     ],
     choices: (s) => {
       const next = () => { queueEvent(s, 'v-settlement'); scheduleEvent(s, 'cast-iris', 120); };
+      const watching = !!s.charter?.council.passed.includes('storm-watch');
       return [
-        { label: 'Prepare for the storm', detail: 'Storm hardening +12%; the storm watch begins.', apply: () => { sys(s).hardening = clamp(sys(s).hardening + 0.12 * (1 - sys(s).hardening), 0, 0.92); next(); } },
+        {
+          label: 'Prepare for the storm',
+          detail: watching ? 'Storm hardening +12%.' : 'Storm hardening +12%; the Council adopts the storm watch (storms knock out less of the swarm; the Storm front rises slower).',
+          apply: () => {
+            sys(s).hardening = clamp(sys(s).hardening + 0.12 * (1 - sys(s).hardening), 0, 0.92);
+            if (s.charter && !s.charter.council.passed.includes('storm-watch')) {
+              s.charter.council.passed.push('storm-watch');
+              s.charter.council.agenda = s.charter.council.agenda.filter((x) => x !== 'storm-watch');
+              news(s, '🛰 The Council adopts the storm watch by acclamation: probes between the Sun and the swarm.', 'good');
+            }
+            next();
+          },
+        },
         { label: 'Everyone shares the last climb', detail: 'Relations +4 everywhere; Legitimacy +3.', apply: () => { addRelationAll(s, 4); addLegitimacy(s, 3); next(); } },
         { label: 'Full speed', detail: 'Foundries grow 6% faster for four years; drift risk +20%.', apply: () => { addModifier(s, 'foundry:growth', 1460, 'Full speed', { mult: 1.06 }); addModifier(s, 'foundry:drift', 1460, 'Full speed', { mult: 1.2 }); next(); } },
       ];
@@ -173,7 +198,16 @@ export const ACT5_EVENTS: EventDef[] = [
     icon: '🌱',
     once: true,
     title: () => 'The first seed',
-    body: (s, ctx) => `At ${placeName(String(ctx.site ?? 'moon'))}, a machine the size of a house unfolds its arms, scoops up the ground beneath it and starts building a second machine the size of a house.\n\nIn about ${Math.round(SYSTEM.doubling[clamp(Math.round(sys(s).dial), 1, 5) - 1])} months there will be two. Then four. Kip has a spreadsheet that goes to 2100, and he keeps scrolling it.`,
+    body: (s, ctx) => {
+      const sy = sys(s);
+      const first = sy.foundries.find((f) => f.site === String(ctx.site ?? 'moon')) ?? sy.foundries[0];
+      const age = first ? s.day - first.founded : 0;
+      // the card can wait out an era jump: tell it as it stands today
+      const later = age > 120 && first
+        ? `That was ${age >= 700 ? `${Math.round(age / 365)} years` : `${Math.round(age / 30)} months`} ago. Today there are ${sy.foundries.length} foundries, making ${foundryMt(s).toFixed(foundryMt(s) < 10 ? 1 : 0)} megatonnes a year, and the first has doubled ${Math.max(1, Math.round(Math.log2(Math.max(1, first.cap / SYSTEM.seedMt))))} times.`
+        : `In about ${Math.round(doublingMonths(s))} months there will be two. Then four.`;
+      return `At ${placeName(String(ctx.site ?? 'moon'))}, a machine the size of a house unfolds its arms, scoops up the ground beneath it and starts building a second machine the size of a house.\n\n${later} Kip has a spreadsheet that goes to 2100, and he keeps scrolling it.`;
+    },
     advisors: (s) => [
       { id: 'kip', text: 'Look at it. LOOK at it.', mood: 'excited' },
       { id: desk(s, 'mira'), text: 'Every copy checked against the signed design. Every one.', mood: 'neutral' },
@@ -195,12 +229,15 @@ export const ACT5_EVENTS: EventDef[] = [
     ],
     choices: (s, ctx) => {
       const f = foundryById(s, ctx.foundry);
+      // halted from the System panel meanwhile, or already lost
+      if (!f || f.drift <= 0) return [{ label: 'Noted', detail: f ? 'The strain is already contained.' : 'The foundry is gone.', apply: () => {} }];
       const mindsOk = (s.system?.seat === 'full' || s.system?.seat === 'advisory') && (s.system?.mindsMood ?? 0) >= 45;
+      const v = verifyCost(s);
       return [
-        { label: 'Halt and verify every copy', detail: 'The foundry stops for 90 days and keeps 90% of its capacity; drift cleared.', apply: () => { if (f) containDrift(s, f, 90, 0.9); } },
-        { label: 'Sterilise the strain', detail: 'Burn out the drifted half now: capacity −50%, drift cleared at once. The minds’ mood −3.', apply: () => { if (f) containDrift(s, f, 10, 0.5); mood(s, -3); } },
-        { label: 'Let the minds hunt it down', detail: 'Cleared in 30 days at 95% capacity; the minds’ mood +6. Needs them seated and willing.', disabled: mindsOk ? false : 'Needs the minds seated and in a good mood (45+)', apply: () => { if (f) containDrift(s, f, 30, 0.95); mood(s, 6); } },
-        { label: 'Keep it running and watch', detail: 'No loss now. The strain keeps growing; at 100 the whole foundry is lost.', apply: () => { addLegitimacy(s, -1); } },
+        { label: 'Halt and verify every copy', detail: `The foundry stops for ${v.days} days and keeps ${Math.round(v.keep * 100)}% of its capacity; drift cleared. (A faster growth dial means more copies to check.)`, apply: () => verifyFoundry(s, f) },
+        { label: 'Sterilise the strain', detail: 'Burn out the drifted half now: capacity −50%, drift cleared at once. The minds’ mood −3.', apply: () => { containDrift(s, f, 10, 0.5); mood(s, -3); } },
+        { label: 'Let the minds hunt it down', detail: 'Cleared in 30 days at 95% capacity; the minds’ mood +6. Needs them seated and willing.', disabled: mindsOk ? false : 'Needs the minds seated and in a good mood (45+)', apply: () => { containDrift(s, f, 30, 0.95); mood(s, 6); } },
+        { label: 'Keep it running and watch', detail: `No loss now; Legitimacy −1. The strain keeps growing (+${(driftGrowth(s) * 30).toFixed(0)} a month at this dial); at 100 the whole foundry is lost.`, apply: () => { addLegitimacy(s, -1); } },
       ];
     },
   },
@@ -215,7 +252,7 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: 'ceo:lodestar', text: 'First probe on the rock wins. That’s how it’s always worked out here.', mood: 'angry' },
     ],
     choices: (s, ctx) => [
-      { label: 'Uphold the claim', detail: 'The claim stands. Political capital −2; relations −2 with everyone else.', disabled: capital(s, 2), apply: () => { addCapital(s, -2); addRelationAll(s, -1); } },
+      { label: 'Uphold the claim', detail: 'The claim stands. Political capital −2; relations −2 with every province.', disabled: capital(s, 2), apply: () => { addCapital(s, -2); addRelationAll(s, -2); } },
       { label: 'Split it between them', detail: 'Shared ownership: no one happy, no one furious. Legitimacy +1.', apply: () => { addLegitimacy(s, 1); } },
       { label: 'Take it into the Commons', detail: 'The Charter takes the rock. Legitimacy −2; space partners −4.', apply: () => { const a = s.system?.asteroids[String(ctx.asteroid)]; if (a) a.owner = 'charter'; addLegitimacy(s, -2); ['lodestar', 'vonn', 'karman', 'parabola'].forEach((p) => addPartnerRel(s, p, -4)); } },
     ],
@@ -244,9 +281,9 @@ export const ACT5_EVENTS: EventDef[] = [
     icon: '🏡',
     once: true,
     title: () => 'Aurora',
-    body: () => 'The first habitat at L5 is spun up: a cylinder eight kilometres long, turning once every two minutes so that its floor feels like Earth. Inside there are fields, a river, a school and rain on a timetable.\n\nThe first mayor of Aurora is a former schoolteacher from Trondheim who answered a job advert nobody else read to the end.',
-    advisors: () => [
-      { id: 'ceo:tobias', text: 'Tobias Lund, mayor. We have twelve hundred people and one very confused heron.', mood: 'happy' },
+    body: (s) => `The first habitat at L5 is spun up: a cylinder eight kilometres long, turning once every two minutes so that its floor feels like Earth. Inside there are fields, a river, a school and rain on a timetable.\n\nThe first mayor of Aurora is a former schoolteacher from Trondheim who answered a job advert nobody else read to the end.${(s.system?.spacePop ?? 0) >= 1 ? ` Around it, ${s.system!.spacePop.toFixed(0)} million people already live and work in space, most of them at the yards. Aurora is the first place up there built to be a home.` : ''}`,
+    advisors: (s) => [
+      { id: 'ceo:tobias', text: (s.system?.spacePop ?? 0) >= 1 ? 'Tobias Lund, mayor. Twelve hundred residents on day one, a waiting list of millions, and one very confused heron.' : 'Tobias Lund, mayor. We have twelve hundred people and one very confused heron.', mood: 'happy' },
       { id: 'kip', text: 'Lifeboat number one. I want a hundred.', mood: 'excited' },
     ],
     choices: (s) => [
@@ -265,7 +302,8 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: 'kip', text: 'That’s not a planet. That’s a warehouse.', mood: 'excited' },
       { id: 'bit', text: 'I wrote this in my diary when I was Bit-3: “one day, Mercury”. I did not know what it meant.', mood: 'happy' },
     ],
-    choices: (s) => [{ label: 'Bring it to the Council', detail: 'A decision about what comes after Type I.', apply: () => { queueEvent(s, 'v-next'); } }],
+    // the Council takes up what comes after Type I with Bit's question, just before the storm (act5.ts)
+    choices: (s) => [{ label: 'Bring it to the Council', detail: (s.system?.stage ?? 0) >= 4 ? 'A decision about what comes after Type I.' : 'The Council will decide what comes after Type I when the climb is nearly done, before the storm.', apply: () => { if ((s.system?.stage ?? 0) >= 4 && !s.system?.next) queueEvent(s, 'v-next'); } }],
   },
 
   // ═══════════════════════════════════════ THE CAST ═══════════════════════════════════════
@@ -289,11 +327,11 @@ export const ACT5_EVENTS: EventDef[] = [
     { id: 'lena', text: 'I distrust every number until it’s been measured twice. Priya measures three times.', mood: 'happy' },
     { id: 'ceo:priya', text: 'Dr. Priya Raman. The swarm is just a very large, very spread-out power plant. I’ve got it.', mood: 'neutral' },
   ]),
-  castCard('kip', '🚀', 'Kip isn’t going anywhere', () => 'Kip Lindqvist has been the most optimistic person in every room since 2028. Nobody asks whether he will take the treatments. He took them the week they were approved and has been insufferable about his resting heart rate ever since.', 'renewed', () => [
-    { id: 'kip', text: 'I am going to see Type I. Then I am going to see Type II. Then I’ll think about it.', mood: 'excited' },
+  castCard('kip', '🚀', 'Kip isn’t going anywhere', (s) => `Kip Lindqvist has been the most optimistic person in every room since 2028. Nobody asks whether he will take the treatments. ${treatments(s) ? 'He took them the week they were approved and has been insufferable about his resting heart rate ever since.' : 'He has put his name down for the first trial, and reads its results every morning before breakfast. They aren’t ready yet.'}`, 'renewed', (s) => [
+    { id: 'kip', text: treatments(s) ? 'I am going to see Type I. Then I am going to see Type II. Then I’ll think about it.' : 'I can wait. I’m very good at exponentials. Mostly.', mood: 'excited' },
     { id: 'bit', text: 'Kip’s spreadsheet now goes to the year 2400.', mood: 'happy' },
   ]),
-  castCard('iris', '🛡', 'Iris stays to see it through', () => 'Dr. Iris Vance has spent fifty years making sure the minds were safe and that people were safe from them. The question of what the minds are owed is not settled yet, and she won’t leave it to anyone else.', 'renewed', () => [
+  castCard('iris', '🛡', 'Iris stays to see it through', (s) => `Dr. Iris Vance has spent fifty years making sure the minds were safe and that people were safe from them. The question of what the minds are owed is not settled yet, and she won’t leave it to anyone else.${treatments(s) ? '' : '\n\nShe would take the treatments to see it through. They aren’t ready yet.'}`, 'renewed', () => [
     { id: 'iris', text: 'I started this work to make sure we could look the minds in the eye. I am not done.', mood: 'neutral' },
     { id: 'ceo:chorus', text: 'We are glad she is staying. We tell her so. She does not entirely believe us yet.', mood: 'neutral' },
   ]),
@@ -622,11 +660,15 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: 'iris', text: String(ctx.ai) === 'bit' && (s.planet?.bitBond ?? 0) >= 20 ? 'If it were anyone else I’d say no. It’s Bit.' : 'Authority granted in an emergency is the hardest kind to take back.', mood: 'worried' },
       { id: desk(s, 'mira'), text: 'Our teams can do it. Slowly.', mood: 'neutral' },
     ],
-    choices: (s, ctx) => [
-      { label: 'Human teams, with the minds helping', detail: 'Minds pressure −10; slower, but the controls stay with people.', apply: () => { relief(s, 'minds', 10); } },
-      { label: 'Grant the authority, with a sunset', detail: `Minds pressure −18; it must hand the controls back in 60 days.`, apply: () => { relief(s, 'minds', 18); scheduleEvent(s, 'sm-minds-echo', 60, { ai: String(ctx.ai) }); } },
-      { label: 'Sterilise the whole yard', detail: 'Minds pressure −22; the foundry is destroyed; the minds’ mood −6.', apply: () => { relief(s, 'minds', 22); const sm = sys(s).solarmax; if (sm?.foundry) sys(s).foundries = sys(s).foundries.filter((f) => f.id !== sm.foundry); mood(s, -6); } },
-    ],
+    choices: (s, ctx) => {
+      const sm = sys(s).solarmax;
+      const f = sm?.foundry ? foundryById(s, sm.foundry) : undefined;
+      return [
+        { label: 'Human teams, with the minds helping', detail: 'Minds pressure −10; slower, but the controls stay with people: the strain is pushed back by half.', apply: () => { relief(s, 'minds', 10); if (f) f.drift = Math.round(f.drift / 2); } },
+        { label: 'Grant the authority, with a sunset', detail: `Minds pressure −18 and the strain is stopped; it must hand the controls back in 60 days.`, apply: () => { relief(s, 'minds', 18); if (f) f.drift = 0; scheduleEvent(s, 'sm-minds-echo', 60, { ai: String(ctx.ai) }); } },
+        { label: 'Sterilise the whole yard', detail: `Minds pressure −22; the foundry is destroyed${f ? ` (${f.cap.toFixed(0)} Mt a year)` : ''}, strain and all; the minds’ mood −6.`, apply: () => { relief(s, 'minds', 22); if (sm?.foundry) sys(s).foundries = sys(s).foundries.filter((x) => x.id !== sm.foundry); mood(s, -6); } },
+      ];
+    },
   },
   {
     id: 'sm-minds-2',
@@ -639,7 +681,7 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: 'iris', text: 'If they do this in the open, I can live with it.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Let the minds vote, in the open', detail: s.system?.seat ? 'Minds pressure −16; their mood +6.' : 'They have no seat: minds pressure −6.', apply: () => { relief(s, 'minds', s.system?.seat && s.system.seat !== 'none' ? 16 : 6); if (s.system?.seat && s.system.seat !== 'none') mood(s, 6); } },
+      { label: 'Let the minds vote, in the open', detail: s.system?.seat && s.system.seat !== 'none' ? 'Minds pressure −16; their mood +6.' : 'They have no seat: minds pressure −6.', apply: () => { relief(s, 'minds', s.system?.seat && s.system.seat !== 'none' ? 16 : 6); if (s.system?.seat && s.system.seat !== 'none') mood(s, 6); } },
       { label: 'Emergency sentinel push', detail: `${fmtMoney(ch5(s, 30e9), 0)}; minds pressure −10 and −0.12 a day for 40 days.`, disabled: treasury(s, ch5(s, 30e9)), apply: () => { chSpend(s, 'programmes', ch5(s, 30e9)); relief(s, 'minds', 10, 0.12, 40); } },
     ],
   },
@@ -687,7 +729,14 @@ export const ACT5_EVENTS: EventDef[] = [
     category: 'story',
     icon: '☀',
     title: () => 'Kardashev 1.0000',
-    body: (s) => `${s.stats.K >= 1 ? 'Ten petawatts.' : `Kardashev ${s.stats.K.toFixed(4)}: as far as this climb could go.`} ${fmtTW(spaceTW(s))} of it caught in space by a swarm of collectors along Earth’s orbit, the rest under a Thermal Line that held.\n\nYou started in a garage in 2027 with a chatbot called Bit and four hundred million dollars. It is ${new Date(Date.UTC(2027, 0, 1) + s.day * 86_400_000).getUTCFullYear()}.`,
+    body: (s) => {
+      const sy = s.system;
+      const held = !!sy?.thermalLine && overLine(s) <= 0;
+      const year = new Date(Date.UTC(2027, 0, 1) + (sy?.typeI ?? s.day) * 86_400_000).getUTCFullYear();
+      // Bit's diary of the last climb (the era report isn't shown for it)
+      const diary = [...(sy?.eras ?? [])].reverse().find((e) => e.last)?.diary ?? [];
+      return `Ten petawatts. ${fmtTW(spaceTW(s))} of it caught in space by a swarm of collectors along Earth’s orbit, the rest ${held ? 'under a Thermal Line that held' : 'on an Earth still running over its Thermal Line'}.\n\nYou started in a garage in 2027 with a chatbot called Bit and ${fmtMoney(s.meta.startCash, 0)}. It is ${year}.${diary.length ? `\n\nFrom Bit’s diary: “${diary.join(' ')}”` : ''}`;
+    },
     advisors: () => [
       { id: 'bit', text: 'Type I. I checked it nine times. Then I wrote it down.', mood: 'happy' },
       { id: 'kip', text: 'Told you. One seed and patience.', mood: 'excited' },

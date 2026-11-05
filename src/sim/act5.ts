@@ -118,7 +118,14 @@ export function tickAct5(s: GameState): void {
     case 3: {
       const ready = typeIChecklist(s).every((g) => g.done) || s.stats.K >= 0.995;
       const late = s.day >= SYSTEM.deadline && since(s, 3) >= 365;
-      if (ready || late || since(s, 3) >= max[3]) {
+      if (s.flags.v3ready || ready || late || since(s, 3) >= max[3]) {
+        // from here the yards brace for the storm (swarm.ts buildHeld): the climb to 1.0000 comes after it
+        s.flags.v3ready ??= s.day;
+        // what comes after Type I is decided with Bit's choice, before the storm
+        if (sy.mercury >= 2 && !sy.next && !s.flags.nextQueued) {
+          s.flags.nextQueued = true;
+          queueEvent(s, 'v-next');
+        }
         // Bit's choice comes before the storm
         if (!sy.bitFate) {
           if (!s.flags.bitFateQueued) {

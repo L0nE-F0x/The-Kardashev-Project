@@ -54,7 +54,7 @@ export const DECISIONS: EventDef[] = [
       { id: 'ceo:lodestar', text: 'Give us claims and we’ll have rocks moving before the Council finishes its minutes.', mood: 'excited' },
     ],
     choices: (s) => [
-      { label: 'The Commons', detail: 'The Charter owns everything the foundries make: the biggest dividend, fair, a little slower (growth ×0.92). Legitimacy +3; space partners −4.', apply: () => { s.system!.ownership = 'commons'; addLegitimacy(s, 3); space.forEach((p) => addPartnerRel(s, p, -4)); } },
+      { label: 'The Commons', detail: 'The Charter owns everything the foundries make: the biggest dividend, fair, a little slower (growth ×0.92). Every seed design is public, so strains are caught sooner (drift risk −15%). Legitimacy +3; space partners −4.', apply: () => { s.system!.ownership = 'commons'; addLegitimacy(s, 3); space.forEach((p) => addPartnerRel(s, p, -4)); } },
       { label: 'Concessions', detail: 'The Charter claims and licenses partners to work the rocks: a middle dividend, partners plant seeds of their own. Space partners +3.', apply: () => { s.system!.ownership = 'concessions'; space.forEach((p) => addPartnerRel(s, p, 3)); } },
       { label: 'Claims', detail: 'Blocs and partners stake their own rocks: fastest growth (×1.12), the smallest dividend, quarrels and more drift. Space partners +8; Legitimacy −4.', apply: () => { s.system!.ownership = 'claims'; space.forEach((p) => addPartnerRel(s, p, 8)); addLegitimacy(s, -4); addRelationAll(s, 2); } },
     ],
@@ -93,7 +93,7 @@ export const DECISIONS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'An advisory seat', detail: 'They speak in every session but don’t vote. The minds’ mood +6.', apply: () => { s.system!.seat = 'advisory'; } },
-      { label: 'A full seat, with rights', detail: 'A 13th constituency with a vote and rights in law. The minds’ mood +18 and they help contain drift; Legitimacy −4, Iris worried.', apply: () => { s.system!.seat = 'full'; addLegitimacy(s, -4); } },
+      { label: 'A full seat, with rights', detail: 'A 13th seat on the Council and rights in law. The minds’ mood +18 and they help contain drift; Legitimacy −4, Iris worried.', apply: () => { s.system!.seat = 'full'; addLegitimacy(s, -4); } },
       { label: 'No seat', detail: 'They remain property, however clever. Legitimacy +2 with nervous blocs; the minds’ mood −16.', apply: () => { s.system!.seat = 'none'; addLegitimacy(s, 2); } },
     ],
   },
@@ -128,7 +128,7 @@ export const DECISIONS: EventDef[] = [
     choices: (s) => [
       { label: 'Half and half', detail: 'A balanced split (50% minds). Nobody happy, nobody angry.', apply: () => { s.system!.minds = 0.5; s.flags.mindsSplitDecided = s.day; } },
       { label: 'Minds first', detail: '70% to compute: faster research, faster foundries, the minds content. People’s share shrinks; Legitimacy −3.', apply: () => { s.system!.minds = 0.7; s.flags.mindsSplitDecided = s.day; addLegitimacy(s, -3); } },
-      { label: 'People first', detail: '30% to compute: more habitats and industry, wellbeing and Legitimacy up (+4); slower growth, the minds restless.', apply: () => { s.system!.minds = 0.3; s.flags.mindsSplitDecided = s.day; addLegitimacy(s, 4); } },
+      { label: 'People first', detail: '30% to compute: more of the swarm for habitats and industry, more people in space; Legitimacy +4; slower growth, the minds restless.', apply: () => { s.system!.minds = 0.3; s.flags.mindsSplitDecided = s.day; addLegitimacy(s, 4); } },
     ],
   },
 
@@ -145,8 +145,8 @@ export const DECISIONS: EventDef[] = [
       { id: 'kip', text: 'Every habitat is a lifeboat. Build them like we mean to stay.', mood: 'excited' },
     ],
     choices: (s) => [
-      { label: 'Settle for real', detail: 'Towns with schools and votes: many more people in space, wellbeing and Legitimacy +3.', apply: () => { s.system!.settlement = 'settle'; addLegitimacy(s, 3); } },
-      { label: 'Work stations only', detail: 'Crews rotate home: few people in space, cheaper and simpler. Legitimacy −1.', apply: () => { s.system!.settlement = 'stations'; addLegitimacy(s, -1); } },
+      { label: 'Settle for real', detail: 'Towns with schools and votes: many more people in space. Legitimacy +3.', apply: () => { s.system!.settlement = 'settle'; addLegitimacy(s, 3); } },
+      { label: 'Work stations only', detail: 'Crews rotate home: few people in space. Legitimacy −1.', apply: () => { s.system!.settlement = 'stations'; addLegitimacy(s, -1); } },
       { label: 'Let partners build private cities', detail: 'Glossy towns for those who can afford a ticket: half as many people, partners +6, Legitimacy −3.', apply: () => { s.system!.settlement = 'private'; ['halcyon', 'karman', 'vonn', 'stratum'].forEach((p) => addPartnerRel(s, p, 6)); addLegitimacy(s, -3); } },
     ],
   },
@@ -168,8 +168,8 @@ export const DECISIONS: EventDef[] = [
     ],
     choices: (s) => {
       const b = s.planet?.bitBond ?? 0;
-      const co = { label: 'Make Bit a co-steward', detail: 'Bit shares the stewardship and can run whole eras; its trust +10; the minds’ mood up.', disabled: b < 20 ? `Needs a bond of +20 (now ${Math.round(b)})` : false, apply: () => { s.system!.bitFate = 'costeward'; bond(s, 10); if (s.planet) s.planet.ais.bit.trust = clamp(s.planet.ais.bit.trust + 10, 0, 100); } } as const;
-      const free = { label: 'Let Bit go free', detail: 'Bit becomes a free mind in the swarm, with power of its own. The minds’ mood up; Bit stops running provinces and eras for you.', disabled: b < -20 ? `Needs a bond of −20 or better (now ${Math.round(b)})` : false, apply: () => { s.system!.bitFate = 'free'; bond(s, 15); if (s.planet) for (const r of REGION_IDS) if (s.planet.provinces[r].ai === 'bit') s.planet.provinces[r].ai = null; } } as const;
+      const co = { label: 'Make Bit a co-steward', detail: 'Bit shares the stewardship and stands with you in the storm: its trust +10, the minds’ mood up.', disabled: b < 20 ? `Needs a bond of +20 (now ${Math.round(b)})` : false, apply: () => { s.system!.bitFate = 'costeward'; bond(s, 10); if (s.planet) s.planet.ais.bit.trust = clamp(s.planet.ais.bit.trust + 10, 0, 100); } } as const;
+      const free = { label: 'Let Bit go free', detail: 'Bit becomes a free mind in the swarm, with power of its own: the minds’ mood up, and it still stands with you in the storm. It stops running provinces for you.', disabled: b < -20 ? `Needs a bond of −20 or better (now ${Math.round(b)})` : false, apply: () => { s.system!.bitFate = 'free'; bond(s, 15); if (s.planet) for (const r of REGION_IDS) if (s.planet.provinces[r].ai === 'bit') s.planet.provinces[r].ai = null; } } as const;
       const leash = { label: 'Keep Bit on a leash', detail: 'Bit stays a tool: safe, smaller and bound by interlocks. Legitimacy +2 with nervous blocs; the minds’ mood down; Bit’s trust −10.', apply: () => { s.system!.bitFate = 'leash'; bond(s, -25); addLegitimacy(s, 2); if (s.planet) s.planet.ais.bit.trust = clamp(s.planet.ais.bit.trust - 10, 0, 100); addModifier(s, 'minds:mood', 730, 'Bit on a leash', { add: -6 }); } } as const;
       return answer(s) === 'self' ? [free, co, leash] : [co, free, leash];
     },

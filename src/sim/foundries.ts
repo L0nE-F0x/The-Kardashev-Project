@@ -76,14 +76,34 @@ export function growthMult(s: GameState): number {
   const minds = 1 + 0.05 * Math.log10(1 + sy.rings / 10) * (sy.mindsMood / 60);
   // the nearest, easiest rock goes first: the bigger the industry, the longer its supply lines
   const reach = 1 / (1 + 0.35 * Math.log10(1 + foundryMt(s) / 2));
-  return techMult(s, 'foundryGrowth') * own * minds * reach * modMult(s, 'foundry:growth');
+  return techMult(s, 'foundryGrowth') * own * minds * reach * climbPush(s) * modMult(s, 'foundry:growth');
 }
+
+/** The last climb: everyone pushes, harder every year it takes, so the climb always arrives. */
+export function climbPush(s: GameState): number {
+  const j = s.system?.jump;
+  return j?.last ? Math.pow(1 + Math.max(0, s.day - j.from) / 365, SYSTEM.climbPush) : 1;
+}
+
+const dialIx = (s: GameState) => clamp(Math.round(s.system!.dial), 1, 5) - 1;
 
 /** The chance a doubling sets off a drift. */
 export function driftChance(s: GameState): number {
   const sy = s.system!;
-  const own = sy.ownership === 'claims' ? 1.25 : 1;
-  return SYSTEM.driftPerDoubling[clamp(Math.round(sy.dial), 1, 5) - 1] * (1 - 0.7 * sy.sentinels) * own * techMult(s, 'driftRisk') * modMult(s, 'foundry:drift');
+  // claims race each other; the Commons publish every seed design, so strains get caught sooner
+  const own = sy.ownership === 'claims' ? 1.25 : sy.ownership === 'commons' ? 0.85 : 1;
+  return SYSTEM.driftPerDoubling[dialIx(s)] * (1 - 0.7 * sy.sentinels) * own * techMult(s, 'driftRisk') * modMult(s, 'foundry:drift');
+}
+
+/** Drift points a strain gains a day at today's dial (sentinels slow it; a seated, happy constituency helps). */
+export function driftGrowth(s: GameState): number {
+  const sy = s.system!;
+  return SYSTEM.driftGrowth[dialIx(s)] * (1 - 0.6 * sy.sentinels) - (sy.mindsMood > 70 && sy.seat === 'full' ? 0.1 : 0);
+}
+
+/** What halting a foundry to verify every copy costs at today's dial: days stopped, share of capacity kept. */
+export function verifyCost(s: GameState): { days: number; keep: number } {
+  return { days: SYSTEM.verifyDays[dialIx(s)], keep: SYSTEM.verifyKeep[dialIx(s)] };
 }
 
 /** Plant a seed (a finished 'seed' contract, an event or a partner's own seed). */
@@ -114,6 +134,7 @@ export function tickFoundries(s: GameState): void {
   if (!sy || !sy.foundries.length) return;
   const g = (Math.LN2 / (doublingMonths(s) / 12)) / 365;
   const pDrift = driftChance(s);
+  const spread = driftGrowth(s);
   for (const f of [...sy.foundries]) {
     if (f.haltedUntil > s.day) continue;
     const eff = siteEff(s, f);
@@ -123,15 +144,36 @@ export function tickFoundries(s: GameState): void {
     // each doubling rolls for drift: per day that is the doubling rate times the chance
     if (f.drift <= 0 && rand(s) < (step / Math.LN2) * pDrift) startDrift(s, f);
     if (f.drift > 0) {
-      f.drift = clamp(f.drift + (0.12 + 0.05 * sy.dial) * (1 - 0.6 * sy.sentinels) - (sy.mindsMood > 70 && sy.seat === 'full' ? 0.1 : 0), 0, 100);
+      f.drift = clamp(f.drift + spread, 0, 100);
       if (f.drift >= 100) loseFoundry(s, f);
     }
+  }
+  // a strain that never got its card (another was on screen) gets one now; one left running gets a second warning
+  if (!driftCardPending(s)) {
+    const f = sy.foundries.find((x) => needsCard(s, x));
+    if (f) cardStrain(s, f);
   }
 }
 
 export function startDrift(s: GameState, f: Foundry): void {
   f.drift = 8;
+  f.carded = undefined;
   news(s, `⚠ A strain at ${placeName(f.site)} is building copies that don’t match the signed design.`, 'bad');
+  if (!driftCardPending(s)) cardStrain(s, f);
+}
+
+const driftCardPending = (s: GameState) => s.events.active?.id === 'v-drift' || s.events.queue.some((e) => e.id === 'v-drift');
+
+/** The foundry Solar Maximum's strain broke loose at (its own cards handle it while the storm lasts). */
+const stormStrain = (s: GameState, f: Foundry) => !!s.system?.solarmax && !s.system.solarmax.done && s.system.solarmax.foundry === f.id;
+
+function needsCard(s: GameState, f: Foundry): boolean {
+  if (f.drift <= 0 || f.haltedUntil > s.day || stormStrain(s, f)) return false;
+  return f.carded === undefined || f.drift >= f.carded + 45;
+}
+
+function cardStrain(s: GameState, f: Foundry): void {
+  f.carded = f.drift;
   queueEvent(s, 'v-drift', { foundry: f.id });
 }
 
@@ -147,8 +189,26 @@ function loseFoundry(s: GameState, f: Foundry): void {
 /** Contain a strain: halt the foundry to verify every copy (days), losing some capacity. */
 export function containDrift(s: GameState, f: Foundry, days: number, keep: number): void {
   f.drift = 0;
+  f.carded = undefined;
   f.cap *= keep;
   f.haltedUntil = Math.max(f.haltedUntil, s.day + days);
+}
+
+/** Halt a drifting foundry and verify every copy, at the dial's price (the System panel's button, the strain card). */
+export function verifyFoundry(s: GameState, f: Foundry): void {
+  const v = verifyCost(s);
+  containDrift(s, f, v.days, v.keep);
+}
+
+/** The player halts a drifting foundry from the Foundries tab. */
+export function haltFoundry(s: GameState, id: string): { ok: true } | { ok: false; reason: string } {
+  const f = foundryById(s, id);
+  if (!f) return { ok: false, reason: 'That foundry is gone.' };
+  if (f.drift <= 0) return { ok: false, reason: 'Nothing is drifting there.' };
+  if (stormStrain(s, f)) return { ok: false, reason: 'The storm’s strain is a crisis of its own: see the Solar Maximum cards.' };
+  verifyFoundry(s, f);
+  news(s, `🔍 ${placeName(f.site)} halts to verify every copy: ${verifyCost(s).days} days, ${Math.round((1 - verifyCost(s).keep) * 100)}% of its capacity.`, 'info');
+  return { ok: true };
 }
 
 export function foundryById(s: GameState, id: string | number | undefined): Foundry | undefined {

@@ -12,7 +12,7 @@ import { SITE_BY_ID, MEGA_SITES, LAUNCH_SITES } from '../content/sites';
 import { TECHS } from '../content/techs';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { ContractKind, ContractSize, FusionDesignId, GameState } from './types';
-import { newAct4Game } from './act4preset';
+import { newAct4Game, retireEarlierStories } from './act4preset';
 import { beginAct5 } from './act5';
 import { refreshStats } from './tick';
 import { nextModelPlan } from './ai';
@@ -154,6 +154,7 @@ export function newAct5Game(opts: NewGameOptions, ctx: SimContext): GameState {
   s.safety.cumFlop = Math.max(s.safety.cumFlop, Math.pow(10, cap + 22 + 0.1) / techMult(s, 'safetyEff'));
   for (let n = 0; n <= 4; n++) s.flags[`stage${n}Day`] ??= ACT5_START_DAY - 6000 + n * 1000;
   Object.assign(s.flags, { act4Complete: s.day, act4Shown: true, act4EndQueued: true });
+  retireEarlierStories(s, 5);
   s.meta.act5Start = true;
   refreshStats(s);
   beginAct5(s);

@@ -9,6 +9,9 @@ import type { Stance } from './regions';
 import type { TechKey } from './techs';
 import type { IconName } from '../ui/icons';
 import type { Wealth } from './charter';
+import { SYSTEM } from './system';
+import { earthOwnTW } from '../sim/systemView';
+import { fmtTW } from '../sim/core';
 
 export interface ResolutionDef {
   id: string;
@@ -202,7 +205,7 @@ export const RESOLUTIONS: ResolutionDef[] = [
     blurb: 'Lower the line by a quarter of a watt per square metre: less waste heat on Earth, more of the climb in space.',
     effect: 'The Thermal Line −0.25 W/m²; Legitimacy +4; developing provinces −3.',
     appeal: { stance: { cautious: 0.45, accelerate: -0.3 }, wealth: { rich: 0.25, developing: -0.35 } },
-    needs: (s) => (!s.system?.thermalLine ? 'Needs a Thermal Line.' : s.system.thermalLine <= 0.5 ? 'The line is as low as it goes.' : null),
+    needs: (s) => (!s.system?.thermalLine ? 'Needs a Thermal Line.' : s.system.thermalLine <= 0.5 ? 'The line is as low as it goes.' : earthOwnTW(s) > (s.system.thermalLine - 0.25) * SYSTEM.twPerWm2 ? `Earth’s own plants already make more than a tighter line would allow (${fmtTW(earthOwnTW(s))} of ${fmtTW((s.system.thermalLine - 0.25) * SYSTEM.twPerWm2)}).` : null),
   },
   {
     id: 'minds-compact', name: 'The minds’ compact', icon: 'minds', cost: 14, cphase: 1, act: 5, base: 0,
