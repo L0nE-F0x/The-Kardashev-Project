@@ -2,6 +2,7 @@ import { Icon, Portrait, SpeakerPortrait, speakerName, useGame } from './compone
 import { EVENT_BY_ID } from '../content/events';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, tierOf } from '../sim/model';
+import { IPO_FLOOR } from '../sim/capital';
 import { Act4CompleteModal } from './panels/Act4Panels';
 import { visibleObjectives } from '../content/objectives';
 
@@ -268,6 +269,12 @@ function Act2CompleteModal() {
   const model = s.models[s.models.length - 1];
   const standing = s.finale?.standing ?? 0;
   const seat = standing >= 3 ? 'a founding seat' : standing === 2 ? 'a strong voice' : standing === 1 ? 'a seat at the back' : 'an observer’s badge';
+  const ipo = s.capital.ipo;
+  const value = ipo?.valuation ?? s.finance.valuation;
+  // a listing below the Series B is a down round, and the screen should say so (and why)
+  const lastRound = ipo?.lastRound ?? 0;
+  const down = lastRound > 0 && value < lastRound;
+  const weakest = ipo?.parts?.length ? [...ipo.parts].sort((a, b) => a[1] - b[1])[0] : null;
   return (
     <div class="scrim">
       <div class="modal frame">
@@ -280,7 +287,16 @@ function Act2CompleteModal() {
         </div>
         <div class="body">
           <div class="story">
-            {s.company.name} rang the bell at {fmtMoney(s.capital.ipo?.valuation ?? s.finance.valuation)}. Gigawatt campuses, power you own, chips you can count on — and you came through the Crunch holding {standing} of 3 fronts.
+            {down ? (
+              <>
+                {s.company.name} rang the bell at {fmtMoney(value)}: below the {fmtMoney(lastRound)} your Series B investors paid.{' '}
+                {ipo?.floor ? 'Revenue never caught up with falling prices, so the bankers listed you at their floor.' : weakest ? `The biggest drag: ${weakest[0].toLowerCase()}.` : ''} Still: gigawatt campuses, power you own — and you came through the Crunch holding {standing} of 3 fronts.
+              </>
+            ) : (
+              <>
+                {s.company.name} rang the bell at {fmtMoney(value)}. Gigawatt campuses, power you own, chips you can count on — and you came through the Crunch holding {standing} of 3 fronts.
+              </>
+            )}
           </div>
           <div class="deltas">
             <div class="delta">
@@ -311,6 +327,13 @@ function Act2CompleteModal() {
               <div class="v cyan">{st.K.toFixed(5)}</div>
             </div>
           </div>
+          {ipo?.parts && ipo.base !== undefined && (
+            <div class="small muted" style={{ margin: '6px 0' }}>
+              How the bankers priced it: a year of revenue × 18 = {fmtMoney(ipo.base)}
+              {ipo.parts.map(([l, k]) => ` · ×${k.toFixed(2)} ${l.toLowerCase()}`).join('')}
+              {ipo.floor ? ` — under their ${fmtMoney(IPO_FLOOR)} floor` : ''}.
+            </div>
+          )}
           <div class="quote">
             <Portrait id="sol" mood="excited" size={56} />
             <div class="bubble">

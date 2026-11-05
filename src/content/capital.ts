@@ -28,6 +28,8 @@ export const CUSTOMERS: CustomerDef[] = [
 export const CUSTOMER_BY_ID: Record<string, CustomerDef> = Object.fromEntries(CUSTOMERS.map((c) => [c.id, c]));
 
 export const SERIES_B = { amount: 8e9, valuation: 60e9 };
+/** The fallback Series B (a long phase 1, Bit-3 trained, other goals short) raises this share of the full round, at this share of the price. */
+export const SERIES_B_SMALL = 0.6;
 
 /** The board: quarterly reviews after the Series B. */
 export const BOARD = {

@@ -8,6 +8,8 @@ import { CABLES } from '../../src/content/network';
 import type { GameState } from '../../src/sim/types';
 import { buildCost, siteSlots } from '../../src/sim/model';
 import { creditLeft } from '../../src/sim/capital';
+import { exportBlock } from '../../src/sim/politics';
+import { CONTRACT_SLA, contractDeliverable } from '../../src/sim/network';
 
 const require_credit = (s: GameState) => creditLeft(s) * 0.8;
 
@@ -65,10 +67,11 @@ export function botDay(s: GameState, careful = false) {
     if (s.finance.cash < reserve * 2 || fill < 0.55) break;
     if (siteSlots(s, id) - A.slotsUsed(s, id) >= 2 && A.canBuild(s, id, 'datacenter') === null) A.build(s, id, 'datacenter');
   }
-  // spread out: one more campus per phase, where the grid has room and power is cheap
+  // spread out: one more campus per phase, where the grid has room and power is cheap — and chips can be shipped
+  // (a player reads the export-rule warning on the site before building there)
   if (s.day % 90 === 0 && hallSites.length < s.phase + 1 && s.finance.cash > 1e9) {
     const used = new Set(s.facilities.map((f) => f.siteId));
-    const pickSite = BUILD_SITES.filter((x) => !used.has(x.id) && siteOpen(x, s.act, s.phase) && x.slots >= 4 && A.canBuild(s, x.id, 'datacenter') === null)
+    const pickSite = BUILD_SITES.filter((x) => !used.has(x.id) && siteOpen(x, s.act, s.phase) && x.slots >= 4 && A.canBuild(s, x.id, 'datacenter') === null && exportBlock(s, x.id) === null)
       .sort((a, b) => b.gridHeadroom / b.priceMult - a.gridHeadroom / a.priceMult)[0];
     if (pickSite) {
       A.build(s, pickSite.id, 'datacenter');
@@ -78,7 +81,8 @@ export function botDay(s: GameState, careful = false) {
   // phase 2: the stack, contracts, sovereign deals
   if (s.phase >= 2) {
     for (const d of DEALS) if (s.finance.cash > reserve * 3 && A.canSignDeal(s, d.id) === null) A.signDeal(s, d.id);
-    for (const o of [...s.capital.offers]) if (o.units < s.stats.installedAccel * 0.15) A.acceptContract(s, o.id);
+    // a careful player only signs what the preview says it can deliver in full
+    for (const o of [...s.capital.offers]) if (o.units < s.stats.installedAccel * 0.15 && contractDeliverable(s, o).frac >= CONTRACT_SLA) A.acceptContract(s, o.id);
     for (const d of s.capital.sovereign) if (d.status === 'offer') A.acceptSovereign(s, d.id);
     if (!s.facilities.some((f) => f.type === 'packaging') && s.finance.cash > 3e9) {
       const site = hallSites.find((id) => A.canBuild(s, id, 'packaging') === null);

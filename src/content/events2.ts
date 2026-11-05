@@ -10,15 +10,18 @@ import { REGION_IDS, type RegionId } from './mapcodes';
 import { siteDef, BUILD_SITES } from './sites';
 import { CABLE_BY_ID, CABLES } from './network';
 import { EXPORT_RULES, RULE_BY_ID } from './politics';
-import { BOARD, SERIES_B } from './capital';
+import { BOARD, SERIES_B, SERIES_B_SMALL } from './capital';
+import { RESOLUTION_BY_ID } from './council';
 import { CEOS } from './companies';
-import { addModifier, hasTech, modMult } from '../sim/effects';
+import { addModifier, hasTech, modMult, techMult } from '../sim/effects';
 import { earn, spend } from '../sim/economy';
 import { clamp, fmtMoney, fmtMW, news, nextId, pick, rand, randInt, weightedPick } from '../sim/core';
-import { crisisCost2, currentCapability, frontier } from '../sim/model';
+import { crisisCost2, currentCapability, frontier, inferPriceTrend } from '../sim/model';
 import { addRelation, addRelationAll, blocIT } from '../sim/politics';
 import { canApplyLicence, applyLicence, signTreaty } from '../sim/actions';
-import { ipoValuation } from '../sim/capital';
+import { IPO_FLOOR, ipoBreakdown, ipoValuation } from '../sim/capital';
+import { addCapital } from '../sim/charter';
+import { CRUNCH_GOALS } from '../sim/act2';
 import { shockMaterial } from '../sim/stack';
 
 // ── helpers (local, to keep module cycles shallow) ─────────────────────────────────────────
@@ -44,6 +47,8 @@ const myRegions = (s: GameState): RegionId[] => [...new Set(s.facilities.map((f)
 const ceo = (id: string) => CEOS[id]?.name ?? id;
 const rivalName = (s: GameState, id: string | number) => s.market.rivals.find((r) => r.id === id)?.name ?? 'Meridian Intelligence';
 const hasOnline = (s: GameState, types: string[]) => s.facilities.some((f) => types.includes(f.type) && f.status === 'online');
+/** The Crunch: how much grid pressure giving your own generation to the public grid relieves (5 with none, 35 from 600 MW). */
+const giveGrid = (s: GameState) => Math.round(clamp(5 + s.stats.genAvgMW / 20, 5, 35));
 
 export const ACT2_EVENTS: EventDef[] = [
   // ═══════════════════════════════════════ SCRIPTED ═══════════════════════════════════════
@@ -65,38 +70,43 @@ export const ACT2_EVENTS: EventDef[] = [
     id: 'series-b',
     category: 'finance',
     icon: '💰',
-    title: () => 'Series B: the big cheque',
-    body: (s) => `Revenue is ${fmtMoney(s.stats.revenueMonth)}/month and ${s.models[s.models.length - 1]?.name ?? 'your model'} is near the frontier. The growth funds are lining up — and every one of them wants a board seat.`,
-    advisors: () => [
-      { id: 'penny', text: 'Eight billion dollars and a proper board. Eleanor Grant chairs it. She is polite, precise and she keeps score.', mood: 'happy' },
+    // ctx.small: the fallback round after a long phase 1 (Bit-3 trained, other goals short)
+    title: (_s, ctx) => (ctx.small ? 'Series B: a smaller cheque' : 'Series B: the big cheque'),
+    body: (s, ctx) =>
+      ctx.small
+        ? `It has been a long road since the Series A. ${s.models[s.models.length - 1]?.name ?? 'Your model'} is trained, but revenue is ${fmtMoney(s.stats.revenueMonth)}/month on ${fmtMW(s.stats.itMW)} of halls — short of the $75M a month and 100 MW the big growth funds wanted.\n\nPenny has found investors who will still come in, at a lower price: ${fmtMoney(SERIES_B.amount * SERIES_B_SMALL)} at a ${fmtMoney(SERIES_B.valuation * SERIES_B_SMALL)} valuation. Every one of them wants a board seat.`
+        : `Revenue is ${fmtMoney(s.stats.revenueMonth)}/month and ${s.models[s.models.length - 1]?.name ?? 'your model'} is near the frontier. The growth funds are lining up — and every one of them wants a board seat.`,
+    advisors: (_s, ctx) => [
+      ctx.small
+        ? { id: 'penny', text: 'Not the round I wanted, but it is real money and a proper board. Eleanor Grant chairs it. She will remember the price.', mood: 'neutral' }
+        : { id: 'penny', text: 'Eight billion dollars and a proper board. Eleanor Grant chairs it. She is polite, precise and she keeps score.', mood: 'happy' },
       { id: 'iris', text: 'Boards push for growth. Write the safety budget into the charter while we still can.', mood: 'neutral' },
     ],
-    choices: (s) => [
-      {
-        label: `Raise ${fmtMoney(SERIES_B.amount)} (steady targets)`,
-        detail: 'Board asks for +15% revenue a quarter. Confidence 65.',
-        apply: () => {
-          earn(s, 'funding', SERIES_B.amount);
-          s.finance.round = 'B';
-          s.finance.valuation = SERIES_B.valuation;
-          s.flags.seriesBDay = s.day;
-          s.capital.board = { confidence: BOARD.start, nextReview: s.day + BOARD.reviewDays, baseline: Math.max(1, s.stats.revenueMonth), misses: 0, target: BOARD.target };
-          news(s, `💰 ${s.company.name} raises ${fmtMoney(SERIES_B.amount)} at a ${fmtMoney(SERIES_B.valuation)} valuation.`, 'good');
+    choices: (s, ctx) => {
+      const k = ctx.small ? SERIES_B_SMALL : 1;
+      const raise = (amount: number, valuation: number, confidence: number, target: number, line: string) => {
+        earn(s, 'funding', amount);
+        s.finance.round = 'B';
+        s.finance.valuation = valuation;
+        s.flags.seriesBDay = s.day;
+        if (ctx.small) s.flags.seriesBSmall = s.day;
+        s.capital.board = { confidence, nextReview: s.day + BOARD.reviewDays, baseline: Math.max(1, s.stats.revenueMonth), baseTrend: inferPriceTrend(s), misses: 0, target };
+        news(s, line, 'good');
+      };
+      const conf = ctx.small ? BOARD.start - 10 : BOARD.start;
+      return [
+        {
+          label: `Raise ${fmtMoney(SERIES_B.amount * k)} (steady targets)`,
+          detail: `Board asks for +${Math.round(BOARD.target * 100)}% sales a quarter (in volume: falling prices don’t count). Confidence ${conf}.`,
+          apply: () => raise(SERIES_B.amount * k, SERIES_B.valuation * k, conf, BOARD.target, `💰 ${s.company.name} raises ${fmtMoney(SERIES_B.amount * k)} at a ${fmtMoney(SERIES_B.valuation * k)} valuation.`),
         },
-      },
-      {
-        label: `Raise ${fmtMoney(SERIES_B.amount * 1.3)} (aggressive targets)`,
-        detail: 'More money, but the board wants +25% a quarter. Confidence 55.',
-        apply: () => {
-          earn(s, 'funding', SERIES_B.amount * 1.3);
-          s.finance.round = 'B';
-          s.finance.valuation = SERIES_B.valuation * 1.25;
-          s.flags.seriesBDay = s.day;
-          s.capital.board = { confidence: 55, nextReview: s.day + BOARD.reviewDays, baseline: Math.max(1, s.stats.revenueMonth), misses: 0, target: 0.25 };
-          news(s, `💰 ${s.company.name} raises ${fmtMoney(SERIES_B.amount * 1.3)}. The board expects hypergrowth.`, 'good');
+        {
+          label: `Raise ${fmtMoney(SERIES_B.amount * k * 1.3)} (aggressive targets)`,
+          detail: `More money, but the board wants +25% a quarter. Confidence ${conf - 10}.`,
+          apply: () => raise(SERIES_B.amount * k * 1.3, SERIES_B.valuation * k * 1.25, conf - 10, 0.25, `💰 ${s.company.name} raises ${fmtMoney(SERIES_B.amount * k * 1.3)}. The board expects hypergrowth.`),
         },
-      },
-    ],
+      ];
+    },
   },
   {
     id: 'phase-stack',
@@ -108,7 +118,7 @@ export const ACT2_EVENTS: EventDef[] = [
     advisors: () => [
       { id: 'mira', text: 'Deals → Supply: reserve wafers, lock in HBM, book packaging. Or build our own packaging plant. Or, if you’re brave, a fab with Kestrel.', mood: 'excited' },
       { id: 'penny', text: 'Customers want contracts too — guaranteed revenue, as long as we deliver. And the board meets every quarter now.', mood: 'neutral' },
-      { id: 'sol', text: 'Governments will start making offers. Build in their bloc, they’ll pay part of the bill.', mood: 'neutral' },
+      { id: 'sol', text: 'Governments will start making offers on the Blocs screen. Build in their bloc, they’ll pay part of the bill.', mood: 'neutral' },
     ],
     choices: () => [{ label: 'Open the order book', detail: 'Deals, mines, contracts, sovereign offers and new facilities are open.', apply: () => {} }],
   },
@@ -119,7 +129,7 @@ export const ACT2_EVENTS: EventDef[] = [
     title: () => 'Phase 3 · The Race',
     body: (s) => {
       const m = s.market.rivals.find((r) => r.id === 'meridian');
-      return `${ceo('meridian')}, Meridian’s CEO, takes the stage: “Meridian will reach the next capability tier first. Everyone else is welcome to watch.”\n\nMeridian is at ${m?.capability.toFixed(2) ?? '?'}; you are at ${currentCapability(s).toFixed(2)}. Gigawatt campuses and 200 MW halls are now open. So are the megasites.`;
+      return `${ceo('meridian')}, Meridian’s CEO, takes the stage: “Meridian will reach the next capability tier first. Everyone else is welcome to watch.”\n\nMeridian is at ${m?.capability.toFixed(2) ?? '?'}; you are at ${currentCapability(s).toFixed(2)}. Gigawatt campuses and 200 MW halls are now open. So are the megasites.\n\nThe IPO checklist is in Goals. Meet any ${CRUNCH_GOALS} of its six goals and The Crunch begins; by mid-2034 it begins anyway.`;
     },
     advisors: () => [
       { id: 'bit', text: 'Is this a race? I am fast. I think.', mood: 'excited' },
@@ -129,7 +139,7 @@ export const ACT2_EVENTS: EventDef[] = [
     choices: (s) => [
       {
         label: 'Accept the race, publicly',
-        detail: 'Hype: demand ×1.1 for a year; board +5; Meridian speeds up a little.',
+        detail: 'Hype: revenue +10% for a year; board +5; Meridian speeds up 10% for a year.',
         apply: () => {
           addModifier(s, 'revenue', 365, 'Race hype', { mult: 1.1 });
           addModifier(s, 'rival:meridian:pace', 365, 'Meridian provoked', { mult: 1.1 });
@@ -152,14 +162,30 @@ export const ACT2_EVENTS: EventDef[] = [
     category: 'politics',
     icon: '🗳',
     title: (_s, ctx) => `${rName(ctx.region)} changes course`,
-    body: (_s, ctx) => `An election in ${rName(ctx.region)} brings in a new government. Its stance on AI moves from ${ctx.from} to ${ctx.to}.`,
+    body: (_s, ctx) => {
+      // ctx.flips (Act III+): resolutions on the Council's agenda whose outcome this government changes
+      const flips = String(ctx.flips ?? '')
+        .split(',')
+        .filter((id) => RESOLUTION_BY_ID[id])
+        .map((id) => `“${RESOLUTION_BY_ID[id].name}”`);
+      return `An election in ${rName(ctx.region)} brings in a new government. Its stance on AI moves from ${ctx.from} to ${ctx.to}.${flips.length ? `\n\nIt changes the Council arithmetic: ${flips.join(' and ')} now looks set to go the other way.` : ''}`;
+    },
     advisors: (_s, ctx) => [
-      { id: 'sol', text: ctx.to === 'cautious' ? 'Expect slower permits and tighter rules. A gesture now buys patience later.' : ctx.to === 'accelerate' ? 'Open doors. Let’s walk through them before the next election.' : 'A centrist government. Predictable, at least.', mood: ctx.to === 'cautious' ? 'worried' : 'happy' },
+      ctx.flips
+        ? { id: 'sol', text: 'If that vote matters to us, lean on them in the Council before the session. A whip or a favour can still swing it.', mood: 'worried' }
+        : { id: 'sol', text: ctx.to === 'cautious' ? 'Expect slower permits and tighter rules. A gesture now buys patience later.' : ctx.to === 'accelerate' ? 'Open doors. Let’s walk through them before the next election.' : 'A centrist government. Predictable, at least.', mood: ctx.to === 'cautious' ? 'worried' : 'happy' },
     ],
-    choices: (s, ctx) => [
-      { label: 'Congratulate the new government', detail: 'Relations +4.', apply: () => addRelation(s, ctx.region as RegionId, 4) },
-      { label: 'Wait and see', detail: 'No change.', apply: () => {} },
-    ],
+    choices: (s, ctx) => {
+      const r = ctx.region as RegionId;
+      const cost = c2(s, 25e6);
+      return [
+        // the Steward (Act III on) spends political capital, not the company's money
+        s.charter
+          ? { label: 'Send Sol to talk to them (3 political capital)', detail: 'Relations +5 with the new government.', disabled: s.charter.capital >= 3 ? false : 'Needs 3 political capital', apply: () => (addCapital(s, -3), addRelation(s, r, 5)) }
+          : { label: `Send a delegation (${fmtMoney(cost, 0)})`, detail: 'Relations +5 with the new government.', disabled: afford(s, cost), apply: () => (spend(s, 'other', cost), addRelation(s, r, 5)) },
+        { label: 'A polite note', detail: 'Relations +1.', apply: () => addRelation(s, r, 1) },
+      ];
+    },
   },
   {
     id: 'lobby-scandal',
@@ -216,7 +242,7 @@ export const ACT2_EVENTS: EventDef[] = [
       },
       {
         label: 'Argue for open markets and growth',
-        detail: 'Accelerate blocs +8, neutral +2, cautious −6; demand ×1.1 for a year.',
+        detail: 'Accelerate blocs +8, neutral +2, cautious −6; revenue +10% for a year.',
         apply: () => {
           addRelationAll(s, (r) => ({ cautious: -6, neutral: 2, accelerate: 8 })[s.blocs[r].stance]);
           addModifier(s, 'revenue', 365, 'Summit tailwind', { mult: 1.1 });
@@ -237,9 +263,17 @@ export const ACT2_EVENTS: EventDef[] = [
     category: 'finance',
     icon: '📊',
     title: (_s, ctx) => (ctx.passed ? 'Board review: targets met' : 'Board review: targets missed'),
-    body: (s, ctx) =>
-      `Revenue grew ${ctx.growth}% this quarter against a target of ${ctx.target}%. Board confidence is now ${Math.round(s.capital.board?.confidence ?? 0)}.` +
-      (ctx.passed ? '' : '\n\nEleanor Grant would like to know what changes next quarter.'),
+    body: (s, ctx) => {
+      const pct = (v: string | number | undefined) => `${Number(v) >= 0 ? '+' : '−'}${Math.abs(Number(v ?? 0))}%`;
+      const sales = `Sales were ${pct(ctx.growth)} this quarter in volume`;
+      // ctx.rev is missing on cards queued by older saves
+      const rev = ctx.rev !== undefined ? ` (revenue ${pct(ctx.rev)}: the board allows for prices falling about 5% a quarter)` : '';
+      return (
+        `${sales}${rev}, against a target of +${ctx.target}%. Board confidence is now ${Math.round(s.capital.board?.confidence ?? 0)}.` +
+        (ctx.passed ? '' : '\n\nEleanor Grant would like to know what changes next quarter.') +
+        (ctx.first ? '\n\nThere is a review every quarter. From now on Penny reports them in the news, unless a miss costs the board its patience.' : '')
+      );
+    },
     advisors: (_s, ctx) =>
       ctx.passed
         ? [
@@ -255,11 +289,11 @@ export const ACT2_EVENTS: EventDef[] = [
         ? [
             { label: 'Thank them', detail: 'Steady as she goes.', apply: () => {} },
             {
-              label: 'Raise next quarter’s target',
-              detail: 'Confidence +4; target +5 points.',
+              label: 'Promise a stretch quarter',
+              detail: 'Confidence +4 now; next quarter’s target is 5 points higher (that quarter only).',
               apply: () => {
                 confidence(s, 4);
-                if (s.capital.board) s.capital.board.target += 0.05;
+                if (s.capital.board) s.capital.board.stretch = 0.05;
               },
             },
           ]
@@ -337,9 +371,9 @@ export const ACT2_EVENTS: EventDef[] = [
       { label: 'Stall — ask for more', detail: 'Board +5. They return sooner.', apply: () => (confidence(s, 5), schedule(s, 'takeover-2', 60)) },
       {
         label: `Adopt a poison pill (${fmtMoney(c2(s, 200e6), 0)})`,
-        detail: 'Legal armour: the takeover is over. Board −8.',
+        detail: 'Legal armour: the takeover is over before it starts — no tender offer later. Board −4.',
         disabled: afford(s, c2(s, 200e6)),
-        apply: () => (spend(s, 'other', c2(s, 200e6)), confidence(s, -8), news(s, '🛡 Poison pill adopted. Meridian withdraws.', 'info')),
+        apply: () => (spend(s, 'other', c2(s, 200e6)), confidence(s, -4), news(s, '🛡 Poison pill adopted. Meridian withdraws.', 'info')),
       },
     ],
   },
@@ -370,11 +404,11 @@ export const ACT2_EVENTS: EventDef[] = [
         },
         {
           label: 'Bring in a white knight',
-          detail: '+$3B from a Gulf sovereign fund; Gulf relations +10; their national model gets priority access.',
+          detail: '+$2.5B from a Gulf sovereign fund and Gulf relations +10 — but their national model gets first call on your capacity: revenue −8% for 2 years (the IPO will feel it).',
           apply: () => {
-            earn(s, 'funding', 3e9);
+            earn(s, 'funding', 2.5e9);
             addRelation(s, 'mena', 10);
-            addModifier(s, 'revenue', 365, 'Sovereign priority access', { mult: 0.96 });
+            addModifier(s, 'revenue', 730, 'Sovereign priority access', { mult: 0.92 });
             news(s, '🛡 A sovereign fund buys in. Meridian walks away.', 'good');
           },
         },
@@ -491,6 +525,8 @@ export const ACT2_EVENTS: EventDef[] = [
     choices: (s, ctx) => {
       const id = String(ctx.rule);
       const r = RULE_BY_ID[id];
+      // East Asia only retaliates against a rule that actually lands on it; otherwise the arc skips to Geneva
+      const next = (inForce: boolean) => (inForce && r.to.includes('eam') ? schedule(s, 'lines-2', randInt(s, 150, 220)) : schedule(s, 'lines-3', randInt(s, 250, 350)));
       return [
         {
           label: 'Accept it and file for licences',
@@ -498,7 +534,7 @@ export const ACT2_EVENTS: EventDef[] = [
           apply: () => {
             s.politics.rules.push(id);
             for (const reg of r.to) if (myRegions(s).includes(reg) && canApplyLicence(s, id, reg) === null) applyLicence(s, id, reg);
-            schedule(s, 'lines-2', randInt(s, 150, 220));
+            next(true);
           },
         },
         {
@@ -508,9 +544,10 @@ export const ACT2_EVENTS: EventDef[] = [
           apply: () => {
             spend(s, 'other', c2(s, 150e6));
             addRelation(s, r.by, -3);
-            if (rand(s) < 0.4) news(s, `✅ ${r.name} is shelved after industry pushback.`, 'good');
+            const shelved = rand(s) < 0.4;
+            if (shelved) news(s, `✅ ${r.name} is shelved after industry pushback.`, 'good');
             else s.politics.rules.push(id);
-            schedule(s, 'lines-2', randInt(s, 150, 220));
+            next(!shelved);
           },
         },
       ];
@@ -729,7 +766,7 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'juno', text: 'Honestly? Its dispatch plan beats mine.', mood: 'happy' },
     ],
     choices: (s) => [
-      { label: 'Let Bit help — under supervision', detail: s.stats.margin >= 0 ? 'Power and cooling efficiency +5% (PUE).' : 'Needs a safety margin ≥ 0.', disabled: s.stats.margin >= 0 ? false : 'Safety margin below 0', apply: () => ((s.flags.bitDispatch = s.day), void addModifier(s, 'revenue', 99999, 'Bit optimises dispatch', { mult: 1.03 })) },
+      { label: 'Let Bit help — under supervision', detail: s.stats.margin >= 0 ? 'Revenue +3% for good: Bit squeezes more out of every megawatt.' : 'Needs a safety margin ≥ 0.', disabled: s.stats.margin >= 0 ? false : 'Safety margin below 0', apply: () => ((s.flags.bitDispatch = s.day), void addModifier(s, 'revenue', 99999, 'Bit optimises dispatch', { mult: 1.03 })) },
       { label: '“Not yet, Bit.”', detail: 'Alignment +; Bit understands.', apply: () => void (s.safety.cumFlop *= 1.2) },
     ],
   },
@@ -780,7 +817,7 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'penny', text: 'We can lock prices for a year with a forward contract.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: `Buy forward (${fmtMoney(c2(s, 120e6), 0)})`, detail: 'Batteries 20% cheaper for a year.', disabled: afford(s, c2(s, 120e6)), apply: () => (spend(s, 'other', c2(s, 120e6)), shockMaterial(s, 'lithium', 1.7), void addModifier(s, 'cost:battery', 365, 'Lithium forward contract', { mult: 0.8 })) },
+      { label: `Buy forward (${fmtMoney(c2(s, 120e6), 0)})`, detail: 'Lithium still ×1.7, but your battery bills are 20% lower for a year.', disabled: afford(s, c2(s, 120e6)), apply: () => (spend(s, 'other', c2(s, 120e6)), shockMaterial(s, 'lithium', 1.7), void addModifier(s, 'cost:battery', 365, 'Lithium forward contract', { mult: 0.8 })) },
       { label: 'Ride it out', detail: 'Lithium ×1.7.', apply: () => shockMaterial(s, 'lithium', 1.7) },
     ],
   },
@@ -813,7 +850,7 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'mira', text: (s.stack.stakes[ctx.gas === 'helium' ? 'mine-helium' : 'mine-neon'] ?? 0) > 0 ? 'Our stake keeps our share flowing.' : 'Fab output is about to dip. Everyone’s.', mood: 'worried' },
     ],
     choices: (s, ctx) => [
-      { label: `Fund recycling at our suppliers (${fmtMoney(c2(s, 150e6), 0)})`, detail: 'Halves the hit.', disabled: afford(s, c2(s, 150e6)), apply: () => (spend(s, 'other', c2(s, 150e6)), shockMaterial(s, ctx.gas as 'helium', 1.4)) },
+      { label: `Fund recycling at our suppliers (${fmtMoney(c2(s, 150e6), 0)})`, detail: `${ctx.gas === 'helium' ? 'Helium' : 'Neon'} ×1.4 instead of ×2.`, disabled: afford(s, c2(s, 150e6)), apply: () => (spend(s, 'other', c2(s, 150e6)), shockMaterial(s, ctx.gas as 'helium', 1.4)) },
       { label: 'Wait it out', detail: `${ctx.gas} ×2: fabs slow down.`, apply: () => shockMaterial(s, ctx.gas as 'helium', 2) },
     ],
   },
@@ -848,7 +885,15 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'iris', text: 'Do it by the book. Nuclear trust takes decades to build and a week to lose.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'By the book', detail: 'Nuclear output −60% for 6 weeks; trust +2.', apply: () => (addModifier(s, 'nuclear:availability', 42, 'Reactor inspection', { mult: 0.4 }), licenseAll(s, 0.5)) },
+      {
+        label: 'By the book',
+        detail: 'Nuclear output −60% for 6 weeks; trust +2 where your reactors are.',
+        apply: () => {
+          addModifier(s, 'nuclear:availability', 42, 'Reactor inspection', { mult: 0.4 });
+          const nuclear = new Set(s.facilities.filter((f) => ['restart', 'smr', 'reactor'].includes(f.type) && f.status === 'online').map((f) => siteDef(f.siteId).region));
+          nuclear.forEach((r) => license(s, r, 2));
+        },
+      },
       { label: `Rush the repair (${fmtMoney(c2(s, 80e6), 0)})`, detail: 'Nuclear output −60% for 2 weeks.', disabled: afford(s, c2(s, 80e6)), apply: () => (spend(s, 'other', c2(s, 80e6)), void addModifier(s, 'nuclear:availability', 14, 'Reactor repair', { mult: 0.4 })) },
     ],
   },
@@ -985,7 +1030,11 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'iris', text: 'Make sure the strings don’t touch the models.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Take it', detail: '+$2.5B; Gulf relations +8; board −3.', apply: () => (earn(s, 'funding', 2.5e9), addRelation(s, 'mena', 8), confidence(s, -3)) },
+      {
+        label: 'Take it',
+        detail: '+$2.5B and Gulf relations +8 — but their national model gets first call on your capacity (revenue −6% for 2 years); board −3.',
+        apply: () => (earn(s, 'funding', 2.5e9), addRelation(s, 'mena', 8), confidence(s, -3), void addModifier(s, 'revenue', 730, 'Sovereign fund’s priority access', { mult: 0.94 })),
+      },
       { label: 'Decline politely', detail: 'Gulf relations −2.', apply: () => addRelation(s, 'mena', -2) },
     ],
   },
@@ -995,7 +1044,8 @@ export const ACT2_EVENTS: EventDef[] = [
     icon: '🕵',
     act: 2,
     once: true,
-    weight: (s) => (s.politics.rules.includes('chip-controls') && s.stats.installedAccel > 50000 ? 0.5 : 0),
+    // Export Compliance Systems (smuggleRisk 0.5) make it half as likely
+    weight: (s) => (s.politics.rules.includes('chip-controls') && s.stats.installedAccel > 50000 ? 0.5 * techMult(s, 'smuggleRisk') : 0),
     title: () => 'Your chips turn up where they shouldn’t',
     body: () => 'Investigators traced a container of accelerators from one of your resellers to a restricted bloc. You didn’t do it. You also didn’t check.',
     advisors: () => [
@@ -1083,7 +1133,7 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'mira', text: 'Every chip at sea is stuck. Every chip in a warehouse is gold.', mood: 'worried' },
       { id: 'iris', text: 'The blocs will vote on a pause. Our record is our argument.', mood: 'neutral' },
     ],
-    choices: () => [{ label: 'All hands.', detail: 'Watch the three fronts on the Crunch tracker.', apply: () => {} }],
+    choices: () => [{ label: 'All hands.', detail: 'Watch the three fronts on the Crunch tracker: hover one to see what pushes it and what holds it back.', apply: () => {} }],
   },
   {
     id: 'crunch-grid',
@@ -1097,8 +1147,13 @@ export const ACT2_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'Throttle compute at peak', detail: 'Revenue −15% for a month; grid pressure −25.', apply: () => (addModifier(s, 'revenue', 30, 'Peak throttling', { mult: 0.85 }), relief(s, 'grid', 25)) },
-      { label: 'Lend our batteries to the grid', detail: 'Needs batteries. Grid pressure −20 and easing for a month; trust +3.', disabled: s.facilities.some((f) => f.type === 'battery' && f.status === 'online') ? false : 'No batteries online', apply: () => (relief(s, 'grid', 20, 0.3, 30), licenseAll(s, 0.5)) },
-      { label: `Rent emergency turbines (${fmtMoney(c2(s, 400e6), 0)})`, detail: 'Grid pressure eases for 40 days.', disabled: afford(s, c2(s, 400e6)), apply: () => (spend(s, 'other', c2(s, 400e6)), relief(s, 'grid', 10, 0.5, 40)) },
+      {
+        label: 'Lend our batteries to the grid',
+        detail: 'Needs batteries. Grid pressure −20 and easing for a month; trust +3 in the heat-dome regions.',
+        disabled: s.facilities.some((f) => f.type === 'battery' && f.status === 'online') ? false : 'No batteries online',
+        apply: () => (relief(s, 'grid', 20, 0.3, 30), (s.finale?.regions ?? []).forEach((r) => license(s, r, 3))),
+      },
+      { label: `Rent emergency turbines (${fmtMoney(c2(s, 400e6), 0)})`, detail: 'Grid pressure −10 now and easing for 40 days (about −34 in all).', disabled: afford(s, c2(s, 400e6)), apply: () => (spend(s, 'other', c2(s, 400e6)), relief(s, 'grid', 10, 0.6, 40)) },
       { label: 'Keep running', detail: 'Grid pressure +15.', apply: () => relief(s, 'grid', -15) },
     ],
   },
@@ -1113,7 +1168,7 @@ export const ACT2_EVENTS: EventDef[] = [
       { id: 'sol', text: 'Help now and every government remembers.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Give the grid our generation', detail: `Revenue −25% for 3 weeks; grid pressure −${s.stats.genAvgMW > 500 ? 35 : 15}; relations +5 there.`, apply: () => (addModifier(s, 'revenue', 21, 'Power given to the grid', { mult: 0.75 }), relief(s, 'grid', s.stats.genAvgMW > 500 ? 35 : 15), (s.finale?.regions ?? []).forEach((r) => addRelation(s, r, 5))) },
+      { label: 'Give the grid our generation', detail: `Revenue −25% for 3 weeks; grid pressure −${giveGrid(s)} (it scales with the ${fmtMW(s.stats.genAvgMW)} you own); relations +5 there.`, apply: () => (addModifier(s, 'revenue', 21, 'Power given to the grid', { mult: 0.75 }), relief(s, 'grid', giveGrid(s)), (s.finale?.regions ?? []).forEach((r) => addRelation(s, r, 5))) },
       { label: 'Shift load to other regions', detail: 'Needs fiber or cables: grid pressure −20.', disabled: s.network.fiber.length + s.network.leases.length + s.network.own.length > 0 ? false : 'No private network', apply: () => relief(s, 'grid', 20) },
       { label: 'Hold steady', detail: 'Grid pressure +10.', apply: () => relief(s, 'grid', -10) },
     ],
@@ -1228,22 +1283,33 @@ export const ACT2_EVENTS: EventDef[] = [
     icon: '🔔',
     title: () => 'Ring the bell',
     body: (s) => {
-      const v = ipoValuation(s);
-      return `The bankers have done their roadshow. On the strength of ${fmtMoney(s.stats.revenueMonth)}/month in revenue, ${s.models[s.models.length - 1]?.name} and how you came through the Crunch, they price ${s.company.name} at ${fmtMoney(v)}.\n\nThis closes Act II: The Scale-Up.`;
+      const b = ipoBreakdown(s);
+      const last = s.finance.valuation; // the last private round (the Series B)
+      const why = b.parts.map(([l, k]) => `${l} ×${k.toFixed(2)}`).join(' · ');
+      const weakest = [...b.parts].sort((x, y) => x[1] - y[1])[0];
+      const down =
+        b.value < last
+          ? `\n\nThat is below the ${fmtMoney(last)} your Series B investors paid: a down round, in public. ${b.floor ? `At ${fmtMoney(s.stats.revenueMonth)} a month, revenue is the problem.` : `The biggest drag: ${weakest[0].toLowerCase()}.`}`
+          : '';
+      return `The bankers have done their roadshow. They start from a year of revenue at ${fmtMoney(s.stats.revenueMonth)}/month times 18 (${fmtMoney(b.base)}), then weigh ${s.models[s.models.length - 1]?.name}, your record and how you came through the Crunch:\n\n${why}${b.floor ? `\n\nThat comes to less than their floor, so they list ${s.company.name} at ${fmtMoney(IPO_FLOOR)}.` : `\n\nThey price ${s.company.name} at ${fmtMoney(b.value)}.`}${down}\n\nThis closes Act II: The Scale-Up.`;
     },
     advisors: (s) => [
-      { id: 'penny', text: `Raise ${fmtMoney(ipoValuation(s) * 0.12)} and we never worry about a bridge loan again.`, mood: 'excited' },
+      ipoValuation(s) < s.finance.valuation
+        ? { id: 'penny', text: `Not the number I wanted. ${fmtMoney(ipoValuation(s) * 0.12)} is still real money, and it is still ours.`, mood: 'worried' }
+        : { id: 'penny', text: `Raise ${fmtMoney(ipoValuation(s) * 0.12)} and we never worry about a bridge loan again.`, mood: 'excited' },
       { id: 'iris', text: 'Dual-class shares would keep the mission safe from the next Meridian.', mood: 'neutral' },
       { id: 'bit', text: 'Do I get a ticker symbol?', mood: 'excited' },
     ],
     choices: (s) => {
       const complete = (dual: boolean) => {
-        const v = ipoValuation(s) * (dual ? 0.95 : 1);
+        const b = ipoBreakdown(s);
+        const v = b.value * (dual ? 0.95 : 1);
         const raised = v * (dual ? 0.1 : 0.12);
+        const lastRound = s.finance.valuation;
         earn(s, 'funding', raised);
         s.finance.round = 'IPO';
         s.finance.valuation = v;
-        s.capital.ipo = { day: s.day, valuation: v, raised };
+        s.capital.ipo = { day: s.day, valuation: v, raised, lastRound, base: b.base, parts: dual ? [...b.parts, ['Dual-class shares', 0.95]] : b.parts, floor: b.floor };
         s.flags.act2Complete = s.day;
         if (dual) s.flags.dualClass = true;
         s.phase = 5;

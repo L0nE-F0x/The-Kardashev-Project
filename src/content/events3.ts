@@ -10,7 +10,7 @@ import { REGION_IDS, type RegionId } from './mapcodes';
 import { CONTRACT_KINDS, DELEGATES, FACTIONS, MISSION_BY_ID, PARTNERS, whereName, WEALTH } from './charter';
 import { RESOLUTION_BY_ID } from './council';
 import { addModifier } from '../sim/effects';
-import { earn, spend } from '../sim/economy';
+import { companyHandedOver, earn, spend } from '../sim/economy';
 import { clamp, fmtMoney, news, pick, rand, randInt, yearsElapsed } from '../sim/core';
 import { crisisCost2, crisisMult } from '../sim/model';
 import { addRelation, addRelationAll } from '../sim/politics';
@@ -199,6 +199,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'safety',
     icon: '🤖',
     cphase: 3,
+    actOnly: 3,
     once: true,
     weight: (s) => (s.models.length >= 6 ? 3 : 0),
     title: () => 'Bit says no',
@@ -218,6 +219,8 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'story',
     icon: '🤖',
     cphase: 3,
+    // the co-pilot desk it offers posts Act III tenders: nothing to do from Act IV on
+    actOnly: 3,
     once: true,
     weight: (s) => (bitTrusted(s) === null && !s.charter?.desk.bit?.on ? 2 : 0),
     title: () => 'Bit asks to help',
@@ -469,8 +472,9 @@ export const ACT3_EVENTS: EventDef[] = [
       const lab = String(ctx.lab);
       const home = PARTNERS[lab]?.home ?? 'pac';
       return [
-        { label: 'Approve', detail: 'The lab +8; pro-build blocs +2.', apply: () => (addPartnerRel(s, lab, 8), addRelationAll(s, (r) => (s.blocs[r].stance === 'accelerate' ? 2 : 0))) },
+        // the sensible default first: the autopilot takes the first choice during Act IV jumps
         { label: 'Approve with independent evals', detail: 'The lab slows for 3 months; world alignment +0.05.', apply: () => (addModifier(s, `rival:${lab}:pace`, 90, 'Charter evaluation', { mult: 0.7 }), s.charter && (s.charter.regime.alignment += 0.05)) },
+        { label: 'Approve', detail: 'The lab +8; pro-build blocs +2.', apply: () => (addPartnerRel(s, lab, 8), addRelationAll(s, (r) => (s.blocs[r].stance === 'accelerate' ? 2 : 0))) },
         { label: 'Deny it', detail: `The lab slows for a year and resents you (−15); ${rName(home)} −6; cautious blocs +3.`, apply: () => (addModifier(s, `rival:${lab}:pace`, 365, 'Licence denied', { mult: 0.5 }), addPartnerRel(s, lab, -15), addRelation(s, home, -6), addRelationAll(s, (r) => (s.blocs[r].stance === 'cautious' ? 3 : 0))) },
       ];
     },
@@ -481,6 +485,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'climate',
     icon: '🌡',
     act: 3,
+    actOnly: 3, // Act IV has its own heat dome
     cooldown: 400,
     weight: (s) => 1 + ((s.charter?.world.carbonGt ?? 500) < 150 ? 2 : 0) + ((s.charter?.world.carbonGt ?? 500) < 0 ? 2 : 0),
     title: () => 'A summer without end',
@@ -526,6 +531,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'supply',
     icon: '🔌',
     act: 3,
+    actOnly: 3,
     cooldown: 500,
     weight: (s) => ((s.charter?.projects ?? []).filter((p) => p.status === 'building').length >= 3 ? 1.2 : 0),
     title: () => 'The transformer crunch, again',
@@ -545,6 +551,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'disaster',
     icon: '⚡',
     act: 3,
+    actOnly: 3, // Act IV has link sabotage
     cooldown: 400,
     weight: (s) => (hvdcOnline(s).length ? 1 : 0),
     title: () => 'A link trips',
@@ -698,7 +705,8 @@ export const ACT3_EVENTS: EventDef[] = [
     icon: '📨',
     act: 3,
     cooldown: 900,
-    weight: (s) => (s.stats.margin < 0 ? 1.2 : 0.3),
+    // not once the company is sold or a public utility: it isn't yours to investigate
+    weight: (s) => (companyHandedOver(s) ? 0 : s.stats.margin < 0 ? 1.2 : 0.3),
     title: (s) => `A whistleblower at ${s.company.name}`,
     body: (s) => `An engineer at ${s.company.name} sends the Charter’s safety office a dossier: a capability your last model has that nobody disclosed. The Steward’s company, reported to the Steward.`,
     advisors: (s) => [
@@ -735,6 +743,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'market',
     icon: '🌳',
     act: 3,
+    actOnly: 3,
     cphase: 2,
     once: true,
     weight: () => 1,
@@ -794,6 +803,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'finance',
     icon: '🏦',
     act: 3,
+    actOnly: 3,
     cooldown: 700,
     weight: (s) => ((s.charter?.budget ?? 0) < 20e9 ? 1.5 : 0.4),
     setup: (s) => ({ region: pick(s, ['mena', 'nor', 'seo', 'atl'] as RegionId[]) }),

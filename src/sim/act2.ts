@@ -17,6 +17,16 @@ import { techMult } from './effects';
 
 /** 1 July 2034: The Crunch starts by then even if the checklist isn't done. */
 export const CRUNCH_DEADLINE = Math.round((Date.UTC(2034, 6, 1) - Date.UTC(2027, 0, 1)) / 86_400_000);
+/** The Crunch starts once this many of the six IPO goals are met (after at least CRUNCH_MIN_DAYS of phase 3). */
+export const CRUNCH_GOALS = 4;
+export const CRUNCH_MIN_DAYS = 180;
+/** After this long in phase 1 with Bit-3 trained, Penny finds a smaller Series B even if the other goals aren't met. */
+export const SERIES_B_FALLBACK_DAYS = 900;
+
+/** How many of the IPO goals are met (the Crunch needs CRUNCH_GOALS of them). */
+export function ipoGoalsMet(s: GameState): number {
+  return IPO_GOALS.filter((id) => s.objectives.done.includes(id)).length;
+}
 
 export function beginAct2(s: GameState): void {
   if ((s.act ?? 1) >= 2) return;
@@ -37,7 +47,11 @@ export function beginAct2(s: GameState): void {
 function enterPhase(s: GameState, n: number): void {
   s.phase = n;
   s.flags[`phase${n}Day`] = s.day;
-  if (n === 2) queueEvent(s, 'phase-stack');
+  if (n === 2) {
+    queueEvent(s, 'phase-stack');
+    // the first summit comes a few months into the phase, not on top of the Series B cards
+    s.politics.nextSummit = Math.max(s.politics.nextSummit, s.day + 120);
+  }
   if (n === 3) {
     queueEvent(s, 'phase-race');
     scheduleEvent(s, 'takeover-1', randInt(s, 180, 260));
@@ -57,9 +71,15 @@ export function tickAct(s: GameState): void {
   }
   switch (s.phase) {
     case 1:
-      if (!s.flags.seriesBQueued && SERIES_B_GOALS.every((id) => done(s, id))) {
-        s.flags.seriesBQueued = true;
-        queueEvent(s, 'series-b');
+      if (!s.flags.seriesBQueued) {
+        if (SERIES_B_GOALS.every((id) => done(s, id))) {
+          s.flags.seriesBQueued = true;
+          queueEvent(s, 'series-b');
+        } else if (s.day - Number(s.flags.phase1Day ?? s.day) >= SERIES_B_FALLBACK_DAYS && done(s, 'a2-bit3')) {
+          // the funds won't wait forever: a smaller round on the strength of Bit-3 alone
+          s.flags.seriesBQueued = true;
+          queueEvent(s, 'series-b', { small: 1 });
+        }
       }
       if (s.finance.round === 'B') enterPhase(s, 2);
       break;
@@ -70,8 +90,9 @@ export function tickAct(s: GameState): void {
       break;
     }
     case 3: {
-      const ready = IPO_GOALS.every((id) => done(s, id));
-      const late = s.day >= CRUNCH_DEADLINE && s.day - Number(s.flags.phase3Day ?? s.day) >= 180;
+      const since = s.day - Number(s.flags.phase3Day ?? s.day);
+      const ready = ipoGoalsMet(s) >= CRUNCH_GOALS && since >= CRUNCH_MIN_DAYS;
+      const late = s.day >= CRUNCH_DEADLINE && since >= CRUNCH_MIN_DAYS;
       if (ready || late) startFinale(s);
       break;
     }
@@ -118,7 +139,8 @@ export function newAct2Game(opts: NewGameOptions): GameState {
     { name: 'Bit-2', gen: 2, flop: 2e26, capability: capabilityOf(2e26, eff), day: 720 },
   ];
   const cap = s.models[1].capability;
-  s.safety.cumFlop = Math.pow(10, cap + 22 - 0.15) / techMult(s, 'safetyEff');
+  // a small positive safety margin, so Bit's job (margin ≥ 0) can switch on right after its briefing
+  s.safety.cumFlop = Math.pow(10, cap + 22 + 0.05) / techMult(s, 'safetyEff');
   const campus = presetCampus(opts.homeSite);
   const spec = chipSpec(s, 'lumen');
   const dc = (id: string) => ({ id, type: 'datacenter' as const, siteId: campus, status: 'online' as const, progress: 450, buildDays: 450, startedDay: 200, onlineDay: 650, racks: [{ qty: Math.floor(dcCapacityUnits(spec.kw) * 0.95), perf: spec.perf * 0.8, kw: spec.kw, supplier: 'lumen' as const }] });

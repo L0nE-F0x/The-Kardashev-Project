@@ -58,7 +58,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'b-blocs',
     advisor: 'sol',
     title: 'Governments',
-    when: (s) => s.act === 2 && since(s, 30),
+    when: (s) => s.act === 2 && since(s, 45),
     steps: [
       { text: () => 'We’re big enough that governments have opinions about us now. Each bloc has two meters: Trust (the people) and Relations (the government).', target: () => 'dock-blocs' },
       { text: () => 'Relations decide export licences, reactor approvals and the deals they offer us. Lobbying helps — until a journalist notices. Treaties help in bigger ways.', enter: (g) => g.panel !== 'blocs' && g.openPanel('blocs'), target: () => 'lobby' },
@@ -68,7 +68,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'b-markets',
     advisor: 'bit',
     title: 'Regional markets',
-    when: (s) => s.act === 2 && since(s, 50),
+    when: (s) => s.act === 2 && since(s, 100),
     steps: [
       { text: () => 'People use me from everywhere, but I answer fastest to people near my data halls. Each region is its own market now.', mood: 'excited' },
       { text: () => 'Lay fiber between your sites, or lease a subsea cable at a landing station on the coast, and halls in one region can sell into another at low latency. Training doesn’t care where it runs!', target: () => 'dock-fiber' },
@@ -78,7 +78,7 @@ export const BRIEFINGS: Briefing[] = [
     id: 'b-firm',
     advisor: 'juno',
     title: 'Firm power',
-    when: (s) => s.act === 2 && since(s, 80),
+    when: (s) => s.act === 2 && since(s, 160),
     steps: [
       { text: () => 'Solar and wind are cheap but they come and go. Firm power runs all night: hydro on river sites, geothermal on hot rock, and the big one — nuclear.' },
       { text: () => 'Three nuclear paths: restart a retired reactor (about two years), order small modular reactors from Little Sun (a long queue), or build a full plant (most of a decade). Reactors need the government on side.', mood: 'excited' },
@@ -98,9 +98,10 @@ export const BRIEFINGS: Briefing[] = [
     id: 'b-board',
     advisor: 'penny',
     title: 'The board',
-    when: (s) => s.act === 2 && !!s.capital.board,
+    // a few weeks after the Series B cards, before the first review
+    when: (s) => s.act === 2 && !!s.capital.board && s.day - Number(s.flags.phase2Day ?? s.day) >= 30,
     steps: [
-      { text: () => 'We have a board now. Every quarter they check revenue against a growth target. Hit it and confidence rises; miss it and things get… political.', target: () => 'dock-finance' },
+      { text: () => 'We have a board now. Every quarter they check our sales growth against a target — in volume, so falling prices don’t count against us. Hit it and confidence rises; miss it and things get… political.', target: () => 'dock-finance' },
       { text: () => 'Finance also has project finance: we can borrow against our plants and halls. That is how every hyperscaler builds this fast.', enter: (g) => g.panel !== 'finance' && g.openPanel('finance'), target: () => 'debt' },
     ],
   },
@@ -111,7 +112,7 @@ export const BRIEFINGS: Briefing[] = [
     when: (s) => s.act === 2 && s.phase >= 3,
     steps: [
       { text: () => 'Meridian says they’ll reach the next tier first. The megasites are open — huge empty land with lots of grid — and so are 200 MW halls and the Gigawatt Campus.', mood: 'excited' },
-      { text: () => 'The IPO checklist is in Goals: a gigawatt of halls, a gigawatt of our own power, Bit-4, a billion a month, the frontier and a clean safety record. When it’s done, something big happens.', target: () => 'dock-goals' },
+      { text: () => 'The IPO checklist is in Goals: a gigawatt of halls, a gigawatt of our own power, Bit-4, a billion a month, the frontier and a clean safety record. Any four of the six and something big happens. By mid-2034 it happens anyway.', target: () => 'dock-goals' },
     ],
   },
   {
@@ -120,7 +121,7 @@ export const BRIEFINGS: Briefing[] = [
     title: 'The Crunch',
     when: (s) => s.act === 2 && !!s.finale && !s.finale.done,
     steps: [
-      { text: () => 'This tracker shows the three fronts. Pressure rises every day from what’s happening in the world. At 100 a front is lost.', target: () => 'crunch', mood: 'worried' },
+      { text: () => 'This tracker shows the three fronts. Pressure rises every day from what’s happening in the world; hover a front to see what is pushing it and what is holding it back. At 100 a front is lost.', target: () => 'crunch', mood: 'worried' },
       { text: () => 'Batteries, firm power, chip stockpiles, our own fab and a strong safety record all ease the pressure on their own. Event cards let us act directly. Ninety days. Let’s hold.' },
     ],
   },

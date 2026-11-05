@@ -7,12 +7,13 @@ import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import { siteDef } from '../content/sites';
 import { ELECTION_DAYS, EXPORT_RULES, RULE_BY_ID, SOVEREIGN, SOVEREIGN_BY_ID, TREATY_BY_ID } from '../content/politics';
 import { HALLS } from '../content/facilities';
-import type { GameState, SupplierId } from './types';
+import type { GameState, SovereignDeal, SupplierId } from './types';
 import { clamp, fmtMoney, news, nextId, pick, rand } from './core';
 import { addModifier, techMult } from './effects';
 import { earn } from './economy';
 import { facilityIT } from './model';
 import { queueEvent } from './events';
+import { forecast } from './council';
 
 const STANCES: Stance[] = ['cautious', 'neutral', 'accelerate'];
 
@@ -55,6 +56,32 @@ export function orderBlockedBy(s: GameState, supplier: SupplierId, dest: RegionI
   return null;
 }
 
+/**
+ * Why chips can't be shipped to this site right now (export rules), in a line for the site inspector,
+ * build tooltips and Mira's reports — e.g. "Lumen and Kestrel chips need a licence here (Advanced Chip
+ * Controls): a licence needs Atlantic & Heartland relations ≥ 55 (now 44)." Null when every supplier can ship here.
+ */
+export function exportBlock(s: GameState, siteId: string): string | null {
+  if ((s.act ?? 1) < 2) return null;
+  const region = siteDef(siteId).region;
+  const ownFab = s.facilities.some((f) => f.type === 'fab' && f.status === 'online');
+  const suppliers: SupplierId[] = ownFab ? ['lumen', 'kestrel', 'own'] : ['lumen', 'kestrel'];
+  const blocked = suppliers.map((x) => ({ x, rule: orderBlockedBy(s, x, region) })).filter((b) => b.rule);
+  if (!blocked.length) return null;
+  const rule = blocked[0].rule!;
+  const names: Record<SupplierId, string> = { lumen: 'Lumen', kestrel: 'Kestrel', own: 'your own fab’s' };
+  const list = (xs: SupplierId[]) => xs.map((x) => names[x]).join(xs.length > 2 ? ', ' : ' and ').replace(/, ([^,]*)$/, ' and $1');
+  const who = list(blocked.map((b) => b.x));
+  const how = licencePending(s, rule.id, region)
+    ? 'a licence application is in progress'
+    : rule.licenceDays > 0
+      ? `a licence needs ${REGIONS[rule.by].name} relations ≥ ${rule.minRelation} (now ${Math.round(s.blocs[rule.by]?.relation ?? 0)})`
+      : 'there is no licence for it';
+  const free = suppliers.filter((x) => !blocked.some((b) => b.x === x));
+  const rest = free.length ? `; ${list(free)} chips can still ship` : '';
+  return `${who.charAt(0).toUpperCase()}${who.slice(1)} chips need a licence here (${rule.name}): ${how}${rest}.`;
+}
+
 /** Whether Veldt's EUV tools can't reach a fab in this region right now. */
 export function euvBlocked(s: GameState, region: RegionId): boolean {
   if ((s.act ?? 1) < 2) return false;
@@ -72,6 +99,22 @@ export function blocIT(s: GameState, r: RegionId): number {
   let mw = 0;
   for (const f of s.facilities) if (HALLS.includes(f.type) && f.status === 'online' && siteDef(f.siteId).region === r) mw += facilityIT(f);
   return mw;
+}
+
+/** Resolutions on the Council's agenda whose forecast outcome changes because bloc `r` just changed stance. */
+function electionFlips(s: GameState, r: RegionId, before: Stance): string[] {
+  const agenda = s.charter?.council.agenda ?? [];
+  const b = s.blocs[r];
+  const after = b.stance;
+  const out: string[] = [];
+  for (const id of agenda) {
+    b.stance = before;
+    const was = forecast(s, id).passes;
+    b.stance = after;
+    if (forecast(s, id).passes !== was) out.push(id);
+  }
+  b.stance = after;
+  return out;
 }
 
 /** Step a bloc's stance one notch toward accelerate (+1) or cautious (−1). */
@@ -106,8 +149,16 @@ export function tickPolitics(s: GameState): void {
     const before = b.stance;
     const after = swing > 0.35 ? shiftStance(s, r, 1) : swing < -0.35 ? shiftStance(s, r, -1) : before;
     b.poll = 0;
-    if (after !== before) queueEvent(s, 'election', { region: r, from: before, to: after });
-    else news(s, `🗳 ${REGIONS[r].name} re-elects a ${after} government. Little changes.`);
+    if (after !== before) {
+      // From Act III a change of government is news, with Sol's routine congratulations, unless it changes the
+      // outcome of a resolution on the Council's agenda: then it's worth a decision.
+      const flips = s.charter ? electionFlips(s, r, before) : [];
+      if (!s.charter || flips.length) queueEvent(s, 'election', { region: r, from: before, to: after, ...(flips.length ? { flips: flips.join(',') } : {}) });
+      else {
+        addRelation(s, r, 2);
+        news(s, `🗳 ${REGIONS[r].name} elects a ${after} government (it was ${before}). Sol sends congratulations: relations +2.`);
+      }
+    } else news(s, `🗳 ${REGIONS[r].name} re-elects a ${after} government. Little changes.`);
     // a newly cautious government may tighten the rules it controls; an accelerating one may relax them
     for (const rule of EXPORT_RULES) {
       if (rule.by !== r) continue;
@@ -169,10 +220,13 @@ function tickSovereign(s: GameState): void {
     if (d.status === 'offer' && s.day > d.expires) d.status = 'failed';
     if (d.status !== 'active') continue;
     const def = SOVEREIGN_BY_ID[d.def];
-    if (blocIT(s, d.region) >= d.needMW) {
+    if (sovereignBuilt(s, d) >= d.needMW) {
       d.status = 'done';
       if (def.cash) earn(s, 'funding', def.cash);
       addRelation(s, d.region, def.relation);
+      // the while-you-build perks become permanent (replace them, don't stack them)
+      const perks = new Set([`${def.title}: cheap power`, `${def.title}: fast permits`]);
+      s.modifiers = s.modifiers.filter((m) => !(perks.has(m.label) && (m.key === `region:${d.region}:price` || m.key === `region:${d.region}:permit`)));
       if (def.power) addModifier(s, `region:${d.region}:price`, 99_999, `${def.title}: cheap power`, { mult: def.power });
       if (def.permit) addModifier(s, `region:${d.region}:permit`, 99_999, `${def.title}: fast permits`, { mult: def.permit });
       news(s, `🤝 ${REGIONS[d.region].name}: ${def.title} delivered${def.cash ? ` — ${fmtMoney(def.cash)} received` : ''}.`, 'good');
@@ -192,5 +246,10 @@ function tickSovereign(s: GameState): void {
   if (!options.length) return;
   const { d, r } = pick(s, options);
   s.capital.sovereign.push({ id: nextId(s, 'sv'), def: d.id, region: r, status: 'offer', needMW: d.needMW, byDay: s.day + d.days, expires: s.day + 180 });
-  news(s, `🏛 ${REGIONS[r].name} offers a ${d.title}: ${d.reward}.`, 'event');
+  news(s, `🏛 ${REGIONS[r].name} offers a ${d.title}: ${d.reward} for ${d.needMW} MW of new IT there. Details on the Blocs screen.`, 'event');
+}
+
+/** New IT you have built in a sovereign deal's bloc since accepting it (what counts toward needMW). */
+export function sovereignBuilt(s: GameState, d: SovereignDeal): number {
+  return Math.max(0, blocIT(s, d.region) - (d.baseMW ?? 0));
 }
