@@ -764,46 +764,10 @@ export function moonPad(r: Ramp4): FacilityArt {
       pc.rect(lx - 2, top - 2, 5, 1, C.yel1);
       g.rect(lx - 2, top - 2, 5, 2, C.yel2);
     }
-    // the crew lander: a tall stainless body on splayed legs
+    // the crew lander stands here as its own sprite (it takes off; see landerFrames)
     const cx = 74;
-    const bw = 15;
-    const half = bw / 2;
+    const half = 15 / 2;
     const top = 6;
-    const bottom = base - 12;
-    for (let y = top; y < bottom; y++) {
-      const k = y - top;
-      const hw = k < 12 ? Math.max(1, Math.round(half * Math.sqrt(1 - ((12 - k) / 12) ** 2))) : Math.round(half);
-      for (let x = Math.round(cx - hw); x < Math.round(cx + hw); x++) {
-        let c = cylShade(STEEL, x + 0.5 - cx, hw, x, y);
-        if (y > bottom - 14) c = c === C.white ? C.ink9 : c;
-        pc.set(x, y, c);
-      }
-    }
-    // windows near the top, the livery band, landing thrusters, soot on the skirt
-    for (let x = Math.round(cx - 5); x < cx + 5; x += 3) {
-      pc.rect(x, top + 16, 2, 2, C.ink1);
-      g.rect(x, top + 16, 2, 2, C.yel1);
-    }
-    for (let y = top + 24; y < top + 28; y++) for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) pc.set(x, y, cylShade({ hi: r.hi, lit: r.lit, mid: r.base, shade: r.mid, dark: r.dark }, x + 0.5 - cx, half, x, y));
-    for (const tx of [cx - half - 1, cx + half]) {
-      pc.rect(Math.round(tx), top + 34, 2, 4, C.ink4);
-      pc.set(Math.round(tx), top + 38, C.ink3);
-    }
-    // soot on the skirt: a solid scorch with a short seam above it
-    for (let y = bottom - 6; y < bottom; y++) {
-      for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) {
-        const k = y - (bottom - 6);
-        if (k >= 2 || (k === 1 && (x + y) & 1) || (k === 0 && bayer(x, y) < 4)) pc.set(x, y, C.ink5);
-      }
-    }
-    pc.rect(Math.round(cx - 3), bottom, 6, 2, C.ink3);
-    // legs
-    for (const [x0, x1] of [[cx - 6, cx - 15], [cx + 5, cx + 14]] as [number, number][]) {
-      pc.line(x0, bottom - 8, x1, base - 5, C.ink7);
-      pc.line(x0, bottom - 7, x1, base - 5, C.ink5);
-      pc.hline(Math.min(x1, x1) - 2, base - 5, 5, C.ink8);
-    }
-    pc.line(cx, bottom - 4, cx, base - 5, C.ink4);
     // crew lift down to the pad, cargo on the slab
     pc.vline(Math.round(cx + half) + 3, top + 18, base - 5 - (top + 18), C.ink6);
     pc.rect(Math.round(cx + half) + 2, base - 12, 4, 2, C.ink8);
@@ -813,13 +777,87 @@ export function moonPad(r: Ramp4): FacilityArt {
       pc.vline(bx + 4, base - 4 - bh, bh, C.ink6);
       pc.set(bx + 1, base - 3 - bh, r.base);
     }
-    beacon(pc, g, cx, top - 1, f === 0);
     astronaut(pc, 96, base - 4, 33, 0);
     moonGround(pc, W, H);
     frames.push(pc);
     glows.push(g);
   }
-  return { base: frames, glow: glows, points: { dock: [110, H] }, fps: 1, sync: true };
+  const lander = landerFrames(r);
+  // it lifts off for orbit every half minute or so, then the next one is on the pad
+  return { base: frames, glow: glows, points: { dock: [110, H] }, fps: 1, sync: true, launch: { frames: lander.frames, glow: lander.glow, body: lander.body, x: 74, y: base - 4, period: 32, vents: [] } };
+}
+
+/**
+ * The crew lander (33 wide): a tall stainless body on splayed legs, a livery band, windows lit at
+ * night; [0] standing, [1..3] engines burning — a pale, nearly clear flame in vacuum.
+ */
+export function landerFrames(r: Ramp4): { frames: PixelCanvas[]; glow: PixelCanvas[]; body: number } {
+  const W = 33;
+  const cx = 16.5;
+  const bw = 15;
+  const half = bw / 2;
+  const top = 2;
+  const feet = 80;
+  const bottom = feet - 7;
+  const FL = 16;
+  const frames: PixelCanvas[] = [];
+  const glow: PixelCanvas[] = [];
+  for (let f = 0; f < 4; f++) {
+    const pc = new PixelCanvas(W, feet + 1 + FL);
+    const g = new PixelCanvas(W, feet + 1 + FL);
+    for (let y = top; y < bottom; y++) {
+      const k = y - top;
+      const hw = k < 12 ? Math.max(1, Math.round(half * Math.sqrt(1 - ((12 - k) / 12) ** 2))) : Math.round(half);
+      for (let x = Math.round(cx - hw); x < Math.round(cx + hw); x++) {
+        let c = cylShade(STEEL, x + 0.5 - cx, hw, x, y);
+        if (y > bottom - 14) c = c === C.white ? C.ink9 : c;
+        pc.set(x, y, c);
+      }
+    }
+    for (let x = Math.round(cx - 5); x < cx + 5; x += 3) {
+      pc.rect(x, top + 16, 2, 2, C.ink1);
+      g.rect(x, top + 16, 2, 2, C.yel1);
+    }
+    for (let y = top + 24; y < top + 28; y++) for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) pc.set(x, y, cylShade({ hi: r.hi, lit: r.lit, mid: r.base, shade: r.mid, dark: r.dark }, x + 0.5 - cx, half, x, y));
+    for (const tx of [cx - half - 1, cx + half]) {
+      pc.rect(Math.round(tx), top + 34, 2, 4, C.ink4);
+      pc.set(Math.round(tx), top + 38, C.ink3);
+    }
+    for (let y = bottom - 6; y < bottom; y++) {
+      for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) {
+        const k = y - (bottom - 6);
+        if (k >= 2 || (k === 1 && (x + y) & 1) || (k === 0 && bayer(x, y) < 4)) pc.set(x, y, C.ink5);
+      }
+    }
+    pc.rect(Math.round(cx - 3), bottom, 6, 2, C.ink3);
+    // legs
+    for (const [x0, x1] of [[cx - 6, cx - 15], [cx + 5, cx + 14]] as [number, number][]) {
+      pc.line(Math.round(x0), bottom - 8, Math.round(x1), feet, C.ink7);
+      pc.line(Math.round(x0), bottom - 7, Math.round(x1), feet, C.ink5);
+      pc.hline(Math.round(x1) - 2, feet, 5, C.ink8);
+    }
+    pc.line(Math.round(cx), bottom - 4, Math.round(cx), feet - 1, C.ink4);
+    beacon(pc, g, Math.round(cx), top - 1, f % 2 === 0);
+    if (f > 0) {
+      // the engine plume: white-blue at the bell, thinning to almost nothing
+      const len = FL - 3 + f * 2;
+      for (let y = 0; y < len; y++) {
+        const w = Math.max(1, Math.round(3 - y * 0.12 + (f === 2 ? 1 : 0)));
+        for (let x = -w; x < w; x++) {
+          const px = Math.round(cx) + x;
+          const py = bottom + 2 + y;
+          const k = y / len;
+          if (k > 0.6 && bayer(px, py) >= (1 - k) * 30) continue;
+          const c = k < 0.25 ? C.white : k < 0.55 ? C.ice2 : C.sky4;
+          pc.set(px, py, c);
+          g.set(px, py, k < 0.4 ? C.white : C.ice1);
+        }
+      }
+    }
+    frames.push(pc);
+    glow.push(g);
+  }
+  return { frames, glow, body: feet + 1 };
 }
 
 export const RIM_W = 150;

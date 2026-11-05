@@ -1553,6 +1553,11 @@ export class DioramaScene implements Scene {
     r.trail -= dt;
     if (r.trail > 0) return;
     r.trail = 0.045;
+    if (this.airless) {
+      // no air: no cloud and no trail, just regolith blasted sideways off the pad as it lifts
+      if (pose.phase === 'ignite' || pose.dy > -24) for (let k = 0; k < 3; k++) this.spawnPuff('dust', padX + (Math.random() - 0.5) * 30, padY - 1);
+      return;
+    }
     if (pose.phase === 'ignite' || pose.dy > -40) {
       // the ground cloud: steam and exhaust bursting sideways out of the flame trench
       for (const side of [-1, 1]) {
