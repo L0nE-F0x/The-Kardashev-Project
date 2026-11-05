@@ -11,9 +11,20 @@ import { drawText, measureText, FONT_HEIGHT } from './font';
 import { fmtTW } from '../sim/core';
 import { spaceTW } from '../sim/swarm';
 import { warming } from '../sim/climate';
+import { bitForm } from '../sim/systemView';
 
 export const END_W = 480;
 export const END_H = 270;
+
+/** The run in a line: what Earth became, who owns the sky, what became of Bit (the pixel font has no apostrophes). */
+function identity(s: GameState): string {
+  const sy = s.system;
+  if (!sy) return '';
+  const earth = sy.earth && { garden: 'GARDEN EARTH', provinces: 'PATCHWORK EARTH', workshop: 'WORKSHOP EARTH' }[sy.earth];
+  const sky = sy.ownership && { commons: 'THE COMMONS', concessions: 'CONCESSIONS', claims: 'CLAIMS' }[sy.ownership];
+  const bit = sy.bitFate && { costeward: 'BIT AT YOUR SIDE', free: 'BIT SET FREE', leash: 'BIT ON A LEASH' }[sy.bitFate];
+  return [earth, sky, bit].filter(Boolean).join(' · ');
+}
 
 /** The pixel font drawn at a whole-number scale (big titles stay crisp). */
 function bigText(pc: PixelCanvas, str: string, x: number, y: number, c: number, scale: number): void {
@@ -76,13 +87,15 @@ export function drawEndCard({ s, terrain, res }: EndCardInput): PixelCanvas {
   bigText(pc, String(year), right, 60, C.white, 6);
   const name = s.company.name.toUpperCase().slice(0, 28);
   bigText(pc, name, right, 104, C.cyn5, 2);
+  const form = bitForm(s);
   const lines = [
     `KARDASHEV ${s.stats.K.toFixed(4)}`,
     `${fmtTW(s.stats.worldTW).toUpperCase()} · ${fmtTW(spaceTW(s)).toUpperCase()} IN SPACE`,
     `WARMING ${warming(s).toFixed(2)} C`,
-    `${s.models.length} MODELS · BIT-${Math.min(9, s.models.length)}`,
+    `${s.models.length} MODELS · BIT-${form}`,
     s.system ? `HEALTHY YEARS ${s.system.lifeExp.toFixed(0)} · ${s.system.spacePop.toFixed(0)}M IN SPACE` : '',
     `${s.meta.difficulty.toUpperCase()} · SOLAR MAX ${s.system?.solarmax?.held ?? 0}/3`,
+    identity(s),
   ].filter(Boolean);
   lines.forEach((l, i) => drawText(pc, l, right, 126 + i * 10, i === 0 ? C.yel0 : C.ice2));
   // footer: the game's name and address
