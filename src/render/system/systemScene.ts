@@ -14,11 +14,11 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
 import { orbitExtras, systemView, type SystemView } from '../../sim/systemView';
-import { getEra, hex, C } from '../palette';
+import { getEra, C } from '../palette';
 import { PixelCanvas } from '../pixels';
+import { PixelPool } from '../pixelPool';
 import { dragSlop, touchRadius, type PixelPointer, type Scene } from '../stage';
 import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf } from '../textures';
-import { pixelTexture } from '../sprites/mapIcons';
 import { orbitTerrain } from '../orbit/orbitArt';
 import {
   CINE_HOLD,
@@ -29,6 +29,7 @@ import {
   inboundDirs,
   lensNear,
   makeProj,
+  nearBox,
   nearFx,
   nearTilt,
   paintNear,
@@ -63,55 +64,8 @@ const CINE_DRIFT = 0.012;
 /** Degrees per second the Earth in the lens turns. */
 const SPIN = 3;
 
-/** A pool of sprites reused frame to frame: 1×1 tinted pixels and small textured sprites (tints cached). */
-class Pool {
-  private sprites: Sprite[] = [];
-  private tints: number[] = [];
-  private used = 0;
-  constructor(private readonly parent: Container) {}
-  begin() {
-    this.used = 0;
-  }
-  px(x: number, y: number, c: number) {
-    const i = this.used;
-    const sp = this.next(pixelTexture());
-    if (this.tints[i] !== c) {
-      sp.tint = hex(c);
-      this.tints[i] = c;
-    }
-    sp.position.set(x, y);
-  }
-  spr(tex: Texture, x: number, y: number) {
-    const i = this.used;
-    const sp = this.next(tex);
-    if (this.tints[i] !== -1) {
-      sp.tint = 0xffffff;
-      this.tints[i] = -1;
-    }
-    sp.position.set(x, y);
-  }
-  end() {
-    for (let i = this.used; i < this.sprites.length; i++) this.sprites[i].visible = false;
-  }
-  /** Forget cached tints (the palette changed under them). */
-  retint() {
-    this.tints = [];
-  }
-  get size() {
-    return this.used;
-  }
-  private next(tex: Texture): Sprite {
-    let sp = this.sprites[this.used];
-    if (!sp) {
-      sp = new Sprite(tex);
-      this.parent.addChild(sp);
-      this.sprites.push(sp);
-    } else if (sp.texture !== tex) sp.texture = tex;
-    sp.visible = true;
-    this.used++;
-    return sp;
-  }
-}
+/** Each wheel notch is ~100 (the stage turns lines and pages into pixels): one zoom step per notch's worth. */
+const WHEEL_STEP = 100;
 
 interface Layer {
   pc: PixelCanvas;
@@ -142,11 +96,11 @@ export class SystemScene implements Scene {
   private readonly lensL = new Container();
   private readonly lensFx = new Container();
   private readonly labelL = new Container();
-  private readonly backPool = new Pool(this.backFx);
-  private readonly sunPool = new Pool(this.sunFx);
-  private readonly frontPool = new Pool(this.frontFx);
-  private readonly nearPool = new Pool(this.nearFxL);
-  private readonly lensPool = new Pool(this.lensFx);
+  private readonly backPool = new PixelPool(this.backFx);
+  private readonly sunPool = new PixelPool(this.sunFx);
+  private readonly frontPool = new PixelPool(this.frontFx);
+  private readonly nearPool = new PixelPool(this.nearFxL);
+  private readonly lensPool = new PixelPool(this.lensFx);
 
   /** True once the ending's pull-back has finished (always true outside the cinematic). */
   cinematicDone: boolean;
@@ -184,12 +138,15 @@ export class SystemScene implements Scene {
   private down: { x: number; y: number; rot0: number; tilt0: number; moved: boolean } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
   private pinchDist = 0;
+  /** Wheel deltas toward the next zoom step, and the last event seen (real ms). */
+  private wheelAcc = 0;
+  private wheelSeen = -1e9;
 
   constructor(private readonly game: Game, opts: { cinematic?: boolean } = {}) {
     this.cinematic = !!opts.cinematic;
     this.cinematicDone = !this.cinematic;
     this.root.addChild(this.skyL, this.staticL, this.backFx, this.sunFx, this.frontFx, this.nearL, this.nearFxL, this.lensL, this.lensFx, this.labelL);
-    this.resize(640, 360);
+    // (the layers are made at the first resize, at the stage's real size)
   }
 
   /** Where Earth is on screen this frame (internal pixels). */
@@ -220,7 +177,6 @@ export class SystemScene implements Scene {
     this.lens = this.layer(this.lens, this.lensL, size, size + 6);
     this.lens.sprite.position.set(this.L.lens.x - Math.floor(size / 2), this.L.lens.y - Math.floor(size / 2) - 6);
     this.lensKey = '';
-    if (this.near) this.near = this.layer(this.near, this.nearL, w, h);
     this.nearAt = -1;
   }
 
@@ -248,6 +204,7 @@ export class SystemScene implements Scene {
   // ── per frame ────────────────────────────────────────────────────────────────────────────
   update(dt: number, now: number) {
     void now;
+    if (!this.sky) this.resize(this.L.w, this.L.h);
     const st = this.game.settings;
     const still = !!st?.reducedMotion;
     const lite = !!st?.batterySaver;
@@ -292,7 +249,7 @@ export class SystemScene implements Scene {
     this.updateStatic(v, lite);
     this.updateSun(v, still);
     const lensOn = !this.cinematic;
-    const sink = (back: Pool, front: Pool): FxSink => ({
+    const sink = (back: PixelPool, front: PixelPool): FxSink => ({
       px: (x, y, c, fr) => (fr ? front : back).px(x, y, c),
       spr: (key, make, x, y, fr) => (fr ? front : back).spr(cachedTexture(key, make), x, y),
     });
@@ -314,14 +271,22 @@ export class SystemScene implements Scene {
     // the ending's close-up of Earth and the Moon
     this.nearPool.begin();
     if (nearG) {
-      if (!this.near) this.near = this.layer(null, this.nearL, this.L.w, this.L.h);
-      this.near.sprite.visible = true;
       if (this.nearAt < 0 || this.time - this.nearAt >= 1 / 30) {
         this.nearAt = this.time;
-        this.near.pc.data.fill(0);
-        paintNear(this.near.pc, nearG, { terrain: this.terrain() });
-        refreshTexture(this.near.tex);
+        // only the box round the Earth and the Moon's orbit is painted and uploaded (it shrinks as the camera pulls back);
+        // the layer is remade only when the box outgrows it or has shrunk well inside it
+        const box = nearBox(nearG, this.L);
+        const n = this.near;
+        if (!n || n.pc.w < box.w || n.pc.h < box.h || n.pc.w * n.pc.h > 2.5 * box.w * box.h + 4096) {
+          this.near = this.layer(n, this.nearL, Math.ceil(box.w / 32) * 32, Math.ceil(box.h / 32) * 32);
+        }
+        const near = this.near!;
+        near.pc.data.fill(0);
+        near.sprite.position.set(box.x, box.y);
+        paintNear(near.pc, nearG, { terrain: this.terrain(), origin: [box.x, box.y] });
+        refreshTexture(near.tex);
       }
+      this.near!.sprite.visible = true;
       nearFx({ px: (x, y, c) => this.nearPool.px(x, y, c), spr: (key, make, x, y) => this.nearPool.spr(cachedTexture(key, make), x, y) }, nearG, nearIn, { still, hover: null });
     } else if (this.near) this.near.sprite.visible = false;
     this.nearPool.end();
@@ -538,15 +503,50 @@ export class SystemScene implements Scene {
     else this.game.enterDiorama(h.open);
   }
 
+  /** A cancelled press (the browser took the gesture): no tap, so nothing opens. */
+  pointerCancel(p: PixelPointer) {
+    this.pointers.delete(p.id);
+    if (this.pointers.size < 2) this.pinchDist = 0;
+    this.down = null;
+  }
+
   pointerLeave() {
     this.cursor = null;
     this.setHover(null);
   }
 
+  /**
+   * A notch is a step; a trackpad's stream of small deltas adds up to steps in proportion (it used
+   * to be a step per event, so one swipe shot to the end of the range). Running into the inner
+   * edge opens the orbit view only on a new gesture, so the swipe that got here doesn't carry on.
+   */
   wheel(_p: PixelPointer, deltaY: number) {
     if (this.cinematic) return;
-    if (deltaY < 0) this.zoomIn();
-    else this.zoomOut();
+    const now = performance.now();
+    // a new gesture: the first event after a pause (and not the tail of the swipe that opened this view)
+    const fresh = now - this.wheelSeen > 250 && this.time > 0.3;
+    this.wheelSeen = now;
+    const atEdge = this.view <= VIEW_MIN + 1e-3;
+    if (fresh || Math.sign(deltaY) !== Math.sign(this.wheelAcc)) this.wheelAcc = 0;
+    // a notch (a mouse) is always at least a step; small deltas (a trackpad) add up
+    this.wheelAcc += Math.abs(deltaY) >= WHEEL_STEP / 2 ? Math.sign(deltaY) * Math.max(WHEEL_STEP, Math.abs(deltaY)) : deltaY;
+    while (Math.abs(this.wheelAcc) >= WHEEL_STEP) {
+      const out = this.wheelAcc > 0;
+      this.wheelAcc -= Math.sign(this.wheelAcc) * WHEEL_STEP;
+      if (out) this.zoomOut();
+      else if (this.view > VIEW_MIN + 1e-3) this.zoomIn();
+      else {
+        // at the inner edge: a gesture that starts here goes on to the orbit view; one that zoomed in to here stops
+        if (fresh && atEdge) this.zoomIn();
+        this.wheelAcc = 0;
+        break;
+      }
+    }
+  }
+
+  /** The camera eases toward a new zoom, or the player turns or pinches it (the ending's pull-back has its own rule). */
+  busy(): boolean {
+    return this.viewNow !== this.view || !!this.down?.moved || this.pointers.size >= 2;
   }
 
   destroy() {

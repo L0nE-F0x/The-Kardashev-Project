@@ -14,11 +14,11 @@ import { SITE_BY_ID } from '../../content/sites';
 import { orbitView, type OrbitView } from '../../sim/planetView';
 import { orbitExtras, type OrbitExtras } from '../../sim/systemView';
 import { subsolar } from '../../world/sun';
-import { getEra, hex, C } from '../palette';
+import { getEra, C } from '../palette';
 import { PixelCanvas } from '../pixels';
+import { PixelPool } from '../pixelPool';
 import { dragSlop, type PixelPointer, type Scene } from '../stage';
 import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf } from '../textures';
-import { pixelTexture } from '../sprites/mapIcons';
 import { planetView, rectennaKey, sgKey } from '../worldMap/act4Layers';
 import {
   extrasLabels,
@@ -46,43 +46,6 @@ const DRIFT = 2.2;
 const LAT_MIN = -30;
 const LAT_MAX = 45;
 
-/** A pool of sprites reused frame to frame: 1×1 tinted pixels and small textured sprites. */
-class Pool {
-  private sprites: Sprite[] = [];
-  private used = 0;
-  constructor(private readonly parent: Container) {}
-  begin() {
-    this.used = 0;
-  }
-  px(x: number, y: number, c: number) {
-    const sp = this.next(pixelTexture());
-    sp.tint = hex(c);
-    sp.position.set(x, y);
-  }
-  spr(tex: Texture, x: number, y: number) {
-    const sp = this.next(tex);
-    sp.tint = 0xffffff;
-    sp.position.set(x, y);
-  }
-  end() {
-    for (let i = this.used; i < this.sprites.length; i++) this.sprites[i].visible = false;
-  }
-  get size() {
-    return this.used;
-  }
-  private next(tex: Texture): Sprite {
-    let sp = this.sprites[this.used];
-    if (!sp) {
-      sp = new Sprite(tex);
-      this.parent.addChild(sp);
-      this.sprites.push(sp);
-    } else if (sp.texture !== tex) sp.texture = tex;
-    sp.visible = true;
-    this.used++;
-    return sp;
-  }
-}
-
 interface Layer {
   pc: PixelCanvas;
   tex: Texture;
@@ -99,8 +62,10 @@ export class OrbitScene implements Scene {
   private readonly frontL = new Container();
   private readonly frontFx = new Container();
   private readonly labelL = new Container();
-  private readonly backPool = new Pool(this.backFx);
-  private readonly frontPool = new Pool(this.frontFx);
+  private readonly backPool = new PixelPool(this.backFx);
+  private readonly frontPool = new PixelPool(this.frontFx);
+  /** The era the pools' colours were worked out in. */
+  private era = -1;
 
   private L: OrbitLayout = orbitLayout(640, 360);
   private cam: Cam;
@@ -126,12 +91,14 @@ export class OrbitScene implements Scene {
   /** Act V: the yard or habitats under the pointer. */
   private spotHover: 'l4' | 'l5' | 'aurora' | null = null;
   private extras: OrbitExtras = orbitExtras(null);
+  /** The last wheel event seen (real ms; see wheel). */
+  private wheelSeen = -1e9;
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.skyL, this.moonL, this.backL, this.backFx, this.globeL, this.frontL, this.frontFx, this.labelL);
     // start with the terminator in view: the sunlit side on the left, evening to the right
     this.cam = { lon0: this.sun.lon + 40, lat0: 22 };
-    this.resize(640, 360);
+    // (the layers are made at the first resize, at the stage's real size)
   }
 
   // ── layout ───────────────────────────────────────────────────────────────────────────────
@@ -181,6 +148,7 @@ export class OrbitScene implements Scene {
   // ── per frame ────────────────────────────────────────────────────────────────────────────
   update(dt: number, now: number) {
     void now;
+    if (!this.sky) this.resize(this.L.w, this.L.h);
     this.time += dt;
     const st = this.game.settings;
     const still = st.reducedMotion;
@@ -222,13 +190,15 @@ export class OrbitScene implements Scene {
     refreshTexture(f.tex);
   }
 
-  /** Repaint the Earth when it has turned half a pixel, the sun moved or the planet changed (throttled). */
+  /** Repaint the Earth when it has turned a whole pixel, the sun moved or the planet changed (throttled). */
   private updateGlobe(s: Game['view'], ov: OrbitView, battery: boolean) {
     const pv = planetView(s);
-    const bloom = getEra() >= 2;
-    const key = `${bloom}|${sgKey(pv)}|${rectennaKey(pv)}|${pv.fusion.filter((f) => f.status === 'online').length}|${ov.spaceport}|${ov.pads}`;
+    const era = getEra();
+    const bloom = era >= 2;
+    const key = `${era}|${sgKey(pv)}|${rectennaKey(pv)}|${pv.fusion.filter((f) => f.status === 'online').length}|${ov.spaceport}|${ov.pads}`;
     const r = this.L.r;
-    const moved = Math.abs(this.cam.lon0 - this.drawn.lon0) * RAD * r >= 0.5 || Math.abs(this.cam.lat0 - this.drawn.lat0) * RAD * r >= 0.5;
+    // the drift turns the surface ~4 px a second: a repaint per whole pixel, not per half
+    const moved = Math.abs(this.cam.lon0 - this.drawn.lon0) * RAD * r >= 1 || Math.abs(this.cam.lat0 - this.drawn.lat0) * RAD * r >= 1;
     if (!moved && key === this.drawn.key) return;
     const gap = this.down ? 1 / 40 : battery ? 1 / 8 : 1 / 20;
     if (this.drawn.at >= 0 && this.time - this.drawn.at < gap && key === this.drawn.key) return;
@@ -236,8 +206,7 @@ export class OrbitScene implements Scene {
     paintGlobe(this.globe!.pc, this.L, { terrain: orbitTerrain(lod, bloom), res: lod.res, smooth: r < 60, cam: this.cam, sun: this.sun, planet: pv, orbit: ov, t: this.time });
     refreshTexture(this.globe!.tex);
     this.drawn = { lon0: this.cam.lon0, lat0: this.cam.lat0, key, at: this.time };
-    // the Moon's phase follows the same sun
-    this.moonKey = '';
+    // (the Moon's phase follows the same sun: its own key notices when that has moved enough to show)
   }
 
   private updateMoon(ov: OrbitView) {
@@ -250,6 +219,12 @@ export class OrbitScene implements Scene {
   }
 
   private updateFx(ov: OrbitView, still: boolean, battery: boolean) {
+    if (getEra() !== this.era) {
+      // the palette changed: the pools' colours point at the old one
+      this.era = getEra();
+      this.backPool.retint();
+      this.frontPool.retint();
+    }
     this.backPool.begin();
     this.frontPool.begin();
     const back = this.backPool;
@@ -430,15 +405,34 @@ export class OrbitScene implements Scene {
     }
   }
 
+  /** A cancelled press (the browser took the gesture): no tap, so no trip to the Moon. */
+  pointerCancel(p: PixelPointer) {
+    this.pointers.delete(p.id);
+    this.down = null;
+    this.idleUntil = this.time + 2.5;
+  }
+
   pointerLeave() {
     this.moonHover = false;
     this.spotHover = null;
   }
 
   wheel(_p: PixelPointer, deltaY: number) {
-    // wheel up zooms back in to the map; down turns the globe a little
-    if (deltaY < 0) this.zoomIn();
-    else this.pan(-14, 0);
+    const now = performance.now();
+    // a new gesture: the first event after a pause (and not the tail of the swipe that opened this view)
+    const fresh = now - this.wheelSeen > 250 && this.time > 0.3;
+    this.wheelSeen = now;
+    // wheel up zooms back in to the map, once per gesture (a trackpad's stream used to fall through to the map at once)
+    if (deltaY < 0) {
+      if (fresh) this.zoomIn();
+    }
+    // down turns the globe as far as the wheel turns: 14 px a notch, a trackpad's small deltas a little each
+    else this.pan(-Math.min(deltaY, 400) * 0.14, 0);
+  }
+
+  /** A glide to a point, or a drag. */
+  busy(): boolean {
+    return this.glide !== null || !!this.down?.moved;
   }
 
   destroy() {

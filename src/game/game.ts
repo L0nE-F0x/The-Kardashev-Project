@@ -97,7 +97,7 @@ export interface SceneFactory {
   system?(game: Game, opts?: { cinematic?: boolean }): Scene;
 }
 
-/** Game days a time jump advances per frame (the map time-lapses while it runs). */
+/** Game days a time jump advances per 1/60 s of real time (the map time-lapses while it runs). */
 const JUMP_DAYS_PER_FRAME = 7;
 
 const SPEEDS = [0, 1, 2, 4, 8] as const;
@@ -172,6 +172,8 @@ export class Game {
   private lastNewsSeen = 0;
   private hiddenAt = 0;
   private frameCount = 0;
+  /** Real time owed to a running jump or era, in 1/60 s ticks (a week each). */
+  private jumpTicks = 0;
   private fpsTime = 0;
   private fpsFrames = 0;
 
@@ -404,8 +406,7 @@ export class Game {
     this.mode = 'map';
     this.dioramaSite = null;
     setAmbience('map');
-    this.stage.setZoomBoost(this.settings.zoom);
-    this.stage.setScene(this.scenes.map(this));
+    this.stage.setScene(this.scenes.map(this), this.settings.zoom);
     this.act2Music = (this.state?.act ?? 1) >= 2;
     this.act3Music = (this.state?.act ?? 1) >= 3;
     playMusic(this.eraTrack());
@@ -424,8 +425,7 @@ export class Game {
     this.dioramaSite = null;
     setAmbience('space');
     this.hover = null;
-    this.stage.setZoomBoost(this.settings.zoom);
-    this.stage.setScene(this.scenes.orbit(this));
+    this.stage.setScene(this.scenes.orbit(this), this.settings.zoom);
     sfx('whoosh');
     this.notify();
   }
@@ -441,8 +441,7 @@ export class Game {
     setAmbience('space');
     this.dioramaSite = null;
     this.hover = null;
-    this.stage.setZoomBoost(this.settings.zoom);
-    this.stage.setScene(this.scenes.system(this, { cinematic }));
+    this.stage.setScene(this.scenes.system(this, { cinematic }), this.settings.zoom);
     if (!cinematic) sfx('whoosh');
     this.notify();
   }
@@ -472,8 +471,7 @@ export class Game {
     }
     this.hover = null;
     // dioramas are close-ups: twice the pixel size of the world map
-    this.stage.setZoomBoost(this.settings.zoom * 2);
-    this.stage.setScene(this.scenes.diorama(this, siteId));
+    this.stage.setScene(this.scenes.diorama(this, siteId), this.settings.zoom * 2);
     sfx('whoosh');
     this.notify();
   }
@@ -584,9 +582,13 @@ export class Game {
         this.achTimer = 0;
         for (const a of earned(s, achievements().got)) this.unlockAchievement(a.id);
       }
-      // Act IV: a time jump runs a week per frame so the map can time-lapse (or all at once when skipped)
-      if (s.planet?.jump) {
-        const rec = this.stepBudgeted(() => PL.jumpStep(s, this.ctx, this.jumpFast ? 30 : JUMP_DAYS_PER_FRAME), () => !!s.planet?.jump);
+      // time-lapses go by real time (a week per 1/60 s), not per drawn frame: as long on a 120 Hz screen as on 60
+      const ticks = this.jumpTicks + dt * 60;
+      const steps = Math.max(0, Math.min(2, Math.round(ticks)));
+      this.jumpTicks = Math.max(-0.5, Math.min(0.5, ticks - steps));
+      // Act IV: a time jump runs a week a tick so the map can time-lapse (or all at once when skipped)
+      if (s.planet?.jump && (steps || this.jumpFast)) {
+        const rec = this.stepBudgeted(() => PL.jumpStep(s, this.ctx, this.jumpFast ? 30 : JUMP_DAYS_PER_FRAME * steps), () => !!s.planet?.jump);
         refreshStats(s);
         if (rec) {
           this.jumpReport = rec;
@@ -599,9 +601,9 @@ export class Game {
       }
       // Act V: an era (or the last climb) runs a week per frame while the views time-lapse
       if (s.system?.jump?.last && this.mode === 'map' && this.hasSystemView) this.enterSystem();
-      if (s.system?.jump) {
+      if (s.system?.jump && (steps || this.jumpFast)) {
         const last = !!s.system.jump.last;
-        const rec = this.stepBudgeted(() => ERA.eraStep(s, this.ctx, this.jumpFast ? 30 : last ? JUMP_DAYS_PER_FRAME * 2 : JUMP_DAYS_PER_FRAME), () => !!s.system?.jump);
+        const rec = this.stepBudgeted(() => ERA.eraStep(s, this.ctx, this.jumpFast ? 30 : (last ? JUMP_DAYS_PER_FRAME * 2 : JUMP_DAYS_PER_FRAME) * steps), () => !!s.system?.jump);
         refreshStats(s);
         if (rec) {
           this.eraReport = rec.last ? null : rec;
@@ -654,8 +656,8 @@ export class Game {
       if (now - this.lastAutosave > this.settings.autosaveSec * 1000) this.save();
     }
     this.updateEra();
-    // battery saver: draw every other frame (~30 fps)
-    if (!this.settings.batterySaver || this.frameCount % 2 === 0) this.stage.frame(this.settings.batterySaver ? dt * 2 : dt, now);
+    // main.ts paces the frames (60 a second at most, 30 with the battery saver or while nothing moves)
+    this.stage.frame(dt, now);
   }
 
   /**

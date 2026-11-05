@@ -35,16 +35,45 @@ async function boot() {
   status?.remove();
   bindKeys(game);
 
-  let last = performance.now();
+  // Frame pacing: at most 60 frames a second (30 with the battery saver), and 30 while nothing moves,
+  // so 90–144 Hz screens and idle phones don't draw flat out. dt is real time, so nothing animates
+  // faster or slower than before; any key, wheel or touch wakes the loop at once.
+  let lastDraw = performance.now();
+  let nextDraw = 0;
+  let lastInput = lastDraw;
+  const wake = () => {
+    lastInput = performance.now();
+    // out of the calm rate at once, but never past the cap (a moving mouse sends events faster than frames)
+    nextDraw = Math.min(nextDraw, lastDraw + 1000 / (game.settings.batterySaver ? 30 : 60));
+  };
+  for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) window.addEventListener(type, wake, { capture: true, passive: true });
   const loop = (now: number) => {
-    const dt = Math.min(0.25, (now - last) / 1000);
-    last = now;
-    game.frame(dt, now);
+    if (now >= nextDraw - 1.5) {
+      const fps = game.settings.batterySaver || calm(game, now - lastInput) ? 30 : 60;
+      const budget = 1000 / fps;
+      // keep to the average rate on screens that aren't a multiple of it, but never catch up in a burst
+      nextDraw = Math.max(nextDraw + budget, now + budget * 0.75);
+      const dt = Math.min(0.25, (now - lastDraw) / 1000);
+      lastDraw = now;
+      game.frame(dt, now);
+    }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   // handy in the console while iterating
   (window as unknown as { game: Game }).game = game;
+}
+
+/**
+ * Nothing on screen needs a smooth frame rate: the clock is stopped (paused, or a card waits), no
+ * input for a couple of seconds, the camera is still, and no tour, time-lapse, ending or fade.
+ */
+function calm(game: Game, idleMs: number): boolean {
+  if (idleMs < 2000 || game.mode === 'title' || game.ending || game.stage.fade > 0) return false;
+  const s = game.state;
+  if (!s || s.planet?.jump || s.system?.jump) return false;
+  if (game.speed !== 0 && !game.blocked) return false;
+  return !game.stage.getScene()?.busy?.();
 }
 
 /** Escape and the Android back gesture: close the topmost thing. False when nothing was open. */

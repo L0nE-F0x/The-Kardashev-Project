@@ -31,15 +31,32 @@ const FIELD_COLS = [C.grn5, C.grn6, C.grn7, C.snd6, C.grn6, C.snd7, C.grn4];
  * noise, raised coastlines, farmland patchwork, forests and mountain peaks.
  */
 export function renderTerrain(lod: MapLod): PixelCanvas {
+  return drain(paintTerrain(lod));
+}
+
+/** Run a sliced job to the end. */
+function drain<T>(job: Generator<void, T>): T {
+  for (;;) {
+    const r = job.next();
+    if (r.done) return r.value;
+  }
+}
+
+/** The terrain painting, a few rows at a time (it pauses between slices so it can run in idle moments). */
+function* paintTerrain(lod: MapLod): Generator<void, PixelCanvas> {
   const { W, H, biome, coast, res } = lod;
   const pc = new PixelCanvas(W, H);
   const shelf = shelfField(lod);
+  yield;
   const fine = res <= 0.25;
   const isLand = (x: number, y: number) => {
     if (y < 0 || y >= H) return false;
     const xi = ((x % W) + W) % W;
     return biome[y * W + xi] !== B.OCEAN;
   };
+  // the Arctic pack ice's wobbly edge depends only on the longitude: once per column
+  const iceLine = new Float64Array(W);
+  for (let x = 0; x < W; x++) iceLine[x] = 80.5 + (fbm((-180 + (x + 0.5) * res) / 16, 3.3, 41, 3) - 0.5) * 8;
 
   for (let y = 0; y < H; y++) {
     const lat = 90 - (y + 0.5) * res;
@@ -48,7 +65,7 @@ export function renderTerrain(lod: MapLod): PixelCanvas {
       const b = biome[i];
       const lon = -180 + (x + 0.5) * res;
       if (b === B.OCEAN) {
-        pc.data[i] = oceanColour(x, y, coast[i], shelf[i], lat, lon, isLand(x - 1, y - 1) || isLand(x, y - 1));
+        pc.data[i] = oceanColour(x, y, coast[i], shelf[i], lat, lon, isLand(x - 1, y - 1) || isLand(x, y - 1), iceLine[x]);
         continue;
       }
       const ramp = RAMPS[b] ?? RAMPS[B.TEMPERATE];
@@ -82,29 +99,31 @@ export function renderTerrain(lod: MapLod): PixelCanvas {
       }
       pc.data[i] = c;
     }
+    if ((y & 7) === 7) yield;
   }
 
-  decorate(pc, lod);
+  yield* decorate(pc, lod);
   return pc;
 }
 
-function oceanColour(x: number, y: number, d: number, shelf: number, lat: number, lon: number, landAbove: boolean): number {
+/** Ocean depth bands, shallow to deep: [lower limit of the shelf value, colour]. */
+const BANDS: [number, number][] = [
+  [0.34, C.sea5],
+  [0.19, C.sea4],
+  [0.085, C.sea3],
+  [0.025, C.sea2],
+];
+
+function oceanColour(x: number, y: number, d: number, shelf: number, lat: number, lon: number, landAbove: boolean, iceLine: number): number {
   // Arctic pack ice: solid cap with a dithered, wobbly edge
-  const iceLine = 80.5 + (fbm(lon / 16, 3.3, 41, 3) - 0.5) * 8;
   if (lat > iceLine) return hash2(x, y, 44) < 0.04 ? C.ice1 : C.ice2;
   if (lat > iceLine - 1.5 && ditherAt(x, y, (lat - iceLine + 1.5) / 1.5)) return C.ice1;
   if (d <= 1) return landAbove ? C.sea5 : C.sea7;
   if (d <= 2) return C.sea6;
   const n = fbm(lon / 7, lat / 7, 77, 2);
   const v = shelf + (n - 0.5) * 0.08;
-  const bands: [number, number][] = [
-    [0.34, C.sea5],
-    [0.19, C.sea4],
-    [0.085, C.sea3],
-    [0.025, C.sea2],
-  ];
   let upper = 1;
-  for (const [limit, col] of bands) {
+  for (const [limit, col] of BANDS) {
     if (v > limit) {
       // dither toward the shallower band near the top of this band
       const t = (v - limit) / (upper - limit);
@@ -181,7 +200,7 @@ function stamp(pc: PixelCanvas, rows: string[], x: number, y: number, map: Recor
   }
 }
 
-function decorate(pc: PixelCanvas, lod: MapLod) {
+function* decorate(pc: PixelCanvas, lod: MapLod): Generator<void, void> {
   const { W, H, biome, res } = lod;
   const fine = res <= 0.25;
   const at = (x: number, y: number) => (y < 0 || y >= H ? B.OCEAN : biome[y * W + (((x % W) + W) % W)]);
@@ -221,12 +240,15 @@ function decorate(pc: PixelCanvas, lod: MapLod) {
           pc.set(x, y + 1, dark);
         }
       }
+      if ((y & 31) === 31) yield;
     }
   }
+  yield;
 
   // mountain peaks on a jittered grid, drawn back-to-front
   const step = fine ? 5 : 4;
   for (let gy = 0; gy < H; gy += step - 1) {
+    if (gy % 96 < step - 1) yield;
     for (let gx = 0; gx < W; gx += step) {
       const jx = gx + Math.floor(hash2(gx, gy, 31) * step);
       const jy = gy + Math.floor(hash2(gx, gy, 32) * (step - 1));
@@ -269,14 +291,39 @@ export function renderBorders(lod: MapLod, highlight: number | null = null): Pix
 }
 
 const terrainMemo = new WeakMap<MapLod, PixelCanvas>();
-/** Memoised terrain painting for a LOD (used by previews; scenes keep their own textures). */
+/** A terrain painting under way in idle slices (terrainSlice), finished at once if someone needs it now. */
+const terrainJobs = new WeakMap<MapLod, Generator<void, PixelCanvas>>();
+
+/**
+ * Memoised terrain painting for a LOD: one painting shared by the world map, the orbit globe, the
+ * site previews, the Moon's Earth and the end card. Never mutate it (orbitTerrain clones it).
+ */
 export function terrainCanvas(lod: MapLod): PixelCanvas {
   let pc = terrainMemo.get(lod);
   if (!pc) {
-    pc = renderTerrain(lod);
+    const job = terrainJobs.get(lod) ?? paintTerrain(lod);
+    terrainJobs.delete(lod);
+    pc = drain(job);
     terrainMemo.set(lod, pc);
   }
   return pc;
+}
+
+/** Paint some more of a LOD's terrain, for about `ms` (idle-time builds). True once it's all painted. */
+export function terrainSlice(lod: MapLod, ms: number): boolean {
+  if (terrainMemo.has(lod)) return true;
+  let job = terrainJobs.get(lod);
+  if (!job) terrainJobs.set(lod, (job = paintTerrain(lod)));
+  const t0 = performance.now();
+  for (;;) {
+    const r = job.next();
+    if (r.done) {
+      terrainJobs.delete(lod);
+      terrainMemo.set(lod, r.value);
+      return true;
+    }
+    if (performance.now() - t0 >= ms) return false;
+  }
 }
 
 /**

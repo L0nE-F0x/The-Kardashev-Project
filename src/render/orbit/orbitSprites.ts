@@ -7,6 +7,14 @@ import { PixelCanvas } from '../pixels';
 
 type Keys = Record<string, ColorKey | null>;
 
+/** The orbit view asks for these every frame (for their sizes too): paint each one once. Never mutate them. */
+const painted = new Map<string, PixelCanvas>();
+function once(key: string, paint: () => PixelCanvas): PixelCanvas {
+  let pc = painted.get(key);
+  if (!pc) painted.set(key, (pc = paint()));
+  return pc;
+}
+
 function framed(pc: PixelCanvas, outline: number = C.ink0): PixelCanvas {
   const out = new PixelCanvas(pc.w + 2, pc.h + 2);
   out.blit(pc, 1, 1);
@@ -41,12 +49,12 @@ const ODC_KEYS: Keys = { a: 'ink7', b: 'blu5', c: 'blu3', d: 'cyn5', e: 'ink8', 
 
 /** An orbital data centre: a lit rack between two solar wings, white radiator fins trailing. */
 export function odcCanvas(): PixelCanvas {
-  return framed(PixelCanvas.from(ODC, ODC_KEYS));
+  return once('odc', () => framed(PixelCanvas.from(ODC, ODC_KEYS)));
 }
 
 /** An orbital data centre under construction. */
 export function odcFrameCanvas(progress: number): PixelCanvas {
-  return scaffold(PixelCanvas.from(ODC, ODC_KEYS), progress);
+  return once(`odcf:${progress}`, () => scaffold(PixelCanvas.from(ODC, ODC_KEYS), progress));
 }
 
 const SPS = `
@@ -67,11 +75,11 @@ const SPS_KEYS: Keys = { y: 'yel1', z: 'org2', a: 'ink8', b: 'ink9', d: 'pnk1' }
 
 /** A space-solar station: two gold arrays on a truss, the microwave dish facing Earth. */
 export function spsCanvas(big: boolean): PixelCanvas {
-  return framed(PixelCanvas.from(big ? SPS : SPS_SMALL, SPS_KEYS));
+  return once(`sps:${big}`, () => framed(PixelCanvas.from(big ? SPS : SPS_SMALL, SPS_KEYS)));
 }
 
 export function spsFrameCanvas(big: boolean, progress: number): PixelCanvas {
-  return scaffold(PixelCanvas.from(big ? SPS : SPS_SMALL, SPS_KEYS), progress);
+  return once(`spsf:${big}:${progress}`, () => scaffold(PixelCanvas.from(big ? SPS : SPS_SMALL, SPS_KEYS), progress));
 }
 
 // ── Act V: foundries at the Lagrange points, habitats ───────────────────────────────────────
@@ -82,6 +90,10 @@ export function spsFrameCanvas(big: boolean, progress: number): PixelCanvas {
  * dotted scaffold (the foundries build foundries).
  */
 export function foundryCanvas(size: number): PixelCanvas {
+  return once(`foundry:${size}`, () => paintFoundry(size));
+}
+
+function paintFoundry(size: number): PixelCanvas {
   const z = Math.max(0, Math.min(2, size));
   const W = [13, 17, 23][z];
   const H = [7, 9, 13][z];
@@ -131,5 +143,5 @@ const HABITAT = `
 
 /** A habitat cylinder side on: end caps catching the sun, a lit band of fields and windows. */
 export function habitatCylCanvas(): PixelCanvas {
-  return framed(PixelCanvas.from(HABITAT, { a: 'ink6', b: 'ink8', c: 'white', g: 'grn6', d: 'cyn5' }));
+  return once('habitatCyl', () => framed(PixelCanvas.from(HABITAT, { a: 'ink6', b: 'ink8', c: 'white', g: 'grn6', d: 'cyn5' })));
 }
