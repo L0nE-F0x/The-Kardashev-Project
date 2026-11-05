@@ -1,9 +1,10 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.6 "Type I"** (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
+Current build: **v0.6.1 "Signs of Life"** on top of v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
 Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
-desktop builds). v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
+desktop builds). v0.6.1 "Signs of Life" redrew the diorama people (people.ts, life.ts), lighting and depth, decluttered the world map
+and cleaned up the off-world dither. v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
 Android app; v0.5.1 added in-app updates for the installed desktop and Android apps (an Update toast in the game).
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 

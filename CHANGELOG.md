@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.1 — Signs of Life (2026-11-05)
+- People you can actually see: everyone on campus is redrawn bigger, with an outline, a face, hair and clothes that fit the job (hard hats and hi-vis on building sites, lab coats, spacesuits on the Moon), and the fashions change with the era.
+- They walk along a pavement now, and they have things to do: they go in and out of the buildings, stop to chat, take calls, carry boxes off the delivery truck, hammer away on building sites and react to the news with little speech bubbles.
+- Your advisors are out on campus too, in their portrait colours, with Bit floating along. Hover over one to see who it is, click to hear what's on their mind.
+- More life: a dog, cyclists, birds, delivery drones from the Solarpunk Bloom era on, and delivery vans that go electric, then driverless.
+- Nights: street lamps and doorways throw pools of light that people walk through, and trucks have headlights.
+- Buildings show how they're doing: empty halls dim their lights, a brownout puts warning lights on the roofs, a new building flashes and gets a cheer when it opens, and building sites throw welding sparks.
+- Calmer skies and ground, haze on the far hills, soft shadows where things meet the ground, and grass and bushes right in front of the camera.
+- Cleaner art on the Moon, the asteroids, the Aurora habitat, the L4 and L5 yards and Ring One.
+- The world map is easier to read: names no longer overlap, crowded markers spread apart so every site can be clicked up close, and the icons stand out on any terrain.
+- "Built by ApexForge" on the website, the main menu and the credits.
+
 ## 0.6.0 — Type I (2026-11-04)
 - Act V, Type I: the last act of the campaign, from 2068 to the day Kardashev reaches 1.0000. Your score is the year you get there.
 - The Thermal Line: every watt ends up as heat, so the Council caps how much Earth’s surface may use. Almost all of the last hundredfold climb has to be caught and used in space.
