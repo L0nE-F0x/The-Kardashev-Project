@@ -263,7 +263,8 @@ export class Game {
     this.awayReport = null;
     this.heldToasts = [];
     this.showActComplete = false;
-    this.selection = { kind: 'site', id: opts.homeSite };
+    // the garage is where Acts I–II start; a Steward starting at Act III–V begins on the world, not the garage
+    this.selection = opts.act3 || opts.act4 || opts.act5 ? null : { kind: 'site', id: opts.homeSite };
     this.lastObjectiveSeen = undefined;
     this.lastNewsSeen = 0;
     this.speed = 0;

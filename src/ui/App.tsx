@@ -36,7 +36,7 @@ function Hud() {
       <ThresholdTracker />
       <HeatWallTracker />
       <SolarMaxTracker />
-      <div class="side">{game.mode === 'map' || game.selection?.kind === 'site' ? <Inspector /> : null}</div>
+      <div class={`side ${panel ? 'under-panel' : ''}`}>{game.mode === 'map' || game.selection?.kind === 'site' ? <Inspector /> : null}</div>
       {panel === 'compute' && <ComputePanel />}
       {panel === 'orders' && <OrdersPanel />}
       {panel === 'research' && <ResearchPanel />}

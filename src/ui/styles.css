@@ -1604,6 +1604,17 @@ ol.steps li {
     top: 50px;
     max-height: calc(100vh - 92px);
   }
+  /* no room for a panel and the inspector side by side: the panel takes the width, the inspector waits */
+  .side.under-panel {
+    display: none;
+  }
+  .panel.wide,
+  .panel.wide.research {
+    left: 50px;
+    right: 8px;
+    width: auto;
+    transform: none;
+  }
   .ticker {
     height: 26px;
   }
