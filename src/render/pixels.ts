@@ -226,26 +226,49 @@ export class PixelCanvas {
   }
 }
 
+/** The era palette as whole RGBA pixels (index 0 = transparent), per bake alpha; rebuilt when the era's table changes. */
+let words: { table: Uint8Array; alpha: number; px: Uint32Array } | null = null;
+function paletteWords(alpha: number): Uint32Array {
+  const table = paletteTable();
+  if (words && words.table === table && words.alpha === alpha) return words.px;
+  const px = new Uint32Array(table.length >> 2);
+  const bytes = new Uint8Array(px.buffer);
+  for (let c = 1; c < px.length; c++) {
+    bytes[c * 4] = table[c * 4];
+    bytes[c * 4 + 1] = table[c * 4 + 1];
+    bytes[c * 4 + 2] = table[c * 4 + 2];
+    bytes[c * 4 + 3] = alpha;
+  }
+  words = { table, alpha, px };
+  return px;
+}
+
+/**
+ * Bake an indexed canvas into an RGBA buffer (w × h × 4 bytes) with the current era palette, a
+ * whole pixel at a time. Every pixel is written (transparent ones as 0), so a buffer can be reused.
+ */
+export function bakeRgba(pc: PixelCanvas, out: Uint8Array | Uint8ClampedArray, alpha = 255): void {
+  const pal = paletteWords(alpha);
+  const d = pc.data;
+  const o = new Uint32Array(out.buffer, out.byteOffset, d.length);
+  for (let i = 0; i < d.length; i++) o[i] = d[i] === TRANSPARENT ? 0 : pal[d[i]];
+}
+
+/** Each canvas keeps its ImageData between bakes (the landing page's globe re-bakes every frame). */
+const images = new WeakMap<object, ImageData>();
+
 /** Bake an indexed canvas to RGBA pixels using the current era palette. */
 export function bakeInto(pc: PixelCanvas, canvas: HTMLCanvasElement | OffscreenCanvas, alpha = 255): void {
   if (canvas.width !== pc.w) canvas.width = pc.w;
   if (canvas.height !== pc.h) canvas.height = pc.h;
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   if (!ctx) return;
-  const img = ctx.createImageData(pc.w, pc.h);
-  const out = img.data;
-  const pal = paletteTable();
-  const d = pc.data;
-  for (let i = 0; i < d.length; i++) {
-    const c = d[i];
-    if (c === TRANSPARENT) continue;
-    const o = i * 4;
-    const p = c * 4;
-    out[o] = pal[p];
-    out[o + 1] = pal[p + 1];
-    out[o + 2] = pal[p + 2];
-    out[o + 3] = alpha;
+  let img = images.get(canvas);
+  if (!img || img.width !== pc.w || img.height !== pc.h) {
+    img = ctx.createImageData(pc.w, pc.h);
+    images.set(canvas, img);
   }
+  bakeRgba(pc, img.data, alpha);
   ctx.putImageData(img, 0, 0);
 }
 

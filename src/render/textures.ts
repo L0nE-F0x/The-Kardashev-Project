@@ -1,16 +1,20 @@
-import { CanvasSource, Texture } from 'pixi.js';
+import { BufferImageSource, Texture } from 'pixi.js';
 import { onEraChange } from './palette';
-import { bakeInto, PixelCanvas } from './pixels';
+import { bakeRgba, PixelCanvas } from './pixels';
 import { drawText, measureText } from './font';
 
 interface Entry {
   pc: PixelCanvas;
-  canvas: HTMLCanvasElement;
+  /** The baked RGBA pixels: the texture's own resource (no canvas), re-baked in place and uploaded from here. */
+  rgba: Uint8Array;
   texture: Texture;
   alpha: number;
+  /** The cachedTexture key, if it has one. */
+  key: string | null;
 }
 
-const registry = new Set<Entry>();
+/** Every live texture, by texture (an era change walks them all). */
+const registry = new Map<Texture, Entry>();
 const byKey = new Map<string, Texture>();
 
 /**
@@ -18,11 +22,11 @@ const byKey = new Map<string, Texture>();
  * so an era change re-bakes it in place (same Texture object, new colours).
  */
 export function textureOf(pc: PixelCanvas, alpha = 255): Texture {
-  const canvas = document.createElement('canvas');
-  bakeInto(pc, canvas, alpha);
-  const source = new CanvasSource({ resource: canvas, scaleMode: 'nearest', autoGenerateMipmaps: false });
+  const rgba = new Uint8Array(pc.w * pc.h * 4);
+  bakeRgba(pc, rgba, alpha);
+  const source = new BufferImageSource({ resource: rgba, width: pc.w, height: pc.h, format: 'rgba8unorm', scaleMode: 'nearest', autoGenerateMipmaps: false });
   const texture = new Texture({ source });
-  registry.add({ pc, canvas, texture, alpha });
+  registry.set(texture, { pc, rgba, texture, alpha, key: null });
   return texture;
 }
 
@@ -32,19 +36,17 @@ export function cachedTexture(key: string, make: () => PixelCanvas, alpha = 255)
   if (!t) {
     t = textureOf(make(), alpha);
     byKey.set(key, t);
+    registry.get(t)!.key = key;
   }
   return t;
 }
 
 /** Update a registered texture after its PixelCanvas changed. */
 export function refreshTexture(texture: Texture): void {
-  for (const e of registry) {
-    if (e.texture === texture) {
-      bakeInto(e.pc, e.canvas, e.alpha);
-      texture.source.update();
-      return;
-    }
-  }
+  const e = registry.get(texture);
+  if (!e) return;
+  bakeRgba(e.pc, e.rgba, e.alpha);
+  texture.source.update();
 }
 
 /**
@@ -52,25 +54,26 @@ export function refreshTexture(texture: Texture): void {
  * it to composite a live scene's sprites without a GPU.
  */
 export function canvasOf(texture: Texture): { pc: PixelCanvas; alpha: number } | null {
-  for (const e of registry) if (e.texture === texture) return { pc: e.pc, alpha: e.alpha };
-  return null;
+  const e = registry.get(texture);
+  return e ? { pc: e.pc, alpha: e.alpha } : null;
 }
 
 /** Drop a texture from the registry and free GPU memory. */
 export function releaseTexture(texture: Texture): void {
-  for (const e of registry) {
-    if (e.texture === texture) {
-      registry.delete(e);
-      break;
-    }
-  }
-  for (const [k, t] of byKey) if (t === texture) byKey.delete(k);
+  const e = registry.get(texture);
+  registry.delete(texture);
+  if (e?.key !== null && e?.key !== undefined && byKey.get(e.key) === texture) byKey.delete(e.key);
   texture.destroy(true);
 }
 
+/** How many textures are alive (tests and leak checks). */
+export function textureCount(): number {
+  return registry.size;
+}
+
 onEraChange(() => {
-  for (const e of registry) {
-    bakeInto(e.pc, e.canvas, e.alpha);
+  for (const e of registry.values()) {
+    bakeRgba(e.pc, e.rgba, e.alpha);
     e.texture.source.update();
   }
 });
