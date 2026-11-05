@@ -171,9 +171,21 @@ export function releaseModel(s: GameState): void {
   const tier = CAPABILITY_TIERS[tierOf(capability)];
   news(s, `🤖 ${run.name} released! ${fmtSci(run.target)} FLOP → capability ${capability.toFixed(2)} (${tier}).`, 'good');
   s.flags.lastRelease = s.day;
+  // Act II's race with Meridian has a finish line: the model that ships in phase 3 (Bit-4)
+  const meridian = (s.act ?? 1) === 2 && run.gen === 4 ? s.market.rivals.find((r) => r.id === 'meridian') : undefined;
+  if (meridian) {
+    const gap = capability - meridian.capability;
+    news(
+      s,
+      gap >= 0
+        ? `🏁 The race: ${run.name} (${capability.toFixed(2)}) overtakes Meridian (${meridian.capability.toFixed(2)})${capability >= frontier(s) ? ' and takes the frontier' : ''}. The IPO bankers noticed.`
+        : `🏁 The race: Meridian still leads, ${meridian.capability.toFixed(2)} to ${run.name}’s ${capability.toFixed(2)}. ${gap > -0.3 ? 'Close enough to matter at the IPO.' : 'The IPO bankers will price the gap.'}`,
+      gap >= 0 ? 'good' : 'bad',
+    );
+  }
   if ((s.act ?? 1) >= 2 && capability >= frontier(s) && !s.flags.reachedFrontier) {
     s.flags.reachedFrontier = s.day;
-    news(s, `🏁 ${run.name} matches the frontier. Meridian is no longer alone at the top.`, 'good');
+    if (!meridian) news(s, `🏁 ${run.name} matches the frontier. Meridian is no longer alone at the top.`, 'good');
   }
 }
 

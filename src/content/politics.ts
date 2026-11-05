@@ -3,7 +3,7 @@ import type { SupplierId } from '../sim/types';
 
 /**
  * Export rules: which flows a bloc blocks. Shipments of `items` from suppliers in the `from`
- * regions into the `to` regions need a licence (Sol), local production, or a risky detour.
+ * regions into the `to` regions need a licence (Sol) or local production (your own fab).
  */
 export interface ExportRuleDef {
   id: string;
@@ -87,8 +87,8 @@ export const TREATIES: TreatyDef[] = [
     id: 'compute-accord', name: 'Compute Transparency Accord',
     blurb: 'Report every training run above a threshold to a shared registry.',
     gives: 'Export licences come 30% faster; relations up across the board.',
-    asks: 'Rivals see your runs coming: their releases react faster.',
-    relation: { accelerate: 3, neutral: 6, cautious: 8 }, mods: { licenceDays: 0.7, rivalReact: 1.15 },
+    asks: 'Rivals see your runs coming and keep pace: their progress +5%.',
+    relation: { accelerate: 3, neutral: 6, cautious: 8 }, mods: { licenceDays: 0.7, rivalBoost: 1.05 },
   },
   {
     id: 'grid-compact', name: 'Clean Grid Compact',
@@ -100,9 +100,9 @@ export const TREATIES: TreatyDef[] = [
   {
     id: 'open-science', name: 'Open Science Charter',
     blurb: 'Publish safety research and older model weights for everyone.',
-    gives: 'Research +15%; Open Orchard stops undercutting you as hard.',
+    gives: 'Research +15%; local trust grows 10% faster everywhere.',
     asks: 'Rivals gain a little from your work.',
-    relation: { accelerate: 0, neutral: 4, cautious: 5 }, mods: { research: 1.15, rivalBoost: 1.05, openPressure: 0.7 },
+    relation: { accelerate: 0, neutral: 4, cautious: 5 }, mods: { research: 1.15, rivalBoost: 1.05, licenseGain: 1.1 },
   },
 ];
 

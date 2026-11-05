@@ -310,7 +310,8 @@ export function supplierPools(s: GameState, supplier: SupplierId): { logic: numb
   // ── HBM: shortages hit everyone, deals shield part of the volume ──
   const shortage = Math.max(0, 1 - s.market.hbm * modMult(s, 'market:hbm'));
   const hbmFactor = 1 - Math.min(0.9, def.hbmExposure * techMult(s, 'hbmExposure') * shortage * 1.6);
-  const hbmCovered = act2 ? Math.min(logic, dealUnits(s, 'hbm')) : 0;
+  // an HBM deal covers so many accelerators a month in total: split it across suppliers like packaging
+  const hbmCovered = act2 ? Math.min(logic, dealUnits(s, 'hbm') * supplierShare(s, supplier)) : 0;
   const hbm = hbmCovered + (logic - hbmCovered) * hbmFactor;
   // ── packaging (Act II): Bondline's lines are shared; your plant and slots are not ──
   let pkg = logic;

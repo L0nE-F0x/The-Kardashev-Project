@@ -41,7 +41,8 @@ import {
   upgradeDays,
 } from './model';
 import { ownFabSites, planShipment, supplierOrigin, type SimContext } from './supply';
-import { addRelation, licencePending, orderBlockedBy } from './politics';
+import { addRelation, blocIT, licencePending, orderBlockedBy } from './politics';
+import { CONTRACT_MIN_SIGN, contractDeliverable } from './network';
 import { creditLeft, loanRate, monthlyPayment } from './capital';
 import { ownRunStatus } from './frontier';
 
@@ -466,14 +467,20 @@ export function signTreaty(s: GameState, id: string): Result {
   if (s.politics.treaties.includes(id)) return fail('Already a member');
   if (t.minSafety && s.alloc.safety + 1e-9 < t.minSafety) return fail(`Raise safety compute to ${Math.round(t.minSafety * 100)}% first`);
   s.politics.treaties.push(id);
-  for (const r of Object.keys(s.blocs) as RegionId[]) addRelation(s, r, t.relation[s.blocs[r].stance]);
-  news(s, `✍ Signed the ${t.name}.`, 'good');
+  // capitals remember a walk-out: rejoining within a year of leaving earns no goodwill
+  const rejoin = s.day - Number(s.flags[`treatyLeft:${id}`] ?? -1e9) < TREATY_REJOIN_DAYS;
+  if (!rejoin) for (const r of Object.keys(s.blocs) as RegionId[]) addRelation(s, r, t.relation[s.blocs[r].stance]);
+  news(s, rejoin ? `✍ Rejoined the ${t.name}. Capitals remember you walked out: no goodwill this time.` : `✍ Signed the ${t.name}.`, rejoin ? 'info' : 'good');
   return OK;
 }
+
+/** Leaving a treaty and rejoining within this many days earns no relations. */
+export const TREATY_REJOIN_DAYS = 365;
 
 export function leaveTreaty(s: GameState, id: string): Result {
   if (!s.politics.treaties.includes(id)) return fail('Not a member');
   s.politics.treaties = s.politics.treaties.filter((x) => x !== id);
+  s.flags[`treatyLeft:${id}`] = s.day;
   for (const r of Object.keys(s.blocs) as RegionId[]) addRelation(s, r, s.blocs[r].stance === 'cautious' ? -8 : -3);
   news(s, `✍ Left the ${TREATY_BY_ID[id]?.name ?? id}.`, 'bad');
   return OK;
@@ -485,6 +492,7 @@ export function acceptSovereign(s: GameState, dealId: string): Result {
   const def = SOVEREIGN_BY_ID[d.def];
   d.status = 'active';
   d.byDay = s.day + def.days;
+  d.baseMW = blocIT(s, d.region); // only new capacity counts
   if (def.power) addModifier(s, `region:${d.region}:price`, def.days, `${def.title}: cheap power`, { mult: def.power });
   if (def.permit) addModifier(s, `region:${d.region}:permit`, def.days, `${def.title}: fast permits`, { mult: def.permit });
   addRelation(s, d.region, 4);
@@ -527,6 +535,8 @@ export function repayLoan(s: GameState, loanId: string): Result {
 export function acceptContract(s: GameState, offerId: string): Result {
   const o = s.capital.offers.find((x) => x.id === offerId);
   if (!o) return fail('That offer has expired');
+  const can = contractDeliverable(s, o).frac;
+  if (can < CONTRACT_MIN_SIGN) return fail(`You could deliver only ${Math.round(can * 100)}% of this in ${REGIONS[o.region].name} today: build there, or reach it with fiber or a cable`);
   s.capital.offers = s.capital.offers.filter((x) => x.id !== offerId);
   s.capital.contracts.push({ ...o, startDay: s.day, endDay: s.day + Math.round(o.months * DAYS_PER_MONTH), expires: undefined, delivered: 1 });
   news(s, `📄 Signed a ${o.months}-month contract with ${o.customer}: ${fmtMoney(o.monthly)}/month.`, 'good');

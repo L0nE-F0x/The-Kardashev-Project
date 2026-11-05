@@ -8,7 +8,10 @@ import { REGIONS } from '../content/regions';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import { siteDef } from '../content/sites';
 import { RULE_BY_ID } from '../content/politics';
+import { HALLS } from '../content/facilities';
+import { RENTAL } from '../content/companies';
 import type { ComputeContract, GameState } from './types';
+import { modMult } from './effects';
 
 export type RegionGraph = Record<RegionId, Set<RegionId>>;
 
@@ -97,6 +100,34 @@ export interface MarketResult {
   delivered: Record<string, number>;
 }
 
+type Source = RegionId | 'cloud';
+/** Below this serving efficiency, capacity can't count toward a contract (too slow for an SLA). */
+export const CONTRACT_MIN_EFF = 0.6;
+/** Delivering less than this costs a penalty. */
+export const CONTRACT_SLA = 0.95;
+/** A contract you couldn't deliver at least this much of today can't be signed (the UI warns below CONTRACT_SLA). */
+export const CONTRACT_MIN_SIGN = 0.5;
+
+/** Give one contract its capacity from the best sources first; returns the quality-weighted share delivered and the units used. */
+function allocateContract(left: Partial<Record<Source, number>>, eff: (src: Source, dst: RegionId) => number, c: ComputeContract): { frac: number; used: number; from: Source[] } {
+  let need = c.units;
+  let quality = 0;
+  const from: Source[] = [];
+  const order = (Object.keys(left) as Source[]).sort((a, b) => eff(b, c.region) - eff(a, c.region));
+  for (const src of order) {
+    if (need <= 0) break;
+    const e = eff(src, c.region);
+    if (e < CONTRACT_MIN_EFF) continue;
+    const take = Math.min(need, left[src] ?? 0);
+    if (take <= 0) continue;
+    left[src]! -= take;
+    need -= take;
+    quality += take * e;
+    from.push(src);
+  }
+  return { frac: c.units > 0 ? quality / c.units : 1, used: c.units - need, from };
+}
+
 /**
  * Allocate inference capacity (accelerator-equivalents by region, plus cloud rentals that can go
  * anywhere) to contracts first, then to spot demand by best efficiency. Leftovers earn batch rates.
@@ -110,34 +141,21 @@ export function serveMarkets(
 ): MarketResult {
   const g = privateGraph(s);
   const w = demandWeights();
-  const left: Partial<Record<RegionId | 'cloud', number>> = { ...supply, cloud: rented };
+  const left: Partial<Record<Source, number>> = { ...supply, cloud: rented };
   const demand: Partial<Record<RegionId, number>> = {};
   for (const r of REGION_IDS) demand[r] = totalDemand * w[r] * (s.capital.sovereign.some((d) => d.region === r && d.status === 'active' && d.def === 'india-mission') ? 1.4 : 1);
   const res: MarketResult = { revenueDay: 0, contractDay: 0, penaltyDay: 0, served: {}, demand: { ...demand }, delivered: {} };
-  const eff = (src: RegionId | 'cloud', dst: RegionId) => (src === 'cloud' ? 0.88 : serveEff(s, g, src, dst));
-  const sources = Object.keys(left) as (RegionId | 'cloud')[];
+  const eff = (src: Source, dst: RegionId) => (src === 'cloud' ? 0.88 : serveEff(s, g, src, dst));
+  const sources = Object.keys(left) as Source[];
 
   // contracts: guaranteed capacity at a premium; shortfalls cost a penalty
   for (const c of s.capital.contracts) {
     if (s.day > c.endDay) continue;
-    let need = c.units;
-    let quality = 0;
-    const order = [...sources].sort((a, b) => eff(b, c.region) - eff(a, c.region));
-    for (const src of order) {
-      if (need <= 0) break;
-      const e = eff(src, c.region);
-      if (e < 0.6) continue;
-      const take = Math.min(need, left[src] ?? 0);
-      if (take <= 0) continue;
-      left[src]! -= take;
-      need -= take;
-      quality += take * e;
-    }
-    const frac = c.units > 0 ? quality / c.units : 1;
+    const { frac, used } = allocateContract(left, eff, c);
     res.delivered[c.id] = frac;
     res.contractDay += (c.monthly / 30.4) * Math.min(1, frac);
-    if (frac < 0.95) res.penaltyDay += (c.penalty / 30.4) * (1 - frac);
-    res.served[c.region] = (res.served[c.region] ?? 0) + (c.units - need);
+    if (frac < CONTRACT_SLA) res.penaltyDay += (c.penalty / 30.4) * (1 - frac);
+    res.served[c.region] = (res.served[c.region] ?? 0) + used;
   }
 
   // spot markets: best (source, destination) pairs first
@@ -162,4 +180,34 @@ export function serveMarkets(
 /** Contracts that are still running. */
 export function activeContracts(s: GameState): ComputeContract[] {
   return s.capital.contracts.filter((c) => s.day <= c.endDay);
+}
+
+/** Today's inference capacity by region (accelerator-equivalents) plus cloud rentals: the same numbers ai.ts#computeOutputs serves markets with. */
+export function inferenceSupply(s: GameState): { supply: Partial<Record<RegionId, number>>; rented: number } {
+  const share = s.alloc.infer + (s.training ? 0 : s.alloc.train);
+  const supply: Partial<Record<RegionId, number>> = {};
+  for (const f of s.facilities) {
+    if (!HALLS.includes(f.type) || f.status !== 'online') continue;
+    const frac = s.stats.sitePower?.[f.siteId]?.frac ?? 0;
+    const site = siteDef(f.siteId);
+    const cooling = modMult(s, `site:${f.siteId}:cooling`) * modMult(s, `region:${site.region}:cooling`);
+    for (const r of f.racks ?? []) supply[site.region] = (supply[site.region] ?? 0) + (r.qty * r.perf * frac * cooling * (site.demand ?? 1) * share) / RENTAL.perf;
+  }
+  return { supply, rented: s.rental.units * modMult(s, 'rental:availability') * share };
+}
+
+/**
+ * What a contract would deliver if you signed it today, after the contracts you already serve: the
+ * quality-weighted share (as the contract tracker counts it), where it would be served from, and the
+ * money a month after penalties.
+ */
+export function contractDeliverable(s: GameState, c: ComputeContract): { frac: number; from: Source[]; net: number } {
+  const g = privateGraph(s);
+  const { supply, rented } = inferenceSupply(s);
+  const left: Partial<Record<Source, number>> = { ...supply, cloud: rented };
+  const eff = (src: Source, dst: RegionId) => (src === 'cloud' ? 0.88 : serveEff(s, g, src, dst));
+  for (const k of s.capital.contracts) if (s.day <= k.endDay) allocateContract(left, eff, k);
+  const { frac, from } = allocateContract(left, eff, c);
+  const net = c.monthly * Math.min(1, frac) - (frac < CONTRACT_SLA ? c.penalty * (1 - frac) : 0);
+  return { frac, from, net };
 }

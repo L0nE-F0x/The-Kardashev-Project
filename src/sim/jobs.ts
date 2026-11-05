@@ -15,7 +15,7 @@ import { applyLicence, borrow, build, buyLand, canApplyLicence, canBuild, canBuy
 import type { SimContext } from './supply';
 import { ownFabSites } from './supply';
 import { creditLeft } from './capital';
-import { addRelation, orderBlockedBy } from './politics';
+import { addRelation, exportBlock, orderBlockedBy } from './politics';
 import { EXPORT_RULES } from '../content/politics';
 
 const job = (s: GameState, id: AdvisorId): Job | null => {
@@ -90,6 +90,8 @@ function mira(s: GameState, ctx: SimContext): void {
   for (const sh of s.shipments) inbound[sh.dest] = (inbound[sh.dest] ?? 0) + sh.batch.qty;
   const sites = [...new Set(s.facilities.filter((f) => HALLS.includes(f.type)).map((f) => f.siteId))];
   let ordered = 0;
+  let roomy = 0; // sites with free racks
+  let powerless = 0; // ... but no power to run more chips
   for (const siteId of sites) {
     const kw = chipSpec(s, 'lumen').kw;
     let cap = 0;
@@ -106,15 +108,22 @@ function mira(s: GameState, ctx: SimContext): void {
     const supplyMW = sp ? sp.firm + sp.solar * 0.6 + sp.wind * 0.8 + sp.gas + (s.sites[siteId]?.grid.mw ?? 0) : 0;
     const perUnitMW = (kw * pueAt(s, siteId)) / 1000;
     const powerRoom = Math.floor((supplyMW * 1.05 - (sp?.load ?? 0)) / perUnitMW) - inv - (inbound[siteId] ?? 0);
-    const free = Math.min(cap - used - inv - (inbound[siteId] ?? 0), powerRoom);
+    const rackRoom = cap - used - inv - (inbound[siteId] ?? 0);
+    if (rackRoom >= 500) roomy++;
+    if (rackRoom >= 500 && powerRoom < 500) powerless++;
+    const free = Math.min(rackRoom, powerRoom);
     if (free < 500) continue;
     const supplier = pickSupplier(s, j.b ?? 0, siteDef(siteId).region);
     if (!supplier) {
-      if (!s.flags[`miraBlocked:${siteId}`]) report(s, 'mira', `export rules block every supplier into ${siteDef(siteId).name}. Sol needs a licence.`);
-      s.flags[`miraBlocked:${siteId}`] = true;
+      // in Act II, say it again every month: empty halls are easy to miss when someone else does the ordering
+      const last = s.flags[`miraBlocked:${siteId}`];
+      if (typeof last !== 'number' || (!s.charter && s.day - last >= 30)) {
+        report(s, 'mira', `I can’t stock ${siteDef(siteId).name}. ${exportBlock(s, siteId) ?? 'Export rules block every supplier.'}`);
+        s.flags[`miraBlocked:${siteId}`] = s.day;
+      }
       continue;
     }
-    s.flags[`miraBlocked:${siteId}`] = false;
+    delete s.flags[`miraBlocked:${siteId}`];
     const price = chipSpec(s, supplier).price + 150;
     const qty = Math.floor(Math.min(free, budget / price) / 500) * 500;
     if (qty < 500) continue;
@@ -124,6 +133,16 @@ function mira(s: GameState, ctx: SimContext): void {
     }
   }
   if (ordered) report(s, 'mira', `ordered ${ordered.toLocaleString()} accelerators to fill free rack space.`);
+  // nothing left to fill: a delegating player should hear that growth now needs halls (or power), every few months
+  else if (!s.charter && sites.length && s.day - Number(s.flags.miraFullDay ?? -1e9) >= 90) {
+    if (!roomy) {
+      report(s, 'mira', 'every hall is full or has chips on the way. To grow, build a new hall or expand one (Upgrade on the site).');
+      s.flags.miraFullDay = s.day;
+    } else if (powerless === roomy) {
+      report(s, 'mira', 'the halls have empty racks, but no power to run more chips there. Juno’s job (or a grid connection) comes first.');
+      s.flags.miraFullDay = s.day;
+    }
+  }
 }
 
 function pickSupplier(s: GameState, mode: number, region: (typeof REGION_IDS)[number]): SupplierId | null {
@@ -257,6 +276,8 @@ export function jobSpendHint(s: GameState, id: AdvisorId): string {
   if (id === 'mira') return `${fmtMoney(j.a)}/month max`;
   if (id === 'sol') return `${fmtMoney(j.a)}/month max`;
   if (id === 'penny') return `floor ${fmtMoney(j.a)}`;
+  if (id === 'juno') return 'builds plants with cash above Penny’s floor';
+  if (id === 'iris' || id === 'bit') return 'moves compute, spends no cash';
   return '';
 }
 

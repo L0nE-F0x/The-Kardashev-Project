@@ -12,15 +12,20 @@ import { CHIP_SUPPLIERS } from '../../content/companies';
 import { ADVISORS } from '../../content/advisors';
 import { siteDef } from '../../content/sites';
 import { fmtDays, fmtMoney, fmtMW, fmtNum } from '../../sim/core';
-import { canApplyLicence, canSignDeal, PHASE_NAMES } from '../../sim/actions';
-import { blocIT, licencePending } from '../../sim/politics';
-import { creditLeft, debtTotal, ipoValuation, loanRate } from '../../sim/capital';
-import { FRONT_NAMES } from '../../sim/finale';
-import type { FrontId, Materials, SupplierId } from '../../sim/types';
+import { canApplyLicence, canSignDeal, PHASE_NAMES, TREATY_REJOIN_DAYS } from '../../sim/actions';
+import { blocIT, licencePending, sovereignBuilt } from '../../sim/politics';
+import { CONTRACT_MIN_SIGN, CONTRACT_SLA, contractDeliverable } from '../../sim/network';
+import { boardGrowth, boardTarget, creditLeft, debtTotal, IPO_FLOOR, ipoBreakdown, ipoValuation, loanRate } from '../../sim/capital';
+import { inferPriceTrend } from '../../sim/model';
+import { crunchRise, FRONT_NAMES } from '../../sim/finale';
+import type { FrontId, GameState, Materials, SupplierId } from '../../sim/types';
 import { jobSpendHint } from '../../sim/jobs';
+import { techMult } from '../../sim/effects';
 import { CharterDeskSection } from './Act3Panels';
 
 const phaseLabel = (n: number) => `phase ${n} · ${PHASE_NAMES[n]}`;
+/** Supply partners by id ("stackwell" → "Stackwell Memory"), for deals signed here or through events. */
+const PARTNER_NAMES: Record<string, string> = Object.fromEntries(DEALS.map((d) => [d.partner, d.partnerName]));
 
 // ════════════════════════════════════════ TEAM ════════════════════════════════════════
 export function TeamPanel() {
@@ -172,7 +177,7 @@ function SupplyTab() {
           {live.map((d) => (
             <div class="row between small" key={d.id}>
               <span>
-                <Icon name="deal" size="sm" /> {d.kind === 'reserve' ? 'Wafer reservation' : d.kind === 'cofund' ? 'Co-funded line' : d.kind === 'hbm' ? 'HBM allocation' : 'Packaging slots'} · {d.partner}
+                <Icon name="deal" size="sm" /> {d.kind === 'reserve' ? 'Wafer reservation' : d.kind === 'cofund' ? 'Co-funded line' : d.kind === 'hbm' ? 'HBM allocation' : 'Packaging slots'} · {PARTNER_NAMES[d.partner] ?? d.partner}
               </span>
               <span class="muted">
                 {fmtNum(d.units, 0)}/mo · {s.day < d.readyDay ? `starts in ${fmtDays(d.readyDay - s.day)}` : d.endDay ? `${fmtDays(d.endDay - s.day)} left` : 'permanent'}
@@ -202,36 +207,75 @@ function SupplyTab() {
   );
 }
 
+/** Ask before something with a real downside (the game's confirm dialog). */
+function ask(game: ReturnType<typeof useGame>, title: string, detail: string, yes: () => void): void {
+  game.confirm = {
+    title,
+    detail,
+    onYes: () => {
+      game.confirm = null;
+      yes();
+    },
+  };
+  game.notify();
+}
+
 function CustomersTab() {
   const game = useGame();
   const s = game.state!;
-  const sov = s.capital.sovereign.filter((d) => d.status === 'offer' || d.status === 'active');
+  const sov = s.capital.sovereign.filter((d) => d.status === 'offer').length;
   return (
     <>
       {s.phase < 2 && <div class="small muted">Enterprise contracts open in {phaseLabel(2)}.</div>}
       <h4>Contract offers</h4>
       {s.capital.offers.length === 0 && <div class="small muted">No offers right now. Customers call every few weeks.</div>}
-      {s.capital.offers.map((o) => (
-        <div class="fac" key={o.id}>
-          <Icon name="contract" />
-          <div>
-            <div class="name">
-              {o.customer} · {REGIONS[o.region].name}
+      {s.capital.offers.map((o) => {
+        // what you could deliver if you signed today, after the contracts you already serve
+        const pv = contractDeliverable(s, o);
+        const ok = pv.frac >= CONTRACT_SLA;
+        const tooLow = pv.frac < CONTRACT_MIN_SIGN;
+        const from = pv.from.length ? pv.from.map((x) => (x === 'cloud' ? 'Cumulus' : REGIONS[x].short)).join(' + ') : 'nowhere in reach';
+        const sign = () =>
+          ok
+            ? void game.acceptContract(o.id)
+            : ask(
+                game,
+                `Sign with ${o.customer}?`,
+                `You could deliver about ${pct(pv.frac)} of it today (from ${from}). Under 95% the customer charges a penalty: you’d net about ${fmtMoney(pv.net)}/month instead of ${fmtMoney(o.monthly)}, until you add capacity in or near ${REGIONS[o.region].name}.`,
+                () => void game.acceptContract(o.id),
+              );
+        return (
+          <div class="fac" key={o.id}>
+            <Icon name="contract" />
+            <div>
+              <div class="name">
+                {o.customer} · {REGIONS[o.region].name}
+              </div>
+              <div class="sub">
+                {o.units.toLocaleString()} accelerator-equivalents for {o.months} months · {fmtMoney(o.monthly)}/mo · penalty up to {fmtMoney(o.penalty)}/mo · expires in {fmtDays((o.expires ?? s.day) - s.day)}
+              </div>
+              <div
+                class={`small ${ok ? 'good' : tooLow ? 'bad' : 'warn'}`}
+                data-tip="If you signed today. Contracts are served first, from the halls with the best latency into their region: your own fiber and cables count almost fully; over the public internet the same continent counts 72%, a neighbouring one about 60%, across an ocean nothing. More chips, halls or links change the numbers."
+              >
+                {ok
+                  ? `✓ You can deliver all of it today (from ${from}).`
+                  : tooLow
+                    ? `✗ Only ${pct(pv.frac)} deliverable today: build in ${REGIONS[o.region].short} or link to it first.`
+                    : `⚠ About ${pct(pv.frac)} deliverable today (from ${from}): penalties leave ~${fmtMoney(pv.net)}/mo.`}
+              </div>
             </div>
-            <div class="sub">
-              {o.units.toLocaleString()} accelerator-equivalents for {o.months} months · {fmtMoney(o.monthly)}/mo · penalty up to {fmtMoney(o.penalty)}/mo · expires in {fmtDays((o.expires ?? s.day) - s.day)}
-            </div>
+            <span class="row" style={{ gap: '4px' }}>
+              <button class="btn small primary" disabled={tooLow} onClick={sign} data-tut="accept-contract" data-tip={tooLow ? `You can’t deliver at least ${pct(CONTRACT_MIN_SIGN)} of this yet.` : undefined}>
+                Sign
+              </button>
+              <button class="btn small ghost" onClick={() => game.declineContract(o.id)}>
+                ✕
+              </button>
+            </span>
           </div>
-          <span class="row" style={{ gap: '4px' }}>
-            <button class="btn small primary" onClick={() => game.acceptContract(o.id)} data-tut="accept-contract">
-              Sign
-            </button>
-            <button class="btn small ghost" onClick={() => game.declineContract(o.id)}>
-              ✕
-            </button>
-          </span>
-        </div>
-      ))}
+        );
+      })}
       {s.capital.contracts.length > 0 && (
         <div class="section">
           <h4>Active contracts</h4>
@@ -252,41 +296,54 @@ function CustomersTab() {
           <div class="small muted">Contracts are served first, from the halls with the best latency into their region. Under 95% delivery costs a penalty.</div>
         </div>
       )}
-      <div class="section">
-        <h4>Sovereign deals</h4>
-        {sov.length === 0 && <div class="small muted">Governments make offers on the Blocs screen once you’re in {phaseLabel(2)}.</div>}
-        {sov.map((d) => {
-          const def = SOVEREIGN_BY_ID[d.def];
-          const have = blocIT(s, d.region);
-          return (
-            <div class="fac" key={d.id}>
-              <Icon name="blocs" />
-              <div>
-                <div class="name">
-                  {REGIONS[d.region].name}: {def.title}
-                </div>
-                <div class="sub">
-                  Build {fmtMW(d.needMW)} of IT there → {def.reward}. Strings: {def.strings}
-                  {d.status === 'active' ? ` · ${fmtMW(have)} / ${fmtMW(d.needMW)}, ${fmtDays(d.byDay - s.day)} left` : ` · offer expires in ${fmtDays(d.expires - s.day)}`}
-                </div>
-              </div>
-              {d.status === 'offer' ? (
-                <span class="row" style={{ gap: '4px' }}>
-                  <button class="btn small primary" onClick={() => game.acceptSovereign(d.id)}>
-                    Accept
-                  </button>
-                  <button class="btn small ghost" onClick={() => game.declineSovereign(d.id)}>
-                    ✕
-                  </button>
-                </span>
-              ) : (
-                <Bar value={have / d.needMW} kind="violet" />
-              )}
-            </div>
-          );
-        })}
+      <div class="section small muted">
+        Sovereign deals — governments paying you to build in their bloc — are on the Blocs screen{sov ? ` (${sov} open offer${sov === 1 ? '' : 's'})` : s.phase < 2 ? `, from ${phaseLabel(2)}` : ''}.
       </div>
     </>
+  );
+}
+
+/** Sovereign deals: offers to accept and deals in progress (on the Blocs screen, where the dock badge points). */
+function SovereignDeals() {
+  const game = useGame();
+  const s = game.state!;
+  const sov = s.capital.sovereign.filter((d) => d.status === 'offer' || d.status === 'active');
+  return (
+    <div class="section" data-tut="sovereign">
+      <h4>Sovereign deals</h4>
+      {sov.length === 0 && <div class="small muted">{s.phase < 2 ? `Governments start making offers in ${phaseLabel(2)}.` : 'No offers right now. Blocs that like you (relations 40+) make them every few months.'}</div>}
+      {sov.map((d) => {
+        const def = SOVEREIGN_BY_ID[d.def];
+        const built = sovereignBuilt(s, d);
+        return (
+          <div class="fac" key={d.id}>
+            <Icon name="blocs" />
+            <div>
+              <div class="name">
+                {REGIONS[d.region].name}: {def.title}
+              </div>
+              <div class="sub">
+                Build {fmtMW(d.needMW)} of new IT there within {fmtDays(def.days)} → {def.reward}. Strings: {def.strings}
+                {d.status === 'active' ? ` · ${fmtMW(built)} / ${fmtMW(d.needMW)} built, ${fmtDays(d.byDay - s.day)} left` : ` · offer expires in ${fmtDays(d.expires - s.day)}`}
+              </div>
+              {d.status === 'offer' && <div class="small muted">Accepting: relations +4 and the perks start now; only halls you build after signing count; missing the deadline costs relations −15.</div>}
+            </div>
+            {d.status === 'offer' ? (
+              <span class="row" style={{ gap: '4px' }}>
+                <button class="btn small primary" onClick={() => game.acceptSovereign(d.id)}>
+                  Accept
+                </button>
+                <button class="btn small ghost" onClick={() => game.declineSovereign(d.id)}>
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <Bar value={built / d.needMW} kind="violet" />
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -412,7 +469,7 @@ export function BlocsPanel() {
                 ) : pending ? (
                   <span class="muted">⏳ Licence in {fmtDays((s.politics.pending.find((p) => p.rule === id && p.region === sel)?.readyDay ?? s.day) - s.day)}</span>
                 ) : r.licenceDays > 0 ? (
-                  <button class="btn small" disabled={!!why} onClick={() => game.applyLicence(id, sel)} data-tip={why ?? `${fmtMoney(r.licenceCost)} · about ${fmtDays(r.licenceDays)}`}>
+                  <button class="btn small" disabled={!!why} onClick={() => game.applyLicence(id, sel)} data-tip={why ?? `${fmtMoney(r.licenceCost)} · about ${fmtDays(Math.round(r.licenceDays * techMult(s, 'licenceDays')))}`}>
                     Apply for a licence
                   </button>
                 ) : null}
@@ -426,8 +483,21 @@ export function BlocsPanel() {
         <div class="buildgrid">
           {TREATIES.map((t) => {
             const member = s.politics.treaties.includes(t.id);
+            const rejoin = !member && s.day - Number(s.flags[`treatyLeft:${t.id}`] ?? -1e9) < TREATY_REJOIN_DAYS;
+            const leave = () =>
+              ask(
+                game,
+                `Leave the ${t.name}?`,
+                `Cautious blocs’ relations fall by 8 and everyone else’s by 3, and if you rejoin within a year the capitals won’t thank you for it (no goodwill on signing again).`,
+                () => void game.leaveTreaty(t.id),
+              );
             return (
-              <button key={t.id} class={`btn buildcard ${member ? 'active' : ''}`} onClick={() => (member ? game.leaveTreaty(t.id) : game.signTreaty(t.id))} data-tip={`${t.blurb}\n✓ ${t.gives}\n⚠ ${t.asks}\n${member ? 'Click to leave (relations suffer).' : 'Click to sign.'}`}>
+              <button
+                key={t.id}
+                class={`btn buildcard ${member ? 'active' : ''}`}
+                onClick={() => (member ? leave() : game.signTreaty(t.id))}
+                data-tip={`${t.blurb}\n✓ ${t.gives}\n⚠ ${t.asks}\n${member ? 'Click to leave (relations suffer).' : rejoin ? 'Click to rejoin (you left less than a year ago: no goodwill this time).' : 'Click to sign.'}`}
+              >
                 <span class="t">
                   <Icon name="treaty" size="sm" /> {t.name} {member ? '· member' : ''}
                 </span>
@@ -437,11 +507,18 @@ export function BlocsPanel() {
           })}
         </div>
       </div>
+      <SovereignDeals />
       <div class="section small muted">
         Rules in force worldwide: {s.politics.rules.map((id) => RULE_BY_ID[id]?.name).join(' · ') || 'none'}. Possible: {EXPORT_RULES.filter((r) => !s.politics.rules.includes(r.id)).map((r) => r.name).join(' · ')}.
       </div>
     </Panel>
   );
+}
+
+/** How the IPO bankers get to their number (for tooltips). */
+function ipoTip(s: GameState): string {
+  const b = ipoBreakdown(s);
+  return `A year of revenue × 18: ${fmtMoney(b.base)}\n${b.parts.map(([l, k]) => `×${k.toFixed(2)} ${l}`).join('\n')}${b.floor ? `\nBelow the bankers’ floor: ${fmtMoney(IPO_FLOOR)}` : ''}`;
 }
 
 // ════════════════════════════════════════ BOARD & DEBT (Finance) ════════════════════════════════════════
@@ -465,7 +542,12 @@ export function BoardSection() {
               rows={[
                 ['Confidence', `${Math.round(b.confidence)} / 100`],
                 ['Next review', fmtDays(b.nextReview - s.day)],
-                ['Target', `revenue +${Math.round(b.target * 100)}% on ${fmtMoney(b.baseline)}/mo → ${fmtMoney(b.baseline * (1 + b.target))}/mo`],
+                [
+                  'Target',
+                  `sales +${Math.round(boardTarget(b) * 100)}% this quarter${b.stretch ? ' (with the stretch you promised)' : ''} · ≈ ${fmtMoney((b.baseline * (1 + boardTarget(b)) * inferPriceTrend(s)) / (b.baseTrend ?? inferPriceTrend(s)))}/mo at today’s prices`,
+                  'The board measures growth in volume: the ~5% a quarter that inference prices fall (everyone’s chips get faster) is not held against you.',
+                ],
+                ['So far this quarter', `${boardGrowth(s) >= 0 ? '+' : '−'}${Math.abs(Math.round(boardGrowth(s) * 100))}% in volume`],
                 ['Missed reviews', String(b.misses)],
               ]}
             />
@@ -476,7 +558,9 @@ export function BoardSection() {
         {s.capital.ipo ? (
           <div class="small good">🔔 Public since {Math.round(s.capital.ipo.day / 365.25 + 2027)} at {fmtMoney(s.capital.ipo.valuation)}.</div>
         ) : s.phase >= 3 ? (
-          <div class="small muted">IPO bankers’ estimate today: {fmtMoney(ipoValuation(s))}.</div>
+          <div class="small muted" data-tip={ipoTip(s)}>
+            IPO bankers’ estimate today: {fmtMoney(ipoValuation(s))}.
+          </div>
         ) : null}
       </div>
       <div class="grow" style={{ minWidth: '240px' }} data-tut="debt">
@@ -527,8 +611,12 @@ export function CrunchTracker() {
       </div>
       {fronts.map((k) => {
         const fr = f.fronts[k];
+        const rise = crunchRise(s, k);
+        const tip = fr.lost
+          ? `${FRONT_NAMES[k]}: lost.`
+          : `${FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${rise.v >= 0 ? '+' : ''}${rise.v.toFixed(2)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${v >= 0 ? '+' : ''}${v.toFixed(2)} ${l}`).join('\n')}`;
         return (
-          <div key={k} class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={`${FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100. At 100 the front is lost.`}>
+          <div key={k} class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
             <Icon name={icon[k]} size="sm" />
             <span style={{ width: '104px' }} class={fr.lost ? 'bad' : fr.pressure > 70 ? 'warn' : ''}>
               {FRONT_NAMES[k]}

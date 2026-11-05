@@ -141,7 +141,7 @@ export const TECHS: TechDef[] = [
   { id: 'ai-control', name: 'AI Control Protocols', cat: 'safety', cost: 160, act: 2, phase: 2, requires: ['constitution'], blurb: 'Assume a model might misbehave and design the deployment so it can’t do harm.', effect: 'Incidents 40% less severe; trust grows 20% faster.', mods: { incidentSeverity: 0.6, licenseGain: 1.2 } },
   // ── Policy ──
   { id: 'policy-desk', name: 'Policy Desk', cat: 'policy', cost: 80, act: 2, blurb: 'Former diplomats on staff, in every capital.', effect: 'Relations with governments grow 30% faster; licences 25% faster.', mods: { relationGain: 1.3, licenceDays: 0.75 } },
-  { id: 'compliance', name: 'Export Compliance Systems', cat: 'policy', cost: 100, act: 2, phase: 2, requires: ['policy-desk'], blurb: 'Track every chip from wafer to rack.', effect: 'Licences 40% faster; detours half as risky.', mods: { licenceDays: 0.6, smuggleRisk: 0.5 } },
+  { id: 'compliance', name: 'Export Compliance Systems', cat: 'policy', cost: 100, act: 2, phase: 2, requires: ['policy-desk'], blurb: 'Track every chip from wafer to rack.', effect: 'Licences 40% faster; chip-diversion scandals half as likely.', mods: { licenceDays: 0.6, smuggleRisk: 0.5 } },
   { id: 'local-content', name: 'Local Content Programmes', cat: 'policy', cost: 90, act: 2, requires: ['community'], blurb: 'Hire, train and buy locally wherever you build.', effect: 'Permits 10% faster; trust grows 20% faster.', mods: { permit: 0.9, licenseGain: 1.2 } },
 
   // ════════════════════════════════════ ACT III ════════════════════════════════════════

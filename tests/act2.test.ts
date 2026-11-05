@@ -70,6 +70,8 @@ describe('act II', () => {
     // eslint-disable-next-line no-console
     console.log('IPO on', ipo > 0 ? fmtDate(ipo) : 'never', 'years', ((ipo - start) / 365).toFixed(1), 'standing', s.finale?.standing, 'valuation', ((s.capital.ipo?.valuation ?? 0) / 1e9).toFixed(0), 'B', 'done', s.objectives.done.filter((o) => o.startsWith('a2')).join(','), 'home', siteDef(s.company.homeSite).name);
     expect(ipo).toBeGreaterThan(0);
+    // ~3.9 years since v0.8 (was 5.6): the Crunch starts at any 4 of the 6 IPO goals, and the bot no longer
+    // builds its second campus where export rules keep chips out (it reads the site's warning, like a player)
     expect((ipo - start) / 365).toBeGreaterThan(3.5);
     expect((ipo - start) / 365).toBeLessThan(6.5);
   });

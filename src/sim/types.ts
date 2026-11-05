@@ -339,6 +339,8 @@ export interface SovereignDeal {
   needMW: number;
   byDay: number;
   expires: number;
+  /** IT MW you already had in the bloc when you accepted (only new capacity counts toward needMW). */
+  baseMW?: number;
 }
 
 export interface Board {
@@ -349,6 +351,10 @@ export interface Board {
   misses: number;
   /** Target growth for the current quarter (e.g. 0.15 = +15%). */
   target: number;
+  /** Inference price trend when the baseline was set: reviews measure growth in volume (falling prices don't count). */
+  baseTrend?: number;
+  /** Extra target points promised for the current quarter only. */
+  stretch?: number;
 }
 
 export interface CapitalState {
@@ -357,7 +363,8 @@ export interface CapitalState {
   contracts: ComputeContract[];
   offers: ComputeContract[];
   sovereign: SovereignDeal[];
-  ipo: { day: number; valuation: number; raised: number } | null;
+  /** `lastRound`: the private valuation before listing; `parts`: why the bankers priced it so (see ipoBreakdown). */
+  ipo: { day: number; valuation: number; raised: number; lastRound?: number; base?: number; parts?: [string, number][]; floor?: boolean } | null;
 }
 
 // ── Act II: rivals, talent, acquisitions ────────────────────────────────────────────────────

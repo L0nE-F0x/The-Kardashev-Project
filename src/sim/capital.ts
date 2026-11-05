@@ -6,7 +6,7 @@ import { BOARD, CUSTOMERS, FINANCE } from '../content/capital';
 import { FACILITIES } from '../content/facilities';
 import { REGIONS } from '../content/regions';
 import { siteDef } from '../content/sites';
-import type { ComputeContract, GameState } from './types';
+import type { Board, ComputeContract, GameState } from './types';
 import { clamp, fmtMoney, news, nextId, pick, rand, randInt, yearsElapsed } from './core';
 import { spend } from './economy';
 import { queueEvent } from './events';
@@ -46,16 +46,55 @@ export function monthlyPayment(principal: number, rate: number, years: number): 
   return (principal * r) / (1 - Math.pow(1 + r, -n));
 }
 
-/** IPO valuation: revenue multiple adjusted by growth, frontier position, board confidence, safety and the finale. */
-export function ipoValuation(s: GameState): number {
-  const rev = s.stats.revenueMonth * 12;
+/**
+ * Quarter-on-quarter growth as the board measures it: in volume, so the ~5% a quarter that inference
+ * prices fall (everyone's chips get faster) doesn't count against you. 0.1 = +10%.
+ */
+export function boardGrowth(s: GameState): number {
+  const b = s.capital.board;
+  if (!b || b.baseline <= 0) return 0;
+  const now = inferPriceTrend(s);
+  return s.stats.revenueMonth / now / (b.baseline / (b.baseTrend ?? now)) - 1;
+}
+
+/** This quarter's target, including a stretch the board was promised (one quarter only). */
+export function boardTarget(b: Board): number {
+  return b.target + (b.stretch ?? 0);
+}
+
+/** The IPO never prices below this. */
+export const IPO_FLOOR = 30e9;
+
+export interface IpoBreakdown {
+  value: number;
+  /** Annual revenue × 18, before the multipliers. */
+  base: number;
+  parts: [string, number][];
+  /** The bankers' floor kicked in. */
+  floor: boolean;
+}
+
+/** IPO valuation, and why: a revenue multiple adjusted by frontier position, board confidence, safety, the finale and growth. */
+export function ipoBreakdown(s: GameState): IpoBreakdown {
+  const base = s.stats.revenueMonth * 12 * 18;
   const gap = currentCapability(s) - frontier(s);
-  const frontierMult = clamp(1 + gap * 0.35, 0.6, 1.6);
-  const conf = (s.capital.board?.confidence ?? 60) / 60;
-  const safety = s.stats.margin >= 0 ? 1.1 : s.stats.margin >= -0.25 ? 1 : 0.85;
-  const standing = 0.8 + 0.15 * (s.finale?.standing ?? 0);
-  const growth = clamp(1 + (s.stats.revenueMonth / Math.max(1, s.capital.board?.baseline ?? s.stats.revenueMonth) - 1), 0.8, 1.5);
-  return Math.max(30e9, rev * 18 * frontierMult * clamp(conf, 0.6, 1.4) * safety * standing * growth);
+  const conf = s.capital.board?.confidence ?? 60;
+  const m = s.stats.margin;
+  const standing = s.finale?.standing ?? 0;
+  const growth = s.capital.board ? boardGrowth(s) : 0;
+  const parts: [string, number][] = [
+    [gap >= 0 ? `At the frontier (+${gap.toFixed(2)})` : `Behind the frontier (${gap.toFixed(2)})`, clamp(1 + gap * 0.35, 0.6, 1.6)],
+    [`Board confidence ${Math.round(conf)}`, clamp(conf / 60, 0.6, 1.4)],
+    [m >= 0 ? 'A positive safety margin' : m >= -0.25 ? 'A thin safety margin' : 'A negative safety margin', m >= 0 ? 1.1 : m >= -0.25 ? 1 : 0.85],
+    [`The Crunch: ${standing} of 3 fronts held`, 0.8 + 0.15 * standing],
+    [`Growth this quarter (${growth >= 0 ? '+' : ''}${Math.round(growth * 100)}% in volume)`, clamp(1 + growth, 0.8, 1.5)],
+  ];
+  const raw = parts.reduce((a, [, k]) => a * k, base);
+  return { value: Math.max(IPO_FLOOR, raw), base, parts, floor: raw < IPO_FLOOR };
+}
+
+export function ipoValuation(s: GameState): number {
+  return ipoBreakdown(s).value;
 }
 
 export function tickCapital(s: GameState, compute: ComputeResult): void {
@@ -93,34 +132,38 @@ export function tickCapital(s: GameState, compute: ComputeResult): void {
   cap.offers = cap.offers.filter((o) => (o.expires ?? 0) >= s.day);
   if (s.phase >= 2 && s.day % 45 === 0 && cap.offers.length < 3) cap.offers.push(makeOffer(s));
 
-  // the board's quarterly review
+  // the board's quarterly review (growth in volume: falling prices aren't held against you)
   const b = cap.board;
   if (b && s.day >= b.nextReview) {
-    const growth = b.baseline > 0 ? s.stats.revenueMonth / b.baseline - 1 : 1;
-    const passed = growth >= b.target;
+    const growth = boardGrowth(s);
+    const revGrowth = b.baseline > 0 ? s.stats.revenueMonth / b.baseline - 1 : 0;
+    const target = boardTarget(b);
+    const passed = growth >= target;
+    const before = b.confidence;
     b.confidence = clamp(b.confidence + (passed ? 8 : growth > 0 ? -6 : -12), 0, 100);
     if (passed) s.flags.boardPassed = s.day;
     else b.misses += 1;
-    // a review the board passed is news, not a decision (the first one is a card, to show how reviews work);
-    // a missed one is a card, unless one came up lately and the board is still fairly confident
-    const lastCard = typeof s.events.last['board-review'] === 'number' ? (s.events.last['board-review'] as number) : -1e9;
+    // the first review is a card (to show how reviews work); after that a review is news, unless a miss
+    // drags confidence below 40 or below 25 (the board is losing patience: that's a decision).
     // From Act III the board answers to the company (or the blind trust), not to the Steward: news only.
-    const quiet = !!s.charter || (passed ? !!s.flags.boardReviewSeen : s.day - lastCard < 170 && b.confidence >= 45);
+    const crossed = !passed && ((before >= 40 && b.confidence < 40) || (before >= 25 && b.confidence < 25));
+    const quiet = !!s.charter || (!!s.flags.boardReviewSeen && !crossed);
+    const pct = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(Math.round(x * 100))}%`;
     if (quiet) {
       news(
         s,
-        passed
-          ? `📊 Board review: revenue up ${Math.round(growth * 100)}% against a ${Math.round(b.target * 100)}% target. Confidence ${Math.round(b.confidence)}.`
-          : `📊 Board review: revenue ${growth >= 0 ? 'up' : 'down'} ${Math.abs(Math.round(growth * 100))}%, short of the ${Math.round(b.target * 100)}% target. Confidence ${Math.round(b.confidence)}.`,
+        `📊 Board review: sales ${pct(growth)} in volume (revenue ${pct(revGrowth)}) against a +${Math.round(target * 100)}% target — ${passed ? 'met' : 'missed'}. Confidence ${Math.round(b.confidence)}.`,
         passed ? 'good' : 'bad',
       );
     } else {
-      queueEvent(s, 'board-review', { growth: Math.round(growth * 100), target: Math.round(b.target * 100), passed: passed ? 1 : 0 });
+      queueEvent(s, 'board-review', { growth: Math.round(growth * 100), rev: Math.round(revGrowth * 100), target: Math.round(target * 100), passed: passed ? 1 : 0, first: s.flags.boardReviewSeen ? 0 : 1 });
       s.flags.boardReviewSeen = true;
     }
     b.baseline = Math.max(1, s.stats.revenueMonth);
+    b.baseTrend = inferPriceTrend(s);
+    b.stretch = 0;
     b.nextReview = s.day + BOARD.reviewDays;
-    if (b.confidence < 30 && !s.flags.ceoReview) queueEvent(s, 'ceo-review');
+    if (b.confidence < 30 && !s.flags.ceoReview && !s.charter) queueEvent(s, 'ceo-review');
   }
 }
 
