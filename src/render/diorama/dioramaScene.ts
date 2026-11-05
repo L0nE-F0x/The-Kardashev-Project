@@ -132,6 +132,8 @@ const MAX_PARTICLES = 420;
 
 /** The grass and posts in front of the camera scroll a little faster than the campus. */
 const NEAR_PARALLAX = 1.25;
+/** The near strip is cut into textures at most this wide (some phone GPUs stop at 4096). */
+const NEAR_TILE = 2048;
 
 /** Which line each advisor says next when clicked (cycles through them). */
 const LINE_INDEX = new Map<AdvisorId, number>();
@@ -344,6 +346,8 @@ export class DioramaScene implements Scene {
 
   // ── layout ────────────────────────────────────────────────────────────────────────────────
   resize(w: number, h: number) {
+    // the same size again (a second resize event, a zoom set to what it was): nothing to rebuild
+    if (w === this.vw && h === this.vh && this.plotKey) return;
     this.vw = w;
     this.vh = h;
     this.groundY = bands(w, h, w).groundY;
@@ -784,9 +788,15 @@ export class DioramaScene implements Scene {
     if (this.mode === 'earth' && sb.walkers && L.beachFrom === undefined && L.lakeFrom === undefined) {
       const bio = BIOMES[this.site.backdrop];
       const w = Math.ceil(this.vw + Math.max(0, this.sceneW - this.vw) * NEAR_PARALLAX) + 20;
-      const near = new Sprite(own(nearForeground(w, 14, sb.seed, bio ? shade(shade(bio.ground[0])) : C.grn1, bio ? shade(bio.ground[0]) : C.grn3)));
-      near.y = this.vh - 14;
-      this.nearL.addChild(near);
+      const strip = nearForeground(w, 14, sb.seed, bio ? shade(shade(bio.ground[0])) : C.grn1, bio ? shade(bio.ground[0]) : C.grn3);
+      // in tiles: the Sahara's strip is ~4900 px, wider than low-end phone GPUs take in one texture
+      for (let x0 = 0; x0 < w; x0 += NEAR_TILE) {
+        const tile = new PixelCanvas(Math.min(NEAR_TILE, w - x0), strip.h);
+        for (let y = 0; y < strip.h; y++) tile.data.set(strip.data.subarray(y * w + x0, y * w + x0 + tile.w), y * tile.w);
+        const near = new Sprite(own(tile));
+        near.position.set(x0, this.vh - 14);
+        this.nearL.addChild(near);
+      }
     }
     // clouds
     this.cloudL.removeChildren();
@@ -1744,10 +1754,21 @@ export class DioramaScene implements Scene {
     if (plot?.kind === 'empty') this.game.toast('Pick something to build from the panel on the right →', 'info', 'juno');
   }
 
+  /** A cancelled press (the browser took the gesture): no greeting, no select, no fling. */
+  pointerCancel() {
+    this.down = null;
+    this.vel = 0;
+  }
+
   pointerLeave() {
     this.life.setHover(null);
     this.hoverPlot = null;
     this.game.setHover(null);
+  }
+
+  /** A drag, a fling, or the camera easing to where it was sent (the menu's slow pan counts as the tour's). */
+  busy(): boolean {
+    return !!this.down?.moved || Math.abs(this.vel) > 4 || Math.abs(this.camTarget - this.camX) >= 0.5;
   }
 
   wheel(_p: PixelPointer, deltaY: number) {

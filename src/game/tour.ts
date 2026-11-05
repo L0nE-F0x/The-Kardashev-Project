@@ -7,6 +7,7 @@ import { act4PreviewState } from '../sim/planetPreview';
 import { act5PreviewState } from '../sim/systemPreview';
 import { refreshStats } from '../sim/tick';
 import type { GameState } from '../sim/types';
+import { prebuildMapLod } from '../render/worldMap/mapScene';
 
 /** Which world a shot shows: the Act II showcase company, a ~2062 planet, a ~2084 solar system. */
 type World = 2 | 4 | 5;
@@ -131,29 +132,30 @@ export class TourDirector {
     this.fadingOut = false;
     g.stage.fade = first ? 1 : 1;
     g.showcase = this.world(shot.world ?? 2);
+    // (the zoom changes between the old scene going and the new one coming, so neither is laid out twice)
     if (shot.kind === 'orbit' || shot.kind === 'system') {
       const scene = shot.kind === 'orbit' ? g.makeOrbitScene() : g.makeSystemScene();
       if (!scene) {
         this.nextShot(false);
         return;
       }
-      g.stage.setZoomBoost(g.settings.zoom);
-      g.stage.setScene(scene);
+      g.stage.setScene(scene, g.settings.zoom);
       g.tourCaption = shot.caption;
     } else if (shot.kind === 'map') {
-      g.stage.setZoomBoost(g.settings.zoom);
       const scene = g.makeMapScene() as MapLike;
-      g.stage.setScene(scene);
+      g.stage.setScene(scene, g.settings.zoom);
       scene.cinematic?.(shot.from, shot.to, shot.secs, shot.lod);
       g.tourCaption = shot.caption;
     } else {
-      g.stage.setZoomBoost(g.settings.zoom * 2);
       const scene = g.makeDioramaScene(shot.site) as DioramaLike;
       scene.autoPan = true;
-      g.stage.setScene(scene);
+      g.stage.setScene(scene, g.settings.zoom * 2);
       const site = SITE_BY_ID[shot.site];
       g.tourCaption = shot.caption ?? `${site.name} · ${REGIONS[site.region].name}`;
     }
+    // the next shot is a close-up of the map: get its detailed layers ready in idle moments (no hitch when it cuts in)
+    const next = SHOTS[(this.index + 1) % SHOTS.length];
+    if (next.kind === 'map' && next.lod > 0) prebuildMapLod(g.world.lods, next.lod);
     g.notify();
   }
 }

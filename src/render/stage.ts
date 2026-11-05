@@ -36,8 +36,12 @@ export interface Scene {
   pointerDown?(p: PixelPointer): void;
   pointerMove?(p: PixelPointer): void;
   pointerUp?(p: PixelPointer): void;
+  /** The browser took the press away (a scroll, a second app, a system gesture): forget it, never act on it. */
+  pointerCancel?(p: PixelPointer): void;
   pointerLeave?(): void;
   wheel?(p: PixelPointer, deltaY: number): void;
+  /** True while the camera moves on its own or under the player's hand (a glide, a fling, a drag, a pinch). */
+  busy?(): boolean;
   destroy(): void;
 }
 
@@ -67,6 +71,8 @@ export class PixelStage {
   private screenSprite!: Sprite;
   private scene: Scene | null = null;
   private resizeListeners = new Set<(w: number, h: number) => void>();
+  /** The window size, pixel ratio and scale the stage was last laid out for. */
+  private laidOut = '';
 
   async init(host: HTMLElement): Promise<void> {
     this.renderer = await autoDetectRenderer({
@@ -112,6 +118,11 @@ export class PixelStage {
     const devW = Math.max(1, Math.round(cssW * dpr));
     const devH = Math.max(1, Math.round(cssH * dpr));
     const base = Math.max(1, Math.round(Math.min(devW, devH) / 360));
+    // the window and the visual viewport both report a resize, and a zoom may be set to what it was:
+    // rebuild the target and lay the scene out again only when something actually changed
+    const key = `${cssW}x${cssH}@${dpr}|${base * this.zoomBoost}`;
+    if (key === this.laidOut) return;
+    this.laidOut = key;
     this.scale = base * this.zoomBoost;
     this.width = Math.ceil(devW / this.scale);
     this.height = Math.ceil(devH / this.scale);
@@ -130,11 +141,17 @@ export class PixelStage {
     for (const fn of this.resizeListeners) fn(this.width, this.height);
   }
 
-  setScene(scene: Scene | null): void {
+  /**
+   * Show a scene (the old one is destroyed). With `zoomBoost`, the zoom changes in between, so the
+   * old scene isn't laid out (rebuilt) at the new size just before it goes, nor the new one twice.
+   */
+  setScene(scene: Scene | null, zoomBoost?: number): void {
     if (this.scene) {
       this.sceneHolder.removeChild(this.scene.root);
       this.scene.destroy();
+      this.scene = null;
     }
+    if (zoomBoost !== undefined) this.setZoomBoost(zoomBoost);
     this.scene = scene;
     if (scene) {
       this.sceneHolder.addChild(scene.root);
@@ -191,14 +208,20 @@ export class PixelStage {
       if (c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
       this.scene?.pointerUp?.(toP(e));
     });
-    c.addEventListener('pointercancel', (e) => this.scene?.pointerUp?.(toP(e)));
+    // a cancelled press is not a tap (it would select, open a diorama or greet someone)
+    c.addEventListener('pointercancel', (e) => {
+      if (c.hasPointerCapture(e.pointerId)) c.releasePointerCapture(e.pointerId);
+      this.scene?.pointerCancel?.(toP(e));
+    });
     c.addEventListener('pointerleave', () => this.scene?.pointerLeave?.());
     c.addEventListener(
       'wheel',
       (e) => {
         e.preventDefault();
         const p = this.toInternal(e.clientX, e.clientY);
-        this.scene?.wheel?.({ ...p, clientX: e.clientX, clientY: e.clientY, id: -1, button: 0, pointerType: 'mouse' }, e.deltaY);
+        // a notch is ~100 whatever the browser counts in (Firefox sends 3 lines, some mice a page)
+        const dy = e.deltaMode === 1 ? e.deltaY * 34 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
+        this.scene?.wheel?.({ ...p, clientX: e.clientX, clientY: e.clientY, id: -1, button: 0, pointerType: 'mouse' }, dy);
       },
       { passive: false },
     );
