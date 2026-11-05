@@ -379,7 +379,7 @@ happens here**: a full playthrough plus beta testers, then rebalancing across al
 (Custom starts with seeds, Hard difficulty, music and the Tauri desktop build arrived early, in M1.5.) Carried in from
 earlier milestones: the menu tour's Act III–V shots, Act IV–V audio and the recorded theme song, province governor
 portraits, the Moon's crew lander taking off, the Windows and macOS installers and updater on real machines, a Google
-Play `.aab`. Then **v1.0.0**.
+Play `.aab`. Then **v1.0.0**. **Full plan: section 21** (planned 2026-11-05).
 
 **Later:** Type II (Mercury mining, the full Dyson swarm) as an Act VI that continues a finished Act V save, then a Type
 III epilogue. Act V leaves the door open (section 20).
@@ -1596,3 +1596,105 @@ first choice on every card and big decision, the default era plans, Autopilot on
   forward; Bit-10 and Bit-11 are its final looks so far.
 - **People:** `lifeExp`, `escape`, `treated` per province, `spacePop` and `settlement`.
 
+
+## 21. M5 "One Point Oh": planned
+
+Polish and ship: the balance pass across all five acts, a sandbox next to the campaign, music and sound for every era,
+achievements, the leftovers from earlier milestones and a phone pass, then **v1.0.0**. Planned 2026-11-05 in two Q&A
+rounds, right after v0.6.1 "Signs of Life" (the diorama art overhaul).
+
+**Status: planned, waiting for "go".**
+
+### Decisions (locked 2026-11-05)
+
+| Topic | Decision |
+|---|---|
+| Scope | All four parts: balance pass, sandbox, audio, leftovers (plus achievements and a phone pass) |
+| Balance | Bots first (pacing targets, every difficulty, several seeds), then your full playthrough, then a retune |
+| Campaign length | 10–15 hours of real play at normal pace, Act I to Type I |
+| Sandbox | Both: a free-build mode, with scenario sliders as an advanced panel |
+| Music | Chiptune by era, generated in code: a track per era plus ambience per scene; the menu keeps its MP3 slot |
+| Achievements | Yes, in 1.0: about 30–40, shown in a menu screen, kept per device; they map onto Steam later |
+| Stores | None for 1.0: the website, the installers and the APK as today. Steam later; Google Play dropped for now |
+| Releases | One big v1.0.0, built on a branch (`m5`); `main` stays on 0.6.x until then (fixes can still ship as 0.6.x) |
+
+### The time budget
+
+At speed 1 a game day takes one real second (speed 8 = eight days a second). By the bots' clocks Act I takes ~812 days,
+Act II ~5.6 years, Act III ~9 years, and Acts IV–V move in plan and era jumps. So the clock alone covers well under the
+target. The 10–15 hours come from play itself: building, reading, decisions, panels, and the slower speeds. The bots can't
+measure that, so the pass starts by **measuring real play time**.
+
+| Act | Target (real time) |
+|---|---|
+| I · The Garage | 1–1.5 h |
+| II · The Scale-Up | 2–3 h |
+| III · The Charter | 2.5–3.5 h |
+| IV · Planetary | 2–3 h |
+| V · Type I | 2–3 h |
+
+### 1. Balance pass
+- **Measure:** the save records real seconds per act (at each speed, and paused), decisions taken, events seen and the
+  game-days each act took. The campaign stats screen shows it, and it travels with an exported save.
+- **Playtest notes:** a quick-note key/button that stamps the act, game date and current screen onto a note; Settings →
+  Data exports them with the playtime log. That's how your playthrough comes back to me.
+- **Bots:** a pacing report (`BALANCE=1 npx vitest run tests/balance.test.ts`) runs every act's bot on Relaxed, Standard
+  and Hard over several seeds: when each goal lands, money over time, stalls (long stretches with no progress), dead
+  ends, NaNs. Targets: every act completes on every difficulty; Relaxed ~15–25% faster than Standard, Hard ~15–25% slower;
+  no stall longer than a few in-game months.
+- **Act I may change now.** The "Act I stays byte-identical" rule protected it while the later acts were built. In M5 it
+  can be retuned on purpose; the bot expectations move with it.
+- **Then you:** a full playthrough of the `m5` build (locally with `npm run dev`, or a Netlify branch deploy) with notes,
+  and a retune from them.
+
+### 2. Sandbox
+- **New Company → Campaign | Sandbox.** Sandbox saves carry a badge and don't count for campaign unlocks (founders, Type I
+  records, Field Guide), but have achievements of their own.
+- **Free build:** start at any act or era (the existing presets), set your money or make it unlimited, research freely
+  or unlock everything, goals off, no bankruptcy, events off / rare / normal, optional instant construction.
+- **Scenario sliders (advanced panel):** rival pace, how touchy politics is, climate sensitivity, how often crises hit,
+  supply-shock severity, chip prices. All as modifiers in `GameMeta`, so the sim stays deterministic.
+
+### 3. Audio
+- **A chiptune track per era**, made by the existing engine in `audio/music.ts`: Smog & Silicon gritty squares in a
+  minor key, Grid Rush driving and major, Solarpunk Bloom bright and pentatonic, Orbital Dawn spacious arpeggios,
+  Swarmlight shimmering pads. Two or three sections each, with variations so it doesn't loop audibly; crossfades on era
+  and scene changes.
+- **Ambience per scene:** data-hall hum, wind, rain, surf, Geneva's lake, a launch site, the Moon's near-silence and suit
+  radio, the low drone of open space, Aurora's birds and water, the map's quiet.
+- **Sounds for the newer systems:** launches, the mass driver, fusion ignition, a swarm arc lighting, beams, the storm,
+  time-jump whooshes, big-decision stingers, achievement jingles, soft blips for the campus bubbles and the advisors.
+
+### 4. Achievements
+About 35 across the acts (milestones, good choices, close calls), the sandbox and the fun corners (every advisor
+clicked, a launch watched at night, a full campus at night). A menu screen with pixel badges drawn in code, a toast on
+unlock, kept per device next to the Field Guide unlocks, with ids ready for Steam.
+
+### 5. Leftovers
+- The menu tour's Act III–V shots: the Charter HQ, a megaproject, a launch, the orbit view, the Moon, the solar-system
+  view, Aurora and an asteroid (the showcase borrows the ready-made preview worlds).
+- Province governor portraits (one per province).
+- The Moon's crew lander taking off.
+- Rewilding drawn over old megaproject sites in Act V.
+- **Needs you:** the Windows and macOS installers and updater on real machines; the theme song MP3.
+
+### 6. Phone pass
+Every screen at phone sizes in headless emulation (touch targets, short screens, the new sandbox and achievements
+screens), then your Xiaomi.
+
+### Build order
+1. Playtest tooling: playtime log, playtest notes, the balance report.
+2. The bot balance pass across all acts and difficulties.
+3. Sandbox.
+4. Achievements.
+5. Audio.
+6. Leftovers.
+7. Phone pass.
+8. Your playthrough → retune → v1.0.0 (version bump, changelog, merge, tag, release).
+
+### Calls I made (change any)
+- Act I may be retuned in M5 (see above).
+- The per-act time budgets in the table.
+- Sandbox saves don't unlock campaign rewards; achievements are per device, not per save.
+- Google Play is dropped for 1.0 along with the other stores; the Windows/macOS checks wait for someone with those
+  machines.
