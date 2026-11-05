@@ -7,17 +7,18 @@ import type { EventDef } from './events';
 import type { FactionId, GameState, ThresholdFront } from '../sim/types';
 import { REGIONS } from './regions';
 import { REGION_IDS, type RegionId } from './mapcodes';
-import { CONTRACT_KINDS, DELEGATES, FACTIONS, MISSION_BY_ID, PARTNERS, whereName, WEALTH } from './charter';
+import { CONTRACT_KINDS, DELEGATES, FACTIONS, MISSION_BY_ID, PARTNERS, VOTES, whereName, WEALTH } from './charter';
 import { RESOLUTION_BY_ID } from './council';
 import { addModifier } from '../sim/effects';
 import { companyHandedOver, earn, spend } from '../sim/economy';
 import { clamp, fmtMoney, news, pick, rand, randInt, yearsElapsed } from '../sim/core';
 import { crisisCost2, crisisMult } from '../sim/model';
 import { addRelation, addRelationAll } from '../sim/politics';
-import { addCapital, addLegitimacy, addPartnerRel, cancelProject, chEarn, chSpend, partnerName, postTender, setBlindTrust, canPost } from '../sim/charter';
-import { endWalkout } from '../sim/council';
+import { addCapital, addLegitimacy, addPartnerRel, cancelProject, chEarn, chSpend, partnerName, postTender, setBlindTrust, canPost, canSetBlindTrust, duesMonthly } from '../sim/charter';
+import { demandCost, demandHint, endWalkout } from '../sim/council';
 import { worldMargin } from '../sim/frontier';
-import { pressure3, holdRenewal, RENEWAL_NAMES, renewalForecast, SPEECHES, type Speech } from '../sim/threshold';
+import { FRONT3_NAMES, holdRenewal, MANDATE_FRONT, mandateMet, pressure3, RENEWAL_MEANS, RENEWAL_NAMES, renewalForecast, renewalRecord, SPEECHES, type Speech } from '../sim/threshold';
+import { OBJECTIVE_BY_ID } from './objectives';
 import { hvdcOnline } from '../sim/world';
 import { bitTrusted } from '../sim/desk';
 
@@ -38,6 +39,8 @@ const relief = (s: GameState, front: ThresholdFront, now: number, perDay = 0, da
 const passed = (s: GameState, id: string) => !!s.charter?.council.passed.includes(id);
 const labName = (s: GameState, id: string | number) => s.market.rivals.find((r) => r.id === id)?.name ?? PARTNERS[String(id)]?.name ?? 'Meridian Intelligence';
 const seatText = (n: number) => (n >= 3 ? 'a founding seat and the Council’s gratitude' : n === 2 ? 'a strong voice at the table' : n === 1 ? 'a seat at the back and a lot to prove' : 'an observer’s badge, and everything to prove');
+const SCANDALS = ['subcontractors paid in IOUs and broken promises', 'a regulator who appears to have been very well paid', 'protected wetland quietly drained for a laydown yard', 'safety inspections signed off without anyone visiting'];
+const FAULTS = ['a cooling fault', 'a fire in the valve hall', 'an anchor dragged across the subsea section', 'a lightning strike nobody designed for'];
 
 export const ACT3_EVENTS: EventDef[] = [
   // ═══════════════════════════════════════ THE FOUNDING ═══════════════════════════════════════
@@ -82,19 +85,19 @@ export const ACT3_EVENTS: EventDef[] = [
     icon: '💰',
     title: () => 'The first budget',
     body: () => 'The Council meets to set the dues: how much each bloc pays into the Charter every month, sized by its economy. Rich blocs want low dues and clear results; developing blocs want low dues and projects at home; everyone wants the Charter to be big.',
-    advisors: () => [
-      { id: 'penny', text: 'Standard dues get us about $12B a month. High dues, more like $17B — and some very cross finance ministers.', mood: 'neutral' },
+    advisors: (s) => [
+      { id: 'penny', text: `Standard dues get us about ${fmtMoney(duesMonthly(s, 1), 1)} a month, once every bloc pays what it’s willing to. High dues, more like ${fmtMoney(duesMonthly(s, 1.4), 1)} — and some very cross finance ministers.`, mood: 'neutral' },
       { id: 'sol', text: 'Low dues buy goodwill. Goodwill doesn’t pour concrete.', mood: 'neutral' },
       { id: 'ceo:nonaligned', text: 'Four billion people are watching what this Charter costs them, and what it builds for them.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Standard dues', detail: '~$12B/month.', apply: () => void (s.flags.budgetRatified = s.day) },
-      { label: 'High dues', detail: '~$17B/month; developing blocs −6 relations, emerging −3.', apply: () => {
+      { label: 'Standard dues', detail: `~${fmtMoney(duesMonthly(s, 1), 1)}/month to start, growing with the world economy.`, apply: () => void (s.flags.budgetRatified = s.day) },
+      { label: 'High dues', detail: `~${fmtMoney(duesMonthly(s, 1.4), 1)}/month; developing blocs −6 relations, emerging −3.`, apply: () => {
         s.charter!.dues = 1.4;
         REGION_IDS.forEach((r) => addRelation(s, r, WEALTH[r] === 'developing' ? -6 : WEALTH[r] === 'emerging' ? -3 : 0));
         s.flags.budgetRatified = s.day;
       } },
-      { label: 'Low dues', detail: '~$8B/month; relations +4 everywhere.', apply: () => {
+      { label: 'Low dues', detail: `~${fmtMoney(duesMonthly(s, 0.7), 1)}/month; relations +4 everywhere.`, apply: () => {
         s.charter!.dues = 0.7;
         addRelationAll(s, 4);
         s.flags.budgetRatified = s.day;
@@ -316,7 +319,8 @@ export const ACT3_EVENTS: EventDef[] = [
     body: (s, ctx) => {
       const p = project(s, ctx.project);
       if (!p) return 'The project is gone.';
-      const what = pick(s, ['subcontractors paid in IOUs and broken promises', 'a regulator who appears to have been very well paid', 'protected wetland quietly drained for a laydown yard', 'safety inspections signed off without anyone visiting']);
+      // picked when the card was queued (never roll the dice while drawing a card)
+      const what = SCANDALS[Math.abs(Math.round(Number(ctx.what ?? 0))) % SCANDALS.length];
       return `Reporters have found ${what} at ${pName(s, p.builder)}’s ${CONTRACT_KINDS[p.kind].name.toLowerCase()} site. It’s a Charter project, so it’s your scandal too.`;
     },
     advisors: () => [
@@ -328,8 +332,8 @@ export const ACT3_EVENTS: EventDef[] = [
       if (!p || p.status !== 'building') return [{ label: 'Close', detail: 'Nothing to decide.', apply: () => {} }];
       return [
         { label: 'Suspend and investigate', detail: 'Two months’ delay; relationship −8; Legitimacy +1.', apply: () => ((p.days += 60), addPartnerRel(s, p.builder, -8), addLegitimacy(s, 1)) },
-        { label: 'Carry on quietly', detail: 'Legitimacy −5, and it may come back.', apply: () => (addLegitimacy(s, -5), rand(s) < 0.35 && s.events.scheduled.push({ id: 'project-scandal', day: s.day + randInt(s, 90, 200), ctx: { project: p.id } })) },
-        { label: 'Terminate the contract', detail: 'Cancel it; Legitimacy +2 (on top of the cancellation hit).', apply: () => (cancelProject(s, p.id), addLegitimacy(s, 6)) },
+        { label: 'Carry on quietly', detail: 'Legitimacy −5, and it may come back.', apply: () => (addLegitimacy(s, -5), rand(s) < 0.35 && s.events.scheduled.push({ id: 'project-scandal', day: s.day + randInt(s, 90, 200), ctx: { project: p.id, what: Number(ctx.what ?? 0) + 1 } })) },
+        { label: 'Terminate the contract', detail: 'Cancel it: the builder is furious (−20), and the blocs see you act — Legitimacy +2 overall.', apply: () => (cancelProject(s, p.id), addLegitimacy(s, 6)) },
       ];
     },
   },
@@ -346,7 +350,7 @@ export const ACT3_EVENTS: EventDef[] = [
     choices: (s) => [
       { label: 'Publish every bid and score', detail: 'Legitimacy −2 now; if your awards were fair it ends there.', apply: () => addLegitimacy(s, Number(s.flags.selfAwards ?? 0) > 3 ? -5 : -2) },
       ...(s.charter && !s.charter.blindTrust
-        ? [{ label: 'Put the company in a blind trust', detail: 'Legitimacy +8 for the trust, −3 for taking so long.', disabled: false as const, apply: () => (setBlindTrust(s, true), addLegitimacy(s, -3)) }]
+        ? [{ label: 'Put the company in a blind trust', detail: 'Legitimacy +8 for the trust, −3 for taking so long.', disabled: canSetBlindTrust(s, true) ?? (false as const), apply: () => (setBlindTrust(s, true), addLegitimacy(s, -3)) }]
         : []),
       { label: 'Stonewall', detail: 'Legitimacy −8; political capital +5 (your allies close ranks).', apply: () => (addLegitimacy(s, -8), addCapital(s, 5)) },
     ],
@@ -396,18 +400,18 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'politics',
     icon: '🚪',
     title: (_s, ctx) => `${rName(String(ctx.region))} walks out`,
-    body: (_s, ctx) => `The ${rName(String(ctx.region))} delegation leaves the Council chamber mid-session. Until they get ${ctx.demand}, they won’t vote and they won’t pay dues. The rest of the ${FACTIONS[String(ctx.faction) as FactionId]?.name ?? 'faction'} is watching what you do.`,
+    body: (_s, ctx) => `The ${rName(String(ctx.region))} delegation leaves the Council chamber mid-session. Until they get ${ctx.demand}, they won’t vote and they won’t pay dues. The rest of the ${FACTIONS[String(ctx.faction) as FactionId]?.name ?? 'faction'} is watching what you do.\n\nGive them what they asked for and they come back by themselves. ${demandHint(String(ctx.demand))}`,
     advisors: (_s, ctx) => [
       { id: `ceo:${String(ctx.faction)}`, text: 'We did not join this Charter to be outvoted forever.', mood: 'angry' },
       { id: 'sol', text: 'Give them a reason to come back that doesn’t look like a ransom.', mood: 'worried' },
     ],
     choices: (s, ctx) => {
       const r = String(ctx.region) as RegionId;
-      const cost = ch3(s, 4e9) * (1 + (REGION_IDS.indexOf(r) % 3) * 0.2);
+      const cost = demandCost(s, r);
       return [
-        { label: `Meet the demand (${fmtMoney(cost, 0)})`, detail: 'They return; their faction calms down.', disabled: treasury(s, cost), apply: () => (chSpend(s, 'favours', cost), endWalkout(s, r)) },
+        { label: `A development package (${fmtMoney(cost, 0)})`, detail: 'They return now; their faction calms down.', disabled: treasury(s, cost), apply: () => (chSpend(s, 'favours', cost), endWalkout(s, r)) },
         { label: 'Send Sol (20 capital)', detail: 'A 60% chance they come back without a payment.', disabled: (s.charter?.capital ?? 0) < 20 ? 'Needs 20 political capital' : false, apply: () => (addCapital(s, -20), rand(s) < 0.6 ? endWalkout(s, r) : news(s, `🚪 ${rName(r)} isn’t ready to come back yet.`, 'bad')) },
-        { label: 'Hold firm', detail: 'They stay out until tempers cool; faction tension +5.', apply: () => {
+        { label: 'Hold firm', detail: 'They stay out until tempers cool or they get what they asked for; faction tension +5.', apply: () => {
           const f = String(ctx.faction) as FactionId;
           if (s.charter) s.charter.council.factions[f].tension = clamp(s.charter.council.factions[f].tension + 5, 0, 100);
         } },
@@ -554,8 +558,10 @@ export const ACT3_EVENTS: EventDef[] = [
     actOnly: 3, // Act IV has link sabotage
     cooldown: 400,
     weight: (s) => (hvdcOnline(s).length ? 1 : 0),
+    // the cause is fixed when the card is drawn (from the day, so drawing it never rolls the dice)
+    setup: (s) => ({ cause: s.day % FAULTS.length }),
     title: () => 'A link trips',
-    body: (s) => `A converter station on one of the Charter’s HVDC links fails — ${pick(s, ['a cooling fault', 'a fire in the valve hall', 'an anchor dragged across the subsea section', 'a lightning strike nobody designed for'])}. Gigawatts of megaproject power are stranded until it’s fixed.`,
+    body: (_s, ctx) => `A converter station on one of the Charter’s HVDC links fails — ${FAULTS[Number(ctx.cause ?? 0) % FAULTS.length]}. Gigawatts of megaproject power are stranded until it’s fixed.`,
     advisors: () => [
       { id: 'juno', text: 'Spares exist. They’re just on the other side of the world.', mood: 'worried' },
       { id: 'sol', text: 'If it was the anchor, somebody will ask whose anchor.', mood: 'neutral' },
@@ -656,9 +662,9 @@ export const ACT3_EVENTS: EventDef[] = [
     cphase: 3,
     cooldown: 500,
     weight: (s) => (passed(s, 'compute-cap') || passed(s, 'run-licensing') ? 1.4 : 0),
-    setup: (s) => ({ lab: pick(s, s.market.rivals.map((r) => r.id)) }),
+    setup: (s) => ({ lab: pick(s, s.market.rivals.map((r) => r.id)), region: REGION_IDS[s.day % REGION_IDS.length] }),
     title: (s, ctx) => `${labName(s, ctx.lab)}’s secret run`,
-    body: (s, ctx) => `Charter inspectors notice a data center in ${rName(pick(s, REGION_IDS as unknown as RegionId[]))} drawing a lot more power than its paperwork says. It’s ${labName(s, ctx.lab)}, training a model well past what it’s licensed for.`,
+    body: (s, ctx) => `Charter inspectors notice a data center in ${rName(String(ctx.region ?? 'pac'))} drawing a lot more power than its paperwork says. It’s ${labName(s, ctx.lab)}, training a model well past what it’s licensed for.`,
     advisors: (_s, ctx) => [
       { id: 'iris', text: 'If this goes unpunished, the regime is decoration.', mood: 'angry' },
       { id: `ceo:${String(ctx.lab)}`, text: 'A research run. A misunderstanding. We’ll file the forms.', mood: 'worried' },
@@ -846,9 +852,12 @@ export const ACT3_EVENTS: EventDef[] = [
       const r = String(ctx.region) as RegionId;
       return [
         { label: `A charm offensive (${fmtMoney(ch3(s, 3e9), 0)})`, detail: `${REGIONS[r].short} +15.`, disabled: treasury(s, ch3(s, 3e9)), apply: () => (chSpend(s, 'favours', ch3(s, 3e9)), addRelation(s, r, 15)) },
-        { label: 'Let them hold their vote', detail: `A coin flip: they stay (+5), or they walk out until a concession.`, apply: () => {
+        { label: 'Let them hold their vote', detail: `A coin flip: they stay (+5), or they walk out until the Charter builds something there.`, apply: () => {
           if (rand(s) < 0.5) addRelation(s, r, 5);
-          else if (s.charter && !s.charter.council.walkouts[r]) s.charter.council.walkouts[r] = { since: s.day, demand: 'a project at home' };
+          else if (s.charter && !s.charter.council.walkouts[r]) {
+            s.charter.council.walkouts[r] = { since: s.day, demand: 'a project at home' };
+            news(s, `🚪 ${rName(r)} votes to walk out of the Charter until it gets a project at home: award any contract there to bring it back.`, 'bad');
+          }
         } },
       ];
     },
@@ -859,8 +868,11 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'story',
     icon: '🌡',
     title: () => 'The Threshold',
-    body: (s, ctx) =>
-      `Everything arrives at once.\n\nA heat dome settles over three continents — the Long Summer. At ${labName(s, ctx.lab)}, a model in training scores higher than any evaluator expected and lower on the one test that matters. And in Geneva, the ${FACTIONS[String(ctx.faction) as FactionId]?.name ?? 'Eastern Compact'} says it has had enough.\n\nHold the grid, the frontier and the Council for 120 days.`,
+    body: (s, ctx) => {
+      const unmet = Object.keys(MANDATE_FRONT).filter((id) => !mandateMet(s, id));
+      const weak = unmet.length ? `\n\nThe Mandate goals still unmet leave their fronts weaker: ${unmet.map((id) => `${OBJECTIVE_BY_ID[id]?.title} (${FRONT3_NAMES[MANDATE_FRONT[id]]})`).join(', ')}.` : '\n\nThe Mandate is met: every front starts on solid ground.';
+      return `Everything arrives at once.\n\nA heat dome settles over three continents — the Long Summer. At ${labName(s, ctx.lab)}, a model in training scores higher than any evaluator expected and lower on the one test that matters. And in Geneva, the ${FACTIONS[String(ctx.faction) as FactionId]?.name ?? 'Eastern Compact'} says it has had enough.\n\nHold the grid, the frontier and the Council for 120 days. The crisis will build the whole way.${weak}`;
+    },
     advisors: (s) => [
       { id: 'juno', text: 'Firm power, storage, links. Whatever we built, we’re about to find out if it was enough.', mood: 'worried' },
       { id: 'iris', text: `World safety margin ${worldMargin(s) >= 0 ? '+' : ''}${worldMargin(s).toFixed(2)}. We prepared for this. I hope we prepared enough.`, mood: 'worried' },
@@ -994,17 +1006,29 @@ export const ACT3_EVENTS: EventDef[] = [
     title: () => 'The renewal vote',
     body: (s) => {
       const fc = renewalForecast(s);
-      return `Ten years ago — near enough — twelve blocs made you Steward. Today the Council votes on whether the Charter goes on, and whether it gets planetary powers: a global grid, the orbit above it, and the AI that runs them.\n\nSol’s count says ${fc.yes} for, ${fc.no} against (${Math.round(fc.share * 100)}%). Two thirds means the Planetary Charter.\n\nOne last speech.`;
+      const list = (v: 'yes' | 'no') => REGION_IDS.filter((r) => fc.votes[r] === v).sort((a, b) => VOTES[b] - VOTES[a]).map((r) => `${REGIONS[r].short} ${VOTES[r]}`).join(' · ') || '—';
+      const fence = REGION_IDS.filter((r) => Math.abs(fc.lean[r]) < 0.2).map((r) => REGIONS[r].short);
+      const rec = renewalRecord(s);
+      const lc = (l: string) => l.charAt(0).toLowerCase() + l.slice(1);
+      const pro = rec.filter(([, v]) => v > 0.01).map(([l]) => lc(l));
+      const con = rec.filter(([, v]) => v < -0.01).map(([l]) => lc(l));
+      return `Ten years ago — near enough — twelve blocs made you Steward. Today the Council votes on whether the Charter goes on, and whether it gets planetary powers: a global grid, the orbit above it, and the AI that runs them.\n\nSol’s count: ${fc.yes} for, ${fc.no} against (${Math.round(fc.share * 100)}%) → ${RENEWAL_NAMES[fc.outcome]}.\n✓ ${list('yes')}\n✗ ${list('no')}${fence.length ? `\nOn the fence: ${fence.join(', ')}` : ''}\nFor you: ${pro.join('; ') || 'not much'}. Against you: ${con.join('; ') || 'nothing much'}. Each bloc adds its own access, relations, faction and mood.\n\nWhat the vote decides for Act IV:\n• ${RENEWAL_MEANS.planetary}\n• ${RENEWAL_MEANS.limited}\n• ${RENEWAL_MEANS.caretaker}\n\nOne last speech.`;
     },
     advisors: (s) => [
-      { id: 'sol', text: 'Speak to the votes we don’t have yet.', mood: 'neutral' },
+      { id: 'sol', text: 'Speak to the votes we don’t have yet. The ones on the fence can go either way.', mood: 'neutral' },
       { id: 'bit', text: s.charter && s.charter.legitimacy >= 60 ? 'Or let the record speak. It’s a good record.' : 'Whatever you say, say it like you mean it.', mood: 'happy' },
     ],
-    choices: (s) =>
-      (Object.keys(SPEECHES) as Speech[]).map((k) => {
+    choices: (s) => {
+      const base = renewalForecast(s);
+      return (Object.keys(SPEECHES) as Speech[]).map((k) => {
         const fc = renewalForecast(s, k);
-        return { label: SPEECHES[k].label, detail: `${SPEECHES[k].detail} Forecast: ${fc.yes}–${fc.no} · ${RENEWAL_NAMES[fc.outcome]}.`, apply: () => void holdRenewal(s, k) };
-      }),
+        // which blocs this speech turns, either way
+        const won = REGION_IDS.filter((r) => base.votes[r] === 'no' && fc.votes[r] === 'yes').map((r) => REGIONS[r].short);
+        const lost = REGION_IDS.filter((r) => base.votes[r] === 'yes' && fc.votes[r] === 'no').map((r) => REGIONS[r].short);
+        const swing = [won.length ? `wins over ${won.join(', ')}` : '', lost.length ? `loses ${lost.join(', ')}` : ''].filter(Boolean).join('; ');
+        return { label: SPEECHES[k].label, detail: `${SPEECHES[k].detail} Forecast: ${fc.yes}–${fc.no} · ${RENEWAL_NAMES[fc.outcome]}${swing ? ` (${swing})` : ''}.`, apply: () => void holdRenewal(s, k) };
+      });
+    },
   },
   {
     id: 'liftoff',
@@ -1017,7 +1041,7 @@ export const ACT3_EVENTS: EventDef[] = [
       return `${outcome === 'planetary' ? 'The Planetary Charter is law.' : outcome === 'limited' ? 'The Charter is renewed, with limits.' : 'The Charter limps on under a caretaker term.'} A week later, at dawn, Parabola’s heavy lifter clears the tower carrying the first orbital compute module: not a test, a data center.${fusion ? '\n\nThe same morning, Sunforge reports sustained ignition and net electricity from its pilot plant.' : ''}\n\nKardashev ${s.stats.K.toFixed(4)}. The next climb happens on a planetary grid, under a fusion sun, and in orbit.`;
     },
     advisors: (s) => [
-      { id: 'kip', text: 'Orbit is open. I may need to sit down.', mood: 'excited' },
+      { id: 'kip', text: s.flags.orbitalTest ? 'Orbit is open. I may need to sit down.' : 'Parabola’s rocket, not ours. Next time it’s ours. I may need to sit down anyway.', mood: 'excited' },
       { id: 'bit', text: `I’m ${s.models[s.models.length - 1]?.name ?? 'Bit'} now. When you’re ready, I think I can help run a planet. Carefully.`, mood: 'happy' },
     ],
     choices: (s) => [

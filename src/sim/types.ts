@@ -384,6 +384,8 @@ export interface Job {
   b?: number;
   /** Day the job last acted (for reports / pacing). */
   last?: number;
+  /** Act III: Bit's co-pilot desk, paused until the margins recover (it resumes on its own). */
+  paused?: boolean;
 }
 
 // ── Act II: the finale ──────────────────────────────────────────────────────────────────────

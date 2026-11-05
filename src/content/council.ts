@@ -55,7 +55,7 @@ export const RESOLUTIONS: ResolutionDef[] = [
   {
     id: 'compute-cap', name: 'Frontier compute cap', icon: 'compute', cost: 18, cphase: 3,
     blurb: 'No training run above 3×10³⁰ FLOP without a Charter licence — for every lab, yours included.',
-    effect: 'Every rival lab improves 25% slower; your own big runs need a licence (Charter → Frontier).',
+    effect: 'Every rival lab improves 25% slower; your own big runs need a licence (request it in the Compute panel).',
     appeal: { stance: { cautious: 0.7, neutral: 0.2, accelerate: -0.6 }, wealth: { developing: 0.15 } },
   },
   {

@@ -1,5 +1,5 @@
 /** Act III panels: the Charter (overview · contracts · missions · partners · world), the Council, the Charter desk and the Threshold tracker. */
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { Bar, Choice, Icon, KV, Panel, Portrait, Slider, Toggle, useGame } from '../components';
 import { ceoPortraitUrl } from '../../render/sprites/portraits';
 import {
@@ -34,6 +34,7 @@ import { fmtDate, fmtDays, fmtMoney, fmtMW } from '../../sim/core';
 import type { ContractKind, ContractSize, FactionId, GameState, Project, Tender, ThresholdFront } from '../../sim/types';
 import {
   activeProjects,
+  affordable,
   bidScore,
   canAward,
   canPost,
@@ -45,7 +46,9 @@ import {
   duesOf,
   expediteCost,
   isLate,
+  legitimacyParts,
   minAccess,
+  monthlyPayment,
   partnerCapacity,
   partnerName,
   sizeText,
@@ -54,11 +57,12 @@ import {
   youCanBid,
   TRUST_COOLDOWN,
 } from '../../sim/charter';
-import { canFavour, canTable, canWhip, favourCost, forecast, type Vote } from '../../sim/council';
+import { canFavour, canMeetDemand, canTable, canWhip, demandCost, demandHint, favourCost, forecast, meetDemand, type Vote } from '../../sim/council';
 import { carbonYearsLeft, charterGWByRegion, growthParts, worldClean } from '../../sim/world';
 import { capInForce, COMPUTE_CAP, ownRunStatus, worldFrontier, worldMargin } from '../../sim/frontier';
 import { DESKS, bitTrusted } from '../../sim/desk';
-import { FRONT3_NAMES, frontRise, THRESHOLD_FRONTS } from '../../sim/threshold';
+import { FRONT3_NAMES, frontRise, MANDATE_FRONT, RENEWAL_MEANS, RENEWAL_NAMES, renewalForecast, renewalRecord, THRESHOLD_FRONTS } from '../../sim/threshold';
+import { nextPhaseText } from '../../sim/act3';
 import { megaView } from '../../sim/charterView';
 import { seedPlaces as seedOptions } from '../../sim/foundries';
 import { nextModelPlan } from '../../sim/ai';
@@ -110,8 +114,9 @@ export function CharterPanel() {
     ['partners', 'Partners'],
     ['world', 'World'],
   ];
+  const next = nextPhaseText(s);
   return (
-    <Panel title="The Kardashev Project" icon="charter" class="wide research" onClose={() => game.openPanel(null)} extra={<span class="small muted">Phase {Math.min(5, c.phase)} · {CHARTER_PHASES[c.phase]}</span>}>
+    <Panel title="The Kardashev Project" icon="charter" class="wide research" onClose={() => game.openPanel(null)} extra={<span class="small muted" data-tip={next?.tip}>Phase {Math.min(5, c.phase)} · {CHARTER_PHASES[c.phase]}</span>}>
       <div class="tabs" role="tablist">
         {tabs.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} class={`btn small ${tab === id ? 'active' : ''}`} onClick={() => game.setCharterTab(id)} data-tut={`charter-${id}`}>
@@ -119,6 +124,11 @@ export function CharterPanel() {
           </button>
         ))}
       </div>
+      {next && (
+        <div class="small muted" style={{ margin: '2px 0 4px' }} data-tip={next.tip}>
+          {next.text}
+        </div>
+      )}
       <div class="tabbody">
         {tab === 'overview' && <OverviewTab />}
         {tab === 'contracts' && <ContractsTab />}
@@ -139,6 +149,14 @@ function OverviewTab() {
   const [gift, setGift] = useState(2e9);
   const trustWhy = canSetBlindTrust(s, !c.blindTrust);
   const recent = c.history.slice(-6);
+  const lparts = legitimacyParts(s);
+  const legitDrift = lparts.reduce((a, [, v]) => a + v, 0);
+  const legitTip = `The blocs’ confidence in your stewardship. It shapes every vote, the dues and the renewal; below 35 the Council gets restless.\n\nNext month:\n${lparts.map(([l, v]) => `${sign(v, 1)} ${l}`).join('\n')}\n\nOn top of that: finished projects (+0.6 each), missions, cards, awards to your own company and lost fronts.`;
+  // from the Frontier on, what the renewal vote would say today
+  const fc = c.phase >= 3 && c.phase < 5 ? renewalForecast(s) : null;
+  const fcTip = fc
+    ? `If the Council voted today (${fc.yes}–${fc.no}, ${Math.round(fc.share * 100)}%):\n${REGION_IDS.map((r) => `${fc.votes[r] === 'yes' ? '✓' : '✗'} ${REGIONS[r].short} (${VOTES[r]}) ${sign(fc.lean[r], 2)}`).join('\n')}\n\nEvery bloc weighs: ${renewalRecord(s).map(([l, v]) => `${l} ${sign(v, 2)}`).join(' · ')} — then its own access, relations, faction tension and stance.${c.threshold?.done ? '' : ' The Threshold counts once it has been faced.'}\n\n${RENEWAL_MEANS[fc.outcome]}`
+    : '';
   return (
     <>
       <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
@@ -150,7 +168,7 @@ function OverviewTab() {
           <KV
             rows={[
               ['Dues coming in', `${fmtMoney(dues)}/month`, `What the twelve blocs pay at today’s dues level (×${c.dues.toFixed(2)}), each scaled by its willingness: relations, your Legitimacy, walkouts.`],
-              ['Committed to projects', <span class={committed > dues ? 'warn' : ''}>{fmtMoney(committed)}/month</span>, 'Progress payments on everything under construction. Commit more than comes in and projects fall into arrears: they slow down and partners sour.'],
+              ['Committed to projects', <span class={committed > dues ? 'warn' : ''}>{fmtMoney(committed)}/month</span>, 'Progress payments on everything under construction. Commit more than comes in and, once the treasury runs dry, projects fall into arrears: they build at half speed and Legitimacy falls every month.'],
               ['Political capital', `${Math.round(c.capital)} / 100`, 'The Council currency: table resolutions, whip votes, emergency sessions. Earned monthly from your standing and Legitimacy.'],
               ['Next Council session', fmtDays(c.council.nextSession - s.day)],
               ['Charter standing', `${c.standing} / 3`, 'Fronts you held in the Crunch — your clout when the Charter was founded.'],
@@ -161,31 +179,37 @@ function OverviewTab() {
           <h4>
             <Icon name="legit" size="sm" /> Legitimacy
           </h4>
-          <Bar value={c.legitimacy / 100} kind={c.legitimacy < 35 ? 'warn' : 'gold'} tall tip="The blocs’ confidence in your stewardship. Below 35 the Council gets restless; it shapes every vote and the renewal." />
-          <div class="small" style={{ margin: '4px 0' }}>
-            {Math.round(c.legitimacy)} / 100 — {c.legitimacy >= 70 ? 'the Council trusts you' : c.legitimacy >= 50 ? 'steady' : c.legitimacy >= 35 ? 'questions are being asked' : 'the knives are out'}
+          <Bar value={c.legitimacy / 100} kind={c.legitimacy < 35 ? 'warn' : 'gold'} tall tip={legitTip} />
+          <div class="small" style={{ margin: '4px 0' }} data-tip={legitTip}>
+            {Math.round(c.legitimacy)} / 100 — {c.legitimacy >= 70 ? 'the Council trusts you' : c.legitimacy >= 50 ? 'steady' : c.legitimacy >= 35 ? 'questions are being asked' : 'the knives are out'} · <span class={legitDrift >= 0 ? 'good' : 'bad'}>{sign(legitDrift, 1)}/month</span>
           </div>
-          <div class="small muted">Rises with delivered projects, fair awards, missions and the blind trust. Falls with self-dealing, arrears, late projects, scandals and walkouts.</div>
+          <div class="small muted">Rises with delivered projects, fair awards, missions and the blind trust. Falls with self-dealing, arrears, late projects, scandals, walkouts — and a Charter that sits on its money and builds nothing.</div>
         </div>
       </div>
-      <div class="section">
+      <div class="section" data-tut="mandate">
         <h4>
           <Icon name="goals" size="sm" /> The Charter Mandate
         </h4>
         <div class="small muted" style={{ marginBottom: '4px' }}>
-          When it is met, The Threshold begins — or on {fmtDate(THRESHOLD_DEADLINE, true)} at the latest.
+          When it is met, The Threshold begins — or on {fmtDate(THRESHOLD_DEADLINE, true)} at the latest. A goal still unmet then leaves its front of the Threshold weaker.
         </div>
         <div class="cardgrid">
           {MANDATE_GOALS.map((id) => {
             const o = OBJECTIVE_BY_ID[id];
             const done = s.objectives.done.includes(id) || o.done(s);
             return (
-              <div key={id} class="small mandate" data-tip={o.hint}>
+              <div key={id} class="small mandate" data-tip={`${o.hint}${MANDATE_FRONT[id] ? `\nStill unmet when the Threshold comes, it adds pressure to ${FRONT3_NAMES[MANDATE_FRONT[id]]}.` : ''}`}>
                 <span class={done ? 'good' : 'muted'}>{done ? '✓' : '○'}</span> {o.title}
               </div>
             );
           })}
         </div>
+        {fc && (
+          <div class="small" style={{ marginTop: '6px' }} data-tip={fcTip}>
+            <Icon name="vote" size="sm" /> If the Council voted on renewal today: <b>{fc.yes}–{fc.no}</b> ({Math.round(fc.share * 100)}%) ·{' '}
+            <span class={fc.outcome === 'planetary' ? 'good' : fc.outcome === 'limited' ? 'warn' : 'bad'}>{RENEWAL_NAMES[fc.outcome]}</span>
+          </div>
+        )}
       </div>
       <div class="row wrap section" style={{ gap: '16px', alignItems: 'flex-start' }}>
         <div class="grow" style={{ minWidth: '240px' }} data-tut="blind-trust">
@@ -277,6 +301,15 @@ function ContractsTab() {
   const [kind, setKind] = useState<ContractKind>(draft?.kind ?? 'solar');
   const [where, setWhere] = useState<string>(draft?.where ?? '');
   const [size, setSize] = useState<ContractSize>(2);
+  // "Post a contract here" while this tab is already open: take the new draft
+  useEffect(() => {
+    if (!draft) return;
+    if (draft.kind) {
+      setCat(CONTRACT_KINDS[draft.kind].cat);
+      setKind(draft.kind);
+    }
+    if (draft.where) setWhere(draft.where);
+  }, [draft]);
   const def = CONTRACT_KINDS[kind];
   const options = whereOptions(s, kind);
   const w = options.find((o) => o.id === where)?.id ?? options[0]?.id ?? 'global';
@@ -386,6 +419,26 @@ export function TenderCard({ t }: { t: Tender }) {
   const s = game.state!;
   const def = CONTRACT_KINDS[t.kind];
   const best = t.bids.length ? Math.min(...t.bids.map((b) => bidScore(s, t, b))) : 0;
+  const committed = committedMonthly(s);
+  const dues = duesMonthly(s);
+  /** Award, but first say so when the treasury can't carry the payments (projects would fall into arrears). */
+  const award = (i: number) => {
+    const b = t.bids[i];
+    if (affordable(s, b.price, b.days)) {
+      game.awardBid(t.id, i);
+      return;
+    }
+    const extra = monthlyPayment(b.price, b.days);
+    game.confirm = {
+      title: 'The treasury can’t carry this',
+      detail: `This award adds ${fmtMoney(extra)}/month for ${Math.round(b.days / 30.4)} months. Projects under way would then need ${fmtMoney(committed + extra)}/month against ${fmtMoney(dues)}/month of dues, with ${fmtMoney(s.charter!.budget)} in the treasury. When the money runs out, projects fall into arrears: they build at half speed and Legitimacy falls every month until it’s paid.`,
+      onYes: () => {
+        game.confirm = null;
+        game.awardBid(t.id, i);
+      },
+    };
+    game.notify();
+  };
   return (
     <div class="frame tender">
       <div class="row between">
@@ -404,6 +457,8 @@ export function TenderCard({ t }: { t: Tender }) {
         const why = canAward(s, t.id, i);
         const conflict = conflictCost(s, t, b);
         const score = bidScore(s, t, b);
+        const extra = monthlyPayment(b.price, b.days);
+        const ok = affordable(s, b.price, b.days);
         return (
           <div class={`bid row ${b.partner === YOU ? 'you' : ''}`} key={b.partner}>
             <Face id={b.partner} size={28} />
@@ -413,10 +468,13 @@ export function TenderCard({ t }: { t: Tender }) {
                 {score <= best + 1e-9 && <span class="good"> · best value</span>}
                 {b.partner === YOU && <span class="warn"> · your company: Legitimacy −{conflict}</span>}
               </div>
+              <div class={`small ${ok ? 'muted' : 'warn'}`} data-tip="What this award adds to the Charter’s monthly progress payments, and what everything under way would then need against the dues coming in. Past the dues, the treasury pays the gap until it runs dry; then projects fall into arrears.">
+                +{fmtMoney(extra)}/month for {Math.round(b.days / 30.4)} months → committed {fmtMoney(committed + extra)} of {fmtMoney(dues)} dues{ok ? '' : ' · more than the treasury can carry'}
+              </div>
               <div class="small muted">“{b.pitch}”</div>
               <Traits s={s} id={b.partner} />
             </div>
-            <button class={`btn small ${b.partner === YOU ? '' : 'primary'}`} disabled={!!why} onClick={() => game.awardBid(t.id, i)} data-tip={why ?? `Award: ${fmtMoney(b.price * 0.2)} now, the rest over the build.`}>
+            <button class={`btn small ${b.partner === YOU ? '' : 'primary'}`} disabled={!!why} onClick={() => award(i)} data-tip={why ?? `Award: ${fmtMoney(b.price * 0.2)} now, the rest over the build.`}>
               Award
             </button>
           </div>
@@ -796,6 +854,7 @@ function BlocsTab() {
   const s = game.state!;
   const c = s.charter!;
   const k = c.council;
+  const outs = REGION_IDS.filter((r) => k.walkouts[r]);
   return (
     <>
       <div class="cardgrid three" data-tut="factions">
@@ -852,13 +911,45 @@ function BlocsTab() {
                   <td>{Math.round(s.blocs[r].relation)}</td>
                   <td class={(c.access[r] ?? 0) < 40 ? 'warn' : ''}>{Math.round(c.access[r] ?? 0)}</td>
                   <td>{fmtMoney(duesOf(s, r) * willingness(s, r), 1)}</td>
-                  <td class={out ? 'bad' : k.late[r] ? 'warn' : 'good'}>{out ? `walked out (wants ${out.demand})` : k.late[r] ? 'paying late' : WEALTH[r]}</td>
+                  <td class={out ? 'bad' : k.late[r] ? 'warn' : 'good'} data-tip={out ? demandHint(out.demand) : undefined}>
+                    {out ? `walked out (wants ${out.demand})` : k.late[r] ? 'paying late' : WEALTH[r]}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      {outs.length > 0 && (
+        <div class="section" data-tut="walkouts">
+          <h4>Walked out</h4>
+          <div class="small muted" style={{ marginBottom: '4px' }}>
+            A bloc that walks out pays no dues and casts no votes. Give it what it asked for and it comes back by itself (checked monthly) — or buy it back with a development package.
+          </div>
+          {outs.map((r) => {
+            const w = k.walkouts[r]!;
+            const why = canMeetDemand(s, r);
+            return (
+              <div key={r} class="row wrap small" style={{ gap: '6px', alignItems: 'center', marginTop: '4px' }}>
+                <b>{REGIONS[r].name}</b>
+                <span class="grow muted">
+                  wants {w.demand}: {demandHint(w.demand)}
+                </span>
+                {w.demand === 'a project at home' && (
+                  <button class="btn small" onClick={() => game.openCharter('contracts', { kind: 'compute', where: r })} data-tip={`Open Charter → Contracts with a public compute campus in ${REGIONS[r].name}.`}>
+                    Post a contract there
+                  </button>
+                )}
+                {w.demand !== 'the renewal vote' && (
+                  <button class="btn small" disabled={!!why} onClick={() => (meetDemand(s, r), game.notify())} data-tip={why ?? `A development package from the treasury (${fmtMoney(demandCost(s, r), 1)}): they come back now and their faction calms down.`}>
+                    Development package ({fmtMoney(demandCost(s, r), 0)})
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }
@@ -900,7 +991,7 @@ export function CharterDeskSection() {
                   <Slider label={d.a.label} value={job?.a ?? d.a.def} min={d.a.min} max={d.a.max} step={d.a.step} format={fmt} onChange={(v) => game.setDesk(d.advisor, { a: v })} />
                   {d.b && <Choice label={d.b.label} value={job?.b ?? d.b.def} options={d.b.options} onChange={(v) => game.setDesk(d.advisor, { b: v })} />}
                   {job?.last !== undefined && <div class="small muted">Last acted {fmtDays(s.day - job.last)} ago.</div>}
-                  {trust && <div class="small warn">{trust}.</div>}
+                  {job?.on && job.paused ? <div class="small warn">Paused until the margins recover ({trust ?? 'they nearly have'}); Bit picks the desk back up by itself.</div> : trust && <div class="small warn">{trust}.</div>}
                 </>
               ) : (
                 <div class="small muted">Opens in Charter phase {d.cphase}.</div>

@@ -5,15 +5,16 @@
  * Factions build tension; very unhappy blocs walk out; a lot of tension founds the rival Concord.
  */
 import { CHARTER, FACTION_IDS, FACTIONS, factionOf, TOTAL_VOTES, VOTES, WEALTH } from '../content/charter';
-import { RESOLUTION_BY_ID, type ResolutionDef } from '../content/council';
+import { RESOLUTION_BY_ID, RESOLUTIONS, type ResolutionDef } from '../content/council';
 import { REGIONS } from '../content/regions';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { FactionId, GameState } from './types';
 import { clamp, fmtMoney, news, pick, rand } from './core';
 import { addRelation } from './politics';
 import { queueEvent } from './events';
-import { addCapital, addLegitimacy, addPartnerRel, chSpend } from './charter';
+import { addCapital, addLegitimacy, addPartnerRel, chSpend, isWorldwide } from './charter';
 import { addModifier } from './effects';
+import { crisisMult } from './model';
 
 export type Result = { ok: true } | { ok: false; reason: string };
 const fail = (reason: string): Result => ({ ok: false, reason });
@@ -267,7 +268,8 @@ export function spendShare(s: GameState): Record<FactionId, number> {
   const by: Record<string, number> = {};
   let total = 0;
   for (const p of c.projects) {
-    if (p.status === 'cancelled') continue;
+    // worldwide programmes (evals, orbit, grants) are nobody's share
+    if (p.status === 'cancelled' || isWorldwide(p.kind)) continue;
     const f = factionOf(p.region);
     by[f] = (by[f] ?? 0) + p.price;
     total += p.price;
@@ -309,13 +311,21 @@ export function tickCouncil(s: GameState): void {
     const present = FACTIONS[f].members.filter((r) => !k.walkouts[r]);
     if (!present.length || rand(s) > (t - 60) / 120) continue;
     const r = present.sort((a, b) => s.blocs[a].relation - s.blocs[b].relation)[0];
-    const demand = pick(s, ['a project at home', 'dues relief', 'a seat on the safety board', 'export rules lifted']);
+    // Act III: a bloc only asks for what it doesn't have yet (the Charter can then deliver it)
+    const all = ['a project at home', 'dues relief', 'a seat on the safety board', 'export rules lifted'];
+    const live = !s.planet && s.flags.offline !== 'skip';
+    const demand = pick(s, live ? all.filter((d) => d === 'a project at home' || !demandSatisfied(s, d)) : all);
     k.walkouts[r] = { since: s.day, demand };
     queueEvent(s, 'walkout', { region: r, faction: f, demand });
   }
-  // walkouts end on their own once tempers cool
+  // walkouts end on their own once tempers cool — or (Act III) as soon as the bloc gets what it asked for
   for (const [r, w] of Object.entries(k.walkouts) as [RegionId, { since: number; demand: string }][]) {
     const f = factionOf(r);
+    if (!s.planet && s.flags.offline !== 'skip' && demandMet(s, r)) {
+      endWalkout(s, r);
+      news(s, `🤝 ${REGIONS[r].name} returns to the Council: it got ${w.demand}.`, 'good');
+      continue;
+    }
     if (k.factions[f].tension < 45 && s.day - w.since > 120 && rand(s) < 0.3) {
       delete k.walkouts[r];
       addRelation(s, r, 4);
@@ -343,4 +353,79 @@ export function endWalkout(s: GameState, r: RegionId): void {
   const f = factionOf(r);
   k.factions[f].tension = clamp(k.factions[f].tension - 12, 0, 100);
   addRelation(s, r, 6);
+}
+
+/** Whether a Council-wide demand is already in force (a bloc won't walk out over those). */
+function demandSatisfied(s: GameState, demand: string): boolean {
+  const passed = s.charter?.council.passed ?? [];
+  switch (demand) {
+    case 'dues relief':
+      return passed.includes('dues-relief');
+    case 'a seat on the safety board':
+      return passed.includes('run-licensing') || passed.includes('incident-reporting');
+    case 'export rules lifted':
+      return !['chip-controls', 'hbm-caps', 'gulf-controls'].some((x) => s.politics.rules.includes(x));
+    default:
+      return false;
+  }
+}
+
+/** Whether a bloc that walked out has got what it asked for (checked monthly; it then comes back). */
+export function demandMet(s: GameState, r: RegionId): boolean {
+  const c = s.charter;
+  const w = c?.council.walkouts[r];
+  if (!c || !w) return false;
+  if (w.demand === 'a project at home') return c.projects.some((p) => p.region === r && p.startDay >= w.since && p.status !== 'cancelled' && !isWorldwide(p.kind));
+  return demandSatisfied(s, w.demand);
+}
+
+/** What a walked-out bloc's demand looks like in practice (the Council panel's hint). */
+export function demandHint(demand: string): string {
+  switch (demand) {
+    case 'a project at home':
+      return 'Award any Charter contract in the bloc (a compute campus, a cable, a Commons line…).';
+    case 'dues relief':
+      return 'Pass “Dues relief for developing blocs” in the Council.';
+    case 'a seat on the safety board':
+      return 'Pass “Frontier run licensing” or “Mandatory incident reporting”.';
+    case 'export rules lifted':
+      return 'Pass “Harmonise export rules”.';
+    default:
+      return 'They come back after the vote.';
+  }
+}
+
+/** A development package that buys a walked-out bloc back without meeting its demand. */
+export function demandCost(s: GameState, r: RegionId): number {
+  return 4e9 * Math.pow(1.05, Math.max(0, (s.day - (s.charter?.founded ?? s.day)) / 365)) * crisisMult(s) * (1 + (REGION_IDS.indexOf(r) % 3) * 0.2);
+}
+
+export function canMeetDemand(s: GameState, r: RegionId): string | null {
+  const c = s.charter;
+  const w = c?.council.walkouts[r];
+  if (!c || !w) return 'They haven’t walked out.';
+  if (w.demand === 'the renewal vote') return 'They come back for the renewal vote.';
+  const cost = demandCost(s, r);
+  if (c.budget < cost) return `Needs ${fmtMoney(cost)} in the treasury.`;
+  return null;
+}
+
+/** Pay for a development package: the bloc comes back, its faction calms down. */
+export function meetDemand(s: GameState, r: RegionId): Result {
+  const why = canMeetDemand(s, r);
+  if (why) return fail(why);
+  chSpend(s, 'favours', demandCost(s, r));
+  endWalkout(s, r);
+  news(s, `🤝 ${REGIONS[r].name} returns to the Council after a development package.`, 'good');
+  return OK;
+}
+
+/**
+ * Whether the Council is worth a visit (the Dock badge): a session is less than a month away, nothing
+ * is on its agenda, and there is a resolution you could table today that the forecast says would pass.
+ */
+export function councilReady(s: GameState): boolean {
+  const c = s.charter;
+  if (!c || c.council.agenda.length || c.council.nextSession - s.day > 30) return false;
+  return RESOLUTIONS.some((res) => (res.act ?? 3) <= (s.act ?? 3) && canTable(s, res.id) === null && forecast(s, res.id).passes);
 }

@@ -10,7 +10,7 @@ import { LAUNCH_SITES, MEGA_SITES } from '../content/sites';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { AdvisorId, ContractKind, ContractSize, GameState, Job } from './types';
 import { fmtMoney, news } from './core';
-import { affordable, awardBid, bidScore, canAward, canPost, expediteCost, expediteProject, isLate, partnerBidders, postTender } from './charter';
+import { affordable, awardBid, bidScore, canAward, canPost, expediteCost, expediteProject, isLate, partnerBidders, pendingAccess, postTender } from './charter';
 import { canWhip, forecast, voteScore, whipBloc } from './council';
 import { megaStage } from '../content/charter';
 import { worldMargin } from './frontier';
@@ -81,6 +81,8 @@ export function setDesk(s: GameState, advisor: AdvisorId, patch: Partial<Job>): 
   }
   const cur: Job = c.desk[advisor] ?? { on: false, a: def.a.def, b: def.b?.def };
   c.desk[advisor] = { ...cur, ...patch };
+  // switching a desk on (or off) starts it fresh
+  if (patch.on !== undefined) delete c.desk[advisor]!.paused;
   return { ok: true };
 }
 
@@ -202,6 +204,21 @@ function space(s: GameState): void {
   }
 }
 
+/** Units of a kind already finished, under construction or out to tender (what a mission goal will get). */
+function inHand(s: GameState, kind: ContractKind): number {
+  const c = s.charter!;
+  const def = CONTRACT_KINDS[kind];
+  const units = (size: ContractSize) => def.sizes[size - 1];
+  return c.projects.filter((p) => p.kind === kind && p.status !== 'cancelled').reduce((a, p) => a + units(p.size), 0) + c.tenders.filter((t) => t.kind === kind).reduce((a, t) => a + units(t.size), 0);
+}
+
+/** A mission goal only the Council can deliver (Bit can't post it; it says so instead). */
+export function missingResolution(s: GameState): string | null {
+  const c = s.charter!;
+  if (c.phase >= 3 && !c.missions['safe-frontier'] && !c.council.passed.includes('run-licensing') && !c.council.agenda.includes('run-licensing')) return 'run-licensing';
+  return null;
+}
+
 /** What Bit would post next: the cheapest contract that moves the nearest unfinished mission. */
 function nextMissionContract(s: GameState): { kind: ContractKind; size: ContractSize; where: string } | null {
   const c = s.charter!;
@@ -212,8 +229,9 @@ function nextMissionContract(s: GameState): { kind: ContractKind; size: Contract
   };
   const open = MISSIONS.filter((m) => !c.missions[m.id] && c.phase >= m.cphase && m.id !== 'offworld').sort((a, b) => frac(a) - frac(b));
   const tryPost = (kind: ContractKind, size: ContractSize, where: string) => (canPost(s, kind, size, where) === null && partnerBidders(s, kind).length ? { kind, size, where } : null);
+  // work already under way or out to tender counts toward a goal: don't post it twice
+  const live = (kind: ContractKind) => c.projects.some((p) => p.kind === kind && p.status !== 'cancelled') || c.tenders.some((t) => t.kind === kind);
   for (const m of open) {
-    const pr = missionProgress(s, m);
     if (m.id === 'clean-power') {
       const r = bestEnergy(s, true);
       if (r) return r;
@@ -222,29 +240,39 @@ function nextMissionContract(s: GameState): { kind: ContractKind; size: Contract
       const worst = [...REGION_IDS].sort((a, b) => c.access[a] - c.access[b]);
       for (const r of worst) {
         if (c.access[r] >= 50) break;
+        // a campus or cable already on its way there will lift it (with a little headroom for the drift)
+        if (c.access[r] + pendingAccess(s, r) >= 55) continue;
         const x = tryPost('compute', 3, r) ?? tryPost('cable', 2, r);
         if (x) return x;
       }
     }
     if (m.id === 'chip-commons') {
+      const commons: ContractKind[] = ['fab', 'hbm', 'pkg'];
+      const lineIn = (r: RegionId) => c.projects.some((p) => commons.includes(p.kind) && p.region === r && p.status !== 'cancelled') || c.tenders.some((t) => commons.includes(t.kind) && t.region === r);
       const needs: ContractKind[] = [];
-      if (pr.goals[0][0] < 3) needs.push('fab');
-      if (pr.goals[1][0] < 2) needs.push('hbm');
-      if (pr.goals[2][0] < 2) needs.push('pkg');
-      const hosts: RegionId[] = ['sas', 'seo', 'lat', 'eur', 'atl', 'mena'];
+      if (inHand(s, 'fab') < 3) needs.push('fab');
+      if (inHand(s, 'hbm') < 2) needs.push('hbm');
+      if (inHand(s, 'pkg') < 2) needs.push('pkg');
+      // the mission also wants lines in three blocs: blocs without one come first
+      const hosts = (['sas', 'seo', 'lat', 'eur', 'atl', 'mena'] as RegionId[]).sort((a, b) => Number(lineIn(a)) - Number(lineIn(b)));
+      if (!needs.length && REGION_IDS.filter(lineIn).length < 3) needs.push('pkg');
       for (const k of needs) for (const r of hosts) {
         const x = tryPost(k, 1, r);
         if (x) return x;
       }
     }
-    if (m.id === 'backbone') {
+    const links = c.projects.filter((p) => p.kind === 'hvdc' && p.status !== 'cancelled').length + c.tenders.filter((t) => t.kind === 'hvdc').length;
+    if (m.id === 'backbone' && links < 2) {
       for (const route of ['hvdc-sahara', 'hvdc-northsea', 'hvdc-plains', 'hvdc-gulf', 'hvdc-outback', 'hvdc-gobi']) {
         const x = tryPost('hvdc', 2, route);
         if (x) return x;
       }
     }
     if (m.id === 'safe-frontier') {
-      const x = tryPost('evals', 2, 'global') ?? tryPost('interp', 2, 'global');
+      // one of each programme is what the mission needs; repeats teach the field less and less, so
+      // another one only goes out while the world margin is negative and nothing else is running
+      const running = c.projects.some((p) => (p.kind === 'evals' || p.kind === 'interp') && p.status === 'building') || c.tenders.some((t) => t.kind === 'evals' || t.kind === 'interp');
+      const x = (!live('evals') ? tryPost('evals', 2, 'global') : null) ?? (!live('interp') || (worldMargin(s) < 0 && !running) ? tryPost('interp', 2, 'global') : null);
       if (x) return x;
     }
   }
@@ -277,12 +305,27 @@ function bestEnergy(s: GameState, forStages: boolean): { kind: ContractKind; siz
   return null;
 }
 
+/**
+ * Whether Bit keeps its desk once it has it: the same trust as switching it on, with some slack, so a
+ * world margin hovering around zero doesn't flip it on and off every week.
+ */
+export function bitKeepsTrust(s: GameState): boolean {
+  if (s.charter?.missions['safe-frontier']) return true;
+  if (s.flags.bitDispatch && s.stats.margin >= 0 && worldMargin(s) >= -0.2) return true;
+  return s.stats.margin >= 0.15 && worldMargin(s) >= -0.1;
+}
+
 function copilot(s: GameState): void {
   const j = desk(s, 'bit');
   if (!j) return;
-  if (bitTrusted(s) !== null) {
-    s.charter!.desk.bit!.on = false;
-    report(s, 'bit', 'stepping back from the desk until the margins are healthy again. That seems right.');
+  // paused while the margins are poor; it picks the desk back up by itself once they're healthy
+  if (j.paused) {
+    if (bitTrusted(s) !== null) return;
+    j.paused = false;
+    report(s, 'bit', 'back on the desk: the margins are healthy again.');
+  } else if (!bitKeepsTrust(s)) {
+    j.paused = true;
+    report(s, 'bit', 'pausing the desk until the safety margins recover. I’ll pick it back up when they do.');
     return;
   }
   const c = s.charter!;
@@ -290,6 +333,12 @@ function copilot(s: GameState): void {
   if (c.tenders.length < j.a && deskBudget(s) > 10e9) {
     const next = nextMissionContract(s);
     if (next && postTender(s, next.kind, next.size, next.where).ok) report(s, 'bit', `posted ${CONTRACT_KINDS[next.kind].name.toLowerCase()} toward the next mission.`);
+  }
+  // a missing piece that is a vote, not a contract: Bit can't post it, so it says so (twice a year at most)
+  const res = missingResolution(s);
+  if (res && s.day - Number(s.flags.bitAskedVote ?? -9999) > 180) {
+    s.flags.bitAskedVote = s.day;
+    report(s, 'bit', `A Safe Frontier needs “${RESOLUTION_BY_ID[res].name}” in force, and only the Council can pass it. Table it when you can.`);
   }
 }
 
