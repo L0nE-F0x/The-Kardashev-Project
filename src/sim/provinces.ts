@@ -13,6 +13,7 @@ import { modAdd, techMult } from './effects';
 import { queueEvent } from './events';
 import { addRelation } from './politics';
 import { inMainGrid } from './supergrid';
+import { habitatWellbeing } from './swarm';
 import { warming } from './climate';
 import { fusionTW } from './fusion';
 import { wasteHeat } from './planetView';
@@ -69,6 +70,9 @@ export function wellbeingTarget(s: GameState, r: RegionId): { v: number; parts: 
     if (beam > 0) parts.push(['Power from the swarm', Math.min(4, beam / 30)]);
     const over = overLine(s);
     if (over > 0) parts.push(['Over the Thermal Line', -Math.min(12, over * 40)]);
+    // towns in the sky send goods and make room on the ground
+    const hab = habitatWellbeing(s);
+    if (hab >= 0.5) parts.push(['Goods and room from the habitats', hab]);
   }
   const v = parts.reduce((a, x) => a + x[1], 0) * techMult(s, 'wellbeingGain');
   return { v: clamp(v, 0, 100), parts: parts.filter((x) => Math.abs(x[1]) >= 0.5) };

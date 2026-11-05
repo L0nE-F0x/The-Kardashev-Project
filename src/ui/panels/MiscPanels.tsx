@@ -10,7 +10,7 @@ function GoalProgress({ o, s }: { o: ObjectiveDef; s: GameState }) {
 }
 import { PHASE_NAMES } from '../../sim/actions';
 import { CHARTER_PHASES } from '../../content/charter';
-import { fmtDate } from '../../sim/core';
+import { dateOf, fmtDate } from '../../sim/core';
 
 export function NewsPanel() {
   const game = useGame();
@@ -111,7 +111,9 @@ function Act5Goals() {
   return (
     <Panel title="Act V · Type I" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
       <p class="small muted" style={{ marginTop: 0 }}>
-        Civilisation steward. Stage {st} of 4: {STAGE5[st]}. When the Type I checklist holds (or in 2105), Solar Maximum begins; after it, the last climb runs until Kardashev reaches 1.0000 — your score is the year.
+        {s.system?.typeI
+          ? `Type I, ${dateOf(s.system.typeI).getUTCFullYear()}: Kardashev 1.0000. The climb goes on toward Type II (K 2.00).`
+          : `Civilisation steward. Stage ${st} of 4: ${STAGE5[st]}. When the Type I checklist holds (or in 2105), Solar Maximum begins; after it, the last climb runs until Kardashev reaches 1.0000 — your score is the year.`}
       </p>
       {[0, 1, 2, 3, 4].filter((p) => p <= st).map((p) => (
         <div key={p} class="section">

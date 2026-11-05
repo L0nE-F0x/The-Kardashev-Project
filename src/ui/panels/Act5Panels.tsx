@@ -336,7 +336,7 @@ function FoundriesTab() {
   const sy = s.system!;
   const fs = [...sy.foundries].sort((a, b) => b.cap - a.cap);
   // Halt & verify goes through the game's wrapper (it refreshes stats, plays the sound, toasts a refusal)
-  const halt = (game as unknown as { haltFoundry?: (id: string) => unknown }).haltFoundry?.bind(game);
+  const halt = (id: string) => game.haltFoundry(id);
   const v = verifyCost(s);
   const held = buildHeld(s);
   const stormFoundry = sy.solarmax && !sy.solarmax.done ? sy.solarmax.foundry : null;

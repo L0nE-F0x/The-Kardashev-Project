@@ -9,6 +9,7 @@ import { newAct3Game } from '../sim/act3';
 import { newAct4Game } from '../sim/act4preset';
 import { newAct5Game } from '../sim/act5preset';
 import * as ERA from '../sim/eras';
+import { haltFoundry as haltFoundrySim } from '../sim/foundries';
 import { claimAsteroid as claimAst } from '../sim/asteroids';
 import type { EraPlan, EraRecord } from '../sim/types';
 import * as PL from '../sim/plans';
@@ -1420,6 +1421,11 @@ export class Game {
     this.jumpReport = null;
     sfx('click');
     this.notify();
+  }
+
+  /** Act V: stop a drifting foundry and check every line of its code (costs capacity for a while). */
+  haltFoundry(id: string) {
+    return this.after(haltFoundrySim(this.state!, id), 'confirm');
   }
 
   /** Give a walked-out bloc what it asked for (a development package from the treasury). */
