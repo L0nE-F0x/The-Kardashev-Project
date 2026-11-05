@@ -9,7 +9,7 @@ import type { IconName } from '../icons';
 import type { PlanetTab } from '../../game/game';
 import type { AiId, ContractKind, ContractSize, FivePlan, Priority, Project } from '../../sim/types';
 import { CONTRACT_KINDS, PARTNERS, SIZE_NAMES, YOU } from '../../content/charter';
-import { AI_IDS, AIS, DESIGN_IDS, FUSION_DESIGNS, HEAT_FRONT_NAMES, HEAT_FRONTS, PLANET, PRIORITIES, PRIORITY_IDS, SHELLS, STAGE_NAMES, SUPERGRID_ROUTES } from '../../content/planet';
+import { AI_IDS, AIS, DESIGN_IDS, FUSION_DESIGNS, GOVERNORS, HEAT_FRONT_NAMES, HEAT_FRONTS, PLANET, PRIORITIES, PRIORITY_IDS, SHELLS, STAGE_NAMES, SUPERGRID_ROUTES } from '../../content/planet';
 import { REGIONS } from '../../content/regions';
 import { REGION_IDS, type RegionId } from '../../content/mapcodes';
 import { canPost, contractEstimate, sizeText, biddersFor, youCanBid } from '../../sim/charter';
@@ -26,6 +26,7 @@ import { bitPlanBlocked, defaultPlan } from '../../sim/plans';
 import { heatRise } from '../../sim/heatwall';
 import { worldClean } from '../../sim/world';
 import { Face, ProjectRow, TenderCard, whereOptions } from './Act3Panels';
+import { governorPortraitUrl } from '../../render/sprites/portraits';
 
 const STAGE_BLURB = [
   'Settle the company question and set the first five-year plan.',
@@ -260,6 +261,9 @@ function ProvincesTab() {
             const why = canDelegate(s, r, sel);
             return (
               <div key={r} class="row small provrow" style={{ gap: '8px', alignItems: 'center' }}>
+                <span data-tip={p.ai ? `${AIS[p.ai].name} runs ${REGIONS[r].name}.` : `${GOVERNORS[r].name}: “${GOVERNORS[r].line}”`}>
+                  {p.ai ? aiFace(p.ai, 24) : <img class="portrait" src={governorPortraitUrl(r, p.wellbeing < 35 ? 'worried' : p.wellbeing > 70 ? 'happy' : 'neutral')} style={{ width: '24px', height: '24px' }} alt={GOVERNORS[r].name} draggable={false} />}
+                </span>
                 <span style={{ width: '128px' }}>
                   <b>{REGIONS[r].name}</b>
                   <div class="muted">{p.pop.toFixed(2)} bn people</div>

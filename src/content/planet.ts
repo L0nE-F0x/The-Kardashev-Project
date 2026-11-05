@@ -66,6 +66,22 @@ export const PROVINCE0: Record<RegionId, { pop: number; heat: number; water: num
   fab: { pop: 0.21, heat: 40, water: 28, area: 0.6 },
 };
 
+/** Each province's governor while the Charter runs it (an AI province shows its AI instead): who, and what keeps them up at night. */
+export const GOVERNORS: Record<RegionId, { name: string; line: string }> = {
+  eam: { name: 'Governor Lin Wei', line: 'Fourteen hundred million people, and every one of them deserves a cool room in August.' },
+  sas: { name: 'Governor Priya Raman', line: 'Heat is a health crisis here, not a statistic. Send cooling before you send speeches.' },
+  ssa: { name: 'Governor Amara Diallo', line: 'The youngest province on Earth. Build for the children who will run it in 2080.' },
+  seo: { name: 'Governor Tomas Reyes', line: 'Seven thousand islands and one rising sea. I measure progress in metres of seawall.' },
+  mena: { name: 'Governor Nadia Benali', line: 'We sell the planet its sunlight. In return, we would like water.' },
+  lat: { name: 'Governor Mateo Quispe', line: 'The forests are our lungs and our savings account. Spend neither.' },
+  atl: { name: 'Governor Ruth Calloway', line: 'My towns built your first data centres. Remember them when the jobs move on.' },
+  pac: { name: 'Governor Kai Nakamura-Ortiz', line: 'Fires in summer, quakes all year, the best engineers on the planet. We cope.' },
+  eur: { name: 'Governor Élise Fournier', line: 'Old cities, new grids. Every line we lay goes past a cathedral.' },
+  nor: { name: 'Governor Sigrid Halvorsen', line: 'Cold is our export. So is patience.' },
+  stp: { name: 'Governor Arman Seitkali', line: 'Wind, wheat and a great deal of room. Put the big things here, and pay us for it.' },
+  fab: { name: 'Governor Mei-Ling Chou', line: 'Every chip in your orbit went through a cleanroom here. Keep the lights steady.' },
+};
+
 // ════════════════════════════════════════ THE AIs ════════════════════════════════════════
 export interface AiDef {
   id: AiId;

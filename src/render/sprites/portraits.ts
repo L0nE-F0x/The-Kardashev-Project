@@ -1991,6 +1991,52 @@ const CEO_LOOKS: Record<CeoId, Look> = {
 /** Everyone with a portrait of their own (`ceo:<id>` speakers): partners, delegates, the Act IV cast and the rival AIs. */
 export const CEO_IDS = [...Object.keys(CEO_LOOKS), ...Object.keys(AVATARS)] as (CeoId | 'apex' | 'weft' | 'sapling' | 'chorus')[];
 
+// ── Act IV: the province governors ──
+const GOVERNOR_LOOKS: Record<string, Look> = {
+  // Lin Wei — a silver bob, thin glasses, a mandarin-collar jacket
+  eam: { bg: [C.cyn1, C.cyn3], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink7, C.ink9], cloth: [C.ink2, C.ink3, C.ink5], style: 'bob', glasses: 'thin', mandarin: true, lines: true },
+  // Priya Raman — a long braid, gold earrings, saffron
+  sas: { bg: [C.org0, C.org2], skin: [C.skn2, C.skn3, C.skn4], hair: [C.ink0, C.ink2], cloth: [C.org0, C.org1, C.org2], style: 'braid', earrings: C.yel0 },
+  // Amara Diallo — a bright gele, a green dress
+  ssa: { bg: [C.grn3, C.grn5], skin: [C.skn0, C.skn1, C.skn2], hair: [C.ink0, C.ink1], cloth: [C.grn3, C.grn5, C.grn7], style: 'gele', band: [C.yel0, C.org1], earrings: C.yel1 },
+  // Tomas Reyes — a crop, smile lines, a white shirt
+  seo: { bg: [C.sea4, C.sea6], skin: [C.skn2, C.skn3, C.skn4], hair: [C.ink1, C.ink3], cloth: [C.ink8, C.ink9, C.white], style: 'crop', lines: true },
+  // Nadia Benali — an updo, a sand blazer
+  mena: { bg: [C.snd4, C.snd6], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink1, C.ink2], cloth: [C.snd2, C.snd3, C.snd5], style: 'updo', suit: { shirt: C.white }, earrings: C.yel0 },
+  // Mateo Quispe — a chullo, a poncho in red and gold
+  lat: { bg: [C.red1, C.red3], skin: [C.skn1, C.skn2, C.skn3], hair: [C.ink0, C.ink1], cloth: [C.red2, C.red3, C.org1], style: 'chullo', band: [C.red3, C.yel0] },
+  // Ruth Calloway — a grey bob, plain glasses, denim
+  atl: { bg: [C.blu2, C.blu4], skin: [C.skn4, C.skn5, C.skn6], hair: [C.ink6, C.ink8], cloth: [C.blu2, C.blu3, C.blu4], style: 'bob', glasses: true, lines: true },
+  // Kai Nakamura-Ortiz — an undercut, a hoodie
+  pac: { bg: [C.dusk3, C.dusk5], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink1, C.ink3], cloth: [C.ink3, C.ink4, C.ink6], style: 'undercut', hoodie: true },
+  // Élise Fournier — a pixie cut, a red scarf
+  eur: { bg: [C.blu1, C.blu3], skin: [C.skn4, C.skn5, C.skn6], hair: [C.snd1, C.snd3], cloth: [C.ink2, C.ink3, C.ink4], style: 'pixie', scarf: C.red3 },
+  // Sigrid Halvorsen — a pale ponytail, a knit
+  nor: { bg: [C.ice0, C.ice2], skin: [C.skn5, C.skn6, C.white], hair: [C.snd6, C.snd8], cloth: [C.blu1, C.blu2, C.blu3], style: 'ponytail', knit: C.ice3 },
+  // Arman Seitkali — receding grey hair, a moustache, a dark suit
+  stp: { bg: [C.snd3, C.snd5], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink6, C.ink8], cloth: [C.ink1, C.ink2, C.ink3], style: 'receding', moustache: true, suit: { shirt: C.ink9, tie: C.blu4 }, lines: true },
+  // Mei-Ling Chou — a bun, a headset, a lab-grey jacket
+  fab: { bg: [C.vio1, C.vio3], skin: [C.skn4, C.skn5, C.skn6], hair: [C.ink0, C.ink2], cloth: [C.ink5, C.ink6, C.ink8], style: 'bun', headset: true, earrings: C.cyn5 },
+};
+
+/** Data URL for a province governor's portrait (32×32). */
+export function governorPortraitUrl(region: string, mood: Mood = 'neutral'): string {
+  const key = `gov:${region}:${mood}`;
+  let url = cache.get(key);
+  if (!url) {
+    url = toDataUrl(governorPortraitCanvas(region, mood));
+    cache.set(key, url);
+  }
+  return url;
+}
+
+/** Raw canvas for a governor (previews and tests). */
+export function governorPortraitCanvas(region: string, mood: Mood = 'neutral'): PixelCanvas {
+  const pc = new PixelCanvas(S, S);
+  drawPerson(pc, GOVERNOR_LOOKS[region] ?? GENERIC_CEO, mood);
+  return pc;
+}
+
 /** Someone without a portrait of their own: a grey-suited executive. */
 const GENERIC_CEO: Look = { bg: [C.ink3, C.ink4], skin: [C.skn3, C.skn4, C.skn5], hair: [C.ink2, C.ink4], cloth: [C.ink1, C.ink2, C.ink4], style: 'wavy', suit: { shirt: C.ink9, tie: C.blu3 } };
 
