@@ -1200,6 +1200,23 @@ export function backlot(w: number, h: number, seed: number, density: number): { 
  * Ground strip with a road. With `beachFrom`, the land gives way to sand and surf; with
  * `lakeFrom` (Geneva), the promenade ends at a stone quay and the lake begins.
  */
+/** A street lamp (5×24) standing at the kerb: its post foot on ground row 10, the head over the pavement. */
+export const LAMP_TOP = -13;
+/** Where the light is, relative to the lamp sprite's top-left. */
+export const LAMP_HEAD: [number, number] = [3, 1];
+export function streetLamp(): PixelCanvas {
+  const pc = new PixelCanvas(5, 24);
+  pc.vline(1, 0, 23, C.ink6);
+  pc.hline(1, 0, 3, C.ink6);
+  pc.set(0, 0, C.ink7);
+  pc.hline(3, 1, 2, C.ink8);
+  pc.set(4, 0, C.ink6);
+  pc.set(2, 1, C.ink5);
+  pc.hline(0, 23, 3, C.ink5);
+  pc.set(1, 22, C.ink5);
+  return pc;
+}
+
 /** The pavement people walk along: rows 3–11 of the ground strip (their feet land on rows 7–9). */
 export const SIDEWALK_TOP = 3;
 export const SIDEWALK_BOTTOM = 11;

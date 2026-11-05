@@ -9,7 +9,7 @@ import { bayer, hash2, PixelCanvas } from '../pixels';
 import { cachedTexture, releaseTexture, textureOf } from '../textures';
 import { pixelTexture } from '../sprites/mapIcons';
 import { subsolar, sunAltitude, localSolarHour } from '../../world/sun';
-import { BIOMES, bigRotorFrames, emptyPlotArt, rotorFrames, surfFrames, truckArt, truckVariant, vanArt, type Emitter, type Mover, type RotorSpec } from './art';
+import { BIOMES, LAMP_HEAD, LAMP_TOP, bigRotorFrames, emptyPlotArt, streetLamp, rotorFrames, surfFrames, truckArt, truckVariant, vanArt, type Emitter, type Mover, type RotorSpec } from './art';
 import { Life, type LifeEnv, type NamedSpec, type Spot } from './life';
 import { shade } from './people';
 import { ADVISORS } from '../../content/advisors';
@@ -737,20 +737,20 @@ export class DioramaScene implements Scene {
     }
     // street lamps along the road
     for (const x of sb.lamps) {
-      const post = new Sprite(cachedTexture('dio:lamp', () => PixelCanvas.from(`aa.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\naaa`, { a: 'ink6' })));
-      post.position.set(x, this.groundY + 4);
+      const post = new Sprite(cachedTexture('dio:lamp', streetLamp));
+      post.position.set(x, this.groundY + LAMP_TOP);
       this.groundL.addChild(post);
       const halo = new Sprite(haloTexture());
-      halo.position.set(x - 7, this.groundY - 3);
+      halo.position.set(x + LAMP_HEAD[0] - 7, this.groundY + LAMP_TOP + LAMP_HEAD[1] - 7);
       halo.blendMode = 'add';
       this.glowL.addChild(halo);
       // and the pool of light it throws on the pavement
       const pool = new Sprite(cachedTexture('dio:pool:31', () => poolArt(31)));
-      pool.position.set(x - 14, this.groundY + 4);
+      pool.position.set(x + LAMP_HEAD[0] - 15, this.groundY + 4);
       pool.blendMode = 'add';
       pool.alpha = 0.4;
       this.glowL.addChild(pool);
-      this.lights.push(x + 1);
+      this.lights.push(x + LAMP_HEAD[0]);
     }
     // lit doorways spill onto the pavement too
     for (const sp of this.spots()) {

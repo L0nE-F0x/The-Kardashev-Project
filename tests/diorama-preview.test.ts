@@ -13,7 +13,7 @@ import { hash2, PixelCanvas } from '../src/render/pixels';
 import { encodePngRgba } from '../tools/lib/png';
 import { bands, campusLayout, itemTop, PARALLAX, type CampusLayout } from '../src/render/diorama/layout';
 import { itemArt } from '../src/render/diorama/campusArt';
-import { backlot, facilityArt, facilitySize, farRidge, foreground, groundStrip, maxTier, midBand, rotorFrames, surfFrames } from '../src/render/diorama/art';
+import { backlot, facilityArt, facilitySize, farRidge, foreground, groundStrip, maxTier, midBand, rotorFrames, surfFrames, LAMP_HEAD, LAMP_TOP, streetLamp } from '../src/render/diorama/art';
 import { bloomOf, puffArt } from '../src/render/diorama/draw';
 import { pieceArt, pieceSize, rivalArt, rivalSize, sitePieces } from '../src/render/diorama/industry';
 import { newGame } from '../src/sim/state';
@@ -168,8 +168,8 @@ function compose(s: GameState, siteId: string, opts: { night: boolean; vw?: numb
   }
   for (const [pc, x, y] of puffs) fr.draw(pc, x, y, tint, 0.85);
   // street lamps along the road
-  const lamp = PixelCanvas.from(`aa.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\n.a.\naaa`, { a: 'ink6' });
-  for (let x = 40; x < W; x += 90) fr.draw(lamp, x, b.groundY + 4, tint);
+  const lamp = streetLamp();
+  for (let x = 40; x < W; x += 90) fr.draw(lamp, x, b.groundY + LAMP_TOP, tint);
   fr.draw(foreground(site.backdrop, W, b.fgH), 0, vh - b.fgH + 2, tint);
   if (opts.night) {
     for (const [g, x, y] of glowJobs) fr.draw(g, x, y);
@@ -183,7 +183,7 @@ function compose(s: GameState, siteId: string, opts: { night: boolean; vw?: numb
         else if (((yy & 3) * 4 + (xx & 3)) % 16 < (1 - d) * 12) halo.set(xx, yy, d < 0.6 ? C.org2 : C.snd5);
       }
     }
-    for (let x = 40; x < W; x += 90) fr.add(halo, x - 7, b.groundY - 3, 1);
+    for (let x = 40; x < W; x += 90) fr.add(halo, x + LAMP_HEAD[0] - 7, b.groundY + LAMP_TOP + LAMP_HEAD[1] - 7, 1);
   }
   return { frame: fr, layout };
 }
