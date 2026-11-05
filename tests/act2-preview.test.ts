@@ -256,10 +256,14 @@ describe.skipIf(!dir)('act II previews', () => {
     out('act2-asia.png', crop(fineLayers, 1060, 150, 400, 360), 3);
     out('act2-europe-india.png', crop(fineLayers, 660, 110, 460, 260), 3);
     out('act2-world-lod0.png', render(0, s), 2);
-    // close-ups at 6×: the US east (home, rivals, cranes), the Gulf (megasite, helium works), Japan
-    out('act2-zoom-useast.png', crop(fineLayers, 330, 165, 140, 80), 6);
-    out('act2-zoom-gulf.png', crop(fineLayers, 880, 220, 140, 80), 6);
-    out('act2-zoom-japan.png', crop(fineLayers, 1220, 190, 140, 80), 6);
+    // close-ups at 6×: the US east (home, rivals, cranes), the Gulf (megasite, helium works), Japan,
+    // from the live MapScene so they show the decluttered markers and laid-out labels as played
+    const { liveMap, shotPng } = await import('./helpers/mapshot');
+    const live = await liveMap(s, { lod: 1 });
+    fs.writeFileSync(path.join(dir!, 'act2-zoom-useast.png'), shotPng(live.crop(330, 165, 140, 80), 6));
+    fs.writeFileSync(path.join(dir!, 'act2-zoom-gulf.png'), shotPng(live.crop(880, 220, 140, 80), 6));
+    fs.writeFileSync(path.join(dir!, 'act2-zoom-japan.png'), shotPng(live.crop(1220, 190, 140, 80), 6));
+    live.scene.destroy();
     // the same Atlantic view in Act I: none of the Act II layers or sites
     const s1 = structuredClone(s);
     s1.act = 1;

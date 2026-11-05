@@ -47,6 +47,15 @@ export function refreshTexture(texture: Texture): void {
   }
 }
 
+/**
+ * The indexed canvas (and bake alpha) behind a registered texture, or null. Headless previews use
+ * it to composite a live scene's sprites without a GPU.
+ */
+export function canvasOf(texture: Texture): { pc: PixelCanvas; alpha: number } | null {
+  for (const e of registry) if (e.texture === texture) return { pc: e.pc, alpha: e.alpha };
+  return null;
+}
+
 /** Drop a texture from the registry and free GPU memory. */
 export function releaseTexture(texture: Texture): void {
   for (const e of registry) {

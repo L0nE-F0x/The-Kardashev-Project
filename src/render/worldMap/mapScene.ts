@@ -57,6 +57,7 @@ import {
   hvdcDraws,
   hvdcKey,
   hvdcTrack,
+  isAct3Site,
   launchFrame,
   liftoffActive,
   markerOrigin,
@@ -103,9 +104,25 @@ import {
 } from './act4Layers';
 import { aiBannerTexture, dacTexture, fusionTexture, sgPulseTexture, terminalTexture } from '../sprites/act4Icons';
 import { act5Lights, act5On, beamClusters, beamKey, beamPatch, earthGroundKey, earthMapView, paintEarth } from './act5Layers';
+import { placeLabels, spreadMarkers, unionRect, type LabelReq, type Obstacle, type Rect, type Shift, type SpreadItem } from './declutter';
 
 /** The map tools this scene draws previews for ('fiber' arrives with Act II). */
 type AnyTool = { kind: string; from: string | null } | null;
+
+type Size = { w: number; h: number };
+
+/**
+ * How far crowded markers may be nudged apart (px, per axis) and the space kept between their
+ * footprints: zoomed out they only ease off each other (a little overlap stays), up close every
+ * marker gets a clear spot of its own so it can be clicked.
+ */
+const SPREAD_WORLD = { maxX: 4, maxY: 3, gap: -2 };
+const SPREAD_FINE = { maxX: 12, maxY: 6, gap: 2 };
+
+/** A name as the 3×5 map font can draw it: upper case, accents dropped (Rhône → RHONE). */
+export function mapName(name: string): string {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+}
 
 /** Act II network layer (cables + fiber) per LOD, painted into a full-map canvas. */
 interface NetLayer {
@@ -182,6 +199,9 @@ export class MapScene implements Scene {
   private readonly markerL = new Container();
   private readonly shipL = new Container();
   private readonly labelL = new Container();
+  /** Region names sit under the markers (area labels); tethers from nudged markers to their sites. */
+  private readonly areaL = new Container();
+  private readonly leaderG = new Graphics();
   private readonly previewG = new Graphics();
   private readonly selSprite = new Sprite();
 
@@ -201,9 +221,21 @@ export class MapScene implements Scene {
   private lastNight = 0;
   private time = 0;
   private clouds: { lon: number; lat: number; v: number; sprite: Sprite; shadow: Sprite }[] = [];
-  private markers = new Map<string, { sprite: Sprite; icons: Sprite[]; label: Sprite | null; key: string; lift: boolean }>();
+  private markers = new Map<string, { sprite: Sprite; icons: Sprite[]; label: Sprite | null; key: string; lift: boolean; prio: number; z: number }>();
+  // ── declutter ──
+  /** Each visible site's marker box and full footprint (marker + what hangs off it), relative to its pixel. */
+  private foot = new Map<string, { box: Rect; rects: Rect[]; foot: Rect; hard: boolean }>();
+  /** Whole-pixel nudges for crowded markers at the current LOD. */
+  private shifts = new Map<string, Shift>();
+  private spreadKey = '';
+  private spreadVersion = 0;
+  private leaderKey = '';
+  private labelKey = '';
+  private labelSpots = new Map<string, { x: number; y: number; i: number } | null>();
+  /** Which candidate spot each label took last time, tried first next time so names don't hop about. */
+  private labelPrev = new Map<string, number>();
   private chokeSprites = new Map<string, Sprite>();
-  private regionLabels: Sprite[] = [];
+  private regionLabels: { id: string; sprite: Sprite; lon: number; lat: number }[] = [];
   private pulses: { sprite: Sprite; tail: Sprite | null; link: string; t: number }[] = [];
   // ── Act II ──
   private net: WrapSprite | null = null;
@@ -285,7 +317,8 @@ export class MapScene implements Scene {
 
   constructor(private readonly game: Game) {
     this.root.addChild(this.world);
-    this.world.addChild(this.terrainL, this.megaL, this.systemGroundL, this.planetGroundL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
+    this.markerL.sortableChildren = true;
+    this.world.addChild(this.terrainL, this.megaL, this.systemGroundL, this.planetGroundL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.areaL, this.leaderG, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
     const initial = this.layer(0);
     this.terrain = new WrapSprite(this.terrainL, initial.terrain);
     this.borders = new WrapSprite(this.overlayL, initial.borders, { alpha: 0.32 });
@@ -347,6 +380,9 @@ export class MapScene implements Scene {
     this.linkKey = '';
     this.routeKey = '';
     this.markers.forEach((m) => (m.key = ''));
+    this.shifts = new Map();
+    this.spreadKey = '';
+    this.leaderKey = '';
     this.tracks.clear();
     this.netPulseKey = '';
     this.cutKey = '';
@@ -416,12 +452,13 @@ export class MapScene implements Scene {
     if (!target.startsWith('site:')) return null;
     const id = target.slice(5);
     if (!siteDef(id)) return null;
-    const p = this.sitePx(id);
+    // the marker's middle (after the declutter nudge), not the site's own pixel
+    const p = this.anchorPx(id);
     const stage = this.game.stage;
     const rect = stage.canvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    const ix = p.x - this.camX;
-    const iy = p.y - this.camY - 4;
+    const ix = p.x + 0.5 - this.camX;
+    const iy = p.y + 0.5 - this.camY - (this.markers.has(id) ? this.liftOf(id) : 4);
     if (ix < -20 || iy < -20 || ix > this.vw + 20 || iy > this.vh + 20) return null;
     return { x: rect.left + (ix * stage.scale) / dpr, y: rect.top + (iy * stage.scale) / dpr };
   }
@@ -527,7 +564,7 @@ export class MapScene implements Scene {
     this.updateChokepoints();
     this.updateSelection();
     this.updatePreview();
-    this.updateLabelsWrap();
+    this.updateLabels();
   }
 
   private refreshNight(force: boolean) {
@@ -636,10 +673,16 @@ export class MapScene implements Scene {
     const hoveredSite = g.hover?.kind === 'site' ? g.hover.id : null;
     const selectedSite = g.selection?.kind === 'site' ? g.selection.id : null;
     const tool = g.tool as AnyTool;
+    const toolFrom = tool?.kind === 'link' || tool?.kind === 'fiber' ? tool.from : null;
     const fine = this.lodIndex >= 1;
     // Act III: the rocket leaves its pad while the liftoff replays
     const act3 = act3On(s);
     const flying = act3 && !g.settings.reducedMotion && liftoffActive(charterView(s), s!.day);
+    // what hangs off each marker (from last frame's sprites; a change re-spreads a frame later)
+    const extras = this.extraSizes();
+    const spread: SpreadItem[] = [];
+    const keyParts: string[] = [String(this.lodIndex)];
+    this.foot.clear();
     for (const site of SITES) {
       let m = this.markers.get(site.id);
       if (!siteVisible(site, s)) {
@@ -657,18 +700,17 @@ export class MapScene implements Scene {
       if (!m) {
         const sprite = new Sprite();
         this.markerL.addChild(sprite);
-        m = { sprite, icons: [], label: null, key: '', lift: false };
+        m = { sprite, icons: [], label: null, key: '', lift: false, prio: 0, z: 0 };
         this.markers.set(site.id, m);
       }
       m.sprite.visible = true;
       const glyphs = siteGlyphs(s, site.id);
       const hovered = hoveredSite === site.id;
-      const showLabel = hovered || selectedSite === site.id || (fine && glyphs.length > 0) || (fine && act3 && act3Label(site, s)) || ((tool?.kind === 'link' || tool?.kind === 'fiber') && tool.from === site.id);
+      const selected = selectedSite === site.id;
+      const megaLabel = fine && act3 && act3Label(site, s);
+      const showLabel = hovered || selected || (fine && glyphs.length > 0) || megaLabel || toolFrom === site.id;
       const marker = siteMarker(site, s, hovered, g.mode === 'title', { flying });
       const key = `${this.lodIndex}|${hovered}|${showLabel}|${glyphs.map((f) => `${f.type}${f.building ? 'b' : ''}${f.upgrade ? 'u' : ''}${f.tier}`).join(',')}|${marker.key}|${act2}`;
-      const p = this.proj(site.lon, site.lat);
-      const x = Math.floor(this.wrapX(p.x));
-      const y = Math.floor(p.y);
       if (key !== m.key) {
         m.key = key;
         m.sprite.texture = cachedTexture(marker.key, marker.make);
@@ -688,20 +730,111 @@ export class MapScene implements Scene {
           m.label = null;
         }
         if (showLabel) {
-          m.label = new Sprite(labelTexture(site.kind === 'build' ? site.name.toUpperCase() : site.name.split('·')[0].trim().toUpperCase(), hovered ? C.yel1 : C.white, C.ink0));
+          m.label = new Sprite(labelTexture(mapName(site.kind === 'build' ? site.name : site.name.split('·')[0].trim()), hovered ? C.yel1 : C.white, C.ink0));
           this.labelL.addChild(m.label);
         }
       }
+      // how much this marker matters: your own sites hold their ground and their names show first
+      const own = marker.key === 'home' || marker.key.startsWith('pin:');
+      const big = own || (isAct3Site(site) && !/^(launchcand|megamark:[^:]+:0:)/.test(marker.key));
+      const weight = marker.key === 'home' ? 6 : own ? 4 : big ? 3 : 1;
+      m.prio = hovered ? 100 : selected ? 90 : toolFrom === site.id ? 80 : marker.key === 'home' ? 60 : glyphs.length ? 50 : megaLabel ? 40 : 10;
+      // markers draw over everyone's glyph rows (they're what you click); the hovered and selected on top
+      m.z = hovered ? 300 : selected ? 200 : weight;
+      m.sprite.zIndex = m.z + 100;
+      // the footprint, relative to the site's pixel: the marker, its glyph row, rivals, cranes, Act IV glyphs
       const tex = m.sprite.texture;
-      m.sprite.position.set(x - Math.floor(tex.width / 2), y - (m.lift ? tex.height - 1 : Math.floor(tex.height / 2)));
+      const o = markerOrigin(0, 0, tex.width, tex.height, m.lift);
+      const box: Rect = { x: o.x, y: o.y, w: tex.width, h: tex.height };
+      const rects: Rect[] = [box];
+      // (glyph rows show zoomed out only while hovered, which mustn't re-spread anything)
+      if (fine && m.icons.length) {
+        const total = m.icons.reduce((n, ic) => n + ic.texture.width + 1, 0);
+        const hMax = Math.max(...m.icons.map((ic) => ic.texture.height));
+        rects.push({ x: -Math.floor(total / 2), y: 10 - hMax, w: total - 1, h: hMax });
+      }
+      const ex = extras.get(site.id);
+      if (ex) {
+        if (ex.rivals.length) rects.push({ x: m.lift ? 5 : 3, y: -(m.lift ? 10 : 7), w: ex.rivals.reduce((n, r) => n + r.w - 1, 1), h: Math.max(...ex.rivals.map((r) => r.h)) });
+        if (ex.cranes.length) rects.push(unionRect(craneSpots(0, 0, tex.width, tex.height, ex.cranes).map((p, i) => ({ x: p.x, y: p.y, w: ex.cranes[i].w, h: ex.cranes[i].h }))));
+        if (ex.glyphs4.length) rects.push(unionRect(glyphRow4(0, 0, tex.height, ex.glyphs4).map((p, i) => ({ x: p.x, y: p.y, w: ex.glyphs4[i].w, h: ex.glyphs4[i].h }))));
+      }
+      this.foot.set(site.id, { box, rects, foot: unionRect(rects), hard: big });
+      const p = this.proj(site.lon, site.lat);
+      spread.push({ id: site.id, x: Math.floor(p.x), y: Math.floor(p.y), rects, weight });
+      keyParts.push(`${site.id}:${weight}:${rects.map((r) => `${r.x},${r.y},${r.w},${r.h}`).join('/')}`);
+    }
+    // spread crowded markers apart: a nudge when zoomed out, enough to click each one up close
+    const spreadKey = keyParts.join(';');
+    if (spreadKey !== this.spreadKey) {
+      this.spreadKey = spreadKey;
+      this.shifts = spreadMarkers(spread, { W: this.lod.W, ...(fine ? SPREAD_FINE : SPREAD_WORLD) });
+      this.spreadVersion++;
+    }
+    for (const [id, m] of this.markers) {
+      if (!m.sprite.visible) continue;
+      const a = this.anchorPx(id);
+      const tex = m.sprite.texture;
+      m.sprite.position.set(a.x - Math.floor(tex.width / 2), a.y - (m.lift ? tex.height - 1 : Math.floor(tex.height / 2)));
       // facility glyphs in a row under the marker, bottoms aligned (cranes poke up)
       const total = m.icons.reduce((n, ic) => n + ic.texture.width + 1, 0);
-      let ix = x - Math.floor(total / 2);
+      let ix = a.x - Math.floor(total / 2);
       for (const ic of m.icons) {
-        ic.position.set(ix, y + 10 - ic.texture.height);
+        ic.position.set(ix, a.y + 10 - ic.texture.height);
+        ic.zIndex = m.z;
         ix += ic.texture.width + 1;
       }
-      if (m.label) m.label.position.set(x - Math.floor(m.label.texture.width / 2), m.sprite.y - m.label.texture.height - 1);
+    }
+    this.updateLeaders();
+  }
+
+  /** Sizes of the sprites hanging off each site's marker (rival campuses, Charter cranes, Act IV glyphs). */
+  private extraSizes(): Map<string, { rivals: Size[]; cranes: Size[]; glyphs4: Size[] }> {
+    const out = new Map<string, { rivals: Size[]; cranes: Size[]; glyphs4: Size[] }>();
+    const at = (id: string) => {
+      let e = out.get(id);
+      if (!e) out.set(id, (e = { rivals: [], cranes: [], glyphs4: [] }));
+      return e;
+    };
+    const size = (sp: Sprite): Size => ({ w: sp.texture.width, h: sp.texture.height });
+    for (const [k, sp] of this.rivalSprites) at(k.slice(0, k.lastIndexOf(':'))).rivals.push(size(sp));
+    for (const c of this.megaCraneSprites) at(c.site).cranes.push(size(c.sprite));
+    for (const g of this.glyph4Sprites) at(g.site).glyphs4.push(size(g.sprite));
+    return out;
+  }
+
+  /**
+   * A site's marker pixel in world space (wrapped next to the camera), after the declutter nudge.
+   * Everything that sits on a marker (glyphs, rivals, cranes, selection, hit tests, the tutorial
+   * spotlight) goes through here; ground art, lines and patches stay on the site's true pixel.
+   */
+  private anchorPx(id: string): Px {
+    const s = siteDef(id);
+    const p = this.proj(s.lon, s.lat);
+    const sh = this.shifts.get(id);
+    return { x: Math.floor(this.wrapX(p.x)) + (sh?.dx ?? 0), y: Math.floor(p.y) + (sh?.dy ?? 0) };
+  }
+
+  /** A thin dark tether from a nudged marker back to its site's true pixel, with a dot on the spot. */
+  private updateLeaders() {
+    const key = `${this.spreadVersion}|${Math.round(this.camX / 50)}`;
+    if (key === this.leaderKey) return;
+    this.leaderKey = key;
+    const g = this.leaderG;
+    g.clear();
+    const dots: Px[] = [];
+    for (const [id, sh] of this.shifts) {
+      if (!this.markers.get(id)?.sprite.visible || Math.abs(sh.dx) + Math.abs(sh.dy) < 2) continue;
+      const a = this.anchorPx(id);
+      const t = { x: a.x - sh.dx, y: a.y - sh.dy };
+      this.pixelLine(g, t.x, t.y, a.x, a.y, hex(C.ink0));
+      dots.push(t);
+    }
+    for (const t of dots) {
+      g.rect(t.x - 1, t.y, 3, 1).rect(t.x, t.y - 1, 1, 3);
+      g.fill(hex(C.ink0));
+      g.rect(t.x, t.y, 1, 1);
+      g.fill(hex(C.ink9));
     }
   }
 
@@ -714,10 +847,9 @@ export class MapScene implements Scene {
       for (const siteId of bySite) {
         const site = siteDef(siteId);
         if (!siteVisible(site, s)) continue;
-        const p = this.proj(site.lon, site.lat);
-        const x = Math.floor(this.wrapX(p.x));
-        const y = Math.floor(p.y);
-        const lift = this.markers.get(siteId)?.lift ?? false;
+        const { x, y } = this.anchorPx(siteId);
+        const m = this.markers.get(siteId);
+        const lift = m?.lift ?? false;
         let rx = x + (lift ? 5 : 3);
         const ry = y - (lift ? 10 : 7);
         for (const r of rivalsAt(s, siteId)) {
@@ -731,6 +863,7 @@ export class MapScene implements Scene {
           }
           sp.texture = rivalCampusTexture(r.owner, r.building);
           sp.position.set(rx, ry);
+          sp.zIndex = m?.z ?? 0;
           rx += sp.texture.width - 1;
         }
       }
@@ -744,23 +877,87 @@ export class MapScene implements Scene {
   }
 
   private rebuildRegionLabels() {
-    this.regionLabels.forEach((s) => s.destroy());
+    this.regionLabels.forEach((r) => r.sprite.destroy());
     this.regionLabels = [];
+    this.labelKey = '';
     if (this.lodIndex !== 0) return;
     for (const r of Object.values(REGIONS)) {
-      const sp = new Sprite(labelTexture(r.name.toUpperCase(), C.ink9, C.ink0));
-      sp.alpha = 0.85;
-      (sp as Sprite & { lonlat?: [number, number] }).lonlat = [r.label.lon, r.label.lat];
-      this.labelL.addChild(sp);
-      this.regionLabels.push(sp);
+      const sprite = new Sprite(labelTexture(mapName(r.name), C.ink9, C.ink0));
+      sprite.alpha = 0.85;
+      this.areaL.addChild(sprite);
+      this.regionLabels.push({ id: r.id, sprite, lon: r.label.lon, lat: r.label.lat });
     }
   }
 
-  private updateLabelsWrap() {
-    for (const sp of this.regionLabels) {
-      const [lon, lat] = (sp as Sprite & { lonlat: [number, number] }).lonlat;
-      const p = this.proj(lon, lat);
-      sp.position.set(Math.floor(this.wrapX(p.x) - sp.texture.width / 2), Math.floor(p.y));
+  /**
+   * Lay the names out so none overlap: hovered, then selected, then your own sites, sites with
+   * something built, the rest, and region names last. Re-run only when the set of names, the zoom
+   * or the marker spread changes; each frame just shifts them by whole map widths with the camera.
+   */
+  private updateLabels() {
+    const W = this.lod.W;
+    const abs = (id: string): Px => {
+      const s = siteDef(id);
+      const p = this.proj(s.lon, s.lat);
+      const sh = this.shifts.get(id);
+      return { x: Math.floor(p.x) + (sh?.dx ?? 0), y: Math.floor(p.y) + (sh?.dy ?? 0) };
+    };
+    // other things labels should keep off besides markers (counted, so a new one re-runs the layout)
+    const nOthers = this.chokeSprites.size + this.anchorSprites.length + this.bannerSprites.length + this.hvdcSprites.length + this.sgSprites.length;
+    const keyParts: string[] = [`${this.lodIndex}|${this.spreadVersion}|${nOthers}|${this.regionLabels.length}`];
+    for (const [id, m] of this.markers) if (m.label && m.sprite.visible) keyParts.push(`${id}:${m.label.texture.width}:${m.prio}`);
+    const key = keyParts.join(';');
+    if (key !== this.labelKey) {
+      this.labelKey = key;
+      const obstacles: Obstacle[] = [];
+      for (const [id, f] of this.foot) {
+        const a = abs(id);
+        for (const r of f.rects) obstacles.push({ id, x: a.x + r.x, y: a.y + r.y, w: r.w, h: r.h, hard: f.hard });
+      }
+      const others = [...this.chokeSprites.values(), ...this.anchorSprites.map((a) => a.sprite), ...this.bannerSprites.map((b) => b.sprite), ...this.hvdcSprites.map((h) => h.sprite), ...this.sgSprites.map((e) => e.sprite)];
+      others.forEach((sp, i) => {
+        if (sp.visible) obstacles.push({ id: `~${i}`, x: sp.x, y: sp.y, w: sp.texture.width, h: sp.texture.height, hard: false });
+      });
+      const reqs: LabelReq[] = [];
+      for (const [id, m] of this.markers) {
+        const f = this.foot.get(id);
+        if (!m.label || !m.sprite.visible || !f) continue;
+        const a = abs(id);
+        reqs.push({
+          id,
+          w: m.label.texture.width,
+          h: m.label.texture.height,
+          prio: m.prio,
+          kind: 'site',
+          marker: { x: a.x + f.box.x, y: a.y + f.box.y, w: f.box.w, h: f.box.h },
+          foot: { x: a.x + f.foot.x, y: a.y + f.foot.y, w: f.foot.w, h: f.foot.h },
+          owner: id,
+          force: m.prio >= 80,
+          prev: this.labelPrev.get(id),
+        });
+      }
+      for (const r of this.regionLabels) {
+        const p = this.proj(r.lon, r.lat);
+        reqs.push({ id: `region:${r.id}`, w: r.sprite.texture.width, h: r.sprite.texture.height, prio: 0, kind: 'area', x: Math.floor(p.x), y: Math.floor(p.y), soft: true });
+      }
+      this.labelSpots = placeLabels(reqs, obstacles, W);
+      for (const [id, spot] of this.labelSpots) if (spot && !id.startsWith('region:')) this.labelPrev.set(id, spot.i);
+    }
+    // place them, shifted by whole map widths to sit next to the camera
+    const centre = this.camX + this.vw / 2;
+    const near = (x: number) => x + Math.round((centre - x) / W) * W;
+    for (const [id, m] of this.markers) {
+      if (!m.label) continue;
+      const spot = m.sprite.visible ? this.labelSpots.get(id) : null;
+      m.label.visible = !!spot;
+      if (!spot) continue;
+      const ax = abs(id).x;
+      m.label.position.set(spot.x + near(ax) - ax, spot.y);
+    }
+    for (const r of this.regionLabels) {
+      const spot = this.labelSpots.get(`region:${r.id}`);
+      r.sprite.visible = !!spot;
+      if (spot) r.sprite.position.set(near(spot.x), spot.y);
     }
   }
 
@@ -1240,15 +1437,13 @@ export class MapScene implements Scene {
         c.sprite.visible = false;
         continue;
       }
-      const site = siteDef(c.site);
-      const p = this.proj(site.lon, site.lat);
-      const x = Math.floor(this.wrapX(p.x));
-      const y = Math.floor(p.y);
+      const { x, y } = this.anchorPx(c.site);
       const tex = marker.sprite.texture;
       const sizes = this.megaCraneSprites.filter((o) => o.site === c.site).map((o) => ({ w: o.sprite.texture.width, h: o.sprite.texture.height }));
       const spot = craneSpots(x, y, tex.width, tex.height, sizes)[c.i];
       c.sprite.visible = true;
       c.sprite.position.set(spot.x, spot.y);
+      c.sprite.zIndex = marker.z;
     }
   }
 
@@ -1380,11 +1575,10 @@ export class MapScene implements Scene {
         this.solarSprite = new Sprite(spaceSolarTexture());
         this.skyL.addChild(this.beamSprite, this.solarSprite);
       }
-      const site = siteDef(groundId);
-      const p = this.proj(site.lon, site.lat);
+      const ground = this.anchorPx(groundId);
       const tex = this.solarSprite.texture;
       const bob = still ? 0 : Math.round(Math.sin(this.time * 1.3));
-      const spot = spaceSolarSpot(Math.floor(this.wrapX(p.x)), Math.floor(p.y), tex.width, tex.height, bob);
+      const spot = spaceSolarSpot(ground.x, ground.y, tex.width, tex.height, bob);
       this.solarSprite.position.set(spot.craft.x, spot.craft.y);
       this.solarSprite.visible = true;
       this.beamSprite!.texture = beamTexture(spot.beam.len);
@@ -1400,10 +1594,9 @@ export class MapScene implements Scene {
     let used = 0;
     if (flying) {
       const marker = this.markers.get(v.launch!.siteId);
-      const site = siteDef(v.launch!.siteId);
-      const p = this.proj(site.lon, site.lat);
+      const at = this.anchorPx(v.launch!.siteId);
       const pad = marker?.sprite.texture;
-      const o = markerOrigin(Math.floor(this.wrapX(p.x)), Math.floor(p.y), pad?.width ?? 13, pad?.height ?? 16, true);
+      const o = markerOrigin(at.x, at.y, pad?.width ?? 13, pad?.height ?? 16, true);
       const baseX = o.x + 5;
       const baseY = o.y + 4;
       const f = launchFrame(this.time);
@@ -1663,10 +1856,10 @@ export class MapScene implements Scene {
         list.forEach((g) => (g.sprite.visible = false));
         continue;
       }
-      const sd = siteDef(site);
-      const p = this.proj(sd.lon, sd.lat);
-      const spots = glyphRow4(Math.floor(this.wrapX(p.x)), Math.floor(p.y), marker.sprite.texture.height, list.map((g) => ({ w: g.sprite.texture.width, h: g.sprite.texture.height })));
+      const at = this.anchorPx(site);
+      const spots = glyphRow4(at.x, at.y, marker.sprite.texture.height, list.map((g) => ({ w: g.sprite.texture.width, h: g.sprite.texture.height })));
       list.forEach((g, i) => {
+        g.sprite.zIndex = marker.z;
         g.sprite.visible = true;
         g.sprite.position.set(spots[i].x, spots[i].y);
       });
@@ -1918,9 +2111,9 @@ export class MapScene implements Scene {
       const frame = Math.floor(this.time * 2.5) % 2;
       const tex = selectionTexture(frame);
       this.selSprite.texture = tex;
-      const p = this.sitePx(sel.id);
+      const p = this.anchorPx(sel.id);
       const lift = this.liftOf(sel.id);
-      this.selSprite.position.set(Math.floor(p.x) - Math.floor(tex.width / 2), Math.floor(p.y) - Math.floor(tex.height / 2) - lift);
+      this.selSprite.position.set(p.x - Math.floor(tex.width / 2), p.y - Math.floor(tex.height / 2) - lift);
       this.selSprite.visible = true;
     } else this.selSprite.visible = false;
   }
@@ -1952,10 +2145,10 @@ export class MapScene implements Scene {
     const s = this.game.view;
     for (const site of SITES) {
       if (!siteVisible(site, s)) continue;
-      const p = this.proj(site.lon, site.lat);
-      const x = this.wrapX(p.x);
+      // the marker's middle, where the declutter put it
+      const p = this.anchorPx(site.id);
       const lift = this.liftOf(site.id);
-      const d = Math.hypot(x - wx, p.y - lift - wy);
+      const d = Math.hypot(p.x + 0.5 - wx, p.y + 0.5 - lift - wy);
       if (d < bestD) {
         bestD = d;
         best = site.id;

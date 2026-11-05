@@ -9,6 +9,7 @@ import type { ContractKind } from '../../sim/types';
 import { C, type ColorKey } from '../palette';
 import { PixelCanvas } from '../pixels';
 import { cachedTexture } from '../textures';
+import { mapRim } from './mapIcons';
 
 type Keys = Record<string, ColorKey | null>;
 
@@ -261,17 +262,20 @@ function geoIcon(stage: number): PixelCanvas {
 
 /** The survey marker of a megaproject site nobody has built at yet: a faint dotted plot with a stake. */
 export function megaSurveyCanvas(hover = false): PixelCanvas {
-  return PixelCanvas.from(
-    `
-    ...a...
-    ..a.a..
-    .a.b.a.
-    a..b..a
-    .a.c.a.
-    ..a.a..
-    ...a...
-  `,
-    hover ? { a: 'white', b: 'yel1', c: 'yel0' } : { a: 'ink7', b: 'yel0', c: 'snd4' },
+  // rimmed outside only, so the plot stays see-through but still shows on sand and snow
+  return mapRim(
+    PixelCanvas.from(
+      `
+      ...a...
+      ..a.a..
+      .a.b.a.
+      a..b..a
+      .a.c.a.
+      ..a.a..
+      ...a...
+    `,
+      hover ? { a: 'white', b: 'yel1', c: 'yel0' } : { a: 'ink7', b: 'yel0', c: 'snd4' },
+    ),
   );
 }
 
