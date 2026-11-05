@@ -11,6 +11,7 @@ import { hash2, PixelCanvas } from '../pixels';
 import { cachedTexture, labelTexture } from '../textures';
 import { advisorLook, bitFrames, CARRY, emoteArt, FIG_BODY_X, FIG_FEET, FIG_W, figure, lookFor, shade, WALK, type Emote, type PersonLook, type Pose, type Role } from './people';
 import type { AdvisorId } from '../../sim/types';
+import { sfx } from '../../audio/sfx';
 
 /** What the crowd knows about one plot. */
 export interface Spot {
@@ -319,6 +320,7 @@ export class Life {
     if (!env) return;
     const seen = this.walkers.filter((w) => w.sprite.visible && w.x > env.camX - 10 && w.x < env.camX + env.vw + 10 && w.state !== 'inside');
     const n = Math.min(seen.length, kind === 'info' ? 1 : 3);
+    if (n > 0) sfx('bubble');
     for (let k = 0; k < n; k++) {
       const w = seen.splice(Math.floor(rand() * seen.length), 1)[0];
       if (kind === 'bad') this.emote(w, rand() < 0.6 ? 'alert' : 'ask', 3);
@@ -388,6 +390,7 @@ export class Life {
     w.timer = 2.6;
     w.dir = w.x < env.camX + env.vw / 2 ? 1 : -1;
     this.emote(w, w.bot !== null ? 'note' : choose<Emote>(['heart', 'note', 'star']), 2.6);
+    sfx('hello');
     return w.named;
   }
 

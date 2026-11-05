@@ -31,14 +31,15 @@ import { OWN_CABLE_COST } from '../content/network';
 import { DEAL_BY_ID } from '../content/stack';
 import { siteDistanceKm } from '../content/sites';
 import { fmtMoney } from '../sim/core';
-import { getEra, setEra, syncCssVars, type Era } from '../render/palette';
+import { getEra, onEraChange, setEra, syncCssVars, type Era } from '../render/palette';
 import { deleteSlot, listSlots, loadSlot, migrateLegacySave, newSlotId, writeSlot, MAX_SLOTS, type SlotInfo } from '../save/save';
 import { applyCssSettings, loadSettings, saveSettings, type Settings } from '../save/settings';
 import { guideUnseen, unlockGuide } from '../save/guide';
 import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
 import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
-import { musicUnlocked, playMusic } from '../audio/music';
+import { musicUnlocked, playMusic, type Track } from '../audio/music';
+import { restartAmbience, setAmbience } from '../audio/ambience';
 import { canFullscreen, canPromptInstall, checkAppUpdate, enterFullscreen, initInstallPrompt, isPhone, isStandalone, onInstallChange, registerServiceWorker } from '../platform/platform';
 import type { AppUpdate, AppUpdateStatus } from '../platform/platform';
 import { kardashev } from '../sim/model';
@@ -47,6 +48,8 @@ import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
 import { ACHIEVEMENT_BY_ID, TEAM_TO_MEET, earned } from '../content/achievements';
 import { achievements, saveAchievements } from '../save/achievements';
+import { segmentsLit } from '../sim/systemView';
+import { EVENT_BY_ID } from '../content/events';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
 export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | null;
@@ -174,7 +177,14 @@ export class Game {
     this.stage.setZoomBoost(this.settings.zoom);
     document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
-    unlockOnGesture(() => musicUnlocked());
+    unlockOnGesture(() => {
+      musicUnlocked();
+      restartAmbience();
+    });
+    // a new era, a new soundtrack (the menu keeps its theme; the ending keeps its own)
+    onEraChange(() => {
+      if (this.mode !== 'title' && this.state && !this.ending) playMusic(this.eraTrack());
+    });
     initInstallPrompt();
     onInstallChange(() => {
       this.installAvailable = canPromptInstall();
@@ -323,6 +333,7 @@ export class Game {
     this.stage.setZoomBoost(this.settings.zoom);
     this.startTour();
     playMusic('menu');
+    setAmbience('none');
     this.notify();
   }
 
@@ -332,6 +343,7 @@ export class Game {
     this.menuScreen = 'main';
     this.startTour();
     playMusic('menu');
+    setAmbience('none');
     this.notify();
   }
 
@@ -354,12 +366,18 @@ export class Game {
     this.tour = null;
     this.mode = 'map';
     this.dioramaSite = null;
+    setAmbience('map');
     this.stage.setZoomBoost(this.settings.zoom);
     this.stage.setScene(this.scenes.map(this));
     this.act2Music = (this.state?.act ?? 1) >= 2;
     this.act3Music = (this.state?.act ?? 1) >= 3;
-    playMusic(this.act3Music ? 'game3' : this.act2Music ? 'game2' : 'game');
+    playMusic(this.eraTrack());
     this.notify();
+  }
+
+  /** The soundtrack follows the palette's era (Smog & Silicon → Swarmlight). */
+  private eraTrack(): Track {
+    return `era${getEra()}` as Track;
   }
 
   /** Act IV: zoom out to the planet from orbit. */
@@ -367,6 +385,7 @@ export class Game {
     if (!this.scenes.orbit || !this.state?.planet) return;
     this.mode = 'orbit';
     this.dioramaSite = null;
+    setAmbience('space');
     this.hover = null;
     this.stage.setZoomBoost(this.settings.zoom);
     this.stage.setScene(this.scenes.orbit(this));
@@ -382,6 +401,7 @@ export class Game {
   enterSystem(cinematic = false): void {
     if (!this.scenes.system || !this.state?.system) return;
     this.mode = 'system';
+    setAmbience('space');
     this.dioramaSite = null;
     this.hover = null;
     this.stage.setZoomBoost(this.settings.zoom);
@@ -513,6 +533,7 @@ export class Game {
     } else if (s) {
       s.meta.playtime += dt;
       this.logPlay(s, dt);
+      this.soundCues(s);
       this.achTimer += dt;
       if (this.achTimer >= 1) {
         this.achTimer = 0;
@@ -555,7 +576,7 @@ export class Game {
       if (blocked && this.speed !== 0) {
         this.resumeSpeed = this.speed;
         this.speed = 0;
-        if (s.events.active) sfx('alert');
+        if (s.events.active) sfx(EVENT_BY_ID[s.events.active.id]?.big ? 'decision' : 'alert');
         this.notify();
       }
       if (!blocked && this.speed > 0) {
@@ -609,11 +630,11 @@ export class Game {
     }
     if ((s.act ?? 1) >= 2 && !this.act2Music) {
       this.act2Music = true;
-      if (this.mode !== 'title') playMusic('game2');
+      if (this.mode !== 'title') playMusic(this.eraTrack());
     }
     if ((s.act ?? 1) >= 3 && !this.act3Music) {
       this.act3Music = true;
-      if (this.mode !== 'title') playMusic('game3');
+      if (this.mode !== 'title') playMusic(this.eraTrack());
     }
     if (s.flags.act2Complete && !s.flags.act2Shown) {
       s.flags.act2Shown = true;
@@ -1240,7 +1261,6 @@ export class Game {
       }
       this.save();
     }
-    playMusic(this.act3Music ? 'game3' : 'game2');
     this.enterMap();
     this.speed = 1;
     this.notify();
@@ -1407,6 +1427,23 @@ export class Game {
     }
     this.notify();
     return r;
+  }
+
+  // ── sound cues for the big moments ───────────────────────────────────────────────────────
+  private cue = { jumping: false, arcs: -1, storm: false };
+
+  private soundCues(s: GameState): void {
+    const jumping = !!(s.planet?.jump || s.system?.jump);
+    if (jumping && !this.cue.jumping) sfx('jump');
+    this.cue.jumping = jumping;
+    if (s.system) {
+      const arcs = segmentsLit(s.system.collectors);
+      if (this.cue.arcs >= 0 && arcs > this.cue.arcs && !jumping) sfx('arc');
+      this.cue.arcs = arcs;
+      const storm = !!s.system.solarmax && !s.system.solarmax.done;
+      if (storm && !this.cue.storm) sfx('storm');
+      this.cue.storm = storm;
+    }
   }
 
   // ── achievements ──────────────────────────────────────────────────────────────────────────

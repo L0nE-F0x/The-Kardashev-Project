@@ -11,6 +11,8 @@ import { pixelTexture } from '../sprites/mapIcons';
 import { subsolar, sunAltitude, localSolarHour } from '../../world/sun';
 import { BIOMES, LAMP_HEAD, LAMP_TOP, bigRotorFrames, emptyPlotArt, streetLamp, rotorFrames, surfFrames, truckArt, truckVariant, vanArt, type Emitter, type Mover, type RotorSpec } from './art';
 import { Life, type LifeEnv, type NamedSpec, type Spot } from './life';
+import { setAmbience, type Ambience } from '../../audio/ambience';
+import { sfx } from '../../audio/sfx';
 import { shade } from './people';
 import { ADVISORS } from '../../content/advisors';
 import { campusLines } from '../../content/campusLines';
@@ -79,6 +81,8 @@ interface Rocket {
   flash: Sprite;
   vent: number;
   trail: number;
+  /** The phase last frame (a liftoff sounds once). */
+  lastPhase?: string;
 }
 
 interface Driver {
@@ -89,6 +93,8 @@ interface Driver {
   frames: Texture[];
   glowFrames: Texture[];
   bloomFrames: Texture[];
+  /** The phase last frame (each shot thumps once). */
+  lastPhase?: string;
 }
 
 interface PropSprite {
@@ -795,6 +801,18 @@ export class DioramaScene implements Scene {
     this.buildWeather();
   }
 
+  /** What this place sounds like right now. */
+  private ambienceKey(): Ambience {
+    if (this.lunar) return 'moon';
+    if (this.mode === 'space' || this.mode === 'asteroid') return 'space';
+    if (this.mode === 'habitat') return 'habitat';
+    if (this.weather === 'rain' || this.weather === 'snow') return 'rain';
+    const L = this.layout;
+    if (L?.beachFrom !== undefined || (L?.scenery?.kind === 'mega' && L.scenery.offshore)) return 'coast';
+    if (L?.lakeFrom !== undefined) return 'lake';
+    return this.darkness > 0.55 ? 'night' : 'campus';
+  }
+
   /** Walkers stay on dry land (the HQ's promenade ends at the quay). */
   private walkLimit(): number {
     const L = this.layout;
@@ -1320,6 +1338,8 @@ export class DioramaScene implements Scene {
     this.hintR0.alpha = this.camX < max - 2 ? show : 0;
     this.updateWalkers(dt);
     this.updateTruck(dt);
+    // the place's sound bed (once a second is plenty)
+    if (Math.floor(this.time) !== Math.floor(this.time - dt) && this.game.mode !== 'title') setAmbience(this.ambienceKey());
     this.updateParticles(dt);
     this.updateWeather(dt);
   }
@@ -1511,6 +1531,9 @@ export class DioramaScene implements Scene {
     // the burn floods the pad (and the cloud) with orange light; it fades as the rocket climbs
     const fl = r.flash;
     const lit = pose.phase === 'ignite' ? pose.burn : pose.phase === 'flight' ? Math.max(0, 1 + (pose.dy + 30) / 160) : 0;
+    const onScreen = p.x + p.w > this.camX && p.x < this.camX + this.vw;
+    if (pose.phase === 'ignite' && r.lastPhase !== 'ignite' && onScreen && this.game.mode !== 'title') sfx('launch');
+    r.lastPhase = pose.phase;
     // a liftoff watched in the dark (an achievement); only when it's on screen
     if (pose.phase === 'flight' && this.darkness > 0.6 && p.x + p.w > this.camX && p.x < this.camX + this.vw) this.game.achieve?.('night-launch');
     fl.visible = lit > 0.02;
@@ -1546,6 +1569,8 @@ export class DioramaScene implements Scene {
   /** The mass driver: a capsule waits in the breech, streaks down the rail and is flung off the ramp. */
   private updateDriver(p: Plot, d: Driver) {
     const pose = driverPose(this.time, d.spec);
+    if (pose.phase === 'accel' && d.lastPhase !== 'accel' && p.x + p.w > this.camX && p.x < this.camX + this.vw && this.game.mode !== 'title') sfx('thump');
+    d.lastPhase = pose.phase;
     const x = Math.round(p.x + pose.x - d.spec.ax);
     const y = Math.round(p.top + pose.y - d.spec.ay);
     for (const sp of [d.sprite, d.glow, d.bloom]) {
