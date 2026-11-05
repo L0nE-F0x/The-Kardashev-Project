@@ -39,7 +39,7 @@ export function runsCompany(s: GameState): boolean {
 }
 
 /** The few cards from earlier acts that still make sense in the swarm age (the rest of Act V's pool is its own). */
-const ACT5_EXTRA = new Set(['orbit-collision', 'hvdc-fault', 'partner-favour']);
+const ACT5_EXTRA = new Set(['orbit-collision', 'partner-favour']);
 
 /** Is this random card worth asking about, given where the campaign is? (Later acts drop the earlier acts' noise.) */
 function poolFits(s: GameState, def: EventDef): boolean {
