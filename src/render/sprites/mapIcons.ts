@@ -57,6 +57,47 @@ const HOUSE = `
   .aaaaaaa.
 `;
 
+/**
+ * A 1 px dark rim (ink0) round a map sprite wherever its edge is light, so it reads on snow,
+ * sand, surf and city lights alike. Baked once into the canvas (textures are cached), never per
+ * frame. Grows the canvas by 1 px on every side, so centred sprites stay centred; edges already
+ * rimmed in ink0/ink1 are left as they are, and so are holes inside the sprite.
+ */
+export function mapRim(pc: PixelCanvas): PixelCanvas {
+  const out = new PixelCanvas(pc.w + 2, pc.h + 2);
+  out.blit(pc, 1, 1);
+  const { w, h } = out;
+  const src = out.data.slice();
+  // the empty pixels outside the sprite: flood in from the (empty) border
+  const outside = new Uint8Array(w * h);
+  const stack = [0];
+  outside[0] = 1;
+  while (stack.length) {
+    const i = stack.pop()!;
+    const x = i % w;
+    const y = (i - x) / w;
+    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+      const j = ny * w + nx;
+      if (outside[j] || src[j] !== 0) continue;
+      outside[j] = 1;
+      stack.push(j);
+    }
+  }
+  const light = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
+    const c = src[y * w + x];
+    return c !== 0 && c !== C.ink0 && c !== C.ink1;
+  };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!outside[y * w + x]) continue;
+      if (light(x - 1, y) || light(x + 1, y) || light(x, y - 1) || light(x, y + 1)) out.set(x, y, C.ink0);
+    }
+  }
+  return out;
+}
+
 /** Marker for one of the player's sites. */
 export function sitePinCanvas(color: ColorKey): PixelCanvas {
   return PixelCanvas.from(PIN, { a: 'ink0', b: color, c: 'white' });
@@ -72,15 +113,16 @@ export function homeTexture(): Texture {
   return cachedTexture('home', homeCanvas);
 }
 
+/** An empty build site: a small plot diamond, rimmed dark so it shows on light ground too. */
 export function candidateCanvas(hover: boolean): PixelCanvas {
-  return PixelCanvas.from(DIAMOND, { a: hover ? 'white' : 'ink8', b: hover ? 'yel1' : 'ink1' });
+  return mapRim(PixelCanvas.from(DIAMOND, { a: hover ? 'white' : 'ink8', b: hover ? 'yel1' : 'ink1' }));
 }
 export function candidateTexture(hover: boolean): Texture {
   return cachedTexture(`cand:${hover}`, () => candidateCanvas(hover));
 }
 
 export function supplierCanvas(color: ColorKey): PixelCanvas {
-  return PixelCanvas.from(CHIP, { a: 'ink0', b: color, c: 'ink2', d: 'ink8' });
+  return mapRim(PixelCanvas.from(CHIP, { a: 'ink0', b: color, c: 'ink2', d: 'ink8' }));
 }
 export function supplierTexture(color: ColorKey): Texture {
   return cachedTexture(`chip:${color}`, () => supplierCanvas(color));
@@ -285,17 +327,19 @@ export function restartSiteTexture(hover: boolean): Texture {
 
 /** Candidate marker for a megasite: a bigger, greener version of the plot diamond. */
 export function megasiteCanvas(hover: boolean): PixelCanvas {
-  return PixelCanvas.from(
-    `
-    ...a...
-    ..aba..
-    .abcba.
-    abc.cba
-    .abcba.
-    ..aba..
-    ...a...
-  `,
-    { a: hover ? 'white' : 'ink8', b: hover ? 'yel1' : 'grn6', c: 'ink1' },
+  return mapRim(
+    PixelCanvas.from(
+      `
+      ...a...
+      ..aba..
+      .abcba.
+      abc.cba
+      .abcba.
+      ..aba..
+      ...a...
+    `,
+      { a: hover ? 'white' : 'ink8', b: hover ? 'yel1' : 'grn6', c: 'ink1' },
+    ),
   );
 }
 export function megasiteTexture(hover: boolean): Texture {
@@ -409,7 +453,7 @@ export function chokepointTexture(closed: boolean): Texture {
   return cachedTexture(`choke:${closed}`, () => chokepointCanvas(closed));
 }
 
-/** Animated selection brackets (frame 0/1). */
+/** Animated selection brackets (frame 0/1), rimmed dark so they show on snow and sand too. */
 export function selectionTexture(frame: number): Texture {
   return cachedTexture(`sel:${frame}`, () => {
     const n = 15 + frame * 2;
@@ -422,7 +466,7 @@ export function selectionTexture(frame: number): Texture {
         pc.set(x, y + dy * i, col);
       }
     }
-    return pc;
+    return mapRim(pc);
   });
 }
 
