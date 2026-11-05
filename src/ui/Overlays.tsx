@@ -329,7 +329,7 @@ export function ConfirmModal() {
               Cancel
             </button>
             <button class="btn primary" onClick={() => c.onYes()}>
-              Yes, spend it
+              {c.yes ?? 'Yes, spend it'}
             </button>
           </div>
         </div>

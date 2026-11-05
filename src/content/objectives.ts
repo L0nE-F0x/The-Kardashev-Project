@@ -1,5 +1,5 @@
 import type { AdvisorId, GameState } from '../sim/types';
-import { currentCapability, facilityMW, frontier } from '../sim/model';
+import { algoEff, capabilityOf, currentCapability, facilityMW, frontier } from '../sim/model';
 import { fmtDays, fmtMoney } from '../sim/core';
 import { FACILITIES, FIRM, GENERATORS } from './facilities';
 import { megaStage } from './charter';
@@ -99,7 +99,7 @@ OBJECTIVES.push(
   a2({ id: 'a2-it100', progress: (s) => mw(s.stats.itMW, 100), phase: 1, title: 'Bring 100 MW of IT capacity online', hint: 'Bigger halls (upgrade to 50 MW) and more of them.', advisor: 'juno', goal: true, done: (s) => s.stats.itMW >= 100 }),
   a2({ id: 'a2-bit3', progress: training(3), phase: 1, title: 'Train Bit-3', hint: 'Start the Bit-3 run in Compute. It wants about 10× Bit-2’s compute.', advisor: 'bit', goal: true, done: (s) => s.models.length >= 3, reward: { rp: 40, text: '+40 research' } }),
   a2({ id: 'a2-rev75', progress: (s) => monthly(s.stats.revenueMonth, 75e6), phase: 1, title: 'Reach $75M/month revenue', hint: 'More chips serving customers, better models, more markets.', advisor: 'penny', goal: true, done: (s) => s.stats.revenueMonth >= 75e6 }),
-  a2({ id: 'a2-seriesB', phase: 1, title: 'Raise your Series B', hint: 'Meet the three goals above and Penny will bring the term sheets.', advisor: 'penny', goal: true, after: ['a2-it100', 'a2-bit3', 'a2-rev75'], done: (s) => s.finance.round === 'B' || s.finance.round === 'IPO' }),
+  a2({ id: 'a2-seriesB', phase: 1, title: 'Raise your Series B', hint: 'Meet the three goals above and Penny will bring the term sheets. Stuck? With Bit-3 trained she finds a smaller round after about two and a half years.', advisor: 'penny', goal: true, after: ['a2-bit3'], done: (s) => s.finance.round === 'B' || s.finance.round === 'IPO' }),
   // ── Phase 2 · The Stack ──
   a2({ id: 'a2-deal', phase: 2, title: 'Sign a supply deal', hint: 'Deals → Supply: reserve wafers, lock in HBM or book packaging slots.', advisor: 'mira', done: (s) => s.stack.deals.length > 0 }),
   a2({ id: 'a2-pkg', phase: 2, title: 'Build a packaging plant or start a fab', hint: 'Both are new facilities. The fab needs water, firm power and Veldt’s tools.', advisor: 'mira', done: (s) => s.facilities.some((f) => f.type === 'packaging' || f.type === 'fab') }),
@@ -107,12 +107,21 @@ OBJECTIVES.push(
   a2({ id: 'a2-stake', phase: 2, title: 'Take a stake in a mine', hint: 'Click a mine on the map. A stake hedges the price swings of what it digs up.', advisor: 'mira', done: (s) => Object.values(s.stack.stakes).some((v) => v > 0) }),
   a2({ id: 'a2-review', phase: 2, title: 'Pass a board review', hint: 'Grow revenue by the board’s target each quarter. Finance → Board.', advisor: 'penny', done: (s) => !!s.flags.boardPassed }),
   a2({ id: 'a2-sovereign', phase: 2, title: 'Accept a sovereign deal', hint: 'Blocs make offers on the Blocs screen: build there, get grants and cheap power.', advisor: 'sol', done: (s) => s.capital.sovereign.some((d) => d.status === 'active' || d.status === 'done') }),
-  // ── Phase 3 · The Race (the IPO checklist) ──
+  // ── Phase 3 · The Race (the IPO checklist: any 4 of these 6 start The Crunch) ──
   a2({ id: 'a2-gw-it', progress: (s) => mw(s.stats.itMW, 1000), phase: 3, title: '1 GW of IT capacity online', hint: '200 MW halls and the Gigawatt Campus get you there.', advisor: 'juno', goal: true, done: (s) => s.stats.itMW >= 1000 }),
   a2({ id: 'a2-gw-gen', progress: (s) => { const g = genNameplate(s); const c = g > 0 ? genNameplate(s, true) / g : 0; return prog(Math.min(g / 1000, c / 0.6), 1, `${(g / 1000).toFixed(2)} / 1 GW · ${Math.round(c * 100)}% clean`); }, phase: 3, title: '1 GW of your own generation, 60% carbon-free', hint: 'Nameplate capacity of your plants. Solar, wind, hydro, geothermal and nuclear count as clean.', advisor: 'juno', goal: true, done: (s) => genNameplate(s) >= 1000 && genNameplate(s, true) >= 0.6 * genNameplate(s) }),
   a2({ id: 'a2-bit4', progress: training(4), phase: 3, title: 'Train Bit-4', hint: 'The big one. Every gigawatt helps.', advisor: 'bit', goal: true, done: (s) => s.models.length >= 4, reward: { rp: 60, text: '+60 research' } }),
   a2({ id: 'a2-rev1b', progress: (s) => monthly(s.stats.revenueMonth, 1e9), phase: 3, title: 'Reach $1B/month revenue', hint: 'Markets, contracts and a model near the frontier.', advisor: 'penny', goal: true, done: (s) => s.stats.revenueMonth >= 1e9 }),
-  a2({ id: 'a2-frontier', progress: (s) => prog(currentCapability(s), frontier(s), `Bit ${currentCapability(s).toFixed(2)} · Meridian ${frontier(s).toFixed(2)}`), phase: 3, title: 'Match Meridian at the frontier', hint: 'Release a model at least as capable as Meridian’s best.', advisor: 'bit', goal: true, done: (s) => !!s.flags.reachedFrontier }),
+  a2({
+    id: 'a2-frontier',
+    progress: (s) => {
+      const f = frontier(s);
+      const c = currentCapability(s);
+      const lead = s.market.rivals.filter((r) => !r.open).sort((a, b) => b.capability - a.capability)[0];
+      const next = s.training ? capabilityOf(s.training.target, algoEff(s)) : null;
+      return prog(c, f, `you ${c.toFixed(2)}${next ? ` (${s.training!.name} ≈ ${next.toFixed(2)})` : ''} vs ${lead?.name.split(' ')[0] ?? 'the frontier'} ${f.toFixed(2)}`);
+    },
+    phase: 3, title: 'Match Meridian at the frontier', hint: 'Release a model at least as capable as Meridian’s best.', advisor: 'bit', goal: true, done: (s) => !!s.flags.reachedFrontier }),
   a2({ id: 'a2-safe', phase: 3, title: 'A clean safety record', hint: 'Safety margin ≥ −0.25 and no major incident in the last 12 months.', advisor: 'iris', goal: true, done: (s) => s.stats.margin >= -0.25 && s.models.length >= 3 && s.day - Number(s.flags.lastMajorIncident ?? -9999) > 365 }),
   a2({ id: 'a2-crunch', phase: 4, title: 'Come through The Crunch', hint: 'Hold the grid, the supply chain and public trust for 90 days.', advisor: 'sol', goal: true, done: (s) => !!s.finale?.done }),
   a2({ id: 'a2-ipo', phase: 4, title: 'Ring the bell: IPO', hint: 'Penny has the bankers on speed dial.', advisor: 'penny', goal: true, after: ['a2-crunch'], done: (s) => !!s.flags.act2Complete }),
@@ -217,7 +226,7 @@ export const PLANET_GOALS = ['a4-k080', 'a4-grid', 'a4-fusion', 'a4-orbit', 'a4-
 /** The Charter Mandate: when it is met, The Threshold begins. */
 export const MANDATE_GOALS = ['a3-k075', 'a3-clean', 'a3-chips', 'a3-access40', 'a3-regime', 'a3-legit', 'a3-orbital'];
 
-/** The IPO checklist that starts The Crunch. */
+/** The IPO checklist: any CRUNCH_GOALS (4, sim/act2.ts) of these start The Crunch; mid-2034 starts it anyway. */
 export const IPO_GOALS = ['a2-gw-it', 'a2-gw-gen', 'a2-bit4', 'a2-rev1b', 'a2-frontier', 'a2-safe'];
 export const SERIES_B_GOALS = ['a2-it100', 'a2-bit3', 'a2-rev75'];
 

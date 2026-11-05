@@ -12,6 +12,7 @@ import { CABLES } from '../content/network';
 import { MINE_BY_ID, MATERIALS } from '../content/stack';
 import { RULE_BY_ID } from '../content/politics';
 import { cableCut } from '../sim/network';
+import { exportBlock } from '../sim/politics';
 import { useState } from 'preact/hooks';
 import { LANDING_SITES } from '../content/sites';
 import { inventoryCount } from '../sim/supply';
@@ -72,6 +73,8 @@ function SiteInspector({ id }: { id: string }) {
   const license = s.regions[site.region].license;
   const hasDC = facs.some((f) => f.type === 'datacenter' || f.type === 'campus');
   const act2 = (s.act ?? 1) >= 2;
+  // export rules can keep chips out of a site: say so before anyone builds a hall here
+  const exportBlocked = site.kind === 'build' ? exportBlock(s, id) : null;
   const slots = siteSlots(s, id);
   const rivals = s.rivalBuilds.filter((b) => b.siteId === id);
 
@@ -127,6 +130,7 @@ function SiteInspector({ id }: { id: string }) {
           </span>
         ) : null}
       </div>
+      {exportBlocked && <div class="small warn section">⛔ {exportBlocked}</div>}
 
       {sp && sp.load > 0 && (
         <div class="section">
@@ -282,7 +286,7 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
                 class="btn buildcard"
                 disabled={!!why}
                 onClick={() => game.build(id, type)}
-                data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}\nRunning cost: ${fmtMoney(def.opex)} a month${type === 'lab' ? ' (researchers’ salaries)' : ''}.${why ? `\n✗ ${why}` : ''}`}
+                data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}\nRunning cost: ${fmtMoney(def.opex)} a month${type === 'lab' ? ' (researchers’ salaries)' : ''}.${exportBlocked && (type === 'datacenter' || type === 'campus') ? `\n⛔ ${exportBlocked}` : ''}${why ? `\n✗ ${why}` : ''}`}
               >
                 <span class="t">
                   <Icon name={FAC_ICON[type]} size="sm" /> {def.name}

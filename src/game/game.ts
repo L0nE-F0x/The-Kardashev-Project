@@ -82,6 +82,8 @@ export interface ConfirmRequest {
   title: string;
   detail: string;
   onYes: () => void;
+  /** The yes button's words (default: a spend). */
+  yes?: string;
 }
 
 export interface SceneFactory {
@@ -1456,6 +1458,7 @@ export class Game {
   cancelProject(id: string): void {
     this.confirm = {
       title: 'Cancel this contract?',
+      yes: 'Yes, cancel it',
       detail: 'What the Charter has paid is gone, the builder will be furious (relationship −20) and Legitimacy falls by 4.',
       onYes: () => {
         this.confirm = null;
@@ -1490,6 +1493,7 @@ export class Game {
     }
     this.confirm = {
       title: on ? 'Put your company in a blind trust?' : 'Take your company out of the blind trust?',
+      yes: on ? 'Yes, into the trust' : 'Yes, take it back',
       detail: on
         ? 'Your advisors will run it on standing orders and you won’t be able to touch it. Legitimacy +8; conflicts of interest cost far less.'
         : `You get the controls back. Legitimacy −12, and you can’t go back in for ${Math.round(CH.TRUST_COOLDOWN / 30.4)} months.`,

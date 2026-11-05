@@ -208,10 +208,11 @@ function SupplyTab() {
 }
 
 /** Ask before something with a real downside (the game's confirm dialog). */
-function ask(game: ReturnType<typeof useGame>, title: string, detail: string, yes: () => void): void {
+function ask(game: ReturnType<typeof useGame>, title: string, detail: string, yes: () => void, label = 'Yes, go ahead'): void {
   game.confirm = {
     title,
     detail,
+    yes: label,
     onYes: () => {
       game.confirm = null;
       yes();

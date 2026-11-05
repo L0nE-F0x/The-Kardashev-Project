@@ -69,7 +69,7 @@ function Act2Goals() {
   return (
     <Panel title="Act II · The Scale-Up" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
       <p class="small muted" style={{ marginTop: 0 }}>
-        From a Series-A startup to a hyperscaler. Phase {Math.min(4, s.phase)} of 4: {PHASE_NAMES[Math.min(4, s.phase)]}. The IPO checklist in phase 3 starts The Crunch; by mid-2034 it starts anyway.
+        From a Series-A startup to a hyperscaler. Phase {Math.min(4, s.phase)} of 4: {PHASE_NAMES[Math.min(4, s.phase)]}. Any four of the six IPO goals in phase 3 start The Crunch; by mid-2034 it starts anyway.
       </p>
       {phases.map((p) => (
         <div key={p} class="section">
