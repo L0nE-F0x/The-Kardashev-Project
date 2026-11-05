@@ -79,7 +79,14 @@ export function tickSupply(s: GameState, ctx: SimContext): void {
     if (o.done) continue;
     const complete = o.produced >= o.qty - 1e-6;
     const lot = Math.floor(o.pendingShip);
-    if (lot <= 0) continue;
+    if (lot <= 0) {
+      // nothing (whole) left to ship and nothing left to make — e.g. a quake moved the rest to Kestrel: it's done
+      if (complete) {
+        o.done = true;
+        o.pendingShip = 0;
+      }
+      continue;
+    }
     if (!complete && (s.day - o.placedDay) % 7 !== 0) continue;
     if (!complete && lot < Math.min(250, o.qty)) continue;
     dispatch(s, ctx, o, complete ? Math.round(o.pendingShip) : lot);
@@ -155,6 +162,24 @@ export function installInventory(s: GameState, siteId: string): number {
     }
   }
   return installed;
+}
+
+/**
+ * Rack space at a site, in chips of `kw` each: the halls there (built or still building) against everything already
+ * installed, in the warehouse, at sea and still in a fab queue for it. The Orders panel sizes an order from it.
+ */
+export function hallSpace(s: GameState, siteId: string, kw: number): { cap: number; free: number } {
+  let capKw = 0;
+  let usedKw = 0;
+  for (const f of s.facilities) {
+    if (f.siteId !== siteId || !HALLS.includes(f.type)) continue;
+    capKw += facilityIT(f) * 1000;
+    for (const r of f.racks ?? []) usedKw += r.qty * r.kw;
+  }
+  for (const b of s.sites[siteId]?.inventory ?? []) usedKw += b.qty * b.kw;
+  for (const sh of s.shipments) if (sh.dest === siteId) usedKw += sh.batch.qty * sh.batch.kw;
+  for (const o of s.orders) if (!o.done && o.dest === siteId) usedKw += Math.max(0, o.qty - o.shipped) * o.kw;
+  return { cap: Math.floor(capKw / kw), free: Math.max(0, Math.floor((capKw - usedKw) / kw)) };
 }
 
 export function inventoryCount(s: GameState, siteId: string): number {

@@ -10,6 +10,7 @@ import type { SupplierId } from '../../sim/types';
 import { fmtDays, fmtMoney } from '../../sim/core';
 import { quoteOrder } from '../../sim/actions';
 import { chipSpec, supplierDailyRate } from '../../sim/model';
+import { hallSpace } from '../../sim/supply';
 
 export function OrdersPanel() {
   const game = useGame();
@@ -21,12 +22,20 @@ export function OrdersPanel() {
   const act2 = (s.act ?? 1) >= 2;
   const fabOnline = s.facilities.some((f) => f.type === 'fab' && f.status === 'online');
   const supplierIds: SupplierId[] = fabOnline ? ['own', ...MARKET_SUPPLIERS] : MARKET_SUPPLIERS;
+  const maxQty = act2 ? 100000 : 10000;
+  // an order sized to the free rack space: a half-empty hall is the slowest way to the next model
+  const fitQty = (site: string | undefined, sup: SupplierId) => {
+    if (!site) return 2000;
+    const free = hallSpace(s, site, chipSpec(s, sup).kw).free;
+    return free >= 500 ? Math.min(maxQty, Math.floor(free / 500) * 500) : 500;
+  };
   const [supplier, setSupplier] = useState<SupplierId>('lumen');
-  const [qty, setQty] = useState(2000);
   const [dest, setDest] = useState<string>(destOptions[0] ?? '');
+  const [qty, setQty] = useState(() => fitQty(destOptions[0], 'lumen'));
   const [mode, setMode] = useState<'sea' | 'air'>('sea');
   const destId = destOptions.includes(dest) ? dest : destOptions[0];
   const quote = destId ? quoteOrder(s, game.ctx, supplier, qty, destId, mode) : null;
+  const space = destId ? hallSpace(s, destId, chipSpec(s, supplier).kw) : null;
   const blocked = destId ? orderBlockedBy(s, supplier, siteDef(destId).region) : null;
 
   return (
@@ -61,7 +70,17 @@ export function OrdersPanel() {
           <div class="row wrap" style={{ gap: '10px' }}>
             <label class="grow" style={{ minWidth: '200px' }}>
               <span class="label">Quantity: {qty.toLocaleString()}</span>
-              <input type="range" min={500} max={act2 ? 100000 : 10000} step={500} value={qty} onInput={(e) => setQty(Number((e.target as HTMLInputElement).value))} />
+              <input type="range" min={500} max={maxQty} step={500} value={qty} onInput={(e) => setQty(Number((e.target as HTMLInputElement).value))} />
+              {space && (
+                <span class="small muted">
+                  Hall space here: {space.free.toLocaleString()} free of {space.cap.toLocaleString()}{' '}
+                  {space.free >= 500 && qty !== fitQty(destId, supplier) && (
+                    <button class="btn ghost small" onClick={(e) => (e.preventDefault(), setQty(fitQty(destId, supplier)))}>
+                      Fill it
+                    </button>
+                  )}
+                </span>
+              )}
             </label>
             <label>
               <span class="label">Ship to</span>
@@ -87,6 +106,16 @@ export function OrdersPanel() {
               </div>
             </div>
           </div>
+          {quote && s.finance.cash < quote.total && (
+            <div class="small warn section">
+              Not enough cash for {qty.toLocaleString()} chips ({fmtMoney(quote.total)}, you have {fmtMoney(s.finance.cash)}): order fewer now and top the hall up later.
+            </div>
+          )}
+          {space && qty > space.free && (
+            <div class="small warn section">
+              ⚠ Only {space.free.toLocaleString()} more chips fit in the halls at {siteDef(destId!).name}: the other {(qty - space.free).toLocaleString()} would wait in the warehouse until you build or expand a hall.
+            </div>
+          )}
           {destId && blocked && (
             <div class="small warn section">
               ⛔ {blocked.name}: {CHIP_SUPPLIERS[supplier].short} can’t ship to {REGIONS[siteDef(destId).region].name} without a licence. Ask Sol on the Blocs screen.

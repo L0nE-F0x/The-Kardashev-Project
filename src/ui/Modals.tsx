@@ -14,6 +14,8 @@ export function EventModal() {
   if (!def) return null;
   const ctx = active.ctx;
   const choices = def.choices(s, ctx);
+  // the highlighted choice is the first one you can actually take
+  const firstOk = choices.findIndex((c) => !c.disabled);
   return (
     <div class="scrim">
       <div class={`modal frame event ${def.big ? 'bigdecision' : ''}`} role="dialog" aria-label={def.title(s, ctx)}>
@@ -39,12 +41,18 @@ export function EventModal() {
           ))}
           <div class="choices">
             {choices.map((c, i) => (
-              <button key={i} class={`btn choice ${i === 0 ? 'primary' : ''}`} disabled={!!c.disabled} onClick={() => game.chooseEvent(i)}>
+              <button key={i} class={`btn choice ${i === firstOk ? 'primary' : ''}`} disabled={!!c.disabled} onClick={() => game.chooseEvent(i)}>
                 <span class="t">{c.label}</span>
                 <span class="d">{c.detail}</span>
                 {c.disabled && <span class="why">✗ {c.disabled}</span>}
               </button>
             ))}
+            {firstOk < 0 && (
+              <button class="btn choice primary" onClick={() => game.dismissEvent()}>
+                <span class="t">Continue</span>
+                <span class="d">Nothing here can be done right now.</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

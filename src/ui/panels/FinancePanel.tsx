@@ -1,3 +1,4 @@
+import { DIFFICULTIES } from '../../content/difficulty';
 import { Icon, KV, Panel, useGame } from '../components';
 import { BoardSection } from './Act2Panels';
 import { fmtMoney } from '../../sim/core';
@@ -77,7 +78,10 @@ export function FinancePanel() {
         </div>
       )}
       <div class="small muted section">
-        <Icon name="warn" size="sm" /> If cash hits zero, Penny will find a bridge loan — expensive, but you won't go bust.
+        <Icon name="warn" size="sm" />{' '}
+        {DIFFICULTIES[s.meta.difficulty].broke === 'bankrupt' && !s.charter
+          ? 'On Hard, cash hitting zero ends the company (a rescue that drops you to Standard is the only way out). Penny warns when the runway gets short.'
+          : 'If cash hits zero, Penny will find a bridge loan — expensive, but you won’t go bust.'}
       </div>
     </Panel>
   );

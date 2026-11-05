@@ -24,7 +24,7 @@ import type { RegionId as Rid } from '../content/mapcodes';
 import type { AdvisorId, Job } from '../sim/types';
 import { refreshStats, tick } from '../sim/tick';
 import * as A from '../sim/actions';
-import { resolveEvent } from '../sim/events';
+import { dismissEvent, resolveEvent } from '../sim/events';
 import { simulateOffline, type OfflineReport } from '../sim/offline';
 import { buildCost, landCost, linkCost, upgradeCost } from '../sim/model';
 import { OWN_CABLE_COST } from '../content/network';
@@ -158,6 +158,7 @@ export class Game {
   private acc = 0;
   private lastAutosave = 0;
   private toastId = 0;
+  private lastArrivalChime = -999;
   /** Achievement toasts that came during the tutorial, shown when it ends. */
   private heldToasts: { text: string; kind: Toast['kind']; advisor?: string }[] = [];
   private notifyQueued = false;
@@ -633,10 +634,15 @@ export class Game {
         sfx('fanfare');
         // a new model is the beat everything else builds toward: say it out loud, not just in the ticker
         if (n.text.includes(' released!')) this.toast(n.text.replace('🤖 ', ''), 'good', 'bit');
-      }
+      } else if (n.text.startsWith('🧠') && n.text.includes(' trained')) this.toast(n.text.replace('🧠 ', ''), 'info', 'bit');
       else if (n.text.startsWith('🏗') && n.text.includes('online')) sfx('build');
       else if (n.text.startsWith('🔬')) sfx('research');
-      else if (n.text.startsWith('📦') && n.text.includes('arrived')) sfx('cash');
+      else if (n.text.startsWith('📦') && n.text.includes('arrived')) {
+        // a big order lands in a dozen batches: one chime a fortnight, not one per ship
+        if (s.day - this.lastArrivalChime >= 14) sfx('cash');
+        this.lastArrivalChime = s.day;
+      } else if (n.text.startsWith('🔌 Grid connection energised')) sfx('build');
+      else if (n.text.startsWith('💸 Penny')) this.toast(n.text.replace('💸 Penny: ', ''), 'bad', 'penny');
     }
     this.lastNewsSeen = s.news[0]?.day ?? this.lastNewsSeen;
     if (s.flags.act1Complete && !s.flags.act1Shown) {
@@ -1568,6 +1574,19 @@ export class Game {
     log.notes.push({ at: Date.now(), playtime: s.meta.playtime, act: s.act, day: s.day, where, text: t });
     this.save();
     this.toast('Note saved — Settings → Data exports them.', 'good');
+  }
+
+  /** The way out of a card with nothing left to choose (every choice disabled). */
+  dismissEvent(): void {
+    const s = this.state!;
+    if (!dismissEvent(s)) return;
+    sfx('click');
+    if (!s.events.active) {
+      this.eventOpen = false;
+      const holdForTutorial = s.meta.tutorialStep >= 0 && s.meta.tutorialStep <= PLAY_STEP;
+      this.speed = s.meta.gameOver || holdForTutorial ? 0 : this.resumeSpeed || 1;
+    }
+    this.notify();
   }
 
   chooseEvent(index: number): void {

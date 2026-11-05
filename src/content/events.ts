@@ -2,9 +2,9 @@ import type { AdvisorId, GameState } from '../sim/types';
 import { REGIONS, type RegionDef } from './regions';
 import { siteDef } from './sites';
 import { REGION_IDS, type RegionId } from './mapcodes';
-import { addModifier, hasTech } from '../sim/effects';
+import { addModifier, hasTech, techMult } from '../sim/effects';
 import { earn, spend } from '../sim/economy';
-import { delayShipmentsThrough } from '../sim/supply';
+import { delayShipmentsThrough, supplierOrigin } from '../sim/supply';
 import { clamp, fmtMoney, news, pick, rand } from '../sim/core';
 import { crisisCost, currentCapability, frontier, openBest } from '../sim/model';
 import { DIFFICULTIES } from './difficulty';
@@ -63,7 +63,8 @@ const addLicense = (s: GameState, region: string, d: number) => {
   if (st) st.license = clamp(st.license + d, 0, 100);
 };
 const addLicenseAll = (s: GameState, d: number) => REGION_IDS.forEach((r) => addLicense(s, r, d));
-const playerRegions = (s: GameState): RegionId[] => [...new Set(s.facilities.map((f) => siteDef(f.siteId).region))];
+/** Regions where you own more than the garage (a drought or a storm on the HQ alone isn't worth a card). */
+const builtRegions = (s: GameState): RegionId[] => [...new Set(s.facilities.filter((f) => f.type !== 'hq').map((f) => siteDef(f.siteId).region))];
 const onlineDCSites = (s: GameState) => s.facilities.filter((f) => f.type === 'datacenter' && f.status === 'online').map((f) => f.siteId);
 const hasGas = (s: GameState) => s.facilities.some((f) => f.type === 'gas');
 const openOrders = (s: GameState, supplier?: string) => s.orders.filter((o) => !o.done && (!supplier || o.supplier === supplier));
@@ -122,6 +123,7 @@ export const EVENTS: EventDef[] = [
           s.finance.valuation = 15e9;
           s.flags.act1Complete = s.day;
           s.flags.safetyCapUntil = s.day + 365;
+          s.flags.safetyCapValue = 0.05;
           s.alloc.safety = Math.min(s.alloc.safety, 0.05);
           news(s, `💰 ${s.company.name} raises a $2.6B Series A. Critics question the safety terms.`, 'good');
         },
@@ -155,10 +157,11 @@ export const EVENTS: EventDef[] = [
         },
         {
           label: 'Emergency cuts',
-          detail: 'Cancel all cloud rental; +$40M from selling spare equipment.',
+          detail: `Cancel all cloud rental; +${fmtMoney(40e6 * k, 0)} from selling spare equipment; research −30% for 4 months (layoffs).`,
           apply: () => {
             s.rental.units = 0;
-            earn(s, 'other', 40e6);
+            earn(s, 'other', 40e6 * k);
+            addModifier(s, 'research', 120, 'Emergency cuts', { mult: 0.7 });
           },
         },
       ];
@@ -174,27 +177,30 @@ export const EVENTS: EventDef[] = [
       { id: 'penny', text: 'I’ve run the numbers every way I know. We’re done unless someone bails us out.', mood: 'worried' },
       { id: 'bit', text: 'Does this mean I get turned off?', mood: 'worried' },
     ],
-    choices: (s) => [
-      {
-        label: 'Close the company',
-        detail: 'Game over. See how far you got and start again.',
-        apply: () => {
-          s.meta.gameOver = true;
-          news(s, `🪦 ${s.company.name} has closed its doors.`, 'bad');
+    choices: (s) => {
+      const k = (s.act ?? 1) >= 2 ? 6 : 1;
+      return [
+        {
+          label: 'Accept a rescue (switch to Standard)',
+          detail: `+${fmtMoney(150e6 * k, 0)}; ${fmtMoney(3e6 * k, 0)}/month interest for 2 years; difficulty becomes Standard.`,
+          apply: () => {
+            s.meta.difficulty = 'standard';
+            earn(s, 'funding', 150e6 * k);
+            s.finance.bridgeLoans += 1;
+            addModifier(s, 'cost:monthly', 730, 'Rescue loan interest', { add: 3e6 * k });
+            news(s, `🛟 ${s.company.name} survives on a rescue loan.`, 'info');
+          },
         },
-      },
-      {
-        label: 'Accept a rescue (switch to Standard)',
-        detail: '+$150M; $3M/month interest for 2 years; difficulty becomes Standard.',
-        apply: () => {
-          s.meta.difficulty = 'standard';
-          earn(s, 'funding', 150e6);
-          s.finance.bridgeLoans += 1;
-          addModifier(s, 'cost:monthly', 730, 'Rescue loan interest', { add: 3e6 });
-          news(s, `🛟 ${s.company.name} survives on a rescue loan.`, 'info');
+        {
+          label: 'Close the company',
+          detail: 'Game over. See how far you got and start again.',
+          apply: () => {
+            s.meta.gameOver = true;
+            news(s, `🪦 ${s.company.name} has closed its doors.`, 'bad');
+          },
         },
-      },
-    ],
+      ];
+    },
   },
 
   // ════════════════════════════════════════ SUPPLY ═══════════════════════════════════════
@@ -214,6 +220,20 @@ export const EVENTS: EventDef[] = [
     choices: (s) => {
       if (s.flags.heliumRecycling) return [{ label: 'Carry on', detail: 'Our suppliers recycle their helium now.', apply: () => {} }];
       const premium = cc(s, Math.max(4e6, openOrderValue(s) * 0.05));
+      if (!openOrders(s).length)
+        return [
+          { label: 'Noted', detail: 'None of our chips are in a fab queue right now; chip output −40% for 2 months if we order now.', apply: () => void addModifier(s, 'supplier:*:rate', 60, 'Helium shortage', { mult: 0.6 }) },
+          {
+            label: `Fund helium recycling (${fmtMoney(cc(s, 15e6), 0)})`,
+            detail: 'Output −15% for 6 weeks; immune to future helium shocks.',
+            disabled: canAfford(s, cc(s, 15e6)),
+            apply: () => {
+              spend(s, 'other', cc(s, 15e6));
+              addModifier(s, 'supplier:*:rate', 45, 'Helium shortage', { mult: 0.85 });
+              s.flags.heliumRecycling = true;
+            },
+          },
+        ];
       return [
         { label: `Pay the premium (${fmtMoney(premium)})`, detail: 'Your orders stay on schedule.', disabled: canAfford(s, premium), apply: () => spend(s, 'chips', premium) },
         { label: 'Accept delays', detail: 'Chip output −40% for 2 months.', apply: () => void addModifier(s, 'supplier:*:rate', 60, 'Helium shortage', { mult: 0.6 }) },
@@ -246,7 +266,7 @@ export const EVENTS: EventDef[] = [
       {
         label: 'Move Lumen orders to Kestrel',
         detail: 'Unproduced Lumen units switch to Kestrel (cheaper, 15% slower chips; difference refunded).',
-        disabled: openOrders(s, 'lumen').length ? false : 'No Lumen orders queued',
+        disabled: openOrders(s, 'lumen').some((o) => o.qty - o.produced >= 1) ? false : 'No Lumen chips still to be made',
         apply: () => {
           addModifier(s, 'supplier:lumen:rate', 75, 'Hsinchu quake', { mult: 0.4 });
           for (const o of openOrders(s, 'lumen')) {
@@ -255,7 +275,7 @@ export const EVENTS: EventDef[] = [
             const refund = left * o.unitPrice * 0.2;
             earn(s, 'other', refund);
             o.qty = o.produced;
-            s.orders.push({ ...o, id: `${o.id}k`, supplier: 'kestrel', fromSite: 'kestrel-ohio', qty: left, produced: 0, shipped: 0, pendingShip: 0, done: false, unitPrice: o.unitPrice * 0.8, perf: o.perf * 0.85 });
+            s.orders.push({ ...o, id: `${o.id}k`, supplier: 'kestrel', fromSite: supplierOrigin('kestrel', o.dest, s), qty: left, produced: 0, shipped: 0, pendingShip: 0, done: false, unitPrice: o.unitPrice * 0.8, perf: o.perf * 0.85 });
           }
         },
       },
@@ -355,29 +375,32 @@ export const EVENTS: EventDef[] = [
       { id: 'juno', text: 'This is why I like building our own generation. Panels don’t need a utility’s permission.', mood: 'neutral' },
       { id: 'penny', text: 'There is a refurbished transformer market. It is exactly as sketchy as it sounds.', mood: 'neutral' },
     ],
-    choices: (s) => [
-      {
+    choices: (s) => {
+      const waiting = Object.values(s.sites).some((x) => x.grid.pending.length);
+      const buy = {
         label: `Buy refurbished transformers (${fmtMoney(cc(s, 8e6), 0)})`,
-        detail: 'Pending grid connections +20 days; new requests +25% for a year.',
+        detail: waiting ? 'Pending grid connections +20 days; new requests +25% for a year.' : 'Nothing of ours is waiting; new grid requests +25% (not +50%) for a year.',
         disabled: canAfford(s, cc(s, 8e6)),
         apply: () => {
           spend(s, 'other', cc(s, 8e6));
           for (const st of Object.values(s.sites)) st.grid.pending.forEach((p) => (p.readyDay += 20));
           addModifier(s, 'interconnect', 365, 'Transformer shortage', { mult: 1.25 });
         },
-      },
-      {
+      };
+      const queue = {
         label: 'Join the queue',
-        detail: 'Pending grid connections +75 days; new requests +50% for a year.',
+        detail: waiting ? 'Pending grid connections +75 days; new requests +50% for a year.' : 'Nothing of ours is waiting; new grid requests take +50% longer for a year.',
         apply: () => {
           for (const st of Object.values(s.sites)) st.grid.pending.forEach((p) => (p.readyDay += 75));
           addModifier(s, 'interconnect', 365, 'Transformer shortage', { mult: 1.5 });
         },
-      },
-    ],
+      };
+      return waiting ? [buy, queue] : [queue, buy];
+    },
   },
   {
     id: 'hbm-crunch',
+    actOnly: 1,
     category: 'supply',
     icon: '💾',
     weight: (s) => (s.day > 200 ? 1 : 0),
@@ -404,6 +427,7 @@ export const EVENTS: EventDef[] = [
   },
   {
     id: 'export-controls',
+    actOnly: 1,
     category: 'politics',
     icon: '📜',
     weight: (s) => (s.facilities.some((f) => ['eam', 'stp'].includes(siteDef(f.siteId).region)) ? 1.5 : 0.35),
@@ -538,10 +562,10 @@ export const EVENTS: EventDef[] = [
     id: 'drought',
     category: 'climate',
     icon: '🏜',
-    weight: (s) => (playerRegions(s).some((r) => REGIONS[r].hazards.drought > 0.3) ? 0.9 : 0),
+    weight: (s) => (builtRegions(s).some((r) => REGIONS[r].hazards.drought > 0.3) ? 0.9 : 0),
     cooldown: 400,
     setup: (s) => {
-      const rs = playerRegions(s).filter((r) => REGIONS[r].hazards.drought > 0.3);
+      const rs = builtRegions(s).filter((r) => REGIONS[r].hazards.drought > 0.3);
       return rs.length ? { region: pick(s, rs) } : null;
     },
     title: (_s, ctx) => `Drought in ${regionName(String(ctx.region))}`,
@@ -559,7 +583,7 @@ export const EVENTS: EventDef[] = [
     id: 'gas-spike',
     category: 'market',
     icon: '🔥',
-    weight: (s) => (hasGas(s) ? 1.2 : 0.2),
+    weight: (s) => (hasGas(s) ? 1.2 : 0),
     cooldown: 400,
     title: () => 'Gas prices spike',
     body: () => 'A cold winter and a pipeline outage have sent natural gas prices soaring. Every gas-fired kilowatt-hour just got 60% more expensive.',
@@ -588,7 +612,7 @@ export const EVENTS: EventDef[] = [
     id: 'solar-storm',
     category: 'disaster',
     icon: '🌌',
-    weight: (s) => (playerRegions(s).some((r) => ['nor', 'stp', 'pac', 'atl'].includes(r)) ? 0.5 : 0),
+    weight: (s) => (builtRegions(s).some((r) => ['nor', 'stp', 'pac', 'atl'].includes(r)) ? 0.5 : 0),
     cooldown: 700,
     title: () => 'Geomagnetic storm',
     body: () => 'A huge solar flare has hit Earth’s magnetic field. Auroras are visible as far south as Texas — and high-latitude grids are tripping offline to protect their transformers.',
@@ -630,8 +654,12 @@ export const EVENTS: EventDef[] = [
       { id: 'bit', text: currentCapability(s) >= frontier(s) - 0.5 ? 'I think I’m worth full price, actually.' : 'I could be cheaper. I don’t mind.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Match the cut', detail: 'Revenue per accelerator −15% for 3 months; demand holds.', apply: () => void addModifier(s, 'revenue', 90, 'Price war', { mult: 0.85 }) },
-      { label: 'Compete on quality', detail: 'Revenue −25% for 2 months unless you out-train them.', apply: () => void addModifier(s, 'revenue', 60, 'Price war', { mult: currentCapability(s) >= frontier(s) - 0.3 ? 0.95 : 0.75 }) },
+      { label: 'Match the cut', detail: 'Revenue per accelerator −15% for 3 months.', apply: () => void addModifier(s, 'revenue', 90, 'Price war', { mult: 0.85 }) },
+      {
+        label: 'Compete on quality',
+        detail: currentCapability(s) >= frontier(s) - 0.3 ? 'Our model is near the frontier: revenue only −5% for 2 months.' : 'Our model is well behind the frontier: revenue −25% for 2 months.',
+        apply: () => void addModifier(s, 'revenue', 60, 'Price war', { mult: currentCapability(s) >= frontier(s) - 0.3 ? 0.95 : 0.75 }),
+      },
     ],
   },
   {
@@ -653,6 +681,7 @@ export const EVENTS: EventDef[] = [
   },
   {
     id: 'talent-poach',
+    actOnly: 1,
     category: 'finance',
     icon: '🧲',
     weight: (s) => (s.facilities.some((f) => f.type === 'lab') || s.day > 180 ? 0.9 : 0),
@@ -684,12 +713,14 @@ export const EVENTS: EventDef[] = [
     choices: (s) => [
       {
         label: 'Take the extension',
-        detail: '+$50M; safety allocation −5 points (moved to inference).',
+        detail: '+$50M; safety allocation −5 points (moved to inference), held there for 6 months by the terms.',
         apply: () => {
           earn(s, 'funding', 50e6);
           const d = Math.min(0.05, s.alloc.safety);
           s.alloc.safety -= d;
           s.alloc.infer += d;
+          s.flags.safetyCapUntil = s.day + 180;
+          s.flags.safetyCapValue = s.alloc.safety;
         },
       },
       { label: 'Decline politely', detail: 'Trust +1 everywhere.', apply: () => addLicenseAll(s, 1) },
@@ -760,7 +791,7 @@ export const EVENTS: EventDef[] = [
     choices: (s) => [
       {
         label: 'Pause agents and retrain',
-        detail: 'Revenue −35% for 6 weeks; safety research ×2 for 3 months; trust −3.',
+        detail: 'Revenue −35% for 6 weeks; all the safety research so far counts double (alignment up); trust −3.',
         apply: () => {
           addModifier(s, 'revenue', 45, 'Agent pause', { mult: 0.65 });
           s.safety.cumFlop *= 2;
@@ -774,7 +805,7 @@ export const EVENTS: EventDef[] = [
 
 /** Incident severity multiplier (Dangerous-Capability Evals reduce it). */
 function severity(s: GameState): number {
-  return s.research.done.includes('evals') ? 0.6 : 1;
+  return techMult(s, 'incidentSeverity');
 }
 
 EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS, ...ACT4_EVENTS, ...ACT5_EVENTS, ...DECISIONS);

@@ -21,12 +21,12 @@ export interface ChipSupplierDef {
 export const CHIP_SUPPLIERS: Record<SupplierId, ChipSupplierDef> = {
   lumen: {
     id: 'lumen', name: 'Lumen Foundry', short: 'Lumen',
-    blurb: 'Leading-edge accelerators. Everyone wants them, so you wait in line.',
+    blurb: 'Leading-edge accelerators from the biggest lines: the fastest chips, and the most of them each month.',
     price: 30_000, perf: 3.0, kw: 1.2, monthly: 2600, hbmExposure: 1.0, sites: ['lumen-hsinchu', 'lumen-phoenix'],
   },
   kestrel: {
     id: 'kestrel', name: 'Kestrel Semiconductor', short: 'Kestrel',
-    blurb: 'A node behind and hungrier for customers: cheaper, shorter queue, a bit less efficient.',
+    blurb: 'A node behind and hungrier for customers: about 20% cheaper, a bit less efficient, and it makes fewer chips a month.',
     price: 24_000, perf: 2.5, kw: 1.25, monthly: 1700, hbmExposure: 0.8, sites: ['kestrel-ohio', 'kestrel-magdeburg'],
   },
   own: {

@@ -166,7 +166,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
               <span class="l">Seed money</span>
               <span class="h">Overrides the difficulty’s seed round.</span>
             </span>
-            <input type="range" min={100e6} max={2e9} step={50e6} value={cash ?? DIFFICULTIES[difficulty].cash} onInput={(e) => setCash(Number((e.target as HTMLInputElement).value))} aria-label="Seed money" />
+            <input type="range" min={250e6} max={2e9} step={50e6} value={cash ?? DIFFICULTIES[difficulty].cash} onInput={(e) => setCash(Number((e.target as HTMLInputElement).value))} aria-label="Seed money" />
             <span class="val">{fmtMoney(cash ?? DIFFICULTIES[difficulty].cash, 0)}</span>
           </label>
           <Choice<EventRate> label="Random events" value={eventRate} options={(Object.keys(EVENT_RATES) as EventRate[]).map((k) => [k, EVENT_RATES[k].name])} onChange={setEventRate} />

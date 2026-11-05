@@ -1,6 +1,6 @@
 import type { AdvisorId, GameState } from '../sim/types';
-import { currentCapability, facilityMW } from '../sim/model';
-import { fmtMoney } from '../sim/core';
+import { currentCapability, facilityMW, frontier } from '../sim/model';
+import { fmtDays, fmtMoney } from '../sim/core';
 import { FACILITIES, FIRM, GENERATORS } from './facilities';
 import { megaStage } from './charter';
 import { MEGA_SITES } from './sites';
@@ -40,7 +40,13 @@ export interface ObjectiveProgress {
 const prog = (now: number, of: number, text: string): ObjectiveProgress => ({ frac: of > 0 && Number.isFinite(now) ? Math.max(0, Math.min(1, now / of)) : 0, text });
 const monthly = (now: number, of: number) => prog(now, of, `${fmtMoney(now, now < 1e8 ? 1 : 0)} / ${fmtMoney(of, 0)} a month`);
 /** The run for model generation `gen`, while it trains. */
-const training = (gen: number) => (s: GameState) => (s.training && s.training.gen === gen ? prog(s.training.done, s.training.target, `${s.training.name}: ${Math.floor((s.training.done / s.training.target) * 100)}% trained`) : null);
+const training = (gen: number) => (s: GameState) => {
+  const run = s.training;
+  if (!run || run.gen !== gen) return null;
+  const rate = s.stats.trainPFd;
+  const eta = rate > 0 ? ` · ~${fmtDays((run.target - run.done) / rate)} at today’s compute` : ' · stalled: give training some compute';
+  return prog(run.done, run.target, `${run.name}: ${Math.floor((run.done / run.target) * 100)}% trained${eta}`);
+};
 const mw = (now: number, of: number) => prog(now, of, of >= 1000 ? `${(now / 1000).toFixed(2)} / ${of / 1000} GW` : `${Math.round(now)} / ${of} MW`);
 /** A Kardashev goal, in the power it takes (K is a log scale, power is what grows). */
 const kGoal = (k: number) => (s: GameState) => prog(s.stats.worldTW, 10 ** (k * 10 + 6) / 1e12, `K ${s.stats.K.toFixed(4)} / ${k.toFixed(2)}`);
@@ -67,8 +73,8 @@ export const OBJECTIVES: ObjectiveDef[] = [
   { id: 'train1', title: 'Train Bit-1', hint: 'In Compute, start the Bit-1 training run and give it some of your compute.', advisor: 'bit', done: (s) => s.models.length >= 1, after: ['rent'], reward: { rp: 10, text: '+10 research' } },
   { id: 'research', title: 'Research your first technology', hint: 'Open Research (🔬) and pick a project. Research flows from your HQ and labs.', advisor: 'iris', done: (s) => s.research.done.length >= 1 },
   { id: 'dc', title: 'Start building a data center', hint: 'Click a site on the map — somewhere with cheap power and space — and build a Data Center.', advisor: 'juno', done: (s) => s.facilities.some((f) => f.type === 'datacenter'), after: ['train1'] },
-  { id: 'power', title: 'Line up power for your data center', hint: 'At the same site: request a grid connection, or build solar + batteries, wind or gas.', advisor: 'juno', done: (s) => s.facilities.some((f) => f.type === 'datacenter' && (s.sites[f.siteId].grid.mw + s.sites[f.siteId].grid.pending.reduce((a, p) => a + p.mw, 0) > 0 || s.facilities.some((g) => g.siteId === f.siteId && ['solar', 'wind', 'gas'].includes(g.type)))), after: ['dc'] },
-  { id: 'order', title: 'Order accelerators', hint: 'Open Orders (📦). Lumen chips are faster; Kestrel’s queue is shorter. Ship to your data center site.', advisor: 'mira', done: (s) => s.orders.length > 0 || s.shipments.length > 0 || s.facilities.some((f) => (f.racks ?? []).length > 0), after: ['dc'] },
+  { id: 'power', title: 'Line up power for your data center', hint: 'At the same site: request a grid connection, or build solar + batteries, wind or gas.', advisor: 'juno', done: (s) => s.facilities.some((f) => f.type === 'datacenter' && (s.sites[f.siteId].grid.mw + s.sites[f.siteId].grid.pending.reduce((a, p) => a + p.mw, 0) >= 5 || s.facilities.some((g) => g.siteId === f.siteId && ['solar', 'wind', 'gas'].includes(g.type)))), after: ['dc'] },
+  { id: 'order', title: 'Order accelerators', hint: 'Open Orders (📦) and fill the hall: a half-empty one makes Bit-2 take years. Lumen ships sooner; Kestrel is cheaper.', advisor: 'mira', done: (s) => s.orders.length > 0 || s.shipments.length > 0 || s.facilities.some((f) => (f.racks ?? []).length > 0), after: ['dc'] },
   { id: 'safety', title: 'Put compute into safety research', hint: 'In Compute, give Safety at least 8%. Iris recommends ~10% as much as you spend on training.', advisor: 'iris', done: (s) => s.alloc.safety >= 0.08, after: ['train1'] },
   { id: 'online', progress: firstHallProgress, title: 'Bring your data center online with 1,000+ chips', hint: 'Once built, delivered accelerators install automatically. Make sure it has power!', advisor: 'juno', done: dcOnlineWithChips, after: ['order', 'power'], goal: true },
   { id: 'train2', progress: training(2), title: 'Train Bit-2 (2×10²⁶ FLOP)', hint: 'Start the Bit-2 run in Compute. It needs a lot more compute than Bit-1.', advisor: 'bit', done: (s) => s.models.length >= 2, after: ['train1'], goal: true, reward: { rp: 25, text: '+25 research' } },
@@ -106,7 +112,7 @@ OBJECTIVES.push(
   a2({ id: 'a2-gw-gen', progress: (s) => { const g = genNameplate(s); const c = g > 0 ? genNameplate(s, true) / g : 0; return prog(Math.min(g / 1000, c / 0.6), 1, `${(g / 1000).toFixed(2)} / 1 GW · ${Math.round(c * 100)}% clean`); }, phase: 3, title: '1 GW of your own generation, 60% carbon-free', hint: 'Nameplate capacity of your plants. Solar, wind, hydro, geothermal and nuclear count as clean.', advisor: 'juno', goal: true, done: (s) => genNameplate(s) >= 1000 && genNameplate(s, true) >= 0.6 * genNameplate(s) }),
   a2({ id: 'a2-bit4', progress: training(4), phase: 3, title: 'Train Bit-4', hint: 'The big one. Every gigawatt helps.', advisor: 'bit', goal: true, done: (s) => s.models.length >= 4, reward: { rp: 60, text: '+60 research' } }),
   a2({ id: 'a2-rev1b', progress: (s) => monthly(s.stats.revenueMonth, 1e9), phase: 3, title: 'Reach $1B/month revenue', hint: 'Markets, contracts and a model near the frontier.', advisor: 'penny', goal: true, done: (s) => s.stats.revenueMonth >= 1e9 }),
-  a2({ id: 'a2-frontier', phase: 3, title: 'Match Meridian at the frontier', hint: 'Release a model at least as capable as Meridian’s best.', advisor: 'bit', goal: true, done: (s) => !!s.flags.reachedFrontier }),
+  a2({ id: 'a2-frontier', progress: (s) => prog(currentCapability(s), frontier(s), `Bit ${currentCapability(s).toFixed(2)} · Meridian ${frontier(s).toFixed(2)}`), phase: 3, title: 'Match Meridian at the frontier', hint: 'Release a model at least as capable as Meridian’s best.', advisor: 'bit', goal: true, done: (s) => !!s.flags.reachedFrontier }),
   a2({ id: 'a2-safe', phase: 3, title: 'A clean safety record', hint: 'Safety margin ≥ −0.25 and no major incident in the last 12 months.', advisor: 'iris', goal: true, done: (s) => s.stats.margin >= -0.25 && s.models.length >= 3 && s.day - Number(s.flags.lastMajorIncident ?? -9999) > 365 }),
   a2({ id: 'a2-crunch', phase: 4, title: 'Come through The Crunch', hint: 'Hold the grid, the supply chain and public trust for 90 days.', advisor: 'sol', goal: true, done: (s) => !!s.finale?.done }),
   a2({ id: 'a2-ipo', phase: 4, title: 'Ring the bell: IPO', hint: 'Penny has the bankers on speed dial.', advisor: 'penny', goal: true, after: ['a2-crunch'], done: (s) => !!s.flags.act2Complete }),
@@ -225,7 +231,16 @@ export function actObjectives(s: GameState): ObjectiveDef[] {
 }
 
 export function visibleObjectives(s: GameState): ObjectiveDef[] {
-  return actObjectives(s).filter((o) => !s.objectives.done.includes(o.id) && !(o.live && o.done(s)) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
+  const open = actObjectives(s).filter((o) => !s.objectives.done.includes(o.id) && !(o.live && o.done(s)) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
+  const act = s.act ?? 1;
+  if (act !== 2 && act !== 3) return open;
+  // Acts II–III: the phase's headline goals (the checklist that moves the story) before leftovers from earlier phases
+  const phase = act === 3 ? (s.charter?.phase ?? 1) : s.phase;
+  const rank = (o: ObjectiveDef) => ((o.phase ?? 1) === phase ? 0 : 2) + (o.goal ? 0 : 1);
+  return open
+    .map((o, i) => ({ o, i }))
+    .sort((a, b) => rank(a.o) - rank(b.o) || a.i - b.i)
+    .map((x) => x.o);
 }
 
 export function goalsMetForSeriesA(s: GameState): boolean {

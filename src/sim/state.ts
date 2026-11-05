@@ -109,7 +109,7 @@ export function newGame(opts: NewGameOptions): GameState {
     rng: seed,
     day: 0,
     company: { name: opts.name.trim() || 'Little Sun Labs', homeSite: opts.homeSite },
-    finance: { cash: startCash, round: 'seed', valuation: 80e6, month: emptyLedger(), monthKey: monthKey(0), history: [], bridgeLoans: 0 },
+    finance: { cash: startCash, round: 'seed', valuation: Math.round(startCash * 4), month: emptyLedger(), monthKey: monthKey(0), history: [], bridgeLoans: 0 },
     facilities: [{ id: 'f0', type: 'hq', siteId: opts.homeSite, status: 'online', progress: 0, buildDays: 0, startedDay: 0, onlineDay: 0 }],
     sites: {},
     links: [],

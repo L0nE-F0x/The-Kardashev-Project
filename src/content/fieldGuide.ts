@@ -169,7 +169,7 @@ Enhanced geothermal systems (EGS) borrow drilling techniques from the oil and ga
     game: 'Geothermal runs at ~90% capacity factor with no fuel. Volcanic sites work from the start; hot-rock sites need Enhanced Geothermal research.',
   },
   {
-    id: 'packaging', title: 'Advanced packaging', cat: 'chips', icon: 'packaging', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 2,
+    id: 'packaging-pools', title: 'Packaging and the three pools', cat: 'chips', icon: 'packaging', unlock: (s) => (s.act ?? 1) >= 2 && s.phase >= 2,
     body: `A modern AI accelerator isn't one chip. A logic die sits on a silicon interposer next to several stacks of high-bandwidth memory, all bonded together with thousands of microscopic connections. This "2.5D" packaging is a specialised process of its own — and for years it was the tightest bottleneck in AI hardware.`,
     game: 'Chips flow at the rate of the slowest of three pools: wafers, HBM and packaging. Build a packaging plant or book Bondline slots so packaging shortages don’t hit you.',
   },
@@ -395,7 +395,7 @@ Humanity used about 19 TW in the 2020s: K ≈ 0.73. The Sun puts out about 3.8×
     game: 'Act V ends when K reaches 1.0000; your score is the year. The meter keeps counting afterwards, toward Type II at K 2.00.',
   },
   {
-    id: 'waste-heat', title: 'Waste heat as a forcing', cat: 'world', icon: 'thermal', unlock: (s) => !!s.system,
+    id: 'waste-heat-forcing', title: 'Waste heat as a forcing', cat: 'world', icon: 'thermal', unlock: (s) => !!s.system,
     body: `Almost every watt civilisation uses ends up as low-grade heat. Today that is tiny next to the greenhouse effect: about 0.04 W/m² averaged over the Earth, against roughly 2.7 W/m² of forcing from greenhouse gases.
 
 But it scales with energy use. Ten petawatts used on the surface would be about 20 W/m² — several times today’s whole greenhouse forcing. Past a few hundred terawatts, heat itself becomes a climate problem, whatever the energy source.`,

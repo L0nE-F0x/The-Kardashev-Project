@@ -48,12 +48,22 @@ export interface ComputeResult {
   delivered: Record<string, number>;
 }
 
+const TRAIN_BEATS: [number, string][] = [
+  [0.25, 'a quarter trained. I can feel it working.'],
+  [0.5, 'halfway trained.'],
+  [0.75, 'three quarters trained. Not long now!'],
+];
+
 /** Turn served power + installed racks into compute, then spend it per the allocation. */
 export function tickCompute(s: GameState, power: PowerResult): ComputeResult {
   const r = computeOutputs(s, power);
   s.safety.cumFlop += r.safetyFlopDay;
   if (s.training) {
+    const before = s.training.done / s.training.target;
     s.training.done += r.trainFlopDay;
+    const after = s.training.done / s.training.target;
+    // a long run gets its beats (the shell toasts them in Bit's voice)
+    for (const [q, line] of TRAIN_BEATS) if (before < q && after >= q && after < 1) news(s, `🧠 ${s.training.name} is ${line}`, 'info');
     if (s.training.done >= s.training.target) releaseModel(s);
   }
   applyResearch(s, r.rpDay);

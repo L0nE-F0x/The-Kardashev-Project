@@ -2,7 +2,7 @@
 import { CHIP_SUPPLIERS, RENTAL } from '../content/companies';
 import { FACILITIES } from '../content/facilities';
 import { siteDef, siteDistanceKm, siteOpen } from '../content/sites';
-import { TECH_BY_ID } from '../content/techs';
+import { TECHS, TECH_BY_ID } from '../content/techs';
 import { CABLE_BY_ID, FIBER_COST_PER_KM, FIBER_MAX_KM, OWN_CABLE_COST, OWN_CABLE_MONTHS } from '../content/network';
 import { DEAL_BY_ID, MINE_BY_ID } from '../content/stack';
 import { LOBBY, RULE_BY_ID, SOVEREIGN_BY_ID, TREATY_BY_ID } from '../content/politics';
@@ -58,6 +58,11 @@ export function techAvailable(s: GameState, techId: string): boolean {
   if (t.vstage !== undefined && (s.system?.stage ?? -1) < t.vstage) return false;
   return true;
 }
+/** Techs you could start right now (open in this act and phase, prerequisites met, not done). */
+export function researchable(s: GameState): string[] {
+  return TECHS.filter((t) => !s.research.done.includes(t.id) && techAvailable(s, t.id) && (t.requires ?? []).every((r) => s.research.done.includes(r))).map((t) => t.id);
+}
+
 const fail = (reason: string): Result => ({ ok: false, reason });
 const OK: Result = { ok: true };
 
@@ -220,7 +225,7 @@ export type AllocKey = keyof GameState['alloc'];
 
 /** Set one allocation share and rescale the others so the total stays 100%. */
 export function setAlloc(s: GameState, key: AllocKey, value: number): void {
-  const cap = key === 'safety' && s.flags.safetyCapUntil && s.day < Number(s.flags.safetyCapUntil) ? 0.05 : 1;
+  const cap = key === 'safety' && s.flags.safetyCapUntil && s.day < Number(s.flags.safetyCapUntil) ? Number(s.flags.safetyCapValue ?? 0.05) : 1;
   const v = clamp(value, 0, cap);
   const others = (Object.keys(s.alloc) as AllocKey[]).filter((k) => k !== key);
   const rest = others.reduce((a, k) => a + s.alloc[k], 0);

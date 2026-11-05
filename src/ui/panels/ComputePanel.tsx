@@ -2,7 +2,8 @@ import { Bar, Icon, KV, Panel, pct, useGame } from '../components';
 import { OwnLicenceBox } from './Act3Panels';
 import { RENTAL } from '../../content/companies';
 import { fmtDate, fmtDays, fmtMoney, fmtSci } from '../../sim/core';
-import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, rentalMax, rentalPrice, tierOf, MFU } from '../../sim/model';
+import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, inferPriceTrend, openBest, rentalMax, rentalPrice, tierOf, MFU } from '../../sim/model';
+import { DIFFICULTIES } from '../../content/difficulty';
 import { modMult } from '../../sim/effects';
 import { nextModelPlan } from '../../sim/ai';
 import type { AllocKey } from '../../sim/actions';
@@ -86,7 +87,7 @@ export function ComputePanel() {
               </>
             ))}
           </div>
-          {safetyCapped && <div class="small warn">Board terms cap safety at 5% until {fmtDate(Number(s.flags.safetyCapUntil))}.</div>}
+          {safetyCapped && <div class="small warn">Investor terms cap safety at {pct(Number(s.flags.safetyCapValue ?? 0.05))} until {fmtDate(Number(s.flags.safetyCapUntil))}.</div>}
           {!run && s.alloc.train > 0 && <div class="small warn">No training run active — the training share is serving inference for now.</div>}
           <div class="small muted" style={{ marginTop: '6px' }}>
             Training {fmtSci(trainPerDay * 30.4)} FLOP/mo · inference ~{Math.round(inferChips).toLocaleString()} chips · research {st.rpPerDay.toFixed(1)}/day
@@ -129,7 +130,8 @@ export function ComputePanel() {
           <KV
             rows={[
               ['Frontier capability', st.frontier.toFixed(2), 'Best closed model from Meridian or Lattice'],
-              ['Your quality vs frontier', `×${st.inferQuality.toFixed(2)}`, 'Revenue per chip scales with this'],
+              ['Your quality vs frontier', `×${st.inferQuality.toFixed(2)}`, `Revenue per chip scales with this${st.capability > 0 && st.capability < openBest(s) ? '. Your best model trails the free open-weights one, which costs you a further 25%.' : ''}`],
+              ...((s.act ?? 1) >= 2 ? ([['Market price', `×${inferPriceTrend(s).toFixed(2)}`, 'AI prices fall about 20% a year as everyone builds out: the same chips earn less each year unless your models get better.']] as [string, string, string][]) : []),
               ['Demand for your models', `~${Math.round(st.inferDemand / RENTAL.perf).toLocaleString()} chips`, 'Inference beyond demand earns 15%'],
               ['Inference revenue', <b class="gold">{fmtMoney(st.revenueMonth)}/mo</b>],
             ]}
@@ -145,7 +147,7 @@ export function ComputePanel() {
               ['Alignment', st.alignment.toFixed(2)],
               ['Capability', st.capability.toFixed(2)],
               ['Margin', <b class={marginCls}>{st.margin >= 0 ? '+' : ''}{st.margin.toFixed(2)}</b>],
-              ['Incident risk', st.capability > 0 ? `${pct(incidentChance(st.margin), 1)} / month` : '—'],
+              ['Incident risk', st.capability > 0 ? `${pct(incidentChance(st.margin) * DIFFICULTIES[s.meta.difficulty].incident, 1)} / month` : '—'],
             ]}
           />
           <div class="small muted" style={{ marginTop: '4px' }}>

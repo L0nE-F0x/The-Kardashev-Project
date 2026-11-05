@@ -232,7 +232,13 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
         ))}
         {inv > 0 && (
           <div class="small warn" style={{ marginTop: '4px' }}>
-            📦 {inv.toLocaleString()} accelerators waiting {hasDC ? 'for rack space' : '— build a data center here'}.
+            📦 {inv.toLocaleString()} accelerators waiting{' '}
+            {!hasDC
+              ? '— build a data center here'
+              : !facs.some((f) => (f.type === 'datacenter' || f.type === 'campus') && f.status === 'online')
+                ? `for the hall to open (${fmtDays(Math.min(...facs.filter((f) => f.type === 'datacenter' || f.type === 'campus').map((f) => f.buildDays - f.progress)))})`
+                : 'for rack space: expand the hall or build another'}
+            .
           </div>
         )}
       </div>
@@ -276,13 +282,14 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
                 class="btn buildcard"
                 disabled={!!why}
                 onClick={() => game.build(id, type)}
-                data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}${why ? `\n✗ ${why}` : ''}`}
+                data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}\nRunning cost: ${fmtMoney(def.opex)} a month${type === 'lab' ? ' (researchers’ salaries)' : ''}.${why ? `\n✗ ${why}` : ''}`}
               >
                 <span class="t">
                   <Icon name={FAC_ICON[type]} size="sm" /> {def.name}
                 </span>
                 <span class="m">
                   {fmtMoney(buildCost(s, type))} · {fmtDays(buildDays(s, id, type))}
+                  {def.opex >= 1e6 ? ` · ${fmtMoney(def.opex)}/mo` : ''}
                 </span>
               </button>
             );

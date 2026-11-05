@@ -9,7 +9,7 @@ import { MINE_BY_ID } from '../content/stack';
 import type { PowerResult } from './power';
 import type { ComputeResult } from './ai';
 import { REGION_IDS } from '../content/mapcodes';
-import { FOUNDERS } from '../content/difficulty';
+import { DIFFICULTIES, FOUNDERS } from '../content/difficulty';
 
 export const emptyLedger = (): Ledger => ({ revenue: 0, debt: 0, rental: 0, power: 0, fuel: 0, opex: 0, staff: 0, capex: 0, chips: 0, shipping: 0, funding: 0, other: 0 });
 
@@ -72,6 +72,14 @@ export function tickEconomy(s: GameState, power: PowerResult, compute: ComputeRe
     s.finance.monthKey = mk;
     const net = m.revenue - (m.rental + m.power + m.fuel + m.opex + m.staff + m.capex + m.chips + m.shipping + m.other);
     news(s, `📊 ${monthLabelOfKey(mk - 1)}: revenue ${fmtMoney(m.revenue)}, net ${fmtMoney(net)}.`, net >= 0 ? 'good' : 'info');
+    // Penny's runway check: what it costs to keep the lights on (not one-off building or chips) against the cash
+    const burn = m.rental + m.power + m.fuel + m.opex + m.staff + m.debt - m.revenue;
+    const months = burn > 0 ? s.finance.cash / burn : Infinity;
+    if (months < 6 && s.finance.cash > 0 && !s.charter?.blindTrust && s.day - Number(s.flags.runwayWarned ?? -999) >= 90) {
+      s.flags.runwayWarned = s.day;
+      const hard = DIFFICULTIES[s.meta.difficulty].broke === 'bankrupt' && !s.charter;
+      news(s, `💸 Penny: at this burn our cash lasts about ${Math.max(1, Math.floor(months))} month${months >= 2 ? 's' : ''}.${hard ? ' On Hard, running dry ends the company.' : ' Then it’s an expensive bridge loan.'}`, 'bad');
+    }
   }
   return { revenue: compute.revenueDay, costs };
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon, useGame } from './components';
 import type { PanelId } from '../game/game';
 import type { IconName } from './icons';
+import { researchable } from '../sim/actions';
 
 /**
  * Later acts add a panel each, so the dock can outgrow a short screen (Act V has 17 buttons). The buttons shrink
@@ -33,7 +34,7 @@ export function Dock() {
   const items: [PanelId, IconName, string, number?][] = [
     ['compute', 'compute', 'Compute & models (C)', s.training ? undefined : s.models.length < 2 ? 1 : undefined],
     ['orders', 'orders', 'Chip orders & shipping (O)', s.shipments.length || undefined],
-    ['research', 'research', 'Research (R)', s.research.current ? undefined : 1],
+    ['research', 'research', 'Research (R)', s.research.current || !researchable(s).length ? undefined : 1],
     ['finance', 'finance', 'Finance (F)'],
     ...(s.act >= 2
       ? ([

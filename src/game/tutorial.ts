@@ -117,7 +117,7 @@ export const TUTORIAL: TutorialStep[] = [
     enter: (g) => {
       if (g.panel === 'compute') g.openPanel(null);
     },
-    text: (g) => (g.panel === 'research' ? 'Pick any project — Mixture of Experts makes training cheaper. Click it.' : 'Research makes everything better. Open the Research panel.'),
+    text: (g) => (g.panel === 'research' ? 'Pick any project — Mixture of Experts makes every model we train smarter. Click it.' : 'Research makes everything better. Open the Research panel.'),
     done: (g) => !!s(g).research.current || s(g).research.done.length > 0,
   },
   {
@@ -143,13 +143,25 @@ export const TUTORIAL: TutorialStep[] = [
     id: 'power',
     target: () => 'build-solar',
     mood: 'neutral',
-    text: () => 'It will need power. Solar + batteries is fastest to build; a grid connection is cheaper but the queue is long. Build a Solar Farm (or request grid above).',
+    text: () => 'It will need power. Solar is the fastest to build; a grid connection is cheaper but the queue is long. Build a Solar Farm (or request grid above).',
     done: (g) => s(g).objectives.done.includes('power') || s(g).facilities.some((f) => f.type === 'solar' || f.type === 'wind' || f.type === 'gas') || Object.values(s(g).sites).some((x) => x.grid.pending.length > 0),
+  },
+  {
+    id: 'battery',
+    target: () => 'build-battery',
+    mood: 'neutral',
+    text: () => 'The sun clocks off at night, and so would our hall. Add Battery Storage here so it runs around the clock.',
+    // done once the hall has something that runs at night: a battery, gas, or a grid connection
+    done: (g) => {
+      const st = s(g);
+      const halls = st.facilities.filter((f) => f.type === 'datacenter').map((f) => f.siteId);
+      return halls.some((id) => st.facilities.some((f) => f.siteId === id && (f.type === 'battery' || f.type === 'gas')) || st.sites[id].grid.mw + st.sites[id].grid.pending.reduce((a, p) => a + p.mw, 0) >= 5);
+    },
   },
   {
     id: 'order',
     target: (g) => (g.panel === 'orders' ? 'order-button' : 'dock-orders'),
-    text: (g) => (g.panel === 'orders' ? 'Pick a supplier and quantity, then order. Lumen chips are faster; Kestrel’s queue is shorter.' : 'Chips! Open Orders to buy accelerators that ship to the new site.'),
+    text: (g) => (g.panel === 'orders' ? 'The order is sized to fill the new hall — a half-empty hall makes Bit-2 take years. Lumen ships sooner; Kestrel is cheaper. Then order!' : 'Chips! Open Orders to buy accelerators that ship to the new site.'),
     done: (g) => s(g).orders.length > 0 || s(g).shipments.length > 0,
   },
   {
