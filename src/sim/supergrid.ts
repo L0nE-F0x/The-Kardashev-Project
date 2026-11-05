@@ -64,7 +64,10 @@ export function allJoined(s: GameState): boolean {
 
 /** How much of the day the main grid spans (0..1): a grid stretching ~240° of longitude always has a sunny end. */
 export function gridSpan(s: GameState): number {
-  const comp = mainGrid(s);
+  return spanOf(mainGrid(s));
+}
+
+function spanOf(comp: RegionId[]): number {
   if (comp.length < 2) return 0;
   const lons = comp.map((r) => ANCHORS[r][1]).sort((a, b) => a - b);
   let gap = 360 - (lons[lons.length - 1] - lons[0]);
@@ -72,10 +75,26 @@ export function gridSpan(s: GameState): number {
   return clamp((360 - gap) / 240, 0, 1);
 }
 
+/**
+ * The main grid, its span and the link research, worked out once. Callers that ask for every energy
+ * project in a loop (siteYield via charterTW) pass it in: rebuilding the grid per project scans every
+ * project each time, which made Act V's late ticks quadratic. Same numbers either way.
+ */
+export interface GridInfo {
+  main: Set<RegionId>;
+  span: number;
+  link: number;
+}
+export function gridInfo(s: GameState): GridInfo {
+  const comp = mainGrid(s);
+  return { main: new Set(comp), span: spanOf(comp), link: techMult(s, 'linkYield') };
+}
+
 /** Extra delivery from Charter energy in a province thanks to the grid (and an AI's dispatch there). */
-export function gridYield(s: GameState, r: RegionId): number {
+export function gridYield(s: GameState, r: RegionId, g?: GridInfo): number {
   if (!act4(s)) return 1;
-  let y = inMainGrid(s, r) ? 1 + 0.25 * gridSpan(s) * techMult(s, 'linkYield') : 1;
+  const grid = g ?? gridInfo(s);
+  let y = grid.main.has(r) ? 1 + 0.25 * grid.span * grid.link : 1;
   const ai = s.planet!.provinces[r]?.ai;
   if (ai) y *= 1 + aiDispatch(ai);
   return y;
