@@ -17,6 +17,10 @@ import { loadWorld } from './helpers/world';
 import { migrate } from '../src/save/save';
 import { newAct3Game } from '../src/sim/act3';
 import { SAVE_VERSION } from '../src/sim/state';
+import { confirmPlan, jumpStep } from '../src/sim/plans';
+import { resolveEvent } from '../src/sim/events';
+import { EVENT_BY_ID } from '../src/content/events';
+import type { GameState } from '../src/sim/types';
 
 const ctx = { router: loadWorld().router };
 
@@ -32,7 +36,50 @@ describe('Act IV', () => {
     expect(s.charter?.partners.twistfield).toBeTruthy();
     expect(Number.isFinite(s.stats.K)).toBe(true);
     expect(s.stats.K).toBeGreaterThan(0.745);
+    // the Charter's books are set after the decade's fast-forward (it used to hand over ~$1.6T and a negative margin)
+    expect(s.charter!.budget).toBeLessThan(300e9);
+    expect(worldMargin(s)).toBeGreaterThan(0);
+    expect(s.flags.autopilot4).toBe(true);
   });
+
+  /** Play the Mandate with first choices until the first plan opens. */
+  const toFirstPlan = (s: GameState) => {
+    for (let d = 0; d < 400 && !(s.planet!.planOpen && !s.events.active); d++) {
+      for (let i = 0; i < 10 && s.events.active; i++) {
+        const ch = EVENT_BY_ID[s.events.active.id].choices(s, s.events.active.ctx);
+        resolveEvent(s, Math.max(0, ch.findIndex((c) => !c.disabled)));
+      }
+      if (!(s.planet!.planOpen && !s.events.active)) tick(s, ctx);
+    }
+  };
+
+  it('a climate-first plan with no reserve pays its way through the jump', () => {
+    const s = newAct4Game({ name: 'Spender', homeSite: 'bay-area', seed: 21 }, ctx);
+    toFirstPlan(s);
+    expect(confirmPlan(s, { years: 3, priorities: ['climate', 'provinces', 'safety'], reserve: 0, bitRuns: false }).ok).toBe(true);
+    const c = s.charter!;
+    let rec = null;
+    for (let guard = 0; guard < 60 && !rec; guard++) {
+      rec = jumpStep(s, ctx, 30);
+      // the planner never commits more than the treasury and the dues can carry (it used to commit 3× the dues)
+      expect(c.projects.some((p) => p.status === 'building' && p.arrears > 0)).toBe(false);
+      expect(c.budget).toBeGreaterThan(0);
+    }
+    expect(rec?.cut).toBeUndefined();
+  }, 60_000);
+
+  it('a jump stops early, with its report, when Legitimacy crashes', () => {
+    const s = newAct4Game({ name: 'Crash', homeSite: 'bay-area', seed: 5 }, ctx);
+    toFirstPlan(s);
+    expect(confirmPlan(s, { years: 3, priorities: ['grid'], reserve: 0.25, bitRuns: false }).ok).toBe(true);
+    s.charter!.legitimacy = 12;
+    const rec = jumpStep(s, ctx, 365);
+    expect(rec?.cut).toMatch(/Legitimacy/);
+    expect(s.planet!.jump).toBeNull();
+    expect(s.planet!.stage).toBe(1);
+    // the stage is played from the day the jump stopped
+    expect(s.planet!.stageDay).toBe(s.day);
+  }, 60_000);
 
   it('is deterministic through a jump', () => {
     const run = () => {
@@ -98,7 +145,13 @@ describe('Act IV', () => {
       console.log('JUMP', fmtDate(j.from), '→', fmtDate(j.to), 'L', j.before.legitimacy.toFixed(0), '→', j.after.legitimacy.toFixed(0), '\n  auto:', j.auto.join(' | '), '\n  built:', j.built.join(', '), '\n  diary:', j.diary.join(' / '));
     }
     expect(pl.jumps.length).toBe(3);
+    // the planner pays its way: no jump had to stop for an empty treasury, a Legitimacy crash or a walkout
+    expect(pl.jumps.every((j) => !j.cut)).toBe(true);
     expect(end).toBeGreaterThan(0);
-    expect(yearOf(end)).toBeLessThanOrEqual(2072);
+    // v0.8: reachable stage gates and shorter stage limits — the bot ends in mid-2062 (it was Aug 2066, when the
+    // Fusion Age always ran out its 6-year limit; the guard rail was 2072)
+    expect(yearOf(end)).toBeLessThanOrEqual(2064);
+    // the Heat Wall pushes back (a front peaks around 50 for this bot) but a planning Steward holds it
+    expect(pl.heatwall!.held).toBeGreaterThanOrEqual(2);
   }, 120_000);
 });

@@ -504,7 +504,7 @@ export const ACT4_EVENTS: EventDef[] = [
     id: 'tritium-pinch',
     category: 'supply',
     icon: '⚛',
-    weight: (s) => (stageOk(s, 2) && !!s.planet && dtGW(s) >= 0.85 * s.planet.tritium ? 0.7 : 0),
+    weight: (s) => (stageOk(s, 2) && !!s.planet && dtGW(s) >= 0.85 * s.planet.tritium ? 1.2 : 0),
     act: 4,
     cooldown: 600,
     title: () => 'Tritium is the bottleneck',

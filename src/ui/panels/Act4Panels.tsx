@@ -47,11 +47,11 @@ const aiFace = (ai: AiId, size = 32) => (ai === 'bit' ? <Portrait id="bit" size=
 type GameRef = ReturnType<typeof useGame>;
 /**
  * "Not yet — let me look first": the plan screen steps aside so you can look around (Planet, the map, the Charter)
- * until you reopen it. A UI choice only: the clock waits for the plan either way.
+ * until you reopen it. A UI choice only (for the planet it was made on): the clock waits for the plan either way.
  */
-let planLater = false;
+let planLater: PlanetState | null = null;
 const reopenPlan = (game: GameRef) => {
-  planLater = false;
+  planLater = null;
   game.openPanel(null);
 };
 /** The Act IV autopilot switch (game.setAutopilot4 plays the sound and the toast; until it exists, the flag flips here). */
@@ -287,7 +287,7 @@ function OverviewTab() {
             <Icon name="goals" size="sm" /> The planetary checklist
           </h4>
           <div class="small muted" style={{ marginBottom: '4px' }}>
-            When every item holds at once, The Heat Wall begins — or in 2070 at the latest.
+            From the High Frontier (stage 3), The Heat Wall begins when every item holds at once — or when the stage runs out.
           </div>
           {checks.map((g) => {
             // orbit and the Moon can't be worked before the High Frontier
@@ -663,12 +663,12 @@ export function PlanModal() {
   // a draft belongs to one plan (this planet, this stage): the next plan — or another game — starts from the defaults
   const [draft, setDraft] = useState<{ pl: PlanetState; stage: number; plan: FivePlan } | null>(null);
   if (!s || !pl?.planOpen) {
-    planLater = false;
+    if (pl) planLater = null;
     return null;
   }
   if (s.events.active || game.mode === 'title') return null;
   const next = pl.stage + 1;
-  if (planLater)
+  if (planLater === pl)
     return (
       <div class="jump frame interactive" role="status">
         <div class="row between" style={{ alignItems: 'center', gap: '10px' }}>
@@ -774,7 +774,7 @@ export function PlanModal() {
             <button
               class="btn choice"
               onClick={() => {
-                planLater = true;
+                planLater = pl;
                 game.notify();
               }}
             >
