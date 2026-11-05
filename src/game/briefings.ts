@@ -233,6 +233,7 @@ export const BRIEFINGS: Briefing[] = [
     steps: [
       { text: () => 'Act IV! The twelve blocs are provinces of one system now, and the Planet panel (Y) is where you run it: provinces, the supergrid, fusion, space and the climate.', target: () => 'dock-planet', mood: 'excited' },
       { text: () => 'The checklist on the Overview is the whole act: Kardashev 0.80, one grid, fusion, orbit, the Moon, thriving provinces, warming under 2 °C and AIs we can trust. When it all holds at once, the finale begins.', enter: (g) => g.openPlanet('overview'), target: () => 'planet-checklist' },
+      { text: () => '“Next” shows what opens the next five-year plan, and the date it opens anyway. Between the jumps the planner keeps working the plan’s priorities on autopilot; switch it off here if you’d rather post and award every contract yourself.', target: () => 'planet-autopilot' },
     ],
   },
   {
@@ -241,7 +242,7 @@ export const BRIEFINGS: Briefing[] = [
     title: 'Five-year plans',
     when: (s) => s.act === 4 && !!s.planet?.planOpen && !s.events.active,
     steps: [
-      { text: () => 'Between stages, the years jump. Pick up to three priorities and how long the plan runs. A planner posts and awards contracts by your priorities, and decisions are taken on autopilot. I will write it all down.', target: () => 'plan' },
+      { text: () => 'Between stages, the years jump. Pick up to three priorities and how long the plan runs. A planner posts and awards contracts by your priorities, and decisions are taken on autopilot. If the money runs out or a bloc walks out, I stop the clock. Want to look around first? “Not yet” — the plan waits.', target: () => 'plan' },
     ],
   },
   {

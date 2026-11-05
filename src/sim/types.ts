@@ -683,6 +683,10 @@ export interface JumpRecord {
   highlights: string[];
   /** Decisions taken on autopilot during the jump. */
   auto: string[];
+  /** How many decisions autopilot took (`auto` lists the first few). */
+  autoTotal?: number;
+  /** Why the jump stopped before the plan's end (the treasury ran dry, Legitimacy crashed, a walkout), if it did. */
+  cut?: string;
   /** Bit's diary for the chapter. */
   diary: string[];
 }

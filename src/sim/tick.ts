@@ -32,6 +32,7 @@ import { tickEarth } from './earth';
 import { tickMinds } from './minds';
 import { tickSolarMax } from './solarmax';
 import { defaultEra, planner5Tick } from './eras';
+import { defaultPlan, plannerTick } from './plans';
 import { leaseCost } from './actions';
 import { spend } from './economy';
 import { ADVISORS } from '../content/advisors';
@@ -117,6 +118,8 @@ export function tick(s: GameState, ctx: SimContext): void {
     tickThreshold(s);
   }
   if (act4) tickHeatWall(s);
+  // Act IV autopilot: between jumps the planner keeps working the plan's priorities (on by default; Planet → Overview)
+  if (act4 && s.flags.autopilot4 && !s.flags.offline && s.day % 7 === 0 && s.planet!.stage >= 1 && s.planet!.stage <= 3 && !s.planet!.planOpen && !s.planet!.jump) plannerTick(s, s.planet!.plan ?? defaultPlan(s));
   if (act5) {
     tickSolarMax(s);
     // autopilot: the era planner keeps running between jumps when the player hands it the wheel

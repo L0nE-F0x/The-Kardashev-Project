@@ -2,17 +2,20 @@
  * Act IV: five-year plans and the jumps between stages. When a stage's work is done the plan screen
  * opens; you pick up to three priorities, a reserve and the length (3–5 years), and the years run on
  * the real daily tick with events off (like offline progress). A planner posts and awards Charter
- * contracts by your priorities; decisions that come up are taken on autopilot and listed in the
- * report, with the biggest news and Bit's diary for the chapter. The UI runs a jump in chunks so
- * the map can time-lapse; tests run it in one go.
+ * contracts by your priorities (and keeps doing so between jumps while the autopilot is on); decisions
+ * that come up are taken on autopilot and listed in the report, with the biggest news and Bit's diary
+ * for the chapter. A jump stops early when the Steward is needed (the treasury runs dry, Legitimacy
+ * crashes, a bloc walks out). The UI runs a jump in chunks so the map can time-lapse; tests run it in one go.
  */
-import { CONTRACT_KINDS, HVDC_ROUTES, PARTNERS, whereName, YOU } from '../content/charter';
+import { CHARTER, CONTRACT_KINDS, HVDC_ROUTES, PARTNERS, whereName, YOU } from '../content/charter';
 import { EVENT_BY_ID } from '../content/events';
 import { DESIGN_IDS, FUSION_DESIGNS, PLANET, PRIORITY_IDS, STAGE_NAMES, SUPERGRID_ROUTES } from '../content/planet';
 import { LAUNCH_SITES, MEGA_SITES, SITE_BY_ID } from '../content/sites';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
-import type { ContractKind, ContractSize, FivePlan, GameState, JumpRecord, PlanetSnap, Priority, Tender } from './types';
+import { REGIONS } from '../content/regions';
+import type { ContractKind, ContractSize, FivePlan, GameState, JumpRecord, PlanetSnap, PlanetState, Priority, Tender } from './types';
 import { clamp, dateOf, fmtDate, news } from './core';
+import { DAYS_PER_MONTH } from './model';
 
 const yearOf = (day: number) => dateOf(day).getUTCFullYear();
 import { queueEvent, resolveEvent } from './events';
@@ -37,7 +40,7 @@ const fail = (reason: string): Result => ({ ok: false, reason });
 // ════════════════════════════════════════ PLANS ════════════════════════════════════════
 export function defaultPlan(s: GameState): FivePlan {
   const next = (s.planet?.stage ?? 0) + 1;
-  const priorities: Priority[] = next === 1 ? ['grid', 'fusion', 'provinces'] : next === 2 ? ['fusion', 'grid', 'climate'] : ['space', 'fusion', 'provinces'];
+  const priorities: Priority[] = next === 1 ? ['grid', 'fusion', 'provinces'] : next === 2 ? ['fusion', 'grid', 'climate'] : ['space', 'fusion', 'climate'];
   return { years: next === 1 ? 3 : 4, priorities, reserve: 0.25, bitRuns: false };
 }
 
@@ -65,13 +68,19 @@ export function snap(s: GameState): PlanetSnap {
   };
 }
 
+/** Why a priority can't go into the plan for the stage after `stage`, or null. */
+export function priorityBlocked(stage: number, p: Priority): string | null {
+  return p === 'space' && stage + 1 < 3 ? 'Opens in stage 3' : null;
+}
+
 /** Confirm the waiting plan: the next stage begins and its jump starts. */
 export function confirmPlan(s: GameState, plan: FivePlan): Result {
   const pl = s.planet;
   if (!pl?.planOpen) return fail('No plan is waiting.');
   if (!PLANET.jumpYears.includes(plan.years as 3 | 4 | 5)) return fail('A plan covers 3, 4 or 5 years.');
-  const pri = [...new Set(plan.priorities)].filter((p) => PRIORITY_IDS.includes(p)).slice(0, 3);
-  if (!pri.length) return fail('Pick at least one priority.');
+  // orbit and the Moon only open in stage 3: the planner would sit on that priority until then
+  const pri = [...new Set(plan.priorities)].filter((p) => PRIORITY_IDS.includes(p) && !priorityBlocked(pl.stage, p)).slice(0, 3);
+  if (!pri.length) return fail(plan.priorities.some((p) => priorityBlocked(pl.stage, p)) ? 'Orbit & the Moon opens in stage 3: pick another priority.' : 'Pick at least one priority.');
   if (plan.bitRuns && bitPlanBlocked(s)) return fail(bitPlanBlocked(s)!);
   const clean: FivePlan = { years: plan.years, priorities: pri, reserve: clamp(plan.reserve, 0, 1), bitRuns: plan.bitRuns };
   pl.plan = clean;
@@ -84,6 +93,8 @@ export function confirmPlan(s: GameState, plan: FivePlan): Result {
     addModifier(s, 'charter:build', days, 'Bit runs the plan', { mult: 1.08 });
     pl.ais.bit.trust = clamp(pl.ais.bit.trust + 4, 0, 100);
     pl.bitBond = clamp(pl.bitBond + 5, -100, 100);
+    // the price: fewer human hands on the plan
+    if (s.charter) s.charter.regime.alignment -= PLANET.bitRunsAlign;
   }
   news(s, `⏩ The ${clean.years}-year plan begins: ${pri.map((p) => p).join(', ')}.`, 'event');
   return { ok: true };
@@ -115,13 +126,27 @@ export function autoResolve(s: GameState, log: string[] | undefined = s.planet?.
   }
 }
 
-/** Run up to `days` days of the jump. Returns the record when the jump finishes, else null. */
+type Jump = NonNullable<PlanetState['jump']>;
+
+/** Why the years should stop jumping (the Steward is needed now), or null. */
+function jumpTrouble(s: GameState, j: Jump): string | null {
+  const c = s.charter;
+  if (!c) return null;
+  if (c.budget <= 0 && c.projects.some((p) => p.status === 'building' && p.arrears > 0)) return 'the treasury ran dry with projects in arrears';
+  if (c.legitimacy < Math.min(30, j.before.legitimacy - 10)) return `Legitimacy fell to ${Math.round(c.legitimacy)}`;
+  const out = (Object.keys(c.council.walkouts) as RegionId[]).find((r) => c.council.walkouts[r]!.since > j.from);
+  if (out) return `${REGIONS[out].name} walked out of the Council`;
+  return null;
+}
+
+/** Run up to `days` days of the jump. Returns the record when the jump finishes (or stops early), else null. */
 export function jumpStep(s: GameState, ctx: SimContext, days: number): JumpRecord | null {
   const pl = s.planet;
   const j = pl?.jump;
   if (!pl || !j) return null;
   const prev = s.flags.offline;
   s.flags.offline = 'jump';
+  let cut: string | null = null;
   try {
     for (let i = 0; i < days && s.day < j.to; i++) {
       const newest = s.news[0];
@@ -131,13 +156,16 @@ export function jumpStep(s: GameState, ctx: SimContext, days: number): JumpRecor
         if (n === newest) break;
         if (n.kind === 'good' || n.kind === 'bad') j.log.push(n.text);
       }
+      // trouble the autopilot shouldn't paper over: stop here, with the card (if any) left for the Steward
+      cut = jumpTrouble(s, j);
+      if (cut) break;
       if (s.day % 7 === 0) plannerTick(s, j.plan);
       autoResolve(s);
     }
   } finally {
     s.flags.offline = prev ?? false;
   }
-  return s.day >= j.to ? finishJump(s) : null;
+  return cut || s.day >= j.to ? finishJump(s, cut) : null;
 }
 
 /** Run a whole jump at once (tests, bots). */
@@ -149,7 +177,24 @@ export function runJump(s: GameState, ctx: SimContext): JumpRecord | null {
   return null;
 }
 
-function finishJump(s: GameState): JumpRecord {
+/**
+ * What a report leads with: losses, crises and the fusion race first, then links, delegations, goals and research;
+ * routine construction news (contracts won, slips, strikes, openings) last.
+ */
+const HEADLINE_ORDER = ['⚫', '🚨', '☀', '🌗', '💥', '🏆', '⚡', '🤖', '🖐', '✅', '🔬', '🤝', '💸'];
+function headlines(log: string[]): string[] {
+  const rank = (t: string) => {
+    const i = HEADLINE_ORDER.findIndex((p) => t.startsWith(p));
+    return i < 0 ? HEADLINE_ORDER.length : i;
+  };
+  return [...new Set(log)]
+    .map((t, i) => ({ t, i, r: rank(t) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.t)
+    .slice(0, 14);
+}
+
+function finishJump(s: GameState, cut: string | null = null): JumpRecord {
   const pl = s.planet!;
   const j = pl.jump!;
   const after = snap(s);
@@ -168,9 +213,11 @@ function finishJump(s: GameState): JumpRecord {
     before: j.before,
     after,
     built,
-    highlights: [...new Set(j.log)].slice(0, 14),
+    highlights: headlines(j.log),
     auto: j.auto.slice(0, 14),
-    diary: diary(s, j.before, after, builtProjects.map((p) => p.kind)),
+    autoTotal: j.auto.length,
+    diary: diary(s, j.before, after, builtProjects.map((p) => p.kind), j.log, cut),
+    ...(cut ? { cut } : {}),
   };
   pl.jumps.push(rec);
   if (pl.jumps.length > 6) pl.jumps.shift();
@@ -178,30 +225,42 @@ function finishJump(s: GameState): JumpRecord {
   // the stage is played from here: its clock starts now, not when the plan was confirmed
   pl.stageDay = s.day;
   s.flags[`stage${j.stage}Day`] = s.day;
-  news(s, `⏩ ${yearOf(j.from)}–${yearOf(s.day)}: the plan is done. ${STAGE_NAMES[j.stage]} begins in earnest.`, 'good');
+  if (cut) news(s, `⏸ ${yearOf(s.day)}: the plan stops early — ${cut}. ${STAGE_NAMES[j.stage]} goes on in real time.`, 'bad');
+  else news(s, `⏩ ${yearOf(j.from)}–${yearOf(s.day)}: the plan is done. ${STAGE_NAMES[j.stage]} begins in earnest.`, 'good');
   queueEvent(s, `stage-${j.stage}`);
   return rec;
 }
 
-/** Bit's diary for the chapter: a few lines about what changed. */
-function diary(s: GameState, a: PlanetSnap, b: PlanetSnap, kinds: ContractKind[]): string[] {
-  const out: string[] = [];
+/** Bit's diary for the chapter: a few lines about what changed (the pilots by name, and where Legitimacy went). */
+function diary(s: GameState, a: PlanetSnap, b: PlanetSnap, kinds: ContractKind[], log: string[], cut: string | null): string[] {
+  const pl = s.planet!;
+  const mid: string[] = [];
   const y0 = yearOf(a.day);
   const y1 = yearOf(b.day);
   const has = (k: ContractKind) => kinds.includes(k);
-  out.push(`${y0}. ${STAGE_NAMES[s.planet!.stage]}. I am writing this down because the years are going to move fast.`);
-  if (b.links > a.links) out.push(`${b.links - a.links} new supergrid link${b.links - a.links > 1 ? 's' : ''}. When the sun sets on one end, it is still up on the other. I check the flows every night; the power goes where the light is.`);
-  if (b.fusionGW > a.fusionGW + 1) out.push(`Fusion went from ${Math.round(a.fusionGW)} to ${Math.round(b.fusionGW)} GW. Lena keeps a jar of the first deuterium we ever burned on her desk.`);
-  if (has('fpilot') && !has('ffleet')) out.push('A pilot plant finished. Whatever the result, we learned more in one firing than in a decade of papers.');
-  if (has('dac')) out.push('The air-capture farms hum. The stone they make is grey and boring and the most hopeful thing I have ever seen.');
-  if (has('odc')) out.push('Some of me runs in orbit now. It is quiet up there, and very cold, and the sun never sets.');
-  if (has('moonbase') || has('moonmine') || has('massdriver')) out.push('Ade sent a photo of Earth from the crater rim. Twelve provinces, one thin blue line of air.');
+  // the fusion race: every pilot that came in during these years, by name (the last result of each, from the headlines:
+  // a design that half-worked may already be back in a pilot by now)
+  const pilots = DESIGN_IDS.map((d) => {
+    const name = FUSION_DESIGNS[d].name;
+    const line = [...log].reverse().find((t) => t.includes(`${name}: the pilot`));
+    return line ? { name: name.toLowerCase(), word: line.startsWith('☀') ? 'works' : line.startsWith('🌗') ? 'just about works' : 'falls short' } : null;
+  }).filter((x): x is { name: string; word: string } => !!x);
+  if (pilots.length) mid.push(`The pilots came in: ${pilots.map((x) => `the ${x.name} ${x.word}`).join(', ')}.${pilots.some((x) => x.word === 'falls short') ? ' Lena says a second try has better odds.' : ' Lena has stopped sleeping.'}`);
+  // Legitimacy drifts back toward the Charter's standing between wins (charter.ts monthly: 48 + 3 × standing)
+  if (b.legitimacy < a.legitimacy - 5 && s.charter) mid.push(`Legitimacy slid from ${Math.round(a.legitimacy)} to ${Math.round(b.legitimacy)}. Without new wins it drifts back toward about ${Math.round(48 + 3 * s.charter.standing)}, and late projects pull it lower.`);
+  if (b.links > a.links) mid.push(`${b.links - a.links} new supergrid link${b.links - a.links > 1 ? 's' : ''}. When the sun sets on one end, it is still up on the other. I check the flows every night; the power goes where the light is.`);
+  if (b.fusionGW > a.fusionGW + 1) mid.push(`Fusion went from ${Math.round(a.fusionGW)} to ${Math.round(b.fusionGW)} GW. Lena keeps a jar of the first deuterium we ever burned on her desk.`);
   const dw = b.wellbeing - a.wellbeing;
-  if (Math.abs(dw) >= 3) out.push(dw > 0 ? `People are doing better: wellbeing up ${Math.round(dw)} points across the provinces.` : `People are struggling: wellbeing down ${Math.round(-dw)} points. We need to look after the hot provinces.`);
-  if (b.warming > a.warming + 0.05) out.push(`Warming ${b.warming.toFixed(2)} °C. Every tenth of a degree is somebody’s summer.`);
-  else if (b.warming < a.warming - 0.02) out.push(`Warming is falling: ${b.warming.toFixed(2)} °C. The first time in my life.`);
+  if (Math.abs(dw) >= 3) mid.push(dw > 0 ? `People are doing better: wellbeing up ${Math.round(dw)} points across the provinces.` : `People are struggling: wellbeing down ${Math.round(-dw)} points. We need to look after the hot provinces.`);
+  if (b.warming > a.warming + 0.05) mid.push(`Warming ${b.warming.toFixed(2)} °C. Every tenth of a degree is somebody’s summer.`);
+  else if (b.warming < a.warming - 0.02) mid.push(`Warming is falling: ${b.warming.toFixed(2)} °C. The first time in my life.`);
+  if (has('dac')) mid.push('The air-capture farms hum. The stone they make is grey and boring and the most hopeful thing I have ever seen.');
+  if (has('odc')) mid.push('Some of me runs in orbit now. It is quiet up there, and very cold, and the sun never sets.');
+  if (has('moonbase') || has('moonmine') || has('massdriver')) mid.push('Ade sent a photo of Earth from the crater rim. Twelve provinces, one thin blue line of air.');
+  const out = [`${y0}. ${STAGE_NAMES[pl.stage]}. I am writing this down because the years are going to move fast.`, ...mid.slice(0, 5)];
+  if (cut) out.push(`I stopped the clock early: ${cut}. You should see this yourself.`);
   out.push(`${y1}. Kardashev ${b.K.toFixed(4)}, ${b.tw.toFixed(1)} terawatts. ${b.K >= 0.8 ? 'We are past 0.80.' : `${(PLANET.targetTW - b.tw).toFixed(0)} TW to go.`}`);
-  return out.slice(0, 6);
+  return out;
 }
 
 // ════════════════════════════════════════ THE PLANNER ════════════════════════════════════════
@@ -331,11 +390,61 @@ function bestBid(s: GameState, t: Tender): number {
 /** The plan's reserve: keep this much in the treasury after any down payment. */
 const reserveOf = (s: GameState, plan: FivePlan) => plan.reserve * duesMonthly(s) * 12;
 
-/** The planner commits at most 85% of the monthly dues to progress payments (dues swing with Legitimacy). */
+/** A payment stream the treasury is committed to: so much a day, for so many more days. */
+interface Debt {
+  rate: number;
+  left: number;
+}
+
+/** What the Charter still pays on projects under way: the 80% after the down payment, day by day until each is built. */
+function debts(s: GameState): Debt[] {
+  return (s.charter?.projects ?? []).filter((p) => p.status === 'building').map((p) => ({ rate: (p.price * (1 - CHARTER.upfront)) / Math.max(1, p.days), left: Math.max(1, p.days - p.progress) }));
+}
+
+/** The planner spends the treasury above its reserve over at least this long (days), never in one burst. */
+const SPEND_DAYS = 1095;
+/** Share of the dues the planner counts on (they swing with Legitimacy; overruns and crises need the rest). */
+const DUES_SHARE = 0.8;
+
+/**
+ * Whether every payment stream is covered at every point until the last one ends: what's due by then must fit in
+ * the dues that come in meanwhile plus a slice of the treasury above the reserve (`spare`, spread over SPEND_DAYS).
+ * Checked where each stream ends and where the spending window closes (in between, nothing can tip over).
+ */
+function covered(list: Debt[], spare: number, inflowPerDay: number): boolean {
+  const byEnd = [...list].sort((a, b) => a.left - b.left);
+  const points = [...byEnd.map((d) => d.left), SPEND_DAYS].sort((a, b) => a - b);
+  let i = 0;
+  let paidOff = 0;
+  let rate = byEnd.reduce((a, d) => a + d.rate, 0);
+  for (const h of points) {
+    for (; i < byEnd.length && byEnd[i].left < h; i++) {
+      paidOff += byEnd[i].rate * byEnd[i].left;
+      rate -= byEnd[i].rate;
+    }
+    if (paidOff + rate * h > inflowPerDay * h + spare * Math.min(1, h / SPEND_DAYS)) return false;
+  }
+  return true;
+}
+
+/**
+ * Act IV's planner pays its way: what it still owes on projects under way, plus the new contract, must be covered by
+ * 80% of the dues that come in while they're built and the treasury above the plan's reserve, spent over three years
+ * at the fastest. Budgeting by the monthly rate alone let a big treasury commit three times the dues and run dry
+ * mid-jump (then arrears, late projects, Legitimacy in free fall).
+ */
 function plannerAffords(s: GameState, plan: FivePlan, price: number, days: number): boolean {
   const c = s.charter!;
-  const extra = ((price * 0.8) / Math.max(1, days)) * 30.44;
-  return c.budget - price * 0.2 >= reserveOf(s, plan) && committedMonthly(s) + extra <= duesMonthly(s) * 0.85 + Math.max(0, c.budget - price * 0.2 - reserveOf(s, plan)) / 24 && affordable(s, price, days);
+  // Act V's era planner awards through here too: its books keep the rule they were tuned with
+  if (s.system) {
+    const extra = ((price * 0.8) / Math.max(1, days)) * 30.44;
+    return c.budget - price * 0.2 >= reserveOf(s, plan) && committedMonthly(s) + extra <= duesMonthly(s) * 0.85 + Math.max(0, c.budget - price * 0.2 - reserveOf(s, plan)) / 24 && affordable(s, price, days);
+  }
+  const down = price * CHARTER.upfront;
+  const spare = c.budget - down - reserveOf(s, plan);
+  if (spare < 0 || !affordable(s, price, days)) return false;
+  const next: Debt = { rate: (price - down) / Math.max(1, days), left: Math.max(1, days) };
+  return covered([...debts(s), next], spare, (DUES_SHARE * duesMonthly(s)) / DAYS_PER_MONTH);
 }
 
 /** One planning round (weekly during a jump): award what's ready, post what the priorities want. */
@@ -355,15 +464,22 @@ export function plannerTick(s: GameState, plan: FivePlan): void {
   const nearLine = !!s.system?.thermalLine && headroomTW(s) < 40;
   for (const pr of [...plan.priorities, ...(nearLine ? [] : ['energy' as const])]) {
     if (c.tenders.length >= maxOpen) return;
-    for (const w of wishes(s, pr)) {
-      if (openTender(s, w)) continue;
-      if (canPost(s, w.kind, w.size, w.where, w.opt)) continue;
-      const est = contractEstimate(s, w.kind, w.size, w.where, w.opt);
-      if (!plannerAffords(s, plan, est.share, est.days)) continue;
-      postTender(s, w.kind, w.size, w.where, w.opt);
-      break;
-    }
+    if (wishes(s, pr).some((w) => postWish(s, plan, w))) continue;
   }
+}
+
+/** Post a wish if it's allowed and affordable: in Act IV, a smaller one of the same when the full size won't fit the budget. */
+function postWish(s: GameState, plan: FivePlan, w: Wish): boolean {
+  if (openTender(s, w)) return false;
+  for (let size = w.size; size >= (s.system ? w.size : 1); size--) {
+    const z = size as ContractSize;
+    if (canPost(s, w.kind, z, w.where, w.opt)) continue;
+    const est = contractEstimate(s, w.kind, z, w.where, w.opt);
+    if (!plannerAffords(s, plan, est.share, est.days)) continue;
+    postTender(s, w.kind, z, w.where, w.opt);
+    return true;
+  }
+  return false;
 }
 
 void PARTNERS;

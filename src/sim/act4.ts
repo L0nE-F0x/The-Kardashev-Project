@@ -31,6 +31,8 @@ export function beginAct4(s: GameState): void {
   queueEvent(s, 'act4-begin');
   scheduleEvent(s, 'company-choice', 8);
   if (s.planet.powers === 'caretaker') scheduleEvent(s, 'second-mandate', 40);
+  // the planner keeps working the plan between jumps unless you take the contracts back (Planet → Overview)
+  s.flags.autopilot4 = true;
   news(s, '🎬 Act IV · Planetary begins.', 'good');
 }
 
@@ -85,7 +87,58 @@ export function planetChecklist(s: GameState): GoalCheck[] {
   ];
 }
 
-const since = (s: GameState, n: number) => s.day - Number(s.flags[`stage${n}Day`] ?? s.day);
+// ════════════════════════════════════════ STAGE GATES ════════════════════════════════════════
+/** What ends the stage being played: the next five-year plan (stages 0–2) or The Heat Wall (stage 3). */
+export interface StageGate {
+  /** What has to hold (all at once). */
+  items: GoalCheck[];
+  /** Days into the stage before the items count (the stage is played for at least this long). */
+  minDays: number;
+  /** Day the stage began (its clock restarts when a jump ends). */
+  start: number;
+  /** The next step comes on this day at the latest, whatever the items say. */
+  by: number;
+  /** Everything holds and the minimum time has passed: the next step comes now. */
+  ready: boolean;
+}
+
+/** The current stage's gate, shown on Planet → Overview and checked daily (null outside stages 0–3). */
+export function stageGate(s: GameState): StageGate | null {
+  const pl = s.planet;
+  if (!pl || pl.stage > 3) return null;
+  const start = Number(s.flags[`stage${pl.stage}Day`] ?? pl.stageDay);
+  const days = s.day - start;
+  const count = (id: string, label: string, n: number, need: number): GoalCheck => ({ id, label, done: n >= need, note: `${Math.min(n, need)} / ${need}` });
+  let items: GoalCheck[];
+  let minDays = 365;
+  let maxDays = PLANET.stageMaxDays[pl.stage];
+  switch (pl.stage) {
+    case 0:
+      // the first plan opens a few weeks in, once the company question is settled
+      items = [{ id: 'company', label: 'Decide your company’s future', done: !!pl.company, note: '' }];
+      minDays = 20;
+      break;
+    case 1: {
+      const links = (s.charter?.projects ?? []).filter((p) => p.kind === 'link' && p.status === 'done').length;
+      const pilots = Object.values(pl.fusion).reduce((a, f) => a + f.tries, 0);
+      items = [count('links', 'Three supergrid links finished', links, 3), count('ai', 'An AI runs a province', aiRegionCount(s), 1), count('pilots', 'Two fusion pilots funded', pilots, 2)];
+      break;
+    }
+    case 2:
+      items = [
+        count('fleet', 'A fusion fleet running', designsOnline(s).length, 1),
+        { id: 'k77', label: 'Kardashev 0.77', done: s.stats.K >= 0.77, note: `${s.stats.K.toFixed(4)}` },
+      ];
+      break;
+    default:
+      // the High Frontier ends when the whole checklist holds — or a year into the stage once 2070 comes, or at the stage's limit
+      items = planetChecklist(s);
+      minDays = 0;
+      maxDays = Math.min(maxDays, Math.max(365, PLANET.deadline - start));
+  }
+  const ready = items.every((g) => g.done) && days >= minDays;
+  return { items, minDays, start, by: start + maxDays, ready };
+}
 
 export function tickAct4(s: GameState): void {
   if ((s.act ?? 1) === 3) {
@@ -94,30 +147,22 @@ export function tickAct4(s: GameState): void {
   }
   const pl = s.planet;
   if (!pl || pl.jump || pl.planOpen) return;
+  const gate = stageGate(s);
+  const due = !!gate && (gate.ready || s.day >= gate.by);
   switch (pl.stage) {
     case 0:
-      // the first plan opens once the company question is settled
-      if (pl.company && since(s, 0) >= 20) openPlan(s);
-      else if (since(s, 0) >= PLANET.stageMaxDays[0]) {
+      if (due) {
         pl.company ??= 'keep';
         openPlan(s);
       }
       break;
-    case 1: {
-      const pilots = Object.values(pl.fusion).reduce((a, f) => a + f.tries, 0);
-      const ready = (s.charter?.projects ?? []).filter((p) => p.kind === 'link' && p.status === 'done').length >= 3 && aiRegionCount(s) >= 1 && pilots >= 2;
-      if ((ready && since(s, 1) >= 365) || since(s, 1) >= PLANET.stageMaxDays[1]) openPlan(s);
-      break;
-    }
+    case 1:
     case 2:
-      if ((fusionTW(s) >= 2 && s.stats.K >= 0.77 && since(s, 2) >= 365) || since(s, 2) >= PLANET.stageMaxDays[2]) openPlan(s);
+      if (due) openPlan(s);
       break;
-    case 3: {
-      const ready = planetChecklist(s).every((g) => g.done);
-      const late = s.day >= PLANET.deadline && since(s, 3) >= 365;
-      if (ready || late || since(s, 3) >= PLANET.stageMaxDays[3]) startHeatWall(s);
+    case 3:
+      if (due) startHeatWall(s);
       break;
-    }
     case 4:
       if (pl.heatwall?.done && !s.flags.act4EndQueued) {
         s.flags.act4EndQueued = true;
