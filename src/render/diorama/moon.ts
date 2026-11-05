@@ -12,6 +12,7 @@
  */
 import { C } from '../palette';
 import { bayer, fbm, hash2, PixelCanvas } from '../pixels';
+import { stampAstronaut } from './people';
 import { drawText, measureText } from '../font';
 import { drawGlobe } from '../globe';
 import type { Emitter, FacilityArt, Mover } from './art';
@@ -434,55 +435,9 @@ export function lunarBack(stage: number, w: number, h: number, seed: number): { 
 }
 
 // ════════════════════════════════════════ PEOPLE, FLAGS, ROVERS ════════════════════════════════════════
-const SUIT_ACCENTS = [C.blu4, C.org1, C.cyn4, C.red3, C.yel0, C.grn5, C.vio4];
-
-/** An astronaut in a white suit with a gold visor (3×7, facing right), feet on footY. */
+/** An astronaut in a white suit (the outlined figure from people.ts), feet on footY; pose 1 waves. */
 export function astronaut(pc: PixelCanvas, x: number, footY: number, seed: number, pose = 0) {
-  const acc = SUIT_ACCENTS[Math.floor(hash2(seed, 1, 13) * SUIT_ACCENTS.length)];
-  const y = footY - 7;
-  pc.set(x + 1, y, C.white);
-  pc.set(x, y + 1, C.white);
-  pc.set(x + 1, y + 1, C.yel0);
-  pc.set(x, y + 2, C.ink6);
-  pc.set(x + 1, y + 2, C.white);
-  pc.set(x + 2, y + 2, pose === 1 ? C.ink0 : C.ink9);
-  pc.set(x, y + 3, C.ink6);
-  pc.set(x + 1, y + 3, acc);
-  pc.set(x + 2, y + 3, C.ink8);
-  if (pose === 1) pc.set(x + 3, y + 1, C.ink9); // waving
-  pc.set(x + 1, y + 4, C.ink9);
-  pc.set(x, y + 5, C.ink9);
-  pc.set(x + 2, y + 5, C.ink8);
-  pc.set(x, y + 6, C.ink5);
-  pc.set(x + 2, y + 6, C.ink5);
-}
-
-/** Walker frames on the Moon: an astronaut bounding along (two frames, 3×7, facing right). */
-export function astronautFrames(variant: number): PixelCanvas[] {
-  const acc = SUIT_ACCENTS[variant % SUIT_ACCENTS.length];
-  return [0, 1].map((f) => {
-    const pc = new PixelCanvas(3, 7);
-    pc.set(1, 0, C.white);
-    pc.set(0, 1, C.white);
-    pc.set(1, 1, variant % 3 === 0 ? C.org1 : C.yel0);
-    pc.set(0, 2, C.ink6);
-    pc.set(1, 2, C.white);
-    pc.set(2, 2, C.ink9);
-    pc.set(0, 3, C.ink6);
-    pc.set(1, 3, acc);
-    pc.set(2, 3, C.ink8);
-    pc.set(1, 4, C.ink9);
-    if (f === 0) {
-      pc.set(0, 5, C.ink9);
-      pc.set(2, 5, C.ink8);
-      pc.set(0, 6, C.ink5);
-      pc.set(2, 6, C.ink5);
-    } else {
-      pc.set(1, 5, C.ink9);
-      pc.set(2, 6, C.ink5);
-    }
-    return pc;
-  });
+  stampAstronaut(pc, x, footY, seed, pose === 1 ? 'wave' : 'stand');
 }
 
 /** The Moon's delivery truck: a pressurised rover with a solar roof and three big wheels (20×9). */

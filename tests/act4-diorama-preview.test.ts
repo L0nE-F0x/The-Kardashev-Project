@@ -169,7 +169,7 @@ function compose(s: GameState | null, siteId: string, opts: Opts): Frame {
     const r = Math.max(7, Math.round(vh * 0.045));
     fr.draw(earthDisc(r, ls.earth, sub, worldTerrain()), Math.round(sv * 0.7 - r - 2), Math.round(b.farY - r * 1.2));
   } else {
-    sky.vgradient(0, 0, W, sky.h, opts.night ? [C.night0, C.night1, C.night2, C.night3] : [C.sky1, C.sky2, C.sky3, C.sky4, C.sky5]);
+    sky.vbands(0, 0, W, sky.h, opts.night ? [C.night0, C.night1, C.night2, C.night3] : [C.sky1, C.sky2, C.sky3, C.sky4, C.sky5]);
     fr.draw(sky, 0, 0, tint);
     if (opts.night) {
       const st = new PixelCanvas(W, Math.round(sky.h * 0.7));

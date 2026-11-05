@@ -561,6 +561,18 @@ export function stampPerson(pc: PixelCanvas, x: number, footY: number, seed: num
   pc.blit(fig, flip ? x - (FIG_W - FIG_BODY_X - 4) : x - FIG_BODY_X, footY - 1 - FIG_FEET, flip);
 }
 
+/** Stamp a suited astronaut the same way (Moon and asteroid set pieces). pose 1 waves. */
+export function stampAstronaut(pc: PixelCanvas, x: number, footY: number, seed: number, pose: Pose = 'stand', flip = false) {
+  const k = `astro|${seed}`;
+  let L = lookCache.get(k);
+  if (!L) {
+    L = lookFor(seed, 'astronaut', 3);
+    lookCache.set(k, L);
+  }
+  const fig = figure(L, pose);
+  pc.blit(fig, flip ? x - (FIG_W - FIG_BODY_X - 4) : x - FIG_BODY_X, footY - 1 - FIG_FEET, flip);
+}
+
 /** Stamp a seated figure: thighs on seatY − 1, as the old seated people sat. */
 export function stampSeated(pc: PixelCanvas, x: number, seatY: number, seed: number, era = 1) {
   pc.blit(seatedFigure(cachedLook(seed, era)), x - FIG_BODY_X, seatY - 8);
