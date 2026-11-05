@@ -43,7 +43,8 @@ async function boot() {
   let lastInput = lastDraw;
   const wake = () => {
     lastInput = performance.now();
-    nextDraw = 0;
+    // out of the calm rate at once, but never past the cap (a moving mouse sends events faster than frames)
+    nextDraw = Math.min(nextDraw, lastDraw + 1000 / (game.settings.batterySaver ? 30 : 60));
   };
   for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) window.addEventListener(type, wake, { capture: true, passive: true });
   const loop = (now: number) => {
