@@ -334,7 +334,8 @@ function Act3CompleteModal() {
         </div>
         <div class="body">
           <div class="story">
-            Ten years as Steward of the Kardashev Project: {Math.round(c.world.charterTW * 1000).toLocaleString()} GW of Charter clean power, {missions} of 6 missions, and a Council that voted {c.renewal?.yes ?? 0}–{c.renewal?.no ?? 0} for {name.toLowerCase()}. The first orbital compute module is on its way up.
+            Ten years as Steward of the Kardashev Project: {Math.round(c.world.charterTW * 1000).toLocaleString()} GW of Charter clean power, {missions} of 6 missions, and a Council that{' '}
+            {outcome === 'caretaker' ? `could only agree on a caretaker term (${c.renewal?.yes ?? 0} for, ${c.renewal?.no ?? 0} against)` : outcome === 'limited' ? `voted ${c.renewal?.yes ?? 0}–${c.renewal?.no ?? 0} to renew it, with limits` : `voted ${c.renewal?.yes ?? 0}–${c.renewal?.no ?? 0} for the Planetary Charter`}. The first orbital compute module is on its way up.
           </div>
           <div class="deltas">
             <div class="delta">
@@ -370,7 +371,7 @@ function Act3CompleteModal() {
             <Portrait id="kip" mood="excited" size={56} />
             <div class="bubble">
               <b>Kip · Space</b>
-              Orbit is open, the grids are joined and Bit wants to help run a planet. Next: Act IV — Planetary.
+              {s.flags.orbitalTest ? 'Orbit is open' : 'Orbit is next'}, {c.projects.some((p) => p.kind === 'hvdc' && p.status === 'done') ? 'the first grids are joined' : 'the grids still stand alone'} and Bit wants to help run a planet. Next: Act IV — Planetary.
             </div>
           </div>
           <div class="choices">

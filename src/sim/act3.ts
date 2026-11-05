@@ -3,13 +3,13 @@
  * the Charter's phases, the Mandate, The Threshold, the renewal vote and the ending.
  */
 import { MANDATE_GOALS, OBJECTIVES } from '../content/objectives';
-import { THRESHOLD_DEADLINE } from '../content/charter';
+import { charterCleanGW, THRESHOLD_DEADLINE } from '../content/charter';
 import { TECHS } from '../content/techs';
 import { BUILD_SITES, siteDef } from '../content/sites';
 import { DIFFICULTIES } from '../content/difficulty';
 import { CABLES } from '../content/network';
 import type { Facility, GameState } from './types';
-import { monthKey, news, nextId } from './core';
+import { fmtDate, monthKey, news, nextId } from './core';
 import { queueEvent, scheduleEvent } from './events';
 import { createCharter } from './charterInit';
 import { initialWorldAlignment } from './frontier';
@@ -20,12 +20,17 @@ import { techMult } from './effects';
 import { newAct2Game } from './act2';
 import type { NewGameOptions } from './state';
 
+/** Act II story openers that belong to the company's scale-up: they don't start in the Steward's decade. */
+const ACT2_OPENERS = ['race-1', 'hbm-1', 'lines-1', 'restart-1', 'sovereign-wealth', 'chip-diversion'];
+
 export function beginAct3(s: GameState): void {
   if ((s.act ?? 1) >= 3) return;
   s.act = 3;
   s.phase = 5;
   s.flags.act3Started = s.day;
   s.flags.cphase1Day = s.day;
+  // (the "Start at Act III" preset has already marked them as played)
+  for (const id of ACT2_OPENERS) s.events.last[id] ??= s.day;
   s.charter = createCharter(s);
   s.charter.regime.alignment = initialWorldAlignment(s);
   queueEvent(s, 'act3-begin', { standing: s.charter.standing });
@@ -46,6 +51,52 @@ function enterCharterPhase(s: GameState, n: number): void {
 
 const done = (s: GameState, id: string) => s.objectives.done.includes(id);
 
+/** Phase 1 → 2 and 2 → 3: what has to happen, or how long until the Council moves on anyway. */
+const PHASE_DAYS: Record<number, number> = { 1: 360, 2: 900 };
+const BUILD_OUT = { projects: 6, gw: 300, k: 0.738 };
+
+const builtCount = (s: GameState) => s.charter!.projects.filter((p) => p.status === 'done').length;
+
+/** Whether the current phase's gate is met (the timer is checked separately). */
+function phaseReady(s: GameState): boolean {
+  const c = s.charter!;
+  if (c.phase === 1) return c.projects.length > 0 && c.council.history.some((h) => h.passed) && !!s.flags.budgetRatified;
+  if (c.phase === 2) return builtCount(s) >= BUILD_OUT.projects && (charterCleanGW(s) >= BUILD_OUT.gw || s.stats.K >= BUILD_OUT.k);
+  return false;
+}
+
+/** The header line: what opens the next phase (or the Threshold), and by when at the latest. */
+export function nextPhaseText(s: GameState): { text: string; tip: string } | null {
+  const c = s.charter;
+  if (!c) return null;
+  const by = (n: number) => fmtDate(Number(s.flags[`cphase${n}Day`] ?? s.day) + PHASE_DAYS[n]);
+  if (c.phase === 1) {
+    const awarded = c.projects.length > 0;
+    const passedOne = c.council.history.some((h) => h.passed);
+    const budget = !!s.flags.budgetRatified;
+    return {
+      text: `Next phase: first contract ${awarded ? '✓' : '○'} · first resolution ${passedOne ? '✓' : '○'} · budget ${budget ? '✓' : '○'}, or ${by(1)}`,
+      tip: `Phase 2, The Build-Out, opens when the Charter has awarded its first contract (${awarded ? 'done' : 'not yet'}), passed its first resolution (${passedOne ? 'done' : 'not yet'}) and ratified its budget (${budget ? 'done' : 'not yet'}) — or on ${by(1)} regardless.`,
+    };
+  }
+  if (c.phase === 2) {
+    const gw = charterCleanGW(s);
+    return {
+      text: `Next phase: ${Math.min(builtCount(s), BUILD_OUT.projects)}/${BUILD_OUT.projects} projects finished · ${Math.round(Math.min(gw, BUILD_OUT.gw))}/${BUILD_OUT.gw} GW clean power, or ${by(2)}`,
+      tip: `Phase 3, The Frontier, opens when ${BUILD_OUT.projects} Charter projects are finished and the Charter has ${BUILD_OUT.gw} GW of clean power online (or the world reaches K ${BUILD_OUT.k}) — or on ${by(2)} regardless. Phase 3 puts the Mandate on the board.`,
+    };
+  }
+  if (c.phase === 3) {
+    const met = MANDATE_GOALS.filter((id) => done(s, id)).length;
+    const at = Math.max(THRESHOLD_DEADLINE, Number(s.flags.cphase3Day ?? s.day) + 365);
+    return {
+      text: `The Threshold: when the Mandate is met (${met}/${MANDATE_GOALS.length}), or ${fmtDate(at)}`,
+      tip: `The Threshold — the act’s finale — begins when every Mandate goal is met, or on ${fmtDate(at)} at the latest. Every goal still unmet then leaves its front weaker.`,
+    };
+  }
+  return null;
+}
+
 export function tickAct3(s: GameState): void {
   if ((s.act ?? 1) === 2) {
     if (s.flags.act2Complete && !s.events.active && !s.events.queue.length) beginAct3(s);
@@ -56,13 +107,11 @@ export function tickAct3(s: GameState): void {
   const since = (n: number) => s.day - Number(s.flags[`cphase${n}Day`] ?? s.day);
   switch (c.phase) {
     case 1: {
-      const ready = c.projects.length > 0 && c.council.history.some((h) => h.passed) && !!s.flags.budgetRatified;
-      if (ready || since(1) >= 360) enterCharterPhase(s, 2);
+      if (phaseReady(s) || since(1) >= PHASE_DAYS[1]) enterCharterPhase(s, 2);
       break;
     }
     case 2: {
-      const built = c.projects.filter((p) => p.status === 'done').length;
-      if ((built >= 6 && s.stats.K >= 0.738) || since(2) >= 900) enterCharterPhase(s, 3);
+      if (phaseReady(s) || since(2) >= PHASE_DAYS[2]) enterCharterPhase(s, 3);
       break;
     }
     case 3: {

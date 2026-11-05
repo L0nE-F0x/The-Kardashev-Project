@@ -233,7 +233,7 @@ export function startTraining(s: GameState): Result {
   if (s.training) return fail('A training run is already in progress');
   const plan = nextModelPlan(s);
   const lic = ownRunStatus(s, plan.gen, plan.flop);
-  if (lic === 'needed') return fail(`${plan.name} is above the Charter’s compute cap — request a licence (Charter → Frontier)`);
+  if (lic === 'needed') return fail(`${plan.name} is above the Charter’s compute cap — request a licence in the Compute panel`);
   if (lic === 'pending') return fail(`${plan.name}’s licence is still with the Charter’s evaluators`);
   s.training = { name: plan.name, gen: plan.gen, target: plan.flop, done: 0, startDay: s.day };
   news(s, `🧠 Training run started: ${plan.name}.`);

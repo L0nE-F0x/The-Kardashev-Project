@@ -11,8 +11,9 @@ import { clamp, news, pick, rand } from './core';
 import { techMult } from './effects';
 import { queueEvent } from './events';
 import { alignmentOf, currentCapability, incidentChance } from './model';
-import { addLegitimacy } from './charter';
+import { addLegitimacy, bitOnDesk } from './charter';
 import { DIFFICULTIES } from '../content/difficulty';
+import { nextModelPlan } from './ai';
 
 /** Above this a training run needs a Charter licence once the compute cap is in force. */
 export const COMPUTE_CAP = 3e30;
@@ -75,7 +76,7 @@ export function tickRegime(s: GameState): void {
   const g = c.regime;
   // the field's own safety work, the Charter's programmes, licensing and Bit
   const interp = c.projects.filter((p) => p.kind === 'interp' && p.status === 'done').length;
-  let drift = 0.08 + 0.04 * Math.min(3, interp) + (passed(s, 'run-licensing') ? 0.03 : 0) + (c.desk.bit?.on ? 0.03 : 0);
+  let drift = 0.08 + 0.04 * Math.min(3, interp) + (passed(s, 'run-licensing') ? 0.03 : 0) + (bitOnDesk(s) ? 0.03 : 0);
   // running programmes help a little while they run
   drift += 0.03 * Math.min(3, c.projects.filter((p) => (p.kind === 'evals' || p.kind === 'interp') && p.status === 'building').length);
   g.alignment += (drift * techMult(s, 'alignGain')) / 365;
@@ -99,6 +100,16 @@ export function tickRegime(s: GameState): void {
   // licence requests from rival labs (with licensing in force)
   if (passed(s, 'run-licensing') && s.day % 30 === 11 && rand(s) < 0.12 && s.day - Number(s.events.last['licence-request'] ?? -9999) > 240) {
     queueEvent(s, 'licence-request', { lab: leadingLab(s) });
+  }
+  // your own company, both hats: Bit's training job can't start a run above the cap without a licence —
+  // say so once per model instead of letting it stall quietly (the blind trust's trustee files for you)
+  if (s.day % 7 === 2 && !c.blindTrust && s.jobs.bit?.on && !s.training && capInForce(s)) {
+    const plan = nextModelPlan(s);
+    const key = `licenceNag${plan.gen}`;
+    if (ownRunStatus(s, plan.gen, plan.flop) === 'needed' && !s.flags[key]) {
+      s.flags[key] = s.day;
+      news(s, `🧪 Bit can’t start ${plan.name}: the run is above the Charter’s compute cap. Request a licence in the Compute panel (C).`, 'event');
+    }
   }
   void CONTRACT_KINDS;
   void clamp;

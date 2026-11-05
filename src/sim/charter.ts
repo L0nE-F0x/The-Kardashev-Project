@@ -46,6 +46,10 @@ const OK: Result = { ok: true };
 // ════════════════════════════════════════ HELPERS ════════════════════════════════════════
 export const act3 = (s: GameState) => (s.act ?? 1) >= 3 && !!s.charter;
 const passed = (s: GameState, id: string) => !!s.charter?.council.passed.includes(id);
+/** Bit is running its co-pilot desk (switched on, and not paused for the margins). */
+export const bitOnDesk = (s: GameState) => !!s.charter?.desk.bit?.on && !s.charter.desk.bit.paused;
+/** Worldwide programmes (evals, orbit, fusion grants…): booked to no bloc for fairness or relations. */
+export const isWorldwide = (kind: ContractKind) => CONTRACT_KINDS[kind].where === 'global' || CONTRACT_KINDS[kind].where === 'space';
 
 export function chSpend(s: GameState, cat: keyof CharterLedger, amount: number): void {
   const c = s.charter!;
@@ -250,11 +254,12 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
       break;
     case 'launch':
       if (!LAUNCH_SITES.some((x) => x.id === where)) return 'Pick a launch site.';
-      if (c.projects.some((p) => p.kind === 'launch' && p.status !== 'cancelled')) return 'The Charter already has a launch complex.';
+      if (kind === 'launch' && c.projects.some((p) => p.kind === 'launch' && p.status !== 'cancelled')) return 'The Charter already has a launch complex.';
       break;
     case 'region':
       if (!REGION_IDS.includes(where as RegionId)) return 'Pick a bloc.';
-      if (c.council.walkouts[where as RegionId]) return `${REGIONS[where as RegionId].name} has walked out of the Charter.`;
+      // Act III: a bloc that walked out can still get projects ("a project at home" is often what brings it back)
+      if (s.planet && c.council.walkouts[where as RegionId]) return `${REGIONS[where as RegionId].name} has walked out of the Charter.`;
       break;
     case 'global':
       break;
@@ -267,6 +272,7 @@ export function canPost(s: GameState, kind: ContractKind, size: ContractSize, wh
     if (c.projects.some((p) => p.kind === kind && p.status !== 'cancelled')) return 'Already under way.';
   }
   if (kind === 'fusion' && c.projects.some((p) => p.kind === 'fusion' && p.status !== 'cancelled')) return 'Sunforge already has its grant.';
+  if (kind === 'fusion' && s.planet) return 'Fusion pilots are funded from the Planet panel now.';
   // Act IV
   if (kind === 'ffleet') {
     if (!opt || !FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS]) return 'Pick a fusion design.';
@@ -316,6 +322,7 @@ export function postTender(s: GameState, kind: ContractKind, size: ContractSize,
     .slice(0, bidders.includes(YOU) ? 3 : 4)
     .map((x) => x.id);
   if (bidders.includes(YOU)) ranked.push(YOU);
+  const pending = ranked.map((partner) => ({ partner, day: s.day + randInt(s, 2, 14) }));
   const t: Tender = {
     id: nextId(s, 'tn'),
     kind,
@@ -324,9 +331,10 @@ export function postTender(s: GameState, kind: ContractKind, size: ContractSize,
     region,
     value: contractValue(s, kind, size, where, opt),
     postedDay: s.day,
-    closesDay: s.day + CHARTER.tenderDays,
+    // the Steward gets at least a month to weigh the bids once the last one is in
+    closesDay: Math.max(s.day + CHARTER.tenderDays, ...pending.map((x) => x.day + AWARD_WINDOW)),
     bids: [],
-    pending: ranked.map((partner) => ({ partner, day: s.day + randInt(s, 2, 14) })),
+    pending,
     opt,
   };
   c.tenders.push(t);
@@ -335,6 +343,9 @@ export function postTender(s: GameState, kind: ContractKind, size: ContractSize,
 }
 
 export const sizeText = (def: ContractKindDef, size: ContractSize) => (def.fixed ? '' : `${def.sizes[size - 1].toLocaleString()} ${def.unit}`.trim());
+
+/** Days a tender stays open after its last bid arrives. */
+export const AWARD_WINDOW = 30;
 
 export function closeTender(s: GameState, tenderId: string): Result {
   const c = s.charter;
@@ -571,6 +582,27 @@ export function computeAccess(s: GameState): Record<RegionId, number> {
 
 export const minAccess = (s: GameState) => Math.min(...Object.values(s.charter?.access ?? { x: 0 }));
 
+/** Access a bloc stands to gain from Charter work already under way or out to tender there. */
+export function pendingAccess(s: GameState, r: RegionId): number {
+  const c = s.charter!;
+  let v = 0;
+  for (const p of c.projects) if (p.status === 'building' && p.region === r) v += ACCESS_GAIN[p.kind]?.[p.size - 1] ?? 0;
+  for (const t of c.tenders) if (t.region === r) v += ACCESS_GAIN[t.kind]?.[t.size - 1] ?? 0;
+  return v;
+}
+
+/** Your own company's share of the Charter's contract money (what the blocs see as self-dealing). */
+export function companyShare(s: GameState): number {
+  let mine = 0;
+  let all = 0;
+  for (const p of s.charter?.projects ?? []) {
+    if (p.status === 'cancelled') continue;
+    all += p.price;
+    if (p.builder === YOU) mine += p.price;
+  }
+  return all > 0 ? mine / all : 0;
+}
+
 // ════════════════════════════════════════ DUES ════════════════════════════════════════
 /** A bloc's willingness to pay (0 when it walked out). */
 export function willingness(s: GameState, r: RegionId): number {
@@ -581,28 +613,32 @@ export function willingness(s: GameState, r: RegionId): number {
   return clamp(0.6 + (rel - 50) / 100 + (c.legitimacy - 50) / 150, 0.3, 1.2);
 }
 
-/** Monthly dues a bloc owes at today's level. */
-export function duesOf(s: GameState, r: RegionId): number {
+/** Monthly dues a bloc owes at today's level (or at another dues level, for the founding budget). */
+export function duesOf(s: GameState, r: RegionId, level0?: number): number {
   const c = s.charter!;
   const growth = Math.pow(1 + CHARTER.duesGrowth, yearsElapsed(s.day - c.founded));
-  let level = c.dues;
+  let level = level0 ?? c.dues;
   if (passed(s, 'dues-relief')) level *= WEALTH[r] === 'developing' ? 0.5 : 1.05;
   return CHARTER.duesMonthly * ECON[r] * level * growth;
 }
 
-export function duesMonthly(s: GameState): number {
-  return REGION_IDS.reduce((a, r) => a + duesOf(s, r) * willingness(s, r), 0);
+/** What the blocs actually pay each month (dues × willingness), at today's level or another one. */
+export function duesMonthly(s: GameState, level?: number): number {
+  return REGION_IDS.reduce((a, r) => a + duesOf(s, r, level) * willingness(s, r), 0);
 }
+
+/** Monthly progress payments on a contract of this price and build time (after the down payment). */
+export const monthlyPayment = (price: number, days: number) => ((price * (1 - CHARTER.upfront)) / Math.max(1, days)) * DAYS_PER_MONTH;
 
 /** Monthly payments the treasury is committed to on projects under way. */
 export function committedMonthly(s: GameState): number {
-  return (s.charter?.projects ?? []).filter((p) => p.status === 'building').reduce((a, p) => a + ((p.price * (1 - CHARTER.upfront)) / Math.max(1, p.days)) * DAYS_PER_MONTH, 0);
+  return (s.charter?.projects ?? []).filter((p) => p.status === 'building').reduce((a, p) => a + monthlyPayment(p.price, p.days), 0);
 }
 
 /** Whether the treasury can carry a new contract's payments without falling into arrears. */
 export function affordable(s: GameState, price: number, days: number): boolean {
   const c = s.charter!;
-  const extra = ((price * (1 - CHARTER.upfront)) / Math.max(1, days)) * DAYS_PER_MONTH;
+  const extra = monthlyPayment(price, days);
   return c.budget >= price * CHARTER.upfront && committedMonthly(s) + extra <= duesMonthly(s) * 1.05 + Math.max(0, c.budget - price * CHARTER.upfront) / 18;
 }
 
@@ -645,7 +681,12 @@ export function tickCharter(s: GameState, revenueDay: number): void {
     t.bids.sort((a, b) => a.price - b.price);
     if (!t.pending.length) {
       const low = t.bids[0];
-      news(s, t.bids.length ? `📬 Bids are in for ${CONTRACT_KINDS[t.kind].name} at ${whereName(t.where)}: ${t.bids.length}, lowest ${fmtMoney(low.price)} from ${partnerName(s, low.partner)}. Award one in Charter → Contracts.` : `📭 Nobody bid for ${CONTRACT_KINDS[t.kind].name} at ${whereName(t.where)}.`, 'event');
+      const what = `${CONTRACT_KINDS[t.kind].name} at ${whereName(t.where)}`;
+      // a Charter desk that awards tenders takes it from here; otherwise it's the Steward's call
+      const desk = c.desk.mira?.on ? 'Mira’s tender desk' : c.desk.bit?.on && !c.desk.bit.paused ? 'Bit’s co-pilot desk' : null;
+      if (!t.bids.length) news(s, `📭 Nobody bid for ${what}.`, 'event');
+      else if (desk) news(s, `📬 Bids in for ${what} (${t.bids.length}, lowest ${fmtMoney(low.price)}): ${desk} will award the best value if the treasury can carry it.`);
+      else news(s, `📬 Bids are in for ${what}: ${t.bids.length}, lowest ${fmtMoney(low.price)} from ${partnerName(s, low.partner)}. Award one in Charter → Contracts within ${Math.max(1, t.closesDay - s.day)} days.`, 'event');
     }
   }
   const expired = c.tenders.filter((t) => s.day >= t.closesDay && !t.pending.length);
@@ -696,22 +737,49 @@ export function tickCharter(s: GameState, revenueDay: number): void {
   }
 }
 
-function monthly(s: GameState): void {
+/** Days since the Charter last finished a project (Infinity if it never has). */
+export function daysSinceDelivery(s: GameState): number {
   const c = s.charter!;
-  // Legitimacy drifts toward a baseline set by your standing; delivery, arrears and walkouts push it around
+  let last = -Infinity;
+  for (const p of c.projects) if (p.status === 'done' && p.doneDay !== undefined && p.doneDay > last) last = p.doneDay;
+  return s.day - last;
+}
+
+/** Months of dues sitting unspent in the treasury. */
+export const treasuryMonths = (s: GameState) => (s.charter?.budget ?? 0) / Math.max(1, duesMonthly(s));
+
+/**
+ * This month's Legitimacy drift, part by part (the Overview's tooltip shows the same list): a pull toward
+ * a baseline set by your standing, the blind trust, arrears, late projects, walkouts — and in Act III,
+ * whether the Charter delivers at all. Cards, awards and finished projects move it on top of this.
+ */
+export function legitimacyParts(s: GameState): [string, number][] {
+  const c = s.charter!;
+  const parts: [string, number][] = [];
   const target = 48 + 3 * c.standing;
-  let d = (target - c.legitimacy) * 0.05;
-  if (c.blindTrust) d += 0.4;
-  if (c.projects.some((p) => p.status === 'building' && p.arrears > 0)) d -= 1.5;
+  parts.push([`Settling toward ${target} (your standing)`, (target - c.legitimacy) * 0.05]);
+  if (c.blindTrust) parts.push(['Blind trust', 0.4]);
+  if (c.projects.some((p) => p.status === 'building' && p.arrears > 0)) parts.push(['Projects in arrears', -1.5]);
   const late = c.projects.filter((p) => isLate(s, p)).length;
   // Act IV runs hundreds of projects: what matters is the share that's late, not the count
-  if (s.planet) d -= Math.min(2, (4 * late) / Math.max(4, c.projects.filter((p) => p.status === 'building').length));
-  else d -= Math.min(3, late * 0.5);
-  d -= Object.keys(c.council.walkouts).length;
-  if (c.budget < 0) d -= 2;
-  addLegitimacy(s, d);
+  if (late) parts.push([`${late} late project${late === 1 ? '' : 's'}`, s.planet ? -Math.min(2, (4 * late) / Math.max(4, c.projects.filter((p) => p.status === 'building').length)) : -Math.min(3, late * 0.5)]);
+  const out = Object.keys(c.council.walkouts).length;
+  if (out) parts.push([`${out} bloc${out === 1 ? '' : 's'} walked out`, -out]);
+  if (c.budget < 0) parts.push(['Treasury overdrawn', -2]);
+  // Act III: the blocs judge a Steward by what gets built (the "Start at Act IV" fast-forward skips this)
+  if (!s.planet && s.flags.offline !== 'skip') {
+    if (s.day - c.founded > 540 && daysSinceDelivery(s) > 365) parts.push(['Nothing delivered in a year', -0.5]);
+    const months = treasuryMonths(s);
+    if (months > 12) parts.push([`${Math.round(months)} months of dues sitting unspent`, -Math.min(0.75, (months - 12) / 24)]);
+  }
+  return parts;
+}
+
+function monthly(s: GameState): void {
+  const c = s.charter!;
+  addLegitimacy(s, legitimacyParts(s).reduce((a, [, v]) => a + v, 0));
   // political capital
-  addCapital(s, Math.max(1, 3 + 0.75 * c.standing + (c.legitimacy - 50) / 20) * (c.desk.bit?.on ? 1.1 : 1));
+  addCapital(s, Math.max(1, 3 + 0.75 * c.standing + (c.legitimacy - 50) / 20) * (bitOnDesk(s) ? 1.1 : 1));
   // partners drift home; very unhappy ones lobby against you
   for (const [id, st] of Object.entries(c.partners)) {
     const def = PARTNERS[id];
@@ -762,13 +830,16 @@ function troubleRoll(s: GameState, p: Project): void {
     p.days += extra;
     news(s, `⏳ ${who}: ${def.name} at ${whereName(p.where)} slips ${Math.round(extra / 30.4)} months.`, 'bad');
   } else if (roll < 0.75) {
-    // an overrun: the partner wants more money. A big one (or the first in a while) is a card; routine
-    // ones in between are settled the sensible way and reported, so the Steward isn't buried in them.
+    // an overrun: the partner wants more money. Only a big one — more than a month of dues, or half the
+    // treasury — that the treasury could actually pay is a card; routine ones are settled the sensible way
+    // and reported, so the Steward isn't buried in them.
     const extra = Math.round(p.price * (0.08 + rand(s) * 0.12) / 1e6) * 1e6;
     const c = s.charter!;
-    const big = extra > c.budget * 0.1;
-    if (big || !recently(s, 'project-overrun', TROUBLE_CARD_GAP)) queueEvent(s, 'project-overrun', { project: p.id, extra });
-    else if (c.budget >= extra * 2) {
+    // (Acts IV–V keep their own rule: a tenth of the treasury, or the first in a while)
+    const big = s.planet ? extra > c.budget * 0.1 : extra > duesMonthly(s) || extra > c.budget * 0.5;
+    const card = s.planet ? big || !recently(s, 'project-overrun', TROUBLE_CARD_GAP) : big && c.budget >= extra && !recently(s, 'project-overrun', 60);
+    if (card) queueEvent(s, 'project-overrun', { project: p.id, extra });
+    else if ((s.planet || !big) && c.budget >= extra * 2) {
       chSpend(s, 'payments', extra);
       p.price += extra;
       p.paid += extra;
@@ -780,7 +851,8 @@ function troubleRoll(s: GameState, p: Project): void {
       news(s, `💸 ${who} ran over on the ${def.name.toLowerCase()} at ${whereName(p.where)}; held to the contract, it slips.`, 'bad');
     }
   } else if (roll < 0.9 && tr.ethics <= 3) {
-    if (!recently(s, 'project-scandal', TROUBLE_CARD_GAP)) queueEvent(s, 'project-scandal', { project: p.id });
+    // what the reporters found is picked here, so the card reads the same however often it's drawn
+    if (!recently(s, 'project-scandal', TROUBLE_CARD_GAP)) queueEvent(s, 'project-scandal', { project: p.id, what: p.troubles % 4 });
     else {
       // suspended and investigated, as the Charter's rules say
       p.days += 60;
@@ -809,9 +881,8 @@ function completeProject(s: GameState, p: Project): void {
     addPartnerRel(s, p.builder, late ? 2 : 6);
   }
   addLegitimacy(s, late ? 0.1 : 0.6);
-  // developing blocs especially notice projects at home
-  if (WEALTH[p.region] === 'developing') addRelation(s, p.region, 4);
-  else addRelation(s, p.region, 1.5);
+  // developing blocs especially notice projects at home (worldwide programmes are nobody's home)
+  if (!isWorldwide(p.kind)) addRelation(s, p.region, WEALTH[p.region] === 'developing' ? 4 : 1.5);
   const units = unitsOf(def, p.size);
   switch (p.kind) {
     case 'fab':
@@ -852,6 +923,15 @@ function completeProject(s: GameState, p: Project): void {
       break;
     case 'fusion':
       s.flags.fusionPilot = s.day;
+      // a grant that finishes after Act IV began still lights Sunforge's tokamak (Act IV reads it at the start)
+      if (s.planet) {
+        const st = s.planet.fusion.tokamak;
+        if (st.status !== 'won' && st.status !== 'pilot') {
+          st.status = 'won';
+          st.resolvedDay = s.day;
+          news(s, '☀ Compact tokamak: Sunforge’s Charter-funded pilot plant runs at net power. Fleets can be ordered.', 'good');
+        }
+      }
       break;
     // ── Act IV ──
     case 'link': {

@@ -212,7 +212,7 @@ export const BRIEFINGS: Briefing[] = [
     when: (s) => s.act === 3 && (s.charter?.phase ?? 0) >= 3,
     steps: [
       { text: () => 'The Council can now cap frontier training runs, license them and set open-weights policy. The cap applies to us too — our big runs will need a Charter licence.', enter: (g) => g.panel !== 'council' && g.openPanel('council'), target: () => 'table-resolution' },
-      { text: () => 'The Mandate is on the board: Kardashev 0.75, the Chip Commons, clean power, access for every bloc, a working safety regime, Legitimacy and Kip’s satellite. When it’s done, the Threshold comes.', enter: (g) => g.openCharter('overview'), target: () => 'treasury' },
+      { text: () => 'The Mandate is on the board: Kardashev 0.75, the Chip Commons, clean power, access for every bloc, a working safety regime, Legitimacy and Kip’s satellite. When it’s done, the Threshold comes — and every goal still unmet then leaves us weaker on one of its fronts.', enter: (g) => g.openCharter('overview'), target: () => 'mandate' },
     ],
   },
   {
@@ -221,8 +221,8 @@ export const BRIEFINGS: Briefing[] = [
     title: 'The Threshold',
     when: (s) => s.act === 3 && !!s.charter?.threshold && !s.charter.threshold.done,
     steps: [
-      { text: () => 'Three fronts, a hundred and twenty days. Hover each bar to see what’s pushing it up — and what’s holding it down.', target: () => 'threshold', mood: 'worried' },
-      { text: () => 'Firm power, HVDC links, the safety programmes, Bit, Legitimacy and access all ease the pressure on their own. The event cards let us act directly. Then the vote.' },
+      { text: () => 'Three fronts, a hundred and twenty days, and the crisis builds the whole way. Hover each bar to see what’s pushing it up — and what’s holding it down.', target: () => 'threshold', mood: 'worried' },
+      { text: () => 'Firm power, HVDC links, the safety programmes, Bit, Legitimacy and access all ease the pressure on their own; Mandate goals we never met add to it. The event cards let us act directly. Then the vote — and the blocs will remember how we did.' },
     ],
   },  // ════════════════════ Act IV · Planetary ════════════════════
   {
