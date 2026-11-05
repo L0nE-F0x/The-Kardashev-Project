@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.7.0 — Sandbox & Soundtrack (2026-11-05)
+- Sandbox mode: New Company → Sandbox. The campaign's world with switches you can flip any time from the 🧪 badge: money that never runs out, research four times faster (or everything known), building overnight, and sliders for bloc politics, climate sensitivity, crises and chip prices. No records or unlocks.
+- 37 achievements, from training Bit-1 to reaching Type I before 2090, with a few secrets around campus. Main menu → Achievements.
+- A soundtrack that grows with you: a chiptune track for every era, from gritty Smog & Silicon to shimmering Swarmlight, and the sound of each place: data-hall hum, surf, rain, crickets at night, the Moon's suit radio, the quiet of space.
+- New sounds for launches, the mass driver, time jumps, big decisions, the swarm and the storm.
+- Balance: the first data hall builds in 10 months (was 15), and the seed round is $450M on Standard (was $400M) and $380M on Hard (was $250M). Hard's Garage is tough now, not impossible.
+- Fewer repeat cards: a board review the board passed is news, and routine project overruns and scandals settle themselves between the ones that need you. Acts III and IV ask about a third fewer questions.
+- Once you're the Steward, a company that runs dry gets a bridge loan instead of ending the campaign, and a company you sold or handed to the Charter stops sending you its bills.
+- The main menu's tour flies through every act now: Geneva, the Sahara, the supergrid, a spaceport, orbit, the Moon, the solar system, Aurora and an asteroid.
+- Province governors: twelve faces, and what keeps each of them up at night, in Planet → Provinces.
+- The Moon's crew lander takes off from Pad A, and in garden provinces old megaproject land goes back to meadow and woods on the map.
+- Playtest notes: turn them on in Settings → Gameplay, then press J to jot down what you think as you play. Settings → Data → Log saves your notes and your time per act.
+- Fix: typing in a text box no longer sets off game shortcuts.
+
 ## 0.6.1 — Signs of Life (2026-11-05)
 - People you can actually see: everyone on campus is redrawn bigger, with an outline, a face, hair and clothes that fit the job (hard hats and hi-vis on building sites, lab coats, spacesuits on the Moon), and the fashions change with the era.
 - They walk along a pavement now, and they have things to do: they go in and out of the buildings, stop to chat, take calls, carry boxes off the delivery truck, hammer away on building sites and react to the news with little speech bubbles.

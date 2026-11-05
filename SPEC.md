@@ -1603,7 +1603,7 @@ Polish and ship: the balance pass across all five acts, a sandbox next to the ca
 achievements, the leftovers from earlier milestones and a phone pass, then **v1.0.0**. Planned 2026-11-05 in two Q&A
 rounds, right after v0.6.1 "Signs of Life" (the diorama art overhaul).
 
-**Status: steps 1–7 built on the `m5` branch (2026-11-05); step 8 (your playthrough → retune → v1.0.0) is next.** As-built notes at the end of this section.
+**Status: steps 1–7 shipped in v0.7.0 "Sandbox & Soundtrack" (2026-11-05); step 8 (your playthrough → retune → v1.0.0) is next.** As-built notes at the end of this section.
 
 ### Decisions (locked 2026-11-05)
 

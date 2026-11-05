@@ -1,7 +1,7 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.6.1 "Signs of Life"** on top of v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
+Current build: **v0.7.0 "Sandbox & Soundtrack"** (M5 steps 1–7) on top of v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
 Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
 desktop builds). v0.6.1 "Signs of Life" redrew the diorama people (people.ts, life.ts), lighting and depth, decluttered the world map
 and cleaned up the off-world dither. v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
@@ -322,7 +322,7 @@ builds — then v1.0.0. Later: Type II as an Act VI that continues a finished sa
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
 **Still open:**
-- M5 (branch `m5`, SPEC §21): built through step 7 (playtest log + notes, the balance report and first retune, sandbox,
+- M5 (SPEC §21): steps 1–7 shipped in v0.7.0 (playtest log + notes, the balance report and first retune, sandbox,
   achievements, era music + ambience + new sounds, the menu tour's Act III–V shots, governors, the Moon lander, rewilding,
   a phone pass). Waiting for the user's full playthrough (Settings → Gameplay → Playtest notes; Data → Log), then the
   retune and v1.0.0. The music was level-checked in headless Chrome but nobody has listened to it yet.
