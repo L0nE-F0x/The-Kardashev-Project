@@ -12,6 +12,7 @@ import { segmentsLit } from '../src/sim/systemView';
 import { avgWellbeing } from '../src/sim/provinces';
 import { warming } from '../src/sim/climate';
 import { botDay5 } from './helpers/act5bot';
+import { EVENT_BY_ID } from '../src/content/events';
 import { loadWorld } from './helpers/world';
 
 const yearOf = (day: number) => dateOf(day).getUTCFullYear();
@@ -29,6 +30,17 @@ describe('Act V · Type I', () => {
     expect(s.stats.K).toBeLessThan(0.81);
     expect(s.models.length).toBeGreaterThanOrEqual(9);
     expect(s.events.active?.id).toBe('act5-begin');
+  });
+
+  it('a cast card always has a choice to take, therapies ready or not', () => {
+    const s = newAct5Game({ name: 'Cast', homeSite: 'bay-area', seed: 8 }, ctx);
+    for (const rate of [0.2, 0.5]) {
+      s.system!.lifeRate = rate;
+      for (const id of ['penny', 'juno', 'mira', 'sol', 'lena', 'kip', 'iris']) {
+        const choices = EVENT_BY_ID[`cast-${id}`].choices(s, {});
+        expect(choices.some((c) => !c.disabled), `cast-${id} at lifeRate ${rate}`).toBe(true);
+      }
+    }
   });
 
   it('migrates an Act IV save (no system yet)', () => {

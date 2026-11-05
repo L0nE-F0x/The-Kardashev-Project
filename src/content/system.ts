@@ -25,7 +25,14 @@ export const SYSTEM = {
   /** Foundry doubling time in months at 40% reinvestment, by growth dial 1..5. */
   doubling: [58, 44, 34, 26, 19],
   /** Chance each doubling sets a strain drifting, by dial (sentinels cut it). */
-  driftPerDoubling: [0.004, 0.012, 0.03, 0.06, 0.11],
+  driftPerDoubling: [0.004, 0.012, 0.03, 0.08, 0.16],
+  /** How fast a drifting strain spreads, drift points a day by dial (sentinels slow it): fast copies drift fast. */
+  driftGrowth: [0.12, 0.18, 0.27, 0.45, 0.7],
+  /** Halting a foundry to verify every copy, by dial: days stopped and the share of capacity kept. */
+  verifyDays: [60, 75, 90, 115, 140],
+  verifyKeep: [0.95, 0.93, 0.9, 0.85, 0.8],
+  /** The strain that breaks loose in Solar Maximum starts this far gone, by dial. */
+  stormStrain: [18, 26, 34, 50, 70],
   /** Output capacity a new seed starts with, Mt a year. */
   seedMt: 0.12,
   /** Megatonnes of product per TW: thin-film collectors (~40 TW a Mt), compute-ring radiators, habitats. */
@@ -38,10 +45,18 @@ export const SYSTEM = {
   popPerTW: { settle: 0.1, private: 0.05, stations: 0.012 },
   lifeExp0: 78,
   solarMaxDays: 120,
+  /** Solar Maximum: the storm pushes every front this much a day; preparation can blunt up to `smShield` of it, no more. */
+  smBase: 0.7,
+  smShield: 0.3,
+  /** Each Type I checklist item still open when the storm comes: starting pressure and pressure a day on its front. */
+  smOpenStart: 8,
+  smOpenDay: 0.2,
   /** 1 Jan 2105: Solar Maximum starts by then even if the checklist isn't met. */
   deadline: dayOf(2105),
-  /** The last climb gives up after this many years (a stalled run still ends). */
+  /** The last climb's expected length (it runs on until Kardashev reaches 1.0000 whatever this says). */
   lastClimbMaxYears: 12,
+  /** In the last climb everyone pushes: foundry growth ×(1 + years into the climb)^this, so it always arrives. */
+  climbPush: 2,
   /** Stage gates fall back to these many days in a stage. */
   stageMaxDays: [400, 2600, 2600, 3000],
   /** Years an era plan can jump. */
@@ -134,6 +149,8 @@ export const PRIORITY5_IDS = Object.keys(PRIORITIES5) as EraPriority[];
 // ════════════════════════════════════════ SOLAR MAXIMUM ════════════════════════════════════════
 export const MAX_FRONTS: MaxFront[] = ['storm', 'thermal', 'minds'];
 export const MAX_FRONT_NAMES: Record<MaxFront, string> = { storm: 'The Storm', thermal: 'The Thermal Line', minds: 'The Minds' };
+/** The Type I checklist items that guard each front: any still open when the storm comes adds pressure there. */
+export const MAX_FRONT_ITEMS: Record<MaxFront, string[]> = { storm: [], thermal: ['line', 'wellbeing', 'warming'], minds: ['minds', 'margin'] };
 
 // ════════════════════════════════════════ CAST ════════════════════════════════════════
 /** Speakers new in Act V (event cards use `ceo:<id>`): successors, new faces and the minds' envoy. */

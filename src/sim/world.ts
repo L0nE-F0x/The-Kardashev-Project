@@ -15,7 +15,7 @@ import { clamp, yearsElapsed } from './core';
 import { modAdd, techMult } from './effects';
 import { PLANET } from '../content/planet';
 import { SITE_BY_ID } from '../content/sites';
-import { allJoined, gridGrowth, gridYield, inMainGrid } from './supergrid';
+import { allJoined, gridGrowth, gridInfo, gridYield, type GridInfo } from './supergrid';
 import { fusionTW } from './fusion';
 import { aiGrowth } from './airegions';
 import { avgWellbeing } from './provinces';
@@ -33,33 +33,42 @@ export function hvdcOnline(s: GameState): string[] {
   return [...new Set((s.charter?.projects ?? []).filter((p) => p.kind === 'hvdc' && p.status === 'done').map((p) => p.where))];
 }
 
+/** What every site's yield shares (research, missions, links, the grid), worked out once per batch of sites. */
+export interface YieldBase {
+  energy: number;
+  backbone: boolean;
+  hvdc: string[];
+  grid: GridInfo | null;
+}
+const yieldBase = (s: GameState): YieldBase => ({ energy: techMult(s, 'energyYield'), backbone: missionDone(s, 'backbone'), hvdc: hvdcOnline(s), grid: s.planet ? gridInfo(s) : null });
+
 /** How much of a megaproject's output reaches customers (links, missions, research). */
-export function siteYield(s: GameState, siteId: string): number {
-  let y = techMult(s, 'energyYield');
-  if (missionDone(s, 'backbone')) y *= 1.15;
-  const linked = hvdcOnline(s).some((id) => HVDC_ROUTES.find((r) => r.id === id)?.mega === siteId);
+export function siteYield(s: GameState, siteId: string, base: YieldBase = yieldBase(s)): number {
+  let y = base.energy;
+  if (base.backbone) y *= 1.15;
+  const linked = base.hvdc.some((id) => HVDC_ROUTES.find((r) => r.id === id)?.mega === siteId);
   if (linked) y *= 1.1;
   // Act IV: on the supergrid, energy follows the daylight (and an AI may dispatch it)
-  if (s.planet) y *= gridYield(s, (SITE_BY_ID[siteId]?.region ?? siteId) as RegionId);
+  if (s.planet) y *= gridYield(s, (SITE_BY_ID[siteId]?.region ?? siteId) as RegionId, base.grid ?? undefined);
   return y;
 }
 
 /** Charter clean energy online, TW average, after yields. */
-export function charterTW(s: GameState): number {
+export function charterTW(s: GameState, base: YieldBase = yieldBase(s)): number {
   let gw = 0;
   for (const p of s.charter?.projects ?? []) {
     if (p.status !== 'done' || !ENERGY_KINDS.includes(p.kind)) continue;
-    gw += (p.gw ?? 0) * siteYield(s, p.where);
+    gw += (p.gw ?? 0) * siteYield(s, p.where, base);
   }
   return gw / 1000;
 }
 
 /** Charter GW online per bloc (for the World screen and retirement maths). */
-export function charterGWByRegion(s: GameState): Partial<Record<RegionId, number>> {
+export function charterGWByRegion(s: GameState, base: YieldBase = yieldBase(s)): Partial<Record<RegionId, number>> {
   const out: Partial<Record<RegionId, number>> = {};
   for (const p of s.charter?.projects ?? []) {
     if (p.status !== 'done' || !ENERGY_KINDS.includes(p.kind)) continue;
-    out[p.region] = (out[p.region] ?? 0) + (p.gw ?? 0) * siteYield(s, p.where);
+    out[p.region] = (out[p.region] ?? 0) + (p.gw ?? 0) * siteYield(s, p.where, base);
   }
   return out;
 }
@@ -115,8 +124,13 @@ export function worldGrowth(s: GameState): number {
     0,
     s.planet ? PLANET.maxGrowth : CHARTER.maxGrowth,
   );
-  // Act V: Earth's own economy stops growing at the Thermal Line (the rest of the climb is in space)
-  if (s.system?.thermalLine) return Math.min(g, PLANET.maxGrowth * clamp((1 - earthOwnTW(s) / lineTW(s)) / 0.12, 0, 1));
+  // Act V: Earth's own economy stops growing at the Thermal Line (the rest of the climb is in space),
+  // and over the line (a tighter line, a hot summer) its plants wind down until it is back under it
+  if (s.system?.thermalLine) {
+    const over = earthOwnTW(s) / lineTW(s) - 1;
+    if (over > 0) return -Math.min(0.03, 0.005 + over);
+    return Math.min(g, PLANET.maxGrowth * clamp(-over / 0.12, 0, 1));
+  }
   return g;
 }
 
@@ -134,10 +148,11 @@ export function tickWorld(s: GameState): void {
   const c = s.charter;
   if (!c) return;
   const w = c.world;
-  w.charterTW = charterTW(s);
+  const base = yieldBase(s);
+  w.charterTW = charterTW(s, base);
   w.growth = worldGrowth(s);
   w.newClean = newCleanShare(s);
-  const local = charterGWByRegion(s);
+  const local = charterGWByRegion(s, base);
   const megaRegions = new Set(MEGA_SITES.filter((m) => (c.projects ?? []).some((p) => p.where === m.id && p.status === 'done')).map((m) => m.region));
   let total = 0;
   let co2 = 0;
@@ -151,7 +166,7 @@ export function tickWorld(s: GameState): void {
     const fossil = b.tw * (1 - b.clean);
     const localShare = (local[r] ?? 0) / 1000 / Math.max(0.1, b.tw);
     // Act IV: cheap firm fusion and the supergrid push the rest of the fossil fleet out faster
-    const act4Retire = s.planet ? (inMainGrid(s, r) ? 0.02 : 0) + 0.03 * Math.min(1, fusionTW(s) / 5) : 0;
+    const act4Retire = s.planet ? (base.grid!.main.has(r) ? 0.02 : 0) + 0.03 * Math.min(1, fusionTW(s) / 5) : 0;
     const retire = (fossil * (0.012 + 0.05 * Math.min(1, localShare) + (passed(s, 'fossil-freeze') ? 0.006 : 0) + act4Retire)) / 365;
     cleanTW += Math.min(fossil, retire);
     b.tw += added;

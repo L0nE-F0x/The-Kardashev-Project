@@ -29,6 +29,8 @@ const sy = (s: GameState) => s.system!;
 const year = (s: GameState) => new Date(Date.UTC(2027, 0, 1) + (s.system?.typeI ?? s.day) * 86_400_000).getUTCFullYear();
 const minWb = (s: GameState) => Math.min(...REGION_IDS.map((r) => s.planet?.provinces[r].wellbeing ?? 50));
 const greenest = (s: GameState) => REGIONS[[...REGION_IDS].sort((a, b) => sy(s).garden[b] - sy(s).garden[a])[0]].name;
+/** A first name for the epilogues (“Dr. Lena Moreau” → “Lena”). */
+const first = (name: string) => name.replace(/^Dr\. /, '').split(' ')[0];
 const forgiest = (s: GameState) => REGIONS[[...REGION_IDS].sort((a, b) => sy(s).garden[a] - sy(s).garden[b])[0]].name;
 
 export const EPILOGUES: EpilogueDef[] = [
@@ -167,8 +169,8 @@ export const EPILOGUES: EpilogueDef[] = [
       const parts: string[] = [];
       for (const id of AGING_CAST as AdvisorId[]) {
         const f = sy(s).cast[id]?.fate;
-        const name = ADVISORS[id].name.split(' ')[0];
-        if (f === 'retired' && SUCCESSOR[id]) parts.push(`${name} retired; ${CAST5[SUCCESSOR[id]!].name.split(' ')[0]} has the desk.`);
+        const name = first(ADVISORS[id].name);
+        if (f === 'retired' && SUCCESSOR[id]) parts.push(`${name} retired; ${first(CAST5[SUCCESSOR[id]!].name)} has the desk.`);
         else if (f === 'renewed') parts.push(`${name} took the treatments and is still here.`);
       }
       return parts.length ? parts.join(' ') : 'The old team is still the team, greyer and louder than ever.';
@@ -178,7 +180,7 @@ export const EPILOGUES: EpilogueDef[] = [
   {
     id: 'next-swarm', topic: 'next', title: 'Next: Mercury', speaker: () => 'kip',
     when: (s) => sy(s).next !== 'rest',
-    body: (s) => `Type I, ${year(s)}. Ten petawatts is a ring of light around the Sun one ten-billionth of the way to catching all of it. Kip has a plan to take Mercury apart and build the rest. It will take a century. He says he has the time.\n\nType II is K 2.00: about a hundred thousand times more.`,
+    body: (s) => `Type I, ${year(s)}. Ten petawatts is a ring of light around the Sun that catches about one forty-billionth of it. Kip has a plan to take Mercury apart and build the rest. It will take a century. He says he has the time.\n\nType II is K 2.00: ten billion times more.`,
   },
   {
     id: 'next-rest', topic: 'next', title: 'Enough, for now', speaker: () => 'iris',

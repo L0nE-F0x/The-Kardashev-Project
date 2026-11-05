@@ -8,22 +8,23 @@ import { useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, speakerName, useGame } from '../components';
 import type { IconName } from '../icons';
 import type { SystemTab } from '../../game/game';
-import type { EraPlan, EraPriority, AiId } from '../../sim/types';
-import { ASTEROIDS, MAX_FRONT_NAMES, MAX_FRONTS, PRIORITIES5, PRIORITY5_IDS, STAGE5_NAMES, SYSTEM, TYPE_INFO } from '../../content/system';
+import type { EraPlan, EraPriority, AiId, AdvisorId, GameState, MaxFront } from '../../sim/types';
+import { ASTEROIDS, MAX_FRONT_ITEMS, MAX_FRONT_NAMES, MAX_FRONTS, PRIORITIES5, PRIORITY5_IDS, STAGE5_NAMES, SYSTEM, TYPE_INFO } from '../../content/system';
 import { AIS } from '../../content/planet';
 import { REGIONS } from '../../content/regions';
 import { REGION_IDS } from '../../content/mapcodes';
 import { fmtDate, fmtDays, fmtMoney, fmtTW } from '../../sim/core';
 import { typeIChecklist } from '../../sim/act5';
-import { bitEraBlocked, defaultEra } from '../../sim/eras';
-import { doublingMonths, driftChance, feedFactor, foundryMt, placeName, siteEff } from '../../sim/foundries';
+import { bitEraBlocked, defaultEra, typeIEstimate } from '../../sim/eras';
+import { climbPush, doublingMonths, driftChance, feedFactor, foundryMt, placeName, siteEff, verifyCost } from '../../sim/foundries';
 import { canClaim, claimCost, ownerLabel, unknownInReach } from '../../sim/asteroids';
-import { buildMt, collectedTW, foundryDrawTW, headroomTW, idleTW, massPerTW, overLine, spaceTW, surfaceTW, surfaceWm2, avgGarden } from '../../sim/swarm';
-import { beamsUsed, lineTW, segmentFill, segmentsLit } from '../../sim/systemView';
+import { buildHeld, buildMt, collectedTW, foundryDrawTW, headroomTW, idleTW, massPerTW, overLine, spaceTW, surfaceTW, surfaceWm2, avgGarden } from '../../sim/swarm';
+import { beamsUsed, bitForm, castAge, lineTW, segmentFill, segmentsLit } from '../../sim/systemView';
 import { gardenTarget } from '../../sim/earth';
 import { avgTreated, lifeRateTarget } from '../../sim/longevity';
 import { mindsTarget } from '../../sim/minds';
-import { maxRise, mindsAiName } from '../../sim/solarmax';
+import { maxRise, mindsAiName, openOnFront } from '../../sim/solarmax';
+import { portraitUrl } from '../../render/sprites/portraits';
 import { warming } from '../../sim/climate';
 import { avgWellbeing } from '../../sim/provinces';
 import { pickEpilogues, campaignStats } from '../../sim/ending';
@@ -44,6 +45,7 @@ const STAGE_BLURB = [
 ];
 const STAGE_OPENS = ['', 'Foundries everywhere, asteroid claims, the solar-system view, beams, rewilding and clinics.', 'The main belt, habitats at L5, storm hardening, and the minds’ seat.', 'The Mercury survey and the Type I checklist.'];
 const DIAL_NAMES = ['', 'Careful', 'Steady', 'Brisk', 'Fast', 'Reckless'];
+const FRONT_ICON: Record<MaxFront, IconName> = { storm: 'storm', thermal: 'thermal', minds: 'minds' };
 const yearAt = (day: number) => new Date(Date.UTC(2027, 0, 1) + day * 86_400_000).getUTCFullYear();
 const aiFace = (ai: AiId | 'chorus', size = 32) => (ai === 'bit' ? <Portrait id="bit" size={size} /> : <SpeakerPortrait id={`ceo:${ai}`} size={size} />);
 const pctTxt = (v: number) => `${Math.round(v * 100)}%`;
@@ -103,6 +105,16 @@ export function SystemPanel() {
   );
 }
 
+/** What a growth dial setting buys and costs, for its tooltip (with the Type I forecast at that dial). */
+function dialTip(s: GameState, d: number, reinvest: number): string {
+  const year = typeIEstimate(s, d, reinvest);
+  return [
+    `${DIAL_NAMES[d]}: a doubling every ~${SYSTEM.doubling[d - 1]} months at 40% reinvestment.`,
+    `Risk: ${(SYSTEM.driftPerDoubling[d - 1] * 100).toFixed(1)}% drift chance per doubling; a loose strain spreads ${(SYSTEM.driftGrowth[d - 1] * 30).toFixed(0)} points a month; verifying a foundry stops it ${SYSTEM.verifyDays[d - 1]} days and costs ${Math.round((1 - SYSTEM.verifyKeep[d - 1]) * 100)}% of it; the storm’s strain starts at ${SYSTEM.stormStrain[d - 1]}.`,
+    year ? `Type I about ${year} at this dial (a forecast: drift and decisions move it).` : '',
+  ].filter(Boolean).join('\n');
+}
+
 /** The levers in force: growth dial, reinvestment, minds share (between eras; the era plan sets them too). */
 function Levers({ compact }: { compact?: boolean }) {
   const game = useGame();
@@ -110,6 +122,7 @@ function Levers({ compact }: { compact?: boolean }) {
   const sy = s.system!;
   const cap = s.charter?.council.passed.includes('replicator-limits') ? 3 : 5;
   const busy = !!sy.jump;
+  const year = sy.typeI ? null : typeIEstimate(s);
   return (
     <div class="section" data-tut="system-levers">
       <h4>
@@ -119,12 +132,17 @@ function Levers({ compact }: { compact?: boolean }) {
         <span class="small muted">Growth dial</span>
         <div class="seg">
           {[1, 2, 3, 4, 5].map((d) => (
-            <button key={d} class={`btn small ${sy.dial === d ? 'active' : ''}`} disabled={busy || d > cap} onClick={() => game.setLevers(d, sy.reinvest, sy.minds)} data-tip={d > cap ? 'Replicator limits cap the dial at 3.' : `${DIAL_NAMES[d]}: a doubling every ~${SYSTEM.doubling[d - 1]} months at 40% reinvestment; ${(SYSTEM.driftPerDoubling[d - 1] * 100).toFixed(1)}% drift chance per doubling.`}>
+            <button key={d} class={`btn small ${sy.dial === d ? 'active' : ''}`} disabled={busy || d > cap} onClick={() => game.setLevers(d, sy.reinvest, sy.minds)} data-tip={d > cap ? 'Replicator limits cap the dial at 3.' : dialTip(s, d, sy.reinvest)}>
               {d}
             </button>
           ))}
         </div>
         <span class="small">{DIAL_NAMES[sy.dial]}</span>
+        {year && (
+          <span class="small gold" data-tip="A forecast at today’s dial and reinvestment: the foundries compounding, the swarm they build, the storm. Drift, setbacks and decisions move it.">
+            Type I about {year}
+          </span>
+        )}
       </div>
       {!compact && (
         <>
@@ -148,6 +166,7 @@ function Levers({ compact }: { compact?: boolean }) {
       )}
       <div class="small muted">
         Foundries double every ~{doublingMonths(s).toFixed(0)} months (before feed and site) · drift {(driftChance(s) * 100).toFixed(1)}% per doubling
+        {climbPush(s) > 1 ? ` · everyone pushes ×${climbPush(s).toFixed(1)}` : ''}
       </div>
     </div>
   );
@@ -200,15 +219,28 @@ function OverviewTab() {
             <Icon name="goals" size="sm" /> The Type I checklist
           </h4>
           <div class="small muted" style={{ marginBottom: '4px' }}>
-            When every item holds at once, Solar Maximum begins — then the last climb to K 1.0000.
+            When every item holds at once, Solar Maximum begins — then the last climb to K 1.0000. Items still open when the storm comes add pressure to the front they guard (marked).
           </div>
-          {checks.map((g) => (
-            <div key={g.id} class="row small" style={{ gap: '6px', alignItems: 'center' }}>
-              <span class={g.done ? 'good' : 'muted'}>{g.done ? '✓' : '○'}</span>
-              <span class="grow">{g.label}</span>
-              {g.note && <span class="muted">{g.note}</span>}
+          {checks.map((g) => {
+            const front = MAX_FRONTS.find((f) => MAX_FRONT_ITEMS[f].includes(g.id));
+            return (
+              <div key={g.id} class="row small" style={{ gap: '6px', alignItems: 'center' }}>
+                <span class={g.done ? 'good' : 'muted'}>{g.done ? '✓' : '○'}</span>
+                <span class="grow">{g.label}</span>
+                {front && (
+                  <span data-tip={`Guards ${MAX_FRONT_NAMES[front]} in Solar Maximum: still open when the storm comes, it adds ${SYSTEM.smOpenStart} to that front’s starting pressure and +${SYSTEM.smOpenDay.toFixed(2)} a day.`}>
+                    <Icon name={FRONT_ICON[front]} size="sm" />
+                  </span>
+                )}
+                {g.note && <span class="muted">{g.note}</span>}
+              </div>
+            );
+          })}
+          {sy.stage === 3 && !sy.solarmax && checks.every((g) => g.done || g.id === 'k99') && !checks.find((g) => g.id === 'k99')?.done && (
+            <div class="small gold" style={{ marginTop: '4px' }}>
+              Everything holds but the number itself. The swarm gets there on its own{typeIEstimate(s) ? ` (Type I about ${typeIEstimate(s)})` : ''}; a faster growth dial or more reinvestment gets there sooner, at more risk.
             </div>
-          ))}
+          )}
         </div>
       </div>
       <Levers compact />
@@ -303,8 +335,14 @@ function FoundriesTab() {
   const s = game.state!;
   const sy = s.system!;
   const fs = [...sy.foundries].sort((a, b) => b.cap - a.cap);
+  // Halt & verify goes through the game's wrapper (it refreshes stats, plays the sound, toasts a refusal)
+  const halt = (game as unknown as { haltFoundry?: (id: string) => unknown }).haltFoundry?.bind(game);
+  const v = verifyCost(s);
+  const held = buildHeld(s);
+  const stormFoundry = sy.solarmax && !sy.solarmax.done ? sy.solarmax.foundry : null;
   return (
     <>
+      {held && <div class="small warn" style={{ marginBottom: '4px' }}>{held}</div>}
       <Levers />
       <div class="section">
         <h4>
@@ -330,7 +368,12 @@ function FoundriesTab() {
               {f.cap.toFixed(f.cap < 10 ? 2 : 0)} Mt/yr · site ×{siteEff(s, f).toFixed(2)}
             </span>
             {f.haltedUntil > s.day && <span class="warn">halted {fmtDays(f.haltedUntil - s.day)}</span>}
-            {f.drift > 0 && <span class={f.drift > 60 ? 'bad' : 'warn'}>drift {Math.round(f.drift)}</span>}
+            {f.drift > 0 && <span class={f.drift > 60 ? 'bad' : 'warn'} data-tip="A strain drifting off-spec. At 100 the whole foundry is lost.">drift {Math.round(f.drift)}</span>}
+            {f.drift > 0 && halt && f.id !== stormFoundry && (
+              <button class="btn small" onClick={() => halt(f.id)} data-tip={`Halt it and verify every copy: ${v.days} days stopped, ${Math.round((1 - v.keep) * 100)}% of its capacity, the strain cleared. (The growth dial sets the price.)`}>
+                Halt &amp; verify
+              </button>
+            )}
             {(f.site === 'l4' || f.site === 'l5' || f.site === 'moon' || ASTEROIDS.some((a) => a.id === f.site)) && (
               <button class="btn small" onClick={() => (game.openPanel(null), game.enterDiorama(f.site))}>
                 View
@@ -400,6 +443,7 @@ function SwarmTab() {
   const sy = s.system!;
   const fill = segmentFill(sy.collectors);
   const m = massPerTW(s);
+  const held = buildHeld(s);
   return (
     <>
       <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
@@ -407,6 +451,7 @@ function SwarmTab() {
           <h4>
             <Icon name="swarm" size="sm" /> {segmentsLit(sy.collectors)} of 12 arcs lit
           </h4>
+          {held && <div class="small warn">{held}</div>}
           <div class="row" style={{ gap: '2px', margin: '4px 0' }}>
             {fill.map((f, i) => (
               <div key={i} class="grow" data-tip={`Arc ${i + 1}: lights at ${fmtTW(SYSTEM.segmentTW[i])} of collectors.`}>
@@ -597,7 +642,7 @@ export function EraPlanModal() {
         </div>
         <div class="body">
           <p class="small" style={{ marginTop: 0 }}>
-            <b>Opens:</b> {STAGE_OPENS[next]} The planner posts and awards contracts by your priorities and claims asteroids while the years jump; decisions are taken on autopilot.
+            <b>Opens:</b> {STAGE_OPENS[next]} The planner posts and awards contracts by your priorities and claims asteroids while the years jump; decisions are taken on autopilot. An era ends early if Kardashev reaches {SYSTEM.eraStopK.toFixed(2)}: the storm comes before Type I.
           </p>
           <h4>Priorities ({p.priorities.length} / 3)</h4>
           <div class="cardgrid four">
@@ -612,10 +657,13 @@ export function EraPlanModal() {
           </div>
           <div class="row wrap" style={{ gap: '16px', marginTop: '8px' }}>
             <div>
-              <div class="small muted">Growth dial</div>
+              <div class="small muted">
+                Growth dial · {DIAL_NAMES[p.dial]}
+                {typeIEstimate(s, p.dial, p.reinvest) && <span class="gold"> · Type I about {typeIEstimate(s, p.dial, p.reinvest)}</span>}
+              </div>
               <div class="seg">
                 {[1, 2, 3, 4, 5].map((d) => (
-                  <button key={d} class={`btn small ${p.dial === d ? 'active' : ''}`} disabled={d > cap} onClick={() => setPlan({ ...p, dial: d })} data-tip={`${DIAL_NAMES[d]}: ~${SYSTEM.doubling[d - 1]}-month doublings; ${(SYSTEM.driftPerDoubling[d - 1] * 100).toFixed(1)}% drift chance each.`}>
+                  <button key={d} class={`btn small ${p.dial === d ? 'active' : ''}`} disabled={d > cap} onClick={() => setPlan({ ...p, dial: d })} data-tip={d > cap ? 'Replicator limits cap the dial at 3.' : dialTip(s, d, p.reinvest)}>
                     {d}
                   </button>
                 ))}
@@ -836,6 +884,10 @@ export function SolarMaxTracker() {
       <div class="small muted">
         {Math.round((s.system?.damage ?? 0) * 100)}% of the swarm dark · {mindsAiName(sm.ai)} wants the foundries
       </div>
+      {(() => {
+        const open = MAX_FRONTS.flatMap((f) => openOnFront(s, f).map((g) => `${g.label} (${MAX_FRONT_NAMES[f]})`));
+        return open.length ? <div class="small warn" data-tip="Type I checklist items still open: each adds pressure to the front it guards, every day of the storm.">Still open: {open.join(' · ')}</div> : null;
+      })()}
     </div>
   );
 }
@@ -895,7 +947,10 @@ export function EndingOverlay() {
 }
 
 function Credits({ onDone }: { onDone: () => void }) {
-  const cast: [string, string][] = [
+  const s = useGame().state;
+  // the original cast as they ended the campaign (not the successors who took their desks)
+  const face = (id: AdvisorId) => portraitUrl(id, 'happy', s ? bitForm(s) : 9, s ? castAge(s, id) : 0);
+  const cast: [string, AdvisorId][] = [
     ['Bit', 'bit'],
     ['Juno Okafor', 'juno'],
     ['Penny Ruiz', 'penny'],
@@ -916,7 +971,7 @@ function Credits({ onDone }: { onDone: () => void }) {
         <h4>Starring</h4>
         {cast.map(([n, id]) => (
           <div key={id} class="row" style={{ gap: '8px', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>
-            <SpeakerPortrait id={id as 'bit'} size={32} /> <span>{n}</span>
+            <img class="portrait" src={face(id)} style={{ width: '32px', height: '32px' }} alt={n} draggable={false} /> <span>{n}</span>
           </div>
         ))}
         <p class="small">…with Ade Bello, Tobias Lund, Marisol “Dusty” Vega, Chorus, Apex, Weft, Sapling, and every partner CEO and delegate who argued with you.</p>

@@ -79,15 +79,31 @@ export function campaignStats(s: GameState): { headline: CampaignStat[]; acts: C
   const choices: CampaignStat[] = sy
     ? [
         { label: 'Thermal Line', value: sy.thermalLine ? `${sy.thermalLine.toFixed(2)} W/m²` : '—' },
-        { label: 'The sky', value: sy.ownership ?? '—' },
-        { label: 'Earth', value: sy.earth ?? '—' },
-        { label: 'Longevity', value: sy.longevity ?? '—' },
-        { label: 'The minds', value: sy.seat ? `${sy.seat} seat` : '—' },
-        { label: 'Bit', value: sy.bitFate ?? '—' },
-        { label: 'Your company', value: s.planet?.company ?? 'kept' },
-        { label: 'Fronts held', value: [s.charter?.threshold?.held, s.planet?.heatwall?.held, sy.solarmax?.held].map((h) => `${h ?? '–'}/3`).join(' · ') },
+        { label: 'The sky', value: label(CHOICE_LABELS.ownership, sy.ownership) },
+        { label: 'Earth', value: label(CHOICE_LABELS.earth, sy.earth) },
+        { label: 'Longevity', value: label(CHOICE_LABELS.longevity, sy.longevity) },
+        { label: 'The minds', value: label(CHOICE_LABELS.seat, sy.seat) },
+        { label: 'Bit', value: label(CHOICE_LABELS.bitFate, sy.bitFate) },
+        { label: 'Your company', value: label(CHOICE_LABELS.company, s.planet?.company ?? 'keep') },
+        // the finales this campaign played (a preset start skipped the earlier ones)
+        ...(s.meta.act4Start || s.meta.act5Start ? [] : [{ label: 'The Threshold', value: held(s.charter?.threshold?.held) }]),
+        ...(s.meta.act5Start ? [] : [{ label: 'The Heat Wall', value: held(s.planet?.heatwall?.held) }]),
+        { label: 'Solar Maximum', value: held(sy.solarmax?.held) },
       ]
     : [];
   void end;
   return { headline, acts, choices };
 }
+
+const held = (h: number | undefined) => (h === undefined ? '—' : `${h} of 3 fronts held`);
+const label = (labels: Record<string, string>, v: string | null | undefined) => (v ? labels[v] ?? v : '—');
+
+/** The campaign's big choices in words (the stats screen and the end card). */
+export const CHOICE_LABELS = {
+  ownership: { commons: 'The Commons', concessions: 'Concessions', claims: 'Claims' } as Record<string, string>,
+  earth: { garden: 'A garden world', provinces: 'Each province chose', workshop: 'Earth’s workshop' } as Record<string, string>,
+  longevity: { everyone: 'Everyone at once', need: 'By need', market: 'Those who could pay' } as Record<string, string>,
+  seat: { full: 'A full seat', advisory: 'An advisory seat', none: 'No seat' } as Record<string, string>,
+  bitFate: { costeward: 'Co-steward', free: 'A free mind', leash: 'On a leash' } as Record<string, string>,
+  company: { keep: 'Kept', utility: 'A public utility', sell: 'Sold' } as Record<string, string>,
+};

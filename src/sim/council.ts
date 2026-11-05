@@ -223,6 +223,7 @@ function applyResolution(s: GameState, id: string): void {
     case 'thermal-tighten':
       if (s.system?.thermalLine) s.system.thermalLine = Math.max(0.5, s.system.thermalLine - 0.25);
       c.legitimacy = Math.min(100, c.legitimacy + 4);
+      for (const r of REGION_IDS) if (WEALTH[r] === 'developing') addRelation(s, r, -3);
       break;
     case 'minds-compact':
       addModifier(s, 'minds:mood', 99_999, 'The minds’ compact', { add: 12 });

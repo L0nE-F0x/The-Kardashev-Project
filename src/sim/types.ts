@@ -776,6 +776,8 @@ export interface Foundry {
   drift: number;
   /** Halted (sterilising, verifying) until this day. */
   haltedUntil: number;
+  /** The drift level when its strain last got a card (unset: no card yet, so one comes). */
+  carded?: number;
 }
 
 export interface AsteroidState {

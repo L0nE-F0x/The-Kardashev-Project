@@ -21,10 +21,10 @@ import { warming } from './climate';
 import { worldMargin } from './frontier';
 import { autoResolve, plannerTick } from './plans';
 import { enterStage5 } from './act5';
-import { feedFactor, foundryMt, seedPlaces } from './foundries';
+import { climbPush, feedFactor, foundryMt, growthMult, seedPlaces, siteEff } from './foundries';
 import { claimAsteroid, canClaim, claimCost, unknownInReach } from './asteroids';
-import { headroomTW, spaceTW, surfaceTW } from './swarm';
-import { beamsUsed, placeOf, segmentsLit } from './systemView';
+import { headroomTW, massPerTW, spaceTW, surfaceTW } from './swarm';
+import { beamsUsed, earthOwnTW, lineTW, placeOf, segmentsLit } from './systemView';
 import { gardenTarget } from './earth';
 
 type Result = { ok: true } | { ok: false; reason: string };
@@ -36,7 +36,8 @@ export function defaultEra(s: GameState): EraPlan {
   const sy = s.system!;
   const next = sy.stage + 1;
   const priorities = next === 1 ? (['foundries', 'asteroids', 'swarm'] as const) : next === 2 ? (['swarm', 'minds', 'earth'] as const) : (['swarm', 'people', 'longevity'] as const);
-  return { years: next === 1 ? 5 : 7, priorities: [...priorities], dial: sy.dial, reinvest: sy.reinvest, minds: sy.minds, reserve: 0.25, bitRuns: false };
+  // the third era runs long: it stops by itself when Kardashev reaches 0.99, so the storm comes without years of waiting
+  return { years: next === 1 ? 5 : next === 2 ? 7 : 10, priorities: [...priorities], dial: sy.dial, reinvest: sy.reinvest, minds: sy.minds, reserve: 0.25, bitRuns: false };
 }
 
 /** Why Bit can't run the era, or null. */
@@ -66,6 +67,61 @@ export function snap5(s: GameState): SystemSnap {
     budget: s.charter?.budget ?? 0,
     legitimacy: s.charter?.legitimacy ?? 0,
   };
+}
+
+/**
+ * A rough forecast of the Type I year at a growth dial and reinvestment, for the era plan and the
+ * System panel: the foundries compound (slowing as their supply lines lengthen), what they build
+ * becomes swarm, and the yards stand down for the storm. It ignores drift, setbacks and the decisions
+ * still to come, so the UI says "about".
+ */
+export function typeIEstimate(s: GameState, dial = s.system?.dial ?? 3, reinvest = s.system?.reinvest ?? 0.45): number | null {
+  const sy = s.system;
+  if (!sy) return null;
+  if (sy.typeI) return yearOf(sy.typeI);
+  const mt = foundryMt(s);
+  const reachOf = (cap: number) => 1 / (1 + 0.35 * Math.log10(1 + cap / 2));
+  // early on the industry still has its research, its fed yards, the minds' designs and its asteroid
+  // types to come (measured on the guard-rail runs: about +20% growth and −15% mass per TW by stage 2)
+  const young = sy.stage === 0 ? 1 : sy.stage === 1 ? 0.5 : 0;
+  // research, ownership, the minds and any setbacks in force (the reach part and the climb's push are redone below)
+  const mult = (growthMult(s) / reachOf(mt) / climbPush(s)) * (1 + 0.12 * young);
+  const eff = Math.max(mt > 0 ? sy.foundries.reduce((a, f) => a + f.cap * siteEff(s, f), 0) / mt : 1, 1 + 0.08 * young);
+  const m = massPerTW(s);
+  const perTW = (1.04 * m.collectors + sy.minds * m.rings + (1 - sy.minds) * m.habitat) * (1 - 0.12 * young);
+  // Earth ends at its line (beams count as space power); the storm comes at K 0.99 or the deadline
+  let tw = Math.max(earthOwnTW(s), lineTW(s) - beamsUsed(s)) + spaceTW(s);
+  const stormTW = Math.pow(10, SYSTEM.eraStopK * 10 + 6) / 1e12;
+  // early on, the seeds the planner will plant count too
+  let cap = Math.max(mt, sy.stage <= 1 ? SYSTEM.seedMt * (4 + 3 * Math.max(1, sy.stage)) : 0);
+  const r = clamp(reinvest, 0.2, 0.7);
+  const perYear = (Math.LN2 * 12 * (r / 0.4) * mult * eff) / SYSTEM.doubling[clamp(Math.round(dial), 1, 5) - 1];
+  let years = 0;
+  const grow = (dt: number, push: number) => (cap *= Math.exp(perYear * reachOf(cap) * push * dt));
+  // where we are: in the last climb (years into it), in or before the storm (the yards' pause left), or still climbing to it
+  let climb = -1;
+  if (sy.jump?.last) climb = (s.day - sy.jump.from) / 365;
+  else if (sy.solarmax || s.flags.v3ready) {
+    const hold = sy.solarmax ? (sy.solarmax.done ? 0 : (sy.solarmax.endDay - s.day) / 365 + 0.05) : 0.4;
+    grow(hold, 1);
+    years += hold;
+    climb = 0;
+  }
+  while (tw < SYSTEM.targetTW && years < 80) {
+    // the last climb: everyone pushes, harder every year (foundries.ts climbPush)
+    grow(1 / 12, climb >= 0 ? Math.pow(1 + climb, SYSTEM.climbPush) : 1);
+    tw += (cap * eff * (1 - r)) / 12 / perTW;
+    years += 1 / 12;
+    if (climb >= 0) climb += 1 / 12;
+    else if (tw >= stormTW || s.day + years * 365.25 >= SYSTEM.deadline + 365) {
+      // the storm: the yards stand down while the foundries keep growing
+      grow(0.4, 1);
+      years += 0.4;
+      climb = 0;
+    }
+  }
+  // no foundries to speak of (all lost, none planted yet in a later stage): no honest forecast
+  return years >= 80 ? null : yearOf(s.day + Math.round(years * 365.25));
 }
 
 /** Apply an era plan's levers (dial, reinvestment, minds share). Also used by the System panel between eras. */
@@ -108,11 +164,11 @@ export function startLastClimb(s: GameState): void {
   if (sy.jump || sy.typeI) return;
   const plan = sy.plan ?? defaultEra(s);
   sy.jump = { from: s.day, to: s.day + Math.round(SYSTEM.lastClimbMaxYears * 365.25), plan: { ...plan, priorities: (['swarm', ...plan.priorities.filter((p) => p !== 'swarm')] as EraPlan['priorities']).slice(0, 3) }, before: snap5(s), stage: 5, auto: [], log: [], last: true };
-  news(s, '⏩ The last climb: the swarm grows until Kardashev reaches 1.0000.', 'event');
+  news(s, '⏩ The last climb: everyone pushes, harder every year, until Kardashev reaches 1.0000.', 'event');
 }
 
 // ════════════════════════════════════════ THE JUMP ════════════════════════════════════════
-/** Run up to `days` days of the era. Returns the record when it finishes, else null. */
+/** Run up to `days` days of the era. Returns the record when it finishes, else null. The last climb only ends on K 1.0000. */
 export function eraStep(s: GameState, ctx: SimContext, days: number): EraRecord | null {
   const sy = s.system;
   const j = sy?.jump;
@@ -121,7 +177,7 @@ export function eraStep(s: GameState, ctx: SimContext, days: number): EraRecord 
   s.flags.offline = 'jump';
   let reached = false;
   try {
-    for (let i = 0; i < days && s.day < j.to; i++) {
+    for (let i = 0; i < days && (j.last || s.day < j.to); i++) {
       const newest = s.news[0];
       tick(s, ctx);
       for (const n of s.news) {
@@ -143,7 +199,8 @@ export function eraStep(s: GameState, ctx: SimContext, days: number): EraRecord 
   } finally {
     s.flags.offline = prev ?? false;
   }
-  return reached || s.day >= j.to ? finishEra(s) : null;
+  // the last climb has no end date: it runs (pushing harder every year) until the number itself
+  return reached || (!j.last && s.day >= j.to) ? finishEra(s) : null;
 }
 
 /** Run a whole era at once (tests, bots). */
@@ -183,18 +240,22 @@ function finishEra(s: GameState): EraRecord {
   sy.jump = null;
   sy.stageDay = s.day;
   s.flags[`vstage${j.stage}Day`] = s.day;
-  if (j.last) {
-    if (s.stats.K >= 1) reachTypeI(s);
-    else {
-      // a stalled run: the climb gives up but the act still ends (the score is the day it got closest)
-      reachTypeI(s);
-      news(s, `⏩ The climb stalls at Kardashev ${s.stats.K.toFixed(4)}.`, 'bad');
-    }
-  } else {
+  if (j.last) reachTypeI(s);
+  else {
     news(s, `⏩ ${yearOf(j.from)}–${yearOf(s.day)}: the era is done. ${STAGE5_NAMES[j.stage]} begins in earnest.`, 'good');
     queueEvent(s, `stage5-${j.stage}`);
   }
+  spaceOutStory(s);
   return rec;
+}
+
+/**
+ * Story cards that came due while the years jumped (they wait for the player, unlike the era's
+ * decisions) arrive one at a time afterwards: the first the next day, then every twelve days.
+ */
+function spaceOutStory(s: GameState): void {
+  const due = s.events.scheduled.filter((e) => e.day <= s.day).sort((a, b) => a.day - b.day);
+  due.forEach((e, i) => (e.day = s.day + (i ? 12 * i : 1)));
 }
 
 /** Kardashev 1.0000: the score is today's date. */
@@ -218,15 +279,16 @@ function diary5(s: GameState, a: SystemSnap, b: SystemSnap, last: boolean): stri
   if (last) {
     out.push(`${y0}. The last climb. Everyone has stopped pretending not to watch the number.`);
     out.push(`The swarm went from ${fmtTW(a.spaceTW)} to ${fmtTW(b.spaceTW)}. On clear nights you can see it from the ground now: a faint gold thread where the ecliptic runs.`);
-    out.push(`${y1}. Kardashev ${b.K.toFixed(4)}. ${b.K >= 1 ? 'One. I checked it nine times.' : 'Not quite. Not yet.'}`);
+    out.push(`${y1}. Kardashev ${b.K.toFixed(4)}. ${b.K >= 1 ? 'One.' : 'Not quite. Not yet.'}`);
     return out;
   }
-  out.push(`${y0}. ${STAGE5_NAMES[sy.stage]}. I am counting in decades now.`);
+  const opener = ['', 'I used to count in days. Now I count in doublings.', 'I am counting in decades now.', 'The numbers have started to look like the ones in Kip’s spreadsheet.'][sy.stage] ?? 'Another era.';
+  out.push(`${y0}. ${STAGE5_NAMES[sy.stage]}. ${opener}`);
   if (b.foundryMt > a.foundryMt * 2) out.push(`The foundries make ${b.foundryMt.toFixed(b.foundryMt < 10 ? 1 : 0)} megatonnes a year now, up from ${a.foundryMt < 0.01 ? 'nothing' : a.foundryMt.toFixed(a.foundryMt < 10 ? 2 : 0)}. Each one is a copy of a copy of a seed Kip held in his hands.`);
-  if (b.segments > a.segments) out.push(`${b.segments} of the twelve arcs are lit. ${b.segments >= 6 ? 'Half a necklace round the Sun.' : 'From here they look like a scratch on the dark.'}`);
+  if (b.segments > a.segments) out.push(`${b.segments} of the twelve arcs are lit. ${b.segments >= 11 ? 'Very nearly a whole necklace round the Sun.' : b.segments >= 6 ? 'Half a necklace round the Sun.' : 'From here they look like a scratch on the dark.'}`);
   if (b.spaceTW > a.spaceTW + 1) out.push(`Power in space: ${fmtTW(b.spaceTW)}. Most of it thinks. Some of it is me.`);
   if (b.lifeExp > a.lifeExp + 2) out.push(`Healthy life expectancy ${b.lifeExp.toFixed(0)} years. ${sy.escape ? 'People have stopped counting birthdays the old way.' : 'The clinics are full of people who were told they were old.'}`);
-  if (b.spacePop > a.spacePop + 1) out.push(`${b.spacePop.toFixed(0)} million people live in space now. Aurora has a football league.`);
+  if (b.spacePop > a.spacePop + 1) out.push(`${b.spacePop.toFixed(0)} million people live in space now. ${s.flags.firstHabitat ? 'Aurora has a football league.' : 'Most of them sleep in the yards, between shifts.'}`);
   if (b.warming > a.warming + 0.05) out.push(`Warming ${b.warming.toFixed(2)} °C. Waste heat is the new carbon.`);
   else if (b.warming < a.warming - 0.03) out.push(`Warming ${b.warming.toFixed(2)} °C and falling. The gardens help.`);
   out.push(`${y1}. Kardashev ${b.K.toFixed(4)}, ${fmtTW(b.tw)}. ${b.K >= 0.9 ? `${(1 - b.K).toFixed(4)} to go.` : 'The curve is still bending upward.'}`);
