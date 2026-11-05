@@ -35,6 +35,8 @@ export interface MegaView {
   /** Act IV: fusion GW online here by design ('ffleet' projects), and Gt CO₂/yr of air capture online. */
   fusion: Partial<Record<FusionDesignId, number>>;
   dacGt: number;
+  /** Act V: how far the land has gone back to green (0..1): garden provinces rewild their old fields as the swarm takes over. */
+  rewild: number;
 }
 
 export interface HvdcView {
@@ -112,7 +114,18 @@ export function megaView(s: GameState | null, siteId: string): MegaView {
     kinds,
     fusion: siteFusion(s, siteId),
     dacGt: projects.filter((p) => p.kind === 'dac' && p.status === 'done').reduce((a, p) => a + CONTRACT_KINDS.dac.sizes[p.size - 1], 0),
+    rewild: rewildOf(s, site?.region),
   };
+}
+
+/** A garden province lets its old megaproject land go back to the wild, over ~15 years of Act V. */
+function rewildOf(s: GameState | null, region: RegionId | undefined): number {
+  const sy = s?.system;
+  if (!sy || !region || !s) return 0;
+  const g = sy.garden[region] ?? 0;
+  if (g <= 20) return 0;
+  const since = typeof s.flags.act5Started === 'number' ? s.day - s.flags.act5Started : 0;
+  return Math.max(0, Math.min(1, ((g - 20) / 60) * Math.min(1, since / (365 * 15))));
 }
 
 export function charterMapView(s: GameState | null): CharterMapView {

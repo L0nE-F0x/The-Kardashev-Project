@@ -169,7 +169,22 @@ function megaBlobs(mv: MegaView, res: number): Blob[] {
 export function megaPatchKey(mv: MegaView, res: number): string {
   return megaBlobs(mv, res)
     .map((b) => `${b.kind}${b.planned ? 'p' : ''}${Math.round(b.r)}@${Math.round(b.cx)},${Math.round(b.cy)}`)
-    .join(';');
+    .join(';') + `|rw${Math.round((mv.rewild ?? 0) * 10)}`;
+}
+
+/**
+ * Act V: the land takes the old fields back. A share of the painted pixels (more as `k` grows)
+ * turns to meadow and copses of tiny dotted trees, a few wildflowers; the lights go out with them.
+ */
+function rewildPatch(pc: PixelCanvas, k: number, sx: number, sy: number) {
+  for (let y = 0; y < pc.h; y++) {
+    for (let x = 0; x < pc.w; x++) {
+      if (!pc.get(x, y)) continue;
+      // copses grow in clumps (noise), the meadow fills in around them
+      const n = fbm((sx + x) / 3.5, (sy + y) / 3.5, 717);
+      if (n > 1 - k * 0.95) pc.set(x, y, n > 1 - k * 0.45 ? (hash2(x, y, 3) < 0.5 ? C.grn3 : C.grn2) : hash2(x, y, 5) < 0.06 ? C.pnk1 : hash2(x, y, 6) < 0.5 ? C.grn5 : C.grn4);
+    }
+  }
 }
 
 export interface MegaPatch {
@@ -242,6 +257,7 @@ export function megaPatchCanvas(site: SiteDef, mv: MegaView, lod: MapLod): MegaP
     }
     if (b.kind === 'hydro') damWall(pc, b, ext, ok);
   }
+  if (mv.rewild > 0 && !offshore) rewildPatch(pc, mv.rewild, sx, sy);
   return { pc, ox: -ext, oy: -ext };
 }
 
