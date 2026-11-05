@@ -18,6 +18,7 @@ import { addCapital, addLegitimacy, addPartnerRel, chEarn, chSpend } from '../si
 import { aiIncident, addTrust, canDelegate, delegate, recall, regionsOf } from '../sim/airegions';
 import { inMainGrid } from '../sim/supergrid';
 import { pressure4 } from '../sim/heatwall';
+import { stageGate } from '../sim/act4';
 import { warming } from '../sim/climate';
 import { worldMargin } from '../sim/frontier';
 import { canTable, tableResolution } from '../sim/council';
@@ -143,7 +144,8 @@ export const ACT4_EVENTS: EventDef[] = [
     title: () => `The next five years`,
     body: (s) => {
       const st = s.planet?.stage ?? 0;
-      return `${st === 0 ? 'The Mandate is settled.' : `${STAGE_NAMES[st]} has done what it set out to do.`} Time to plan the next stage: ${STAGE_NAMES[st + 1]}.\n\nPick up to three priorities, a reserve for the treasury and how long the plan runs. Then the years jump: the planner posts and awards contracts by your priorities, decisions are taken on autopilot, and you get the report at the other end.`;
+      const met = stageGate(s)?.items.every((g) => g.done) ?? true;
+      return `${st === 0 ? 'The Mandate is settled.' : met ? `${STAGE_NAMES[st]} has done what it set out to do.` : `${STAGE_NAMES[st]} has run its course, done or not.`} Time to plan the next stage: ${STAGE_NAMES[st + 1]}.\n\nPick up to three priorities, a reserve for the treasury and how long the plan runs. Then the years jump: the planner posts and awards contracts by your priorities, decisions are taken on autopilot, and you get the report at the other end.`;
     },
     advisors: (s) => [
       { id: 'bit', text: (s.planet?.ais.bit.trust ?? 0) >= 60 ? 'I could run the plan, if you want. I promise to write it all down.' : 'I will keep a diary. Someone should.', mood: 'happy' },

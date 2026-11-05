@@ -50,7 +50,7 @@ export function openPlan(s: GameState): void {
   const pl = s.planet!;
   if (pl.planOpen) return;
   pl.planOpen = true;
-  news(s, `🗓 ${STAGE_NAMES[pl.stage]} is done. The next five-year plan is waiting (Planet → Plan).`, 'event');
+  news(s, `🗓 The next five-year plan is waiting: ${STAGE_NAMES[pl.stage + 1]} (Planet → Overview).`, 'event');
   queueEvent(s, 'plan-ready');
 }
 

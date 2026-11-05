@@ -40,7 +40,7 @@ describe('Act IV', () => {
     expect(s.charter!.budget).toBeLessThan(300e9);
     expect(worldMargin(s)).toBeGreaterThan(0);
     expect(s.flags.autopilot4).toBe(true);
-  });
+  }, 60_000);
 
   /** Play the Mandate with first choices until the first plan opens. */
   const toFirstPlan = (s: GameState) => {

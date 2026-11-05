@@ -464,7 +464,7 @@ export function plannerTick(s: GameState, plan: FivePlan): void {
   const nearLine = !!s.system?.thermalLine && headroomTW(s) < 40;
   for (const pr of [...plan.priorities, ...(nearLine ? [] : ['energy' as const])]) {
     if (c.tenders.length >= maxOpen) return;
-    if (wishes(s, pr).some((w) => postWish(s, plan, w))) continue;
+    wishes(s, pr).some((w) => postWish(s, plan, w));
   }
 }
 
