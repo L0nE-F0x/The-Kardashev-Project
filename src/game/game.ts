@@ -351,6 +351,15 @@ export class Game {
     return this.scenes.map(this);
   }
 
+  /** The orbit and solar-system views for the menu tour (when the build has them). */
+  makeOrbitScene(): Scene | null {
+    return this.scenes.orbit ? this.scenes.orbit(this) : null;
+  }
+
+  makeSystemScene(): Scene | null {
+    return this.scenes.system ? this.scenes.system(this) : null;
+  }
+
   makeDioramaScene(siteId: string): Scene {
     return this.scenes.diorama(this, siteId);
   }
