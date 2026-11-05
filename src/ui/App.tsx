@@ -14,7 +14,7 @@ import { CharterPanel, CouncilPanel, ThresholdTracker } from './panels/Act3Panel
 import { HeatWallTracker, JumpOverlay, JumpReportModal, PlanModal, PlanetPanel } from './panels/Act4Panels';
 import { EndingOverlay, EraOverlay, EraPlanModal, EraReportModal, SolarMaxTracker, SystemPanel } from './panels/Act5Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
-import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
+import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, NoteModal, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
 import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
 import { FieldGuideBody } from './menu/FieldGuide';
@@ -78,6 +78,7 @@ function Hud() {
       <ActCompleteModal />
       <GameOverModal />
       <ConfirmModal />
+      <NoteModal />
     </>
   );
 }

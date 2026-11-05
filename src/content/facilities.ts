@@ -113,7 +113,7 @@ export const FACILITIES: Record<FacilityType, FacilityDef> = {
   datacenter: {
     type: 'datacenter', name: 'Data Center', icon: '🖥', buildable: true,
     blurb: '10 MW of IT capacity — room for ~8,300 accelerators. Needs power, cooling and chips.',
-    capex: 90e6, buildMonths: 15, opex: 600_000, itMW: 10, learn: 0.05, yearly: 0.98,
+    capex: 90e6, buildMonths: 10, opex: 600_000, itMW: 10, learn: 0.05, yearly: 0.98,
     tiers: [
       { mult: 5, capex: 350e6, months: 12, label: '50 MW hall', phase: 1 },
       { mult: 20, capex: 1.2e9, months: 18, label: '200 MW hall', phase: 3, tech: 'liquid-cooling' },

@@ -8,7 +8,7 @@ import { FACILITIES } from '../content/facilities';
 import { COMPANIES } from '../content/companies';
 import { CHOKEPOINT_BY_ID } from '../world/routing';
 import { closedChokepoints } from '../sim/effects';
-import { fmtDays, fmtMW } from '../sim/core';
+import { fmtDate, fmtDays, fmtMW } from '../sim/core';
 import { isAndroid } from '../platform/platform';
 import type { AdvisorId } from '../sim/types';
 
@@ -325,6 +325,61 @@ export function ConfirmModal() {
             </button>
             <button class="btn primary" onClick={() => c.onYes()}>
               Yes, spend it
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The playtest note box: one line or a few, stamped with the act, the date and the screen. */
+export function NoteModal() {
+  const game = useGame();
+  const [text, setText] = useState('');
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (game.noteOpen) {
+      setText('');
+      setTimeout(() => ref.current?.focus(), 0);
+    }
+  }, [game.noteOpen]);
+  if (!game.noteOpen || !game.state) return null;
+  const s = game.state;
+  return (
+    <div class="scrim" onClick={(e) => e.target === e.currentTarget && game.closeNote()}>
+      <div class="modal frame" role="dialog" aria-label="Playtest note" style={{ width: 'min(460px, 100%)' }}>
+        <div class="head">
+          <span class="ico">✎</span>
+          <h2 class="grow">Playtest note</h2>
+          <span class="small muted">
+            Act {s.act} · {fmtDate(s.day)}
+          </span>
+        </div>
+        <div class="body">
+          <textarea
+            ref={ref}
+            class="note-input"
+            rows={4}
+            value={text}
+            placeholder="Too slow here? Confusing? Lovely? Anything goes."
+            onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                game.addNote(text);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                game.closeNote();
+              }
+            }}
+          />
+          <div class="row between">
+            <button class="btn" onClick={() => game.closeNote()}>
+              Cancel
+            </button>
+            <button class="btn primary" onClick={() => game.addNote(text)} disabled={!text.trim()}>
+              Save note
             </button>
           </div>
         </div>

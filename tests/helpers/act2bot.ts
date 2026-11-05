@@ -22,12 +22,18 @@ export function autoResolve(s: GameState) {
 }
 
 /** A competent-but-simple Act II player: delegates to advisors, grows halls, signs the obvious deals. */
-export function botDay(s: GameState) {
+/**
+ * The Act II bot: delegates to the advisors' jobs and expands where it can. `careful` (the balance
+ * report) scales the advisors' budgets and its cash reserve to the money it started the act with.
+ */
+export function botDay(s: GameState, careful = false) {
   autoResolve(s);
   if (s.act < 2) return;
+  if (careful && s.flags.botCash === undefined) s.flags.botCash = s.finance.cash;
+  const k = careful ? Math.min(1, Number(s.flags.botCash) / 2e9) : 1;
   if (!s.jobs.mira?.on) {
-    A.setJob(s, 'mira', { on: true, a: 400e6 });
-    A.setJob(s, 'penny', { on: true, a: 250e6 });
+    A.setJob(s, 'mira', { on: true, a: 400e6 * k });
+    A.setJob(s, 'penny', { on: true, a: 250e6 * k });
     A.setJob(s, 'juno', { on: true, a: 0.25, b: 0 });
     A.setJob(s, 'iris', { on: true, a: 0.05 });
     A.setJob(s, 'bit', { on: true, a: 0.45 });
@@ -44,7 +50,7 @@ export function botDay(s: GameState) {
     if (c) A.leaseCable(s, c.id);
   }
   // halls: upgrade first, then new halls, then land
-  const reserve = s.phase >= 2 ? 600e6 : 300e6;
+  const reserve = (s.phase >= 2 ? 600e6 : 300e6) / (careful ? Math.max(0.5, k) : 1);
   for (const f of s.facilities) {
     const fillNow = s.stats.installedAccel / Math.max(1, (s.stats.itMW * 1000) / 1.3);
     if ((f.type === 'lab' || (f.type === 'datacenter' && fillNow > 0.45)) && A.canUpgrade(s, f.id) === null && s.finance.cash > reserve * 2) {

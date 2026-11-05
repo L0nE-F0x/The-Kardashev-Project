@@ -740,6 +740,15 @@ function monthly(s: GameState): void {
 }
 
 // ════════════════════════════════════════ TROUBLE ════════════════════════════════════════
+/** Days between two cards about routine project trouble (overruns, scandals); the rest settle themselves. */
+const TROUBLE_CARD_GAP = 240;
+
+/** A card of this kind was shown within the last `days`. */
+function recently(s: GameState, id: string, days: number): boolean {
+  const last = s.events.last[id];
+  return typeof last === 'number' && s.day - last < days;
+}
+
 function troubleRoll(s: GameState, p: Project): void {
   const tr = traitsOf(s, p.builder);
   const chance = (0.025 * (6 - tr.rel)) * (p.builder === YOU && s.charter!.blindTrust ? 1.1 : 1);
@@ -753,11 +762,32 @@ function troubleRoll(s: GameState, p: Project): void {
     p.days += extra;
     news(s, `⏳ ${who}: ${def.name} at ${whereName(p.where)} slips ${Math.round(extra / 30.4)} months.`, 'bad');
   } else if (roll < 0.75) {
-    // an overrun: the partner wants more money
+    // an overrun: the partner wants more money. A big one (or the first in a while) is a card; routine
+    // ones in between are settled the sensible way and reported, so the Steward isn't buried in them.
     const extra = Math.round(p.price * (0.08 + rand(s) * 0.12) / 1e6) * 1e6;
-    queueEvent(s, 'project-overrun', { project: p.id, extra });
+    const c = s.charter!;
+    const big = extra > c.budget * 0.1;
+    if (big || !recently(s, 'project-overrun', TROUBLE_CARD_GAP)) queueEvent(s, 'project-overrun', { project: p.id, extra });
+    else if (c.budget >= extra * 2) {
+      chSpend(s, 'payments', extra);
+      p.price += extra;
+      p.paid += extra;
+      addPartnerRel(s, p.builder, 2);
+      news(s, `💸 ${who} ran over on the ${def.name.toLowerCase()} at ${whereName(p.where)}: the treasury paid the extra ${fmtMoney(extra)}.`, 'info');
+    } else {
+      p.days = Math.round(p.days * 1.15);
+      addPartnerRel(s, p.builder, -10);
+      news(s, `💸 ${who} ran over on the ${def.name.toLowerCase()} at ${whereName(p.where)}; held to the contract, it slips.`, 'bad');
+    }
   } else if (roll < 0.9 && tr.ethics <= 3) {
-    queueEvent(s, 'project-scandal', { project: p.id });
+    if (!recently(s, 'project-scandal', TROUBLE_CARD_GAP)) queueEvent(s, 'project-scandal', { project: p.id });
+    else {
+      // suspended and investigated, as the Charter's rules say
+      p.days += 60;
+      addPartnerRel(s, p.builder, -8);
+      addLegitimacy(s, 1);
+      news(s, `📰 Irregularities at ${who}’s site in ${whereName(p.where)}: work is suspended for two months while inspectors look.`, 'bad');
+    }
   } else {
     const extra = Math.round(20 + rand(s) * 40);
     p.days += extra;

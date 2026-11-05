@@ -12,7 +12,7 @@ import type { Facility, FacilityType, GameState, SupplierId } from './types';
 import { clamp, yearsElapsed } from './core';
 import { modMult, techMult } from './effects';
 
-export const START_CASH = 400e6;
+export const START_CASH = 450e6;
 /** Model FLOP utilisation when training / serving. */
 export const MFU = 0.4;
 export const BASE_PUE = 1.3;

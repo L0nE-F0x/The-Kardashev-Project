@@ -37,6 +37,11 @@ export function TopBar() {
             {sp === 8 && <span style={{ fontSize: '10px', marginLeft: '-4px' }}>+</span>}
           </button>
         ))}
+        {game.settings.playtestNotes && (
+          <button class="btn small" onClick={() => game.openNote()} data-tip="Playtest note (J)" aria-label="Playtest note">
+            ✎
+          </button>
+        )}
       </div>
       <div class="date frame" data-tip={`Day ${s.day} of the campaign.\nAt 1× speed one day passes per second.`}>
         <span class="label">{s.company.name}</span>

@@ -53,13 +53,15 @@ export function campaignStats(s: GameState): { headline: CampaignStat[]; acts: C
     ['V · Type I', sy?.typeI],
   ];
   let from = s.meta.act5Start ? yearAt(s.flags.act5Started) : s.meta.act4Start ? 2045 : s.meta.act3Start ? 2035 : s.meta.act2Start ? 2029 : 2027;
-  for (const [name, day] of marks) {
+  marks.forEach(([name, day], i) => {
     const y = yearAt(day);
     // acts a preset skipped are not part of this campaign
-    if (y === null || from === null || y < from || (y === from && day !== sy?.typeI)) continue;
-    acts.push({ label: name, value: `${from}–${y}` });
+    if (y === null || from === null || y < from || (y === from && day !== sy?.typeI)) return;
+    // and how long it took you, when the playtime log has it
+    const real = s.meta.log?.acts[i + 1]?.seconds;
+    acts.push({ label: name, value: `${from}–${y}${real ? ` · ${real >= 3600 ? `${(real / 3600).toFixed(1)} h` : `${Math.max(1, Math.round(real / 60))} min`}` : ''}` });
     from = y;
-  }
+  });
   const hours = s.meta.playtime / 3600;
   const headline: CampaignStat[] = [
     { label: 'Type I', value: sy?.typeI ? fmtDate(sy.typeI, true) : 'not yet' },

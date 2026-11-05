@@ -2,6 +2,8 @@
 export interface Settings {
   // gameplay
   autoPause: boolean;
+  /** Playtest notes: a Note button and the J key stamp quick notes onto the save. */
+  playtestNotes: boolean;
   offline: boolean;
   /** Game months per real hour away. */
   offlineRate: number;
@@ -55,6 +57,7 @@ const prefersReducedMotion = () => {
 export function defaultSettings(): Settings {
   return {
     autoPause: true,
+    playtestNotes: false,
     offline: true,
     offlineRate: 1,
     autosaveSec: 20,

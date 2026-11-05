@@ -101,7 +101,23 @@ export function tickCapital(s: GameState, compute: ComputeResult): void {
     b.confidence = clamp(b.confidence + (passed ? 8 : growth > 0 ? -6 : -12), 0, 100);
     if (passed) s.flags.boardPassed = s.day;
     else b.misses += 1;
-    queueEvent(s, 'board-review', { growth: Math.round(growth * 100), target: Math.round(b.target * 100), passed: passed ? 1 : 0 });
+    // a review the board passed is news, not a decision (the first one is a card, to show how reviews work);
+    // a missed one is a card, unless one came up lately and the board is still fairly confident
+    const lastCard = typeof s.events.last['board-review'] === 'number' ? (s.events.last['board-review'] as number) : -1e9;
+    // From Act III the board answers to the company (or the blind trust), not to the Steward: news only.
+    const quiet = !!s.charter || (passed ? !!s.flags.boardReviewSeen : s.day - lastCard < 170 && b.confidence >= 45);
+    if (quiet) {
+      news(
+        s,
+        passed
+          ? `📊 Board review: revenue up ${Math.round(growth * 100)}% against a ${Math.round(b.target * 100)}% target. Confidence ${Math.round(b.confidence)}.`
+          : `📊 Board review: revenue ${growth >= 0 ? 'up' : 'down'} ${Math.abs(Math.round(growth * 100))}%, short of the ${Math.round(b.target * 100)}% target. Confidence ${Math.round(b.confidence)}.`,
+        passed ? 'good' : 'bad',
+      );
+    } else {
+      queueEvent(s, 'board-review', { growth: Math.round(growth * 100), target: Math.round(b.target * 100), passed: passed ? 1 : 0 });
+      s.flags.boardReviewSeen = true;
+    }
     b.baseline = Math.max(1, s.stats.revenueMonth);
     b.nextReview = s.day + BOARD.reviewDays;
     if (b.confidence < 30 && !s.flags.ceoReview) queueEvent(s, 'ceo-review');

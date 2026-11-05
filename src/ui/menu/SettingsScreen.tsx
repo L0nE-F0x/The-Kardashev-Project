@@ -5,7 +5,9 @@ import { defaultSettings, saveSettings } from '../../save/settings';
 import { downloadSave, exportSave, importSave, loadSlot, wipeAllData } from '../../save/save';
 import { EVENT_RATES, type EventRate } from '../../content/difficulty';
 import { SITE_BY_ID } from '../../content/sites';
-import { canFullscreen, isDesktopApp, isPhone, isStandalone, toggleFullscreen } from '../../platform/platform';
+import { canFullscreen, isDesktopApp, isPhone, isStandalone, saveTextFile, toggleFullscreen } from '../../platform/platform';
+import { playtestReport } from '../../game/playtest';
+import { APP_VERSION } from '../../content/changelog';
 
 type Tab = 'gameplay' | 'display' | 'audio' | 'access' | 'controls' | 'data';
 const TABS: [Tab, string][] = [
@@ -59,6 +61,7 @@ function Gameplay() {
   return (
     <>
       <Toggle label="Pause for decisions" hint="Event cards stop the clock. Off: they wait in a pill at the top while time runs." value={st.autoPause} onChange={(v) => game.updateSettings({ autoPause: v })} />
+      <Toggle label="Playtest notes" hint="A note button in the top bar (or press J) jots down what you think, stamped with the act, the date and the screen. Settings → Data exports them with your play time per act." value={st.playtestNotes} onChange={(v) => game.updateSettings({ playtestNotes: v })} />
       <Toggle label="Offline progress" hint="The world keeps running while you’re away (no crises fire)." value={st.offline} onChange={(v) => game.updateSettings({ offline: v })} />
       {st.offline && (
         <Choice
@@ -327,6 +330,18 @@ function Data() {
             }}
           >
             File
+          </button>
+          <button
+            class="btn small"
+            data-tip="Download the playtest log: real time per act and your playtest notes"
+            onClick={() => {
+              const s = loadSlot(sl.id);
+              if (!s) return;
+              saveTextFile(`${s.company.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'company'}-playtest.md`, playtestReport(s, APP_VERSION), 'text/markdown');
+              setMsg(`Playtest log for ${sl.name} saved.`);
+            }}
+          >
+            Log
           </button>
           {confirmDel === sl.id ? (
             <button

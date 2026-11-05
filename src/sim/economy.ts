@@ -26,7 +26,14 @@ export function earn(s: GameState, category: 'revenue' | 'funding' | 'other', am
 }
 
 /** Daily operating cash flow. Returns the day's net burn for stats. */
+/** Act IV: a company you sold or handed to the Charter as a public utility isn't yours any more. */
+export function companyHandedOver(s: GameState): boolean {
+  return s.planet?.company === 'sell' || s.planet?.company === 'utility';
+}
+
 export function tickEconomy(s: GameState, power: PowerResult, compute: ComputeResult): { revenue: number; costs: number } {
+  // its books are its new owners' business: nothing lands on yours
+  if (companyHandedOver(s)) return { revenue: 0, costs: 0 };
   const perDay = 1 / DAYS_PER_MONTH;
   let costs = 0;
   const rent = s.rental.units * rentalPrice(s) * perDay;

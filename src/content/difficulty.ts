@@ -27,11 +27,11 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyDef> = {
   },
   standard: {
     id: 'standard', name: 'Standard', blurb: 'The game as designed: real constraints, real trade-offs.',
-    cash: 400e6, eventDays: [42, 72], crisis: 1, incident: 1, broke: 'loan',
+    cash: 450e6, eventDays: [42, 72], crisis: 1, incident: 1, broke: 'loan',
   },
   hard: {
     id: 'hard', name: 'Hard', blurb: 'Lean seed round, frequent crises — and running out of cash ends the company.',
-    cash: 250e6, eventDays: [30, 55], crisis: 1.5, incident: 1.5, broke: 'bankrupt',
+    cash: 380e6, eventDays: [30, 55], crisis: 1.5, incident: 1.5, broke: 'bankrupt',
   },
 };
 

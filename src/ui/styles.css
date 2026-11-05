@@ -459,6 +459,7 @@ input[type='range']::-moz-range-thumb {
   cursor: pointer;
 }
 input[type='text'],
+textarea,
 select {
   font-family: var(--font);
   font-size: 15px;
@@ -469,6 +470,7 @@ select {
   outline: none;
 }
 input[type='text']:focus,
+textarea:focus,
 select:focus {
   border-color: var(--gold);
 }
@@ -1793,4 +1795,12 @@ img.endcard {
     animation: none;
     padding-top: 12px;
   }
+}
+
+/* the playtest note box */
+.note-input {
+  width: 100%;
+  resize: vertical;
+  margin-bottom: 10px;
+  line-height: 1.4;
 }

@@ -3,6 +3,7 @@ import { DIFFICULTIES, EVENT_RATES } from '../content/difficulty';
 import type { GameState } from './types';
 import { rand, randInt, weightedPick } from './core';
 import { currentCapability, incidentChance } from './model';
+import { companyHandedOver } from './economy';
 
 export function queueEvent(s: GameState, id: string, ctx: Record<string, string | number> = {}): void {
   if (s.events.queue.some((e) => e.id === id) || s.events.active?.id === id) return;
@@ -40,9 +41,11 @@ export function tickEvents(s: GameState): void {
     }
   }
 
-  // out of money
-  if (s.finance.cash < 0) {
-    if (DIFFICULTIES[s.meta.difficulty].broke === 'bankrupt') queueEvent(s, 'bankruptcy');
+  // out of money (a company you sold or handed over is someone else's to rescue)
+  if (s.finance.cash < 0 && !companyHandedOver(s)) {
+    // Hard ends the company when it runs dry, but only while it IS the game: from Act III you're the Steward,
+    // and a company in trouble gets a bridge loan like everyone else's
+    if (DIFFICULTIES[s.meta.difficulty].broke === 'bankrupt' && !s.charter) queueEvent(s, 'bankruptcy');
     else if ((s.events.last['bridge-loan'] ?? -999) < s.day - 60) queueEvent(s, 'bridge-loan');
   }
 

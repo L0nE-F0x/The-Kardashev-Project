@@ -137,6 +137,11 @@ function bindKeys(game: Game) {
       case 'x':
         if ((game.state?.act ?? 1) >= 5) game.openPanel('system');
         break;
+      case 'j':
+        // a playtest note (when Settings → Gameplay → Playtest notes is on)
+        e.preventDefault();
+        game.openNote();
+        break;
       case 'Escape':
         back(game);
         break;

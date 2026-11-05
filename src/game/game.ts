@@ -503,6 +503,7 @@ export class Game {
       this.tour?.update(dt);
     } else if (s) {
       s.meta.playtime += dt;
+      this.logPlay(s, dt);
       // Act IV: a time jump runs a week per frame so the map can time-lapse (or all at once when skipped)
       if (s.planet?.jump) {
         const rec = PL.jumpStep(s, this.ctx, this.jumpFast ? 100_000 : JUMP_DAYS_PER_FRAME);
@@ -1393,9 +1394,68 @@ export class Game {
     return r;
   }
 
+  // ── playtest log ──────────────────────────────────────────────────────────────────────────
+  private seenCard: unknown = null;
+
+  /** Real time per act: running (by speed), paused, in a time-lapse; event cards seen. */
+  private logPlay(s: GameState, dt: number): void {
+    const log = (s.meta.log ??= { acts: {}, notes: [] });
+    let a = log.acts[s.act];
+    if (!a) {
+      a = log.acts[s.act] = { seconds: 0, paused: 0, jump: 0, bySpeed: {}, fromDay: s.day, events: 0, decisions: 0 };
+      for (const [k, prev] of Object.entries(log.acts)) if (Number(k) < s.act && prev && prev.toDay === undefined) prev.toDay = s.day;
+    }
+    a.seconds += dt;
+    if (s.planet?.jump || s.system?.jump) a.jump += dt;
+    else if (this.speed === 0 || this.blocked) a.paused += dt;
+    else a.bySpeed[this.speed] = (a.bySpeed[this.speed] ?? 0) + dt;
+    if (s.events.active && s.events.active !== this.seenCard) a.events++;
+    this.seenCard = s.events.active;
+  }
+
+  /** The quick playtest note box (Settings → Gameplay → Playtest notes, or J). */
+  noteOpen = false;
+
+  private noteResume: Speed = 0;
+
+  openNote(): void {
+    if (!this.state || !this.settings.playtestNotes || this.noteOpen) return;
+    // the clock stops while you write
+    this.noteResume = this.speed;
+    this.speed = 0;
+    this.noteOpen = true;
+    this.notify();
+  }
+
+  closeNote(): void {
+    this.noteOpen = false;
+    if (this.noteResume && !this.blocked) this.speed = this.noteResume;
+    this.noteResume = 0;
+    this.notify();
+  }
+
+  /** Stamp a playtest note with the act, the date and what's on screen. */
+  addNote(text: string): void {
+    const s = this.state;
+    const t = text.trim();
+    this.closeNote();
+    if (!s || !t) return;
+    const log = (s.meta.log ??= { acts: {}, notes: [] });
+    const sel = this.selection;
+    const where = [this.mode, this.panel ? `panel:${this.panel}` : '', this.mode === 'diorama' && this.dioramaSite ? `site:${this.dioramaSite}` : sel ? `${sel.kind}:${'id' in sel ? sel.id : ''}` : '', s.events.active ? `card:${s.events.active.id}` : '']
+      .filter(Boolean)
+      .join(' · ');
+    log.notes.push({ at: Date.now(), playtime: s.meta.playtime, act: s.act, day: s.day, where, text: t });
+    this.save();
+    this.toast('Note saved — Settings → Data exports them.', 'good');
+  }
+
   chooseEvent(index: number): void {
     const s = this.state!;
+    const card = s.events.active;
     if (resolveEvent(s, index)) {
+      const a = s.meta.log?.acts[s.act];
+      if (a && card) a.decisions++;
       refreshStats(s);
       sfx('confirm');
       if (!s.events.active) {

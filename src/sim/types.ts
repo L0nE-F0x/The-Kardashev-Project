@@ -977,6 +977,43 @@ export interface GameMeta {
   act4Start?: boolean;
   /** Started from the "Start at Act V" preset. */
   act5Start?: boolean;
+  /** Real play time per act and playtest notes (written by the game layer; the sim never reads it). */
+  log?: PlayLog;
+}
+
+/** How a company was played, in real time (for the balance pass and playtest feedback). */
+export interface PlayLog {
+  acts: Partial<Record<number, ActPlay>>;
+  notes: PlayNote[];
+}
+
+export interface ActPlay {
+  /** Real seconds spent in the act, all told. */
+  seconds: number;
+  /** ...of which paused (or waiting on a card, a plan, a report). */
+  paused: number;
+  /** ...of which watching a time-lapse jump (Acts IV–V). */
+  jump: number;
+  /** ...and running, by speed (1, 2, 4, 8). */
+  bySpeed: Partial<Record<number, number>>;
+  /** Game days the act began and (once it's over) ended. */
+  fromDay: number;
+  toDay?: number;
+  /** Event cards seen and answered. */
+  events: number;
+  decisions: number;
+}
+
+export interface PlayNote {
+  /** Real-world ms. */
+  at: number;
+  /** Seconds of play at the time. */
+  playtime: number;
+  act: number;
+  day: number;
+  /** What was on screen (mode, open panel, selection). */
+  where: string;
+  text: string;
 }
 
 export interface GameState {
