@@ -11,14 +11,14 @@
  * Pure PixelCanvas code with palette indices only.
  */
 import { C } from '../palette';
-import { bayer, ditherAt, fbm, hash2, PixelCanvas } from '../pixels';
+import { bayer, fbm, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import type { Emitter, FacilityArt } from './art';
 import type { BandProp, SceneBands } from './scenery';
 import { crane, festoon, lushTree, person, rampOf, seated, siteCabins, type Ramp4 } from './act3kit';
 import { sailboat } from './charterHQ';
-import { pipe, scaffold, tank, vpipe, CONCRETE, STEEL } from './draw';
-import { plate } from './act5kit';
+import { pipe, scaffold, vpipe, CONCRETE, STEEL, type Ramp } from './draw';
+import { cylShade, paintLevels, plate } from './act5kit';
 
 export interface HabitatScenery {
   kind: 'habitat';
@@ -39,11 +39,10 @@ const HAZE: Record<number, number> = {
   [C.sea5]: C.sea6, [C.sea6]: C.sea7, [C.sea7]: C.sea8, [C.sea8]: C.sky5,
   [C.white]: C.ice3, [C.ice3]: C.sky5, [C.red3]: C.org1, [C.red2]: C.red3, [C.org0]: C.org1, [C.org1]: C.snd7, [C.blu3]: C.blu4, [C.blu4]: C.sky4, [C.sky4]: C.sky5,
 };
-function hazed(c: number, steps: number, x: number, y: number): number {
-  const whole = Math.floor(steps);
+/** A colour seen through k whole steps of haze. */
+function hazed(c: number, k: number): number {
   let out = c;
-  for (let i = 0; i < whole; i++) out = HAZE[out] ?? C.sky5;
-  if (ditherAt(x, y, steps - whole)) out = HAZE[out] ?? C.sky5;
+  for (let i = 0; i < k; i++) out = HAZE[out] ?? C.sky5;
   return out;
 }
 
@@ -68,16 +67,20 @@ export function habitatSkyArt(w: number, h: number, groundY: number, seed: numbe
   const oh = Math.round(h * 0.15);
   const sl = sunLineY(h);
   const cx = w / 2;
-  // the haze, palest near the line and toward the horizon
-  for (let y = 0; y < h; y++) {
-    const t = (y - sl) / Math.max(1, groundY - sl);
-    for (let x = 0; x < w; x++) {
-      let c = C.sky5;
-      if (t > 0.18) c = ditherAt(x, y, Math.min(1, (t - 0.18) * 4)) ? C.sky4 : C.sky5;
-      if (t > 0.6) c = ditherAt(x, y, Math.min(1, (t - 0.6) * 3)) ? C.ice2 : C.sky4;
-      pc.set(x, y, c);
-    }
-  }
+  // the haze in three flat bands: palest along the line, a deeper blue across the middle distance,
+  // pale again toward the horizon (narrow seams where they meet)
+  paintLevels(
+    pc,
+    0,
+    0,
+    w,
+    h,
+    (_x, y) => {
+      const t = (y - sl) / Math.max(1, groundY - sl);
+      return t < 0.3 ? 0 : t < 0.77 ? 1 : 2;
+    },
+    [C.sky5, C.sky4, C.ice2],
+  );
   // the far side, and its walls coming down at the edges of the view
   const wall = (x: number) => {
     const d = Math.abs(x - cx) / (w / 2);
@@ -86,46 +89,70 @@ export function habitatSkyArt(w: number, h: number, groundY: number, seed: numbe
   };
   const OVER = [C.grn6, C.grn7, C.snd6, C.grn6, C.grn5, C.snd7];
   const river = (x: number) => Math.round(oh * 0.42 + Math.sin(x / 53 + seed) * oh * 0.2);
+  const town = (x: number, y: number) => {
+    const d = Math.abs(y - river(x));
+    return hash2(Math.floor(x / 22), 3, seed) > 0.62 && x % 22 < 9 && d >= 2 && d <= 3;
+  };
+  /** The far side's own colours: long field strips (hedges between them, lost in deep haze), the river, towns of pale roofs along it. */
+  const ground = (x: number, y: number, hedges: boolean): number => {
+    const fld = fieldAt(x, Math.floor(y / 3), seed, OVER);
+    let c = fld.edge && hedges ? C.grn5 : fld.c;
+    if (y < oh) {
+      const d = Math.abs(y - river(x));
+      if (d === 0) c = C.sea6;
+      else if (d === 1) c = C.sea7;
+      else if (d === 2) c = C.grn5;
+      if (town(x, y) && x % 3 !== 2) c = hash2(Math.floor(x / 3), 4, seed) > 0.5 ? C.white : C.snd7;
+    }
+    return c;
+  };
+  // haze laid over it in whole steps: light overhead, deeper at the band's lower edge and down the walls
+  const hazeAt = (x: number, y: number) => {
+    if (y >= wall(x)) return -1;
+    if (y < oh) return y < oh * 0.55 ? 1 : y < oh * 0.86 ? 2 : 3;
+    return 3 + Math.floor(((y - oh) / Math.max(1, groundY - oh)) * 2.4 + 0.3);
+  };
+  paintLevels(pc, 0, 0, w, h, hazeAt, (x, y, k) => hazed(ground(x, y, k < 3), k));
   for (let x = 0; x < w; x++) {
     const bottom = wall(x);
     for (let y = 0; y < bottom; y++) {
-      const row = Math.floor(y / 3);
-      const fld = fieldAt(x, row, seed, OVER);
-      let c = fld.edge || y % 3 === 0 ? C.grn5 : fld.c;
+      // lights: the towns overhead, a scatter of villages down the walls
       if (y < oh) {
-        const rv = river(x);
-        if (Math.abs(y - rv) <= 0) c = C.sea6;
-        else if (Math.abs(y - rv) === 1) c = C.sea7;
-        else if (Math.abs(y - rv) === 2) c = C.grn5;
-        // towns strung along the river: pale roofs
-        const town = hash2(Math.floor(x / 22), 3, seed) > 0.62 && x % 22 < 9 && Math.abs(y - rv) >= 2 && Math.abs(y - rv) <= 4;
-        if (town && (x + y) % 2 === 0) c = hash2(x, y, 4) > 0.5 ? C.white : C.snd7;
-        if (town && hash2(x, y, seed + 9) > 0.55) g.set(x, y, hash2(x, y, 2) > 0.5 ? C.yel1 : C.org2);
+        if (town(x, y) && x % 3 !== 2 && hash2(x, y, seed + 9) > 0.45) g.set(x, y, hash2(x, y, 2) > 0.5 ? C.yel1 : C.org2);
       } else if (hash2(x >> 1, y >> 1, seed + 10) > 0.97) g.set(x, y, C.yel0);
-      // haze: pale overhead, paler still down the walls and at the band's lower edge
-      const steps = y < oh ? 1.6 + Math.max(0, (y - oh * 0.75) / (oh * 0.25)) * 1.2 : 2.6 + ((y - oh) / Math.max(1, groundY - oh)) * 2.4;
-      pc.set(x, y, hazed(c, steps, x, y));
     }
   }
-  // clouds hanging under the far side
+  // clouds hanging under the far side: flat white puffs with a shaded underside
   for (let i = 0; i < Math.max(2, w / 120); i++) {
     const x0 = hash2(i, 1, seed + 2) * w;
-    const y0 = oh + 3 + hash2(i, 2, seed + 2) * Math.max(1, sl - oh - 8);
+    const y0 = Math.round(oh + 3 + hash2(i, 2, seed + 2) * Math.max(1, sl - oh - 8));
     const cw = 16 + hash2(i, 3, seed + 2) * 26;
-    for (let y = Math.floor(y0 - 2); y <= y0 + 1; y++) for (let x = Math.floor(x0 - cw / 2); x < x0 + cw / 2; x++) {
-      const t = 1 - Math.abs(x - x0) / (cw / 2);
-      if (bayer(x, y) < t * 16 - Math.abs(y - y0 + 0.5) * 5) pc.set(x, y, y < y0 ? C.white : C.ice3);
+    const bump = x0 + (hash2(i, 4, seed + 2) - 0.5) * cw * 0.3;
+    const rows: [number, number, number, number][] = [
+      [-2, bump, cw * 0.16, C.white],
+      [-1, x0, cw * 0.34, C.white],
+      [0, x0, cw * 0.5, C.white],
+      [1, x0 + cw * 0.04, cw * 0.4, C.ice3],
+    ];
+    for (const [dy, mx, hw, col] of rows) {
+      const y = y0 + dy;
+      for (let x = Math.floor(mx - hw); x <= Math.ceil(mx + hw); x++) {
+        const e = Math.min(x - (mx - hw), mx + hw - x);
+        if (e < 0 || (e < 1.5 && (x + y) & 1)) continue;
+        pc.set(x, y, col);
+      }
     }
   }
-  // the sun-line: a window strip along the axis in its frame, white-hot, glaring softly into the haze
+  // the sun-line: a window strip along the axis in its frame, white-hot, glaring into the haze in a
+  // flat band that frays out over two pixels
   for (let x = 0; x < w; x++) {
-    for (let k = -7; k <= 7; k++) {
+    for (let k = -6; k <= 6; k++) {
       const y = sl + k;
       const a = Math.abs(k);
       if (a <= 1) pc.set(x, y, C.white);
       else if (a === 2) pc.set(x, y, x % 28 === 0 ? C.ink8 : C.yel2);
-      else if (a === 3) pc.set(x, y, x % 2 ? C.ink8 : C.ink7);
-      else if (bayer(x, y) < (8 - a) * 2.4) pc.set(x, y, a < 5 ? C.yel2 : C.white);
+      else if (a === 3) pc.set(x, y, x % 14 === 0 ? C.ink6 : C.ink8);
+      else if (a === 4 || (a === 5 && (x + y) & 1) || (a === 6 && bayer(x, y) < 4)) pc.set(x, y, C.yel2);
     }
     // stars through the window when the mirrors close
     if (hash2(x, 1, seed + 5) > 0.8) g.set(x, sl + (x % 3) - 1, hash2(x, 2, seed) > 0.5 ? C.white : C.ice2);
@@ -152,25 +179,37 @@ function habitatFar(w: number, h: number, seed: number): { base: PixelCanvas } {
     row++;
   }
   const riverX = (y: number) => w * 0.58 + (h - y) * 1.6 + Math.sin(y / 5 + seed) * 3;
-  for (let y = 0; y < h; y++) {
-    const t = 1 - y / h; // 0 at the bottom (near) … 1 at the top (far up the wall)
+  const tOf = (y: number) => 1 - y / h; // 0 at the bottom (near) … 1 at the top (far up the wall)
+  const land = (x: number, y: number): number => {
+    const t = tOf(y);
     const r = rowOf[y];
     const top = y === 0 || rowOf[y - 1] !== r;
-    for (let x = 0; x < w; x++) {
-      if (t > 0.82 && bayer(x, y) < ((t - 0.82) / 0.18) * 17) continue;
-      const fld = fieldAt(x, r, seed + 3, FIELD);
-      let c = fld.c;
-      if (t < 0.55 && (top || fld.edge)) c = C.grn3;
-      const rv = riverX(y);
-      const rw = 0.6 + (1 - t) * 1.6;
-      if (Math.abs(x - rv) < rw) c = C.sea6;
-      else if (Math.abs(x - rv) < rw + 1 && t < 0.6) c = C.grn3;
-      // villages: little white houses with red roofs (rows tall enough to show them)
-      const vill = hash2(Math.floor(x / 40), r, seed + 7) > 0.84 && t < 0.5;
-      if (vill && x % 40 < 14 && x % 5 < 3) c = top ? (x % 5 === 1 ? C.red3 : C.red2) : x % 5 === 2 ? C.snd7 : C.white;
-      pc.set(x, y, hazed(c, t * 3.6, x, y));
-    }
-  }
+    const fld = fieldAt(x, r, seed + 3, FIELD);
+    let c = fld.c;
+    if (t < 0.55 && (top || fld.edge)) c = C.grn3;
+    const rv = riverX(y);
+    const rw = 0.6 + (1 - t) * 1.6;
+    if (Math.abs(x - rv) < rw) c = C.sea6;
+    else if (Math.abs(x - rv) < rw + 1 && t < 0.6) c = C.grn3;
+    // villages: little white houses with red roofs (rows tall enough to show them)
+    const vill = hash2(Math.floor(x / 40), r, seed + 7) > 0.84 && t < 0.5;
+    if (vill && x % 40 < 14 && x % 5 < 3) c = top ? (x % 5 === 1 ? C.red3 : C.red2) : x % 5 === 2 ? C.snd7 : C.white;
+    return c;
+  };
+  // the haze deepens in whole steps up the wall (seams where it does); the top frays into the sky
+  paintLevels(
+    pc,
+    0,
+    0,
+    w,
+    h,
+    (x, y) => {
+      const t = tOf(y);
+      if (t > 0.9 || (t > 0.86 && (x + y) & 1)) return -1;
+      return Math.min(4, Math.floor(t * 3.6 + 0.5));
+    },
+    (x, y, k) => hazed(land(x, y), k),
+  );
   return { base: pc };
 }
 
@@ -183,13 +222,16 @@ function habitatMid(w: number, h: number, seed: number): { base: PixelCanvas; gl
   for (let x = 0; x < w; x++) {
     const t = top(x);
     for (let y = t; y < h; y++) {
-      let c = y === t ? C.grn6 : bayer(x, y) < 5 ? C.grn4 : C.grn5;
+      // meadows in one flat green, hedgerows between them
+      let c = y === t ? C.grn6 : C.grn5;
       if (y > t + 2 && (y + Math.floor(x / 23)) % 7 === 0) c = C.grn3;
       if (y >= waterY && y < waterY + 5) {
-        c = y === waterY ? C.grn3 : (x + y * 3) % 11 === 0 ? C.white : y === waterY + 1 ? C.sea7 : ditherAt(x, y, 0.5) ? C.sea6 : C.sea5;
+        // the river: a bright near bank line, flat water darkening a step, a few glints and reflections
+        c = y === waterY ? C.grn3 : y === waterY + 1 ? C.sea7 : y === waterY + 4 ? C.sea5 : C.sea6;
         if (y === waterY + 2 && hash2(x >> 2, 3, seed) > 0.7) c = C.sky5;
+        else if (y > waterY && hash2(x, y, seed + 4) > 0.95) c = C.white;
       }
-      if (y >= waterY + 5) c = y === waterY + 5 ? C.snd6 : bayer(x, y) < 6 ? C.grn5 : C.grn6;
+      if (y >= waterY + 5) c = y === waterY + 5 ? C.snd6 : C.grn6;
       pc.set(x, y, c);
     }
   }
@@ -221,16 +263,31 @@ function habitatMid(w: number, h: number, seed: number): { base: PixelCanvas; gl
   return { base: pc, glow: g, waterY };
 }
 
-/** The ground strip: grass, a gravel path, wildflowers. */
+/**
+ * The ground strip: a sunny lip, flat lawn behind the walkers, a gravel path under their feet,
+ * the verge beyond it a step darker toward the foreground, tufts and wildflowers here and there.
+ */
 function habitatGround(w: number, h: number): PixelCanvas {
   const pc = new PixelCanvas(w, h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let c = y === 0 ? (hash2(x, 1, 3) > 0.3 ? C.grn6 : C.grn7) : y < 3 ? (bayer(x, y) < 6 ? C.grn4 : C.grn5) : bayer(x, y) < 4 ? C.grn4 : C.grn5;
-      if (y >= 9 && y <= 13) c = y === 9 ? C.snd5 : y === 13 ? C.snd5 : (x + y) % 5 === 0 ? C.snd5 : y === 10 ? C.snd8 : C.snd7;
-      if (y > 13 && bayer(x, y) < 3) c = C.grn3;
+  const dip = (x: number) => 22 + Math.round((fbm(x / 40, 5, 61, 2) - 0.5) * 6);
+  paintLevels(pc, 0, 0, w, h, (x, y) => (y === 0 || (y >= 9 && y <= 13) ? -1 : y > 13 && y >= dip(x) ? 0 : 1), [C.grn4, C.grn5]);
+  for (let x = 0; x < w; x++) {
+    pc.set(x, 0, hash2(x, 1, 3) > 0.3 ? C.grn6 : C.grn7);
+    // the path: edged in darker sand, raked gravel with the odd stone
+    for (let y = 9; y <= 13; y++) {
+      let c = y === 9 || y === 13 ? C.snd5 : y === 10 ? C.snd8 : C.snd7;
+      if (y > 9 && y < 13 && hash2(x, y, 62) > 0.9) c = C.snd5;
       pc.set(x, y, c);
     }
+  }
+  // grass tufts, lit on top
+  for (let i = 0; i < w / 7; i++) {
+    const x = Math.floor(hash2(i, 3, 61) * w);
+    const y = 2 + Math.floor(hash2(i, 4, 61) * (h - 4));
+    if (y >= 8 && y <= 15) continue;
+    pc.set(x, y, C.grn6);
+    pc.set(x + 1, y + 1, C.grn6);
+    pc.set(x, y + 1, y >= dip(x) ? C.grn3 : C.grn4);
   }
   for (let i = 0; i < w / 3; i++) {
     const x = Math.floor(hash2(i, 1, 61) * w);
@@ -247,7 +304,8 @@ function habitatFg(w: number, h: number): PixelCanvas {
   for (let x = 0; x < w; x++) {
     const top = Math.round(3 + (fbm(x / 9, 73) - 0.5) * 5);
     for (let y = top; y < h; y++) pc.set(x, y, y === top ? C.grn5 : y - top < 2 ? C.grn3 : C.grn2);
-    if (x % 3 === 0) pc.vline(x, top - 2, 2, C.grn4);
+    // blades in loose clumps rather than a comb
+    if (hash2(x >> 1, 5, 7) > 0.45 && hash2(x, 6, 7) > 0.4) pc.vline(x, top - 2, 2, C.grn4);
     if (hash2(x, 4, 7) > 0.92) pc.set(x, top - 3, [C.pnk1, C.yel1, C.white][x % 3]);
   }
   return pc;
@@ -288,9 +346,9 @@ function rowboat(v: number): PixelCanvas {
 }
 
 // ════════════════════════════════════════ PIECES ════════════════════════════════════════
-/** Grass under every piece (the bottom three rows meet the ground strip). */
+/** Grass under every piece (the bottom three rows meet the ground strip): a sunny lip, then flat lawn. */
 function lawn(pc: PixelCanvas, W: number, H: number) {
-  for (let y = H - 3; y < H; y++) for (let x = 0; x < W; x++) pc.set(x, y, y === H - 3 ? (hash2(x, 1, 3) > 0.3 ? C.grn6 : C.grn7) : bayer(x, y) < 6 ? C.grn4 : C.grn5);
+  for (let y = H - 3; y < H; y++) for (let x = 0; x < W; x++) pc.set(x, y, y === H - 3 ? (hash2(x, 1, 3) > 0.3 ? C.grn6 : C.grn7) : C.grn5);
 }
 
 /** Lit window: dark glass by day (with a glint), warm at night. */
@@ -312,7 +370,7 @@ function cottage(pc: PixelCanvas, g: PixelCanvas, x: number, base: number, w: nu
     const cy = base - h - j;
     for (let k = -half; k <= half; k++) {
       const xx = Math.round(x + w / 2 + k - 0.5);
-      pc.set(xx, cy, k < -half + 1 ? rl : k < 0 ? (ditherAt(xx, cy, 0.3) ? rl : rb) : k === half ? rd : rb);
+      pc.set(xx, cy, k < -half + 2 ? rl : k === half ? rd : rb);
     }
   }
   pc.hline(x - 1, base - h, w + 2, rd);
@@ -482,7 +540,7 @@ export function habPark(lived: number, seed: number, plan: string): FacilityArt 
     for (let y = base - 4; y < base; y++) for (let x = 30; x < 92; x++) {
       const d = Math.abs((x - 61) / 31) + Math.abs((y - (base - 2)) / 3) * 0.4;
       if (d > 1) continue;
-      pc.set(x, y, y === base - 4 ? C.sea7 : (x + y * 5 + f * 2) % 9 === 0 ? C.white : ditherAt(x, y, 0.5) ? C.sea6 : C.sea5);
+      pc.set(x, y, y === base - 4 ? C.sea7 : (x + y * 5 + f * 2) % 9 === 0 ? C.white : y === base - 1 ? C.sea5 : C.sea6);
     }
     for (let k = 0; k < 2; k++) {
       const dx = 44 + k * 22 + ((f + k) % 4) * 2;
@@ -705,6 +763,20 @@ export function habDorms(lived: number, seed: number): FacilityArt {
   return { base: frames, glow: glows, points: { dock: [74, H] }, fps: 1 };
 }
 
+/** A vertical storage tank (like draw.ts's, shaded in flat bands): banded drum, lit rim, a ladder. */
+function cleanTank(pc: PixelCanvas, x: number, baseY: number, w: number, h: number, ramp: Ramp, band: number) {
+  const half = w / 2;
+  const cx = x + half;
+  const top = baseY - h;
+  for (let y = top; y < baseY; y++) for (let xx = x; xx < x + w; xx++) pc.set(xx, y, cylShade(ramp, xx + 0.5 - cx, half, xx, y));
+  for (let xx = x + 1; xx < x + w - 1; xx++) pc.set(xx, top - 1, ramp.lit);
+  pc.hline(x + 2, top - 2, w - 4, ramp.mid);
+  for (let y = top + 3; y < baseY - 1; y += 5) pc.hline(x, y, w, ramp.shade);
+  pc.rect(x, top + 2, w, 2, band);
+  pc.vline(x + w - 3, top - 1, h, C.ink4);
+  for (let y = top; y < baseY; y += 2) pc.set(x + w - 2, y, C.ink4);
+}
+
 /** The works: tanks and pipes, a pump house, a heat exchanger venting, workers in overalls. */
 export function habWorks(lived: number, seed: number): FacilityArt {
   const W = 164;
@@ -715,8 +787,8 @@ export function habWorks(lived: number, seed: number): FacilityArt {
   for (let f = 0; f < 2; f++) {
     const pc = new PixelCanvas(W, H);
     const g = new PixelCanvas(W, H);
-    tank(pc, 6, base, 22, 40, STEEL, true, C.cyn3);
-    tank(pc, 32, base, 18, 30, STEEL, true, C.org1);
+    cleanTank(pc, 6, base, 22, 40, STEEL, C.cyn3);
+    cleanTank(pc, 32, base, 18, 30, STEEL, C.org1);
     pipe(pc, 0, base - 34, 80, base, C.ink8, C.ink6, 10);
     pipe(pc, 26, base - 18, 60, base, C.ink7, C.ink5, 12);
     // the pump house

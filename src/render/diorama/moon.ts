@@ -11,12 +11,13 @@
  * up by the excavators falls straight back down. Pure PixelCanvas code with palette indices only.
  */
 import { C } from '../palette';
-import { bayer, ditherAt, fbm, hash2, PixelCanvas } from '../pixels';
+import { bayer, fbm, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import { drawGlobe } from '../globe';
 import type { Emitter, FacilityArt, Mover } from './art';
-import { beacon, CONCRETE, facadeShade, pipe, revealFrom, roundShade, scaffold, STEEL, type Ramp } from './draw';
+import { beacon, CONCRETE, pipe, revealFrom, scaffold, STEEL, type Ramp } from './draw';
 import { billboard, CHARTER, crane, emblem, type Ramp4, siteCabins } from './act3kit';
+import { cleanRuns, cylShade, facadeClean, paintLevels, seamColumn, stepOf } from './act5kit';
 
 // ════════════════════════════════════════ LIGHT & SKY ════════════════════════════════════════
 const SYNODIC = 29.530588853;
@@ -149,11 +150,11 @@ export function lunarStars(w: number, h: number, seed = 51): PixelCanvas {
 export const REGOLITH = { a: C.ink7, b: C.ink6, c: C.ink8 };
 const SHELL: Ramp = { hi: C.ink9, lit: C.ink8, mid: C.ink7, shade: C.ink6, dark: C.ink5 };
 
-/** The bottom three rows of a Moon piece (matches the top of the ground strip). */
+/** The bottom three rows of a Moon piece (matches the top of the ground strip): a lit lip, then flat regolith. */
 export function moonGround(pc: PixelCanvas, W: number, H: number) {
   for (let y = H - 3; y < H; y++) {
     for (let x = 0; x < W; x++) {
-      const c = y === H - 3 ? (hash2(x, 3, 71) < 0.3 ? C.ink7 : C.ink8) : bayer(x, y) < 5 ? C.ink6 : C.ink7;
+      const c = y === H - 3 ? (hash2(x, 3, 71) < 0.3 ? C.ink7 : C.ink8) : C.ink7;
       pc.set(x, y, c);
     }
   }
@@ -167,12 +168,12 @@ function crater(pc: PixelCanvas, cx: number, cy: number, rx: number, ry: number,
       const ny = (y + 0.5 - cy) / ry;
       const d = Math.hypot(nx, ny);
       if (d <= 1) {
-        const c = nx < -0.15 + ny * 0.2 ? dark : nx > 0.7 ? lit : mid;
-        pc.set(x, y, c === dark && ditherAt(x, y, (nx + 0.6) * 1.4) ? mid : c);
+        // the near (sunward) inner wall in shadow, the floor, the far wall catching the light
+        pc.set(x, y, nx < -0.32 + ny * 0.2 ? dark : nx > 0.66 ? lit : mid);
       } else if (d <= 1.3) {
-        // the raised rim: its outer slope on the left catches the sun
+        // the raised rim: its outer slope on the left catches the sun, its right side drops into shadow
         if (nx < -0.3 && ny < 0.6) pc.set(x, y, lit);
-        else if (nx > 0.4 && ny > -0.2 && bayer(x, y) < 8) pc.set(x, y, dark);
+        else if (nx > 0.4 && ny > -0.2 && d <= 1.16) pc.set(x, y, dark);
       }
     }
   }
@@ -180,28 +181,33 @@ function crater(pc: PixelCanvas, cx: number, cy: number, rx: number, ry: number,
 
 const LUNAR_RAMP = [C.ink1, C.ink2, C.ink3, C.ink4, C.ink5, C.ink6, C.ink7, C.ink8, C.ink9];
 
-/** Regolith lit by how squarely it faces the low sun: b 0 (turned away) … 1 (full on), mapped onto ramp steps lo..hi. */
-function sunlit(x: number, y: number, b: number, lo: number, hi: number): number {
-  const t = Math.max(0, Math.min(1, b)) * (hi - lo) + lo;
-  const i = Math.floor(t);
-  return LUNAR_RAMP[Math.min(hi, ditherAt(x, y, t - i) ? i + 1 : i)];
+/** Regolith lit by how squarely it faces the low sun, b 0 (turned away) … 1 (full on), as a flat LUNAR_RAMP step lo..hi. */
+function sunStep(b: number, lo: number, hi: number): number {
+  return lo + stepOf(b, hi - lo + 1);
+}
+
+/** sunStep's colour (for small things drawn without seams). */
+function sunlit(b: number, lo: number, hi: number): number {
+  return LUNAR_RAMP[sunStep(b, lo, hi)];
 }
 
 /**
  * Brightness along a silhouette lit from the left by a sun a few degrees up: faces rising to the
  * right catch it, faces falling away go black, and every peak throws a long shadow to its right.
+ * `span` is how far either side the slope is measured (wider = broader, calmer facets).
  */
-function terrainLight(tops: number[], sunSlope: number, gain: number): number[] {
+function terrainLight(tops: number[], sunSlope: number, gain: number, span = 2): number[] {
   const out: number[] = [];
   let shadow = Infinity;
   for (let x = 0; x < tops.length; x++) {
-    const a = tops[Math.max(0, x - 2)];
-    const b = tops[Math.min(tops.length - 1, x + 2)];
-    const slope = (b - a) / 4;
+    const a = tops[Math.max(0, x - span)];
+    const b = tops[Math.min(tops.length - 1, x + span)];
+    const slope = (b - a) / (span * 2);
     shadow = Math.min(shadow + sunSlope, tops[x]);
     const depth = tops[x] - shadow;
     let l = 0.5 - slope * gain;
-    if (depth > 0.5) l = Math.min(l, 0.12 + Math.max(0, 0.25 - depth * 0.08));
+    // inside a cast shadow: one flat dark tone (a thin penumbra right at its edge)
+    if (depth > 0.5) l = Math.min(l, depth < 1.5 ? 0.3 : 0.12);
     out.push(l);
   }
   return out;
@@ -217,16 +223,37 @@ export function lunarFar(w: number, h: number, seed: number): PixelCanvas {
     return h * 0.7 - (n - 0.35) * h * 0.9 - (m - 0.5) * h * 0.16 - peak * peak * h * 0.22;
   };
   const tops = Array.from({ length: w }, (_, x) => Math.max(1, Math.min(h - 1, topAt(x))));
-  const light = terrainLight(tops, 0.22, 1.6);
-  for (let x = 0; x < w; x++) {
-    const t = Math.round(tops[x]);
-    for (let y = t; y < h; y++) {
-      const dy = y - t;
-      // the crest catches a rim of light; lower down the slope dims a little
-      let c = sunlit(x, y, light[x] - dy * 0.006, 1, 6);
-      if (dy === 0 && light[x] > 0.3) c = light[x] > 0.75 ? C.ink8 : C.ink7;
-      pc.set(x, y, c);
-    }
+  const light = terrainLight(tops, 0.22, 1.6, 5);
+  // broad flat faces: one tone per facet from the crest down, seams where facets meet
+  const face = cleanRuns(light.map((l) => sunStep(l, 1, 6)), 5);
+  paintLevels(
+    pc,
+    0,
+    0,
+    w,
+    h,
+    (x, y) => {
+      const t = Math.round(tops[x]);
+      if (y < t || (y === t && light[x] > 0.3)) return -1;
+      return face[x];
+    },
+    LUNAR_RAMP,
+  );
+  // the crest catches a rim of light
+  for (let x = 0; x < w; x++) if (light[x] > 0.3) pc.set(x, Math.round(tops[x]), light[x] > 0.75 ? C.ink8 : C.ink7);
+  // a few ledges across the faces: a lit lip over its own short shadow
+  for (let i = 0; i < w / 26; i++) {
+    const x0 = Math.floor(hash2(i, 1, seed + 21) * (w - 8));
+    const len = 3 + Math.floor(hash2(i, 2, seed + 21) * 5);
+    const t = Math.round(tops[x0]);
+    const y = t + 4 + Math.floor(hash2(i, 3, seed + 21) * Math.max(1, h - t - 8));
+    const l = face[x0];
+    if (l < 2 || l > 6) continue;
+    let same = true;
+    for (let k = 0; k < len; k++) if (face[x0 + k] !== l || y <= Math.round(tops[x0 + k]) + 2) same = false;
+    if (!same) continue;
+    pc.hline(x0, y, len, LUNAR_RAMP[l + 1]);
+    pc.hline(x0 + 1, y + 1, len, LUNAR_RAMP[l - 1]);
   }
   // the peaks of eternal light: the highest crests catch the sun all month
   for (let x = 2; x < w - 2; x++) {
@@ -245,16 +272,24 @@ export function lunarMid(w: number, h: number, seed: number): PixelCanvas {
   const surfF = (x: number) => h * 0.42 + (fbm(x / 70, seed + 5, seed) - 0.5) * h * 0.4 + (fbm(x / 23, seed + 9, 2) - 0.5) * h * 0.05;
   const tops = Array.from({ length: w }, (_, x) => surfF(x));
   const surf = (x: number) => Math.round(tops[Math.max(0, Math.min(w - 1, x))]);
-  const light = terrainLight(tops, 0.1, 1.5);
-  for (let x = 0; x < w; x++) {
-    const t = surf(x);
-    for (let y = t; y < h; y++) {
-      const dy = y - t;
-      let c = sunlit(x, y, light[x] * (dy < 4 ? 1 : 0.85) + 0.08, 3, 7);
-      if (dy === 0) c = light[x] > 0.35 ? C.ink8 : C.ink5;
-      pc.set(x, y, c);
-    }
-  }
+  const light = terrainLight(tops, 0.1, 1.5, 4);
+  // a lit lip along the crest of each swell, the slope below it a step down (facets, not flicker)
+  const lip = cleanRuns(light.map((l) => sunStep(l + 0.08, 3, 7)), 4);
+  const body = cleanRuns(light.map((l) => sunStep(l * 0.85 + 0.08, 3, 7)), 4);
+  paintLevels(
+    pc,
+    0,
+    0,
+    w,
+    h,
+    (x, y) => {
+      const dy = y - surf(x);
+      if (dy <= 0) return -1;
+      return dy < 4 ? lip[x] : body[x];
+    },
+    LUNAR_RAMP,
+  );
+  for (let x = 0; x < w; x++) pc.set(x, surf(x), light[x] > 0.35 ? C.ink8 : C.ink5);
   for (let i = 0; i < w / 22; i++) {
     const cx = hash2(i, seed, 2) * w;
     const base = surf(Math.round(cx));
@@ -275,15 +310,28 @@ export function lunarMid(w: number, h: number, seed: number): PixelCanvas {
   return pc;
 }
 
-/** The ground strip: regolith with rover tracks, a trail of boot prints, small craters and pebbles. */
+/**
+ * The ground strip: flat regolith (a lit lip, the trodden plain the astronauts walk, a darker
+ * stretch toward the foreground) with rover tracks, a trail of boot prints, small craters, pebbles.
+ */
 export function lunarGround(w: number, h: number): PixelCanvas {
   const pc = new PixelCanvas(w, h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let c: number;
-      if (y < 2) c = (x + y) % 3 === 0 ? C.ink8 : C.ink7;
-      else c = bayer(x, y) < 5 + (y > 20 ? 3 : 0) ? C.ink6 : C.ink7;
-      pc.set(x, y, c);
+  // where the plain dips a step darker toward the viewer
+  const dip = (x: number) => 21 + Math.round((fbm(x / 46, 3, 85, 2) - 0.5) * 7);
+  paintLevels(pc, 0, 0, w, h, (x, y) => (y === 0 ? -1 : y < dip(x) ? 1 : 0), [C.ink6, C.ink7]);
+  for (let x = 0; x < w; x++) pc.set(x, 0, hash2(x, 0, 87) < 0.16 ? C.ink7 : C.ink8);
+  // stony patches out in the darker stretch, as broad flat shapes (the walking lane stays calm)
+  for (let i = 0; i < w / 60; i++) {
+    const cx = hash2(i, 1, 88) * w;
+    const cy = 22 + hash2(i, 2, 88) * Math.max(1, h - 26);
+    const rx = 4 + hash2(i, 3, 88) * 8;
+    for (let y = Math.floor(cy - 1); y <= Math.ceil(cy + 1); y++) {
+      for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const u = (x + 0.5 - cx) / rx;
+        const v = (y + 0.5 - cy) / 1.6;
+        if (u * u + v * v > 1) continue;
+        pc.set(x, y, v < -0.3 && u < 0 ? C.ink6 : C.ink5);
+      }
     }
   }
   for (let i = 0; i < w / 34; i++) {
@@ -296,7 +344,7 @@ export function lunarGround(w: number, h: number): PixelCanvas {
   // rover tracks (two wheel lines, tread marks) and boot prints
   for (let x = 0; x < w; x++) {
     for (const y of [13, 16]) {
-      pc.set(x, y, (x + y) % 3 === 0 ? C.ink6 : C.ink5);
+      pc.set(x, y, C.ink6);
       if (x % 3 === 0) pc.set(x, y + 1, C.ink6);
     }
   }
@@ -351,10 +399,12 @@ export function lunarBack(stage: number, w: number, h: number, seed: number): { 
   while (x < w - 20) {
     const rw = 36 + Math.floor(hash2(i, seed, 2) * 50);
     const rh = 6 + Math.floor(hash2(i, seed, 3) * 9);
+    // a lit face and a shadowed one, meeting on a narrow seam
+    const ridge = x + Math.round(rw * 0.45);
     for (let k = 0; k < rw; k++) {
       const t = k / rw;
       const top = Math.round(h - 1 - Math.sin(t * Math.PI) ** 0.7 * rh);
-      for (let y = top; y < h; y++) pc.set(x + k, y, y === top ? (t < 0.5 ? C.ink7 : C.ink5) : t < 0.45 ? (ditherAt(x + k, y, 0.4) ? C.ink5 : C.ink6) : ditherAt(x + k, y, 0.4) ? C.ink3 : C.ink4);
+      for (let y = top; y < h; y++) pc.set(x + k, y, y === top ? (t < 0.5 ? C.ink7 : C.ink5) : seamColumn(x + k, y, ridge, C.ink6, C.ink4));
     }
     // solar masts on the crest
     const n = 1 + Math.floor(hash2(i, seed, 4) * 3);
@@ -488,7 +538,7 @@ export function scoutLander(pc: PixelCanvas, g: PixelCanvas | null, x: number, b
   pc.rect(x + 11, baseY - 10, 5, 2, C.ink4);
   pc.set(x + 13, baseY - 8, C.ink3);
   // the instrument deck
-  for (let y = baseY - 29; y < baseY - 19; y++) for (let xx = x + 7; xx < x + 20; xx++) pc.set(xx, y, roundShade(CONCRETE, xx + 0.5 - (x + 13.5), 6.5, xx, y));
+  for (let y = baseY - 29; y < baseY - 19; y++) for (let xx = x + 7; xx < x + 20; xx++) pc.set(xx, y, cylShade(CONCRETE, xx + 0.5 - (x + 13.5), 6.5, xx, y));
   pc.hline(x + 7, baseY - 24, 13, CHARTER.field);
   pc.rect(x + 9, baseY - 27, 3, 2, C.ink1);
   pc.set(x + 10, baseY - 27, C.cyn4);
@@ -609,9 +659,12 @@ function printedDome(pc: PixelCanvas, cx: number, baseY: number, rx: number, ry:
       const dy = (baseY - (y + 0.5)) / ry;
       if (dx * dx + dy * dy > 1) continue;
       const l = -dx * 0.85 + dy * 0.35;
-      let c = l > 0.55 ? SHELL.hi : l > 0.15 ? SHELL.lit : l > -0.3 ? SHELL.mid : l > -0.6 ? SHELL.shade : SHELL.dark;
-      if (l > 0.15 && l <= 0.55 && ditherAt(x, y, (l - 0.15) * 2.2)) c = SHELL.hi;
-      if (l <= -0.3 && l > -0.6 && ditherAt(x, y, (-0.3 - l) * 3)) c = SHELL.dark;
+      let c = l > 0.45 ? SHELL.hi : l > 0.12 ? SHELL.lit : l > -0.3 ? SHELL.mid : l > -0.55 ? SHELL.shade : SHELL.dark;
+      // narrow seams where the bands meet
+      if ((x + y) & 1) {
+        if (l > 0.38 && l <= 0.45) c = SHELL.hi;
+        else if (l <= -0.48 && l > -0.55) c = SHELL.dark;
+      }
       // the print layers
       if ((Math.round(baseY) - y) % 3 === 0) c = c === SHELL.hi ? SHELL.lit : c === SHELL.lit ? SHELL.mid : c === SHELL.mid ? SHELL.shade : SHELL.dark;
       pc.set(x, y, c);
@@ -677,15 +730,16 @@ export function moonHab(r: Ramp4): FacilityArt {
         const dy = base - (y + 0.5);
         const d = Math.hypot(dx, dy * 1.05);
         if (d > gr) continue;
-        let c = d > gr - 1.2 ? C.ink7 : dy > gr * 0.55 && dx < 0 && bayer(x, y) < 4 ? C.ink5 : C.ink3;
+        let c = d > gr - 1.2 ? C.ink7 : dy > gr * 0.55 && dx < 0 && hash2(x >> 1, y >> 1, 22) > 0.7 ? C.ink5 : C.ink3;
         if (d <= gr - 1.2) {
           const leaf = hash2(x >> 1, y >> 1, 21);
           if (dy < 8 && leaf > 0.3) c = leaf > 0.8 ? C.grn6 : leaf > 0.55 ? C.grn4 : C.grn3;
           if (dy >= 8 && (x + y) % 7 === 0) c = C.blu2;
-          if (bayer(x, y) === 0 && dy > 3) {
-            c = (x + y) % 2 ? C.pnk0 : C.vio3;
-            g.set(x, y, (x + y) % 2 ? C.pnk1 : C.vio4);
-          } else if (c !== C.ink6 && bayer(x, y) < 3) g.set(x, y, C.vio2);
+          // a bar of grow lamps hung across the dome; at night the glass fills with their violet light
+          if (Math.round(dy) === 9 && Math.abs(dx) < 9 && x % 4 !== 0) {
+            c = x % 4 === 2 ? C.pnk0 : C.vio3;
+            g.set(x, y, x % 4 === 2 ? C.pnk1 : C.vio4);
+          } else if (c === C.ink3) g.set(x, y, C.vio2);
         }
         // geodesic struts
         if (d <= gr - 1.2 && ((Math.round(dx + dy) % 6 === 0) || (Math.round(dx - dy) % 6 === 0))) c = C.ink5;
@@ -735,12 +789,13 @@ export function moonPad(r: Ramp4): FacilityArt {
     // blast berm on the base side
     for (let x = 0; x < 20; x++) {
       const top = base - Math.round(Math.sin((x / 20) * Math.PI) ** 0.6 * 10);
-      for (let y = top; y < base; y++) pc.set(x, y, y === top ? C.ink8 : x < 10 ? (ditherAt(x, y, 0.3) ? C.ink6 : C.ink7) : ditherAt(x, y, 0.5) ? C.ink4 : C.ink5);
+      for (let y = top; y < base; y++) pc.set(x, y, y === top ? C.ink8 : seamColumn(x, y, 10, C.ink7, C.ink5));
     }
-    // the slab, with edge lights
+    // the slab, with edge lights and expansion joints
     pc.rect(18, base - 4, W - 22, 4, C.ink4);
     pc.hline(18, base - 4, W - 22, C.ink6);
-    for (let x = 18; x < W - 4; x++) if (bayer(x, base - 2) < 5) pc.set(x, base - 2, C.ink3);
+    pc.hline(18, base - 1, W - 22, C.ink3);
+    for (let x = 58; x < W - 6; x += 12) pc.vline(x, base - 3, 2, C.ink3);
     for (let x = 22; x < W - 6; x += 12) {
       const on = (x / 12 + f) % 2 < 1;
       pc.set(x, base - 4, on ? C.cyn5 : C.cyn2);
@@ -764,7 +819,7 @@ export function moonPad(r: Ramp4): FacilityArt {
       const k = y - top;
       const hw = k < 12 ? Math.max(1, Math.round(half * Math.sqrt(1 - ((12 - k) / 12) ** 2))) : Math.round(half);
       for (let x = Math.round(cx - hw); x < Math.round(cx + hw); x++) {
-        let c = roundShade(STEEL, x + 0.5 - cx, hw, x, y);
+        let c = cylShade(STEEL, x + 0.5 - cx, hw, x, y);
         if (y > bottom - 14) c = c === C.white ? C.ink9 : c;
         pc.set(x, y, c);
       }
@@ -774,12 +829,18 @@ export function moonPad(r: Ramp4): FacilityArt {
       pc.rect(x, top + 16, 2, 2, C.ink1);
       g.rect(x, top + 16, 2, 2, C.yel1);
     }
-    for (let y = top + 24; y < top + 28; y++) for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) pc.set(x, y, roundShade({ hi: r.hi, lit: r.lit, mid: r.base, shade: r.mid, dark: r.dark }, x + 0.5 - cx, half, x, y));
+    for (let y = top + 24; y < top + 28; y++) for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) pc.set(x, y, cylShade({ hi: r.hi, lit: r.lit, mid: r.base, shade: r.mid, dark: r.dark }, x + 0.5 - cx, half, x, y));
     for (const tx of [cx - half - 1, cx + half]) {
       pc.rect(Math.round(tx), top + 34, 2, 4, C.ink4);
       pc.set(Math.round(tx), top + 38, C.ink3);
     }
-    for (let y = bottom - 10; y < bottom; y++) for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) if (bayer(x, y) < (y - (bottom - 10)) * 1.4) pc.set(x, y, C.ink5);
+    // soot on the skirt: a solid scorch with a short seam above it
+    for (let y = bottom - 6; y < bottom; y++) {
+      for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) {
+        const k = y - (bottom - 6);
+        if (k >= 2 || (k === 1 && (x + y) & 1) || (k === 0 && bayer(x, y) < 4)) pc.set(x, y, C.ink5);
+      }
+    }
     pc.rect(Math.round(cx - 3), bottom, 6, 2, C.ink3);
     // legs
     for (const [x0, x1] of [[cx - 6, cx - 15], [cx + 5, cx + 14]] as [number, number][]) {
@@ -847,16 +908,21 @@ export function rimSolar(seed: number): FacilityArt {
       beacon(pc, g, mx, top - 1, (f + i) % 2 === 0);
     });
     // the rim
-    const light = terrainLight(Array.from({ length: W }, (_, x) => rimTop(x)), 0.1, 2);
-    for (let x = 0; x < W; x++) {
-      const t = rimTop(x);
-      for (let y = t; y < base; y++) {
-        const dy = y - t;
-        let c = sunlit(x, y, light[x] + 0.16 - dy * 0.012, 3, 8);
-        if (dy === 0) c = sunlit(x, y, light[x] + 0.35, 4, 8);
-        pc.set(x, y, c);
-      }
-    }
+    const light = terrainLight(Array.from({ length: W }, (_, x) => rimTop(x)), 0.1, 2, 4);
+    const face = cleanRuns(light.map((l) => sunStep(l + 0.12, 3, 8)), 4);
+    paintLevels(
+      pc,
+      0,
+      0,
+      W,
+      base,
+      (x, y) => {
+        const dy = y - rimTop(x);
+        return dy <= 0 ? -1 : face[x] - (dy > 9 ? 1 : 0);
+      },
+      LUNAR_RAMP,
+    );
+    for (let x = 0; x < W; x++) pc.set(x, rimTop(x), sunlit(light[x] + 0.35, 4, 8));
     // cables down the slope to a converter box
     masts.forEach(([mx], i) => {
       for (let x = 10; x < mx; x++) {
@@ -909,7 +975,7 @@ export function iceRig(seed: number): FacilityArt {
         const t = far(x);
         for (let y = t; y < base; y++) {
           const dy = y - t;
-          pc.set(x, y, dy === 0 ? C.ink6 : dy === 1 ? C.ink3 : bayer(x, y) < 2 ? C.ink2 : C.ink1);
+          pc.set(x, y, dy === 0 ? C.ink6 : dy === 1 ? C.ink3 : C.ink1);
         }
         continue;
       }
@@ -917,21 +983,33 @@ export function iceRig(seed: number): FacilityArt {
       const sunward = x < x0;
       for (let y = t; y < base; y++) {
         const dy = y - t;
-        const c = sunward ? (dy === 0 ? C.ink9 : sunlit(x, y, 0.78 - dy * 0.012, 3, 7)) : dy === 0 ? C.ink5 : sunlit(x, y, 0.18, 1, 5);
+        const c = sunward ? (dy === 0 ? C.ink9 : sunlit(0.78 - dy * 0.012, 3, 7)) : dy === 0 ? C.ink5 : C.ink3;
         pc.set(x, y, c);
       }
     }
-    // floodlit work area around the rig (lit in the base too: it is always night down there)
-    for (let y = crest + 6; y < base; y++) {
-      for (let x = rigX - 40; x < rigX + 44; x++) {
-        const cur = pc.get(x, y);
-        if (cur !== C.ink1 && cur !== C.ink2) continue;
-        const d = Math.hypot((x - rigX) / 40, (y - floorY) / 22);
-        if (d > 1) continue;
-        if (bayer(x, y) < (1 - d) * 14) pc.set(x, y, d < 0.3 ? C.rck5 : d < 0.55 ? C.rck4 : d < 0.8 ? C.rck3 : C.rck2);
-        if (bayer(x + 2, y + 1) < (1 - d) * 8) g.set(x, y, d < 0.4 ? C.org0 : C.red1);
-      }
+    // a few dark boulders on the shadowed floor
+    for (let i = 0; i < 9; i++) {
+      const bx = x0 + 4 + Math.floor(hash2(i, seed, 43) * (x1 - x0 - 8));
+      const by = far(bx) + 6 + Math.floor(hash2(i, seed, 44) * Math.max(1, base - far(bx) - 8));
+      pc.hline(bx, by, 2 + Math.floor(hash2(i, seed, 45) * 3), C.ink2);
+      pc.set(bx, by - 1, C.ink2);
     }
+    // floodlit work area around the rig (lit in the base too: it is always night down there): flat
+    // pools of lamp light stepping down to the dark, narrow seams between them
+    const POOL = [C.ink1, C.rck2, C.rck3, C.rck4, C.rck5];
+    const poolAt = (x: number, y: number) => {
+      const cur = pc.get(x, y);
+      if (cur !== C.ink1 && cur !== C.ink2) return -1;
+      // a wide, low pool spread over the floor (and a little way up the far wall)
+      const d = Math.hypot((x - rigX) / 42, (y - floorY) / 13);
+      return d > 1 ? -1 : d < 0.24 ? 4 : d < 0.44 ? 3 : d < 0.64 ? 2 : d < 0.84 ? 1 : 0;
+    };
+    paintLevels(pc, rigX - 40, crest + 6, 84, base - crest - 6, poolAt, (x, y, l) => {
+      const c = l === 0 ? pc.get(x, y) : POOL[l];
+      // the glow keeps the pool lit through the night, warmest under the lamps
+      if (l >= 2) g.set(x, y, l === 4 ? C.snd5 : c);
+      return c;
+    });
     // frost glinting in the lamp light, fainter out in the dark
     for (let i = 0; i < 46; i++) {
       const x = x0 + 3 + Math.floor(hash2(i, seed, 41) * (x1 - x0 - 6));
@@ -998,7 +1076,7 @@ export function iceRig(seed: number): FacilityArt {
     for (let x = x0 - 3; x <= x1 + 3; x++) {
       const t = near(x);
       for (let y = t; y < base; y++) {
-        pc.set(x, y, y === t ? C.ink9 : sunlit(x, y, 0.7 - (y - t) * 0.06, 4, 7));
+        pc.set(x, y, y === t ? C.ink9 : sunlit(0.7 - (y - t) * 0.06, 4, 7));
         g.set(x, y, 0);
       }
     }
@@ -1096,19 +1174,27 @@ export function regolithMine(seed: number): FacilityArt {
       const top = base - 14 + Math.round((fbm(x / 13, seed, 2) - 0.5) * 3);
       for (let y = top; y < base; y++) {
         const dy = y - top;
-        let c = dy === 0 ? C.ink9 : dy < 3 ? C.ink7 : (y + Math.floor(x / 9)) % 4 === 0 ? C.ink3 : bayer(x, y) < 9 ? C.ink4 : C.ink5;
-        if (dy >= 3 && (x * 7 + y * 3) % 23 === 0) c = C.ink2;
+        // the lit lip, then the cut face in flat strata (darker benches every few rows)
+        let c = dy === 0 ? C.ink9 : dy < 3 ? C.ink7 : (y + Math.floor(x / 9)) % 4 === 0 ? C.ink3 : C.ink5;
+        if (dy >= 3 && c === C.ink5 && hash2(x >> 2, y, seed + 3) > 0.86) c = C.ink4;
         pc.set(x, y, c);
       }
     }
-    // spoil heaps (processed regolith) at each end
+    // spoil heaps (processed regolith) at each end: a lit flank and a shaded one
     for (const [hx, hw, hh] of [[0, 46, 18], [W - 52, 52, 22]] as [number, number, number][]) {
+      const ridge = hx + Math.round(hw * 0.48);
       for (let k = 0; k < hw; k++) {
         const t = k / hw;
         const top = Math.round(base - Math.sin(t * Math.PI) ** 0.9 * hh);
-        for (let y = top; y < base; y++) {
-          const lit = t < 0.48;
-          pc.set(hx + k, y, y === top ? (lit ? C.ink9 : C.ink6) : lit ? (ditherAt(hx + k, y, 0.3) ? C.ink6 : C.ink7) : ditherAt(hx + k, y, 0.5) ? C.ink4 : C.ink5);
+        for (let y = top; y < base; y++) pc.set(hx + k, y, y === top ? (t < 0.48 ? C.ink9 : C.ink6) : seamColumn(hx + k, y, ridge, C.ink7, C.ink5));
+      }
+      // a few lumps on the lit flank
+      for (let i = 0; i < 4; i++) {
+        const lx = hx + 4 + Math.floor(hash2(i, hx, 61) * (hw * 0.4));
+        const ly = base - 2 - Math.floor(hash2(i, hx, 62) * 6);
+        if (pc.get(lx, ly) === C.ink7) {
+          pc.set(lx, ly, C.ink8);
+          pc.set(lx + 1, ly, C.ink6);
         }
       }
     }
@@ -1172,8 +1258,7 @@ export function he3Plant(r: Ramp4): FacilityArt {
       for (let y = Math.round(cy - 6); y <= Math.round(cy + 6); y++) {
         const v = (y + 0.5 - cy) / 6;
         if (Math.abs(v) > 1) continue;
-        let c = v < -0.55 ? C.ink9 : v < 0.1 ? C.ink8 : v < 0.6 ? C.ink7 : C.ink6;
-        if (v < -0.55 && ditherAt(x, y, 0.4)) c = C.white;
+        let c = v < -0.78 ? C.white : v < -0.55 ? C.ink9 : v < 0.1 ? C.ink8 : v < 0.6 ? C.ink7 : C.ink6;
         if ((x - k0) % 9 === 4) {
           c = Math.abs(v) < 0.7 ? [C.org2, C.org1, C.yel1][(f + Math.floor(x / 9)) % 3] : C.ink5;
           if (Math.abs(v) < 0.7) g.set(x, y, c);
@@ -1200,9 +1285,15 @@ export function he3Plant(r: Ramp4): FacilityArt {
     pc.vline(34 + measureText(t) + 1, base - 49, 5, C.ink6);
     // cold columns that separate the gases (frost on their feet)
     for (const [cx, ch] of [[114, 58], [124, 68], [134, 50]] as [number, number][]) {
-      for (let y = base - ch; y < base; y++) for (let x = cx; x < cx + 7; x++) pc.set(x, y, roundShade(STEEL, x + 0.5 - (cx + 3.5), 3.5, x, y));
+      for (let y = base - ch; y < base; y++) for (let x = cx; x < cx + 7; x++) pc.set(x, y, cylShade(STEEL, x + 0.5 - (cx + 3.5), 3.5, x, y));
       for (let y = base - ch - 2; y < base - ch; y++) pc.hline(cx + 1, y, 5, C.ink8);
-      for (let y = base - 12; y < base; y++) for (let x = cx; x < cx + 7; x++) if (bayer(x, y) < (y - (base - 12)) * 1.2) pc.set(x, y, C.ice2);
+      // frost on their feet: solid at the ground, a short seam above
+      for (let y = base - 7; y < base; y++) {
+        for (let x = cx; x < cx + 7; x++) {
+          const k = y - (base - 7);
+          if (k >= 2 || (k === 1 && (x + y) & 1) || (k === 0 && bayer(x, y) < 4)) pc.set(x, y, C.ice2);
+        }
+      }
       for (let y = base - ch + 8; y < base - 14; y += 12) pc.hline(cx - 1, y, 9, C.ink5);
       beacon(pc, g, cx + 3, base - ch - 3, (f + cx) % 2 === 0);
     }
@@ -1226,7 +1317,7 @@ export function he3Plant(r: Ramp4): FacilityArt {
       pc.rect(x, base - 9, 2, 2, C.ink1);
       if (hash2(x, 5, 9) > 0.3) g.rect(x, base - 9, 2, 2, C.yel1);
     }
-    facadeShade(pc, 144, base - 12, W - 146, 12, C.ink8, C.ink7);
+    facadeClean(pc, 144, base - 12, W - 146, 12, C.ink8, C.ink7);
     moonGround(pc, W, H);
     frames.push(pc);
     glows.push(g);
@@ -1244,10 +1335,11 @@ function coldSphere(pc: PixelCanvas, cx: number, cy: number, R: number, band: nu
       const d = Math.hypot(dx, dy) / R;
       if (d > 1) continue;
       const l = (-dx * 0.85 - dy * 0.5) / R;
-      let c = l > 0.5 ? C.white : l > 0 ? C.ink9 : l > -0.45 ? C.ink8 : C.ink6;
-      if (l > 0 && l <= 0.5 && ditherAt(x, y, l * 2)) c = C.white;
+      let c = l > 0.38 ? C.white : l > 0 ? C.ink9 : l > -0.45 ? C.ink8 : C.ink6;
+      if (l > 0.3 && l <= 0.38 && (x + y) & 1) c = C.white;
       if (Math.abs(dy) < 1.2) c = l > 0 ? band : C.ink5;
-      if (dy > R * 0.55 && bayer(x, y) < 6) c = C.ice2;
+      // frost caked on the underside
+      if (dy > R * 0.72 || (dy > R * 0.6 && (x + y) & 1)) c = C.ice2;
       pc.set(x, y, c);
     }
   }
@@ -1413,10 +1505,10 @@ export function massDriver(r: Ramp4): FacilityArt {
     pc.hline(0, top, BREECH + 6, C.white);
     pc.rect(0, top + 2, BREECH + 6, 3, r.base);
     pc.hline(0, top + 2, BREECH + 6, r.lit);
-    facadeShade(pc, 0, top + 5, BREECH + 6, base - top - 5, C.ink8, C.ink7, 0.7);
+    facadeClean(pc, 0, top + 5, BREECH + 6, base - top - 5, C.ink8, C.ink7, 0.7);
     for (let k = 0; k < 6; k++) {
       const cx = 3 + k * 9;
-      for (let y = top - 9; y < top; y++) for (let x = cx; x < cx + 6; x++) pc.set(x, y, roundShade(STEEL, x + 0.5 - (cx + 3), 3, x, y));
+      for (let y = top - 9; y < top; y++) for (let x = cx; x < cx + 6; x++) pc.set(x, y, cylShade(STEEL, x + 0.5 - (cx + 3), 3, x, y));
       pc.hline(cx, top - 10, 6, C.ink7);
       pc.set(cx + 2, top - 10, (k + f) % 2 ? C.cyn5 : C.cyn3);
       g.set(cx + 2, top - 10, C.cyn5);

@@ -11,7 +11,7 @@
 import { C } from '../palette';
 import { bayer, ditherAt, fbm, hash2, PixelCanvas } from '../pixels';
 import type { BandProp, BackBand, SceneBands } from './scenery';
-import { habCylinder } from './act5kit';
+import { habCylinder, paintLevels } from './act5kit';
 
 /** What a space scene's bands and sky need to know (from the plan's scenery). */
 export interface SpaceScenery {
@@ -75,31 +75,46 @@ export function spaceSkyPlan(vw: number, vh: number, place: 'l4' | 'l5' | 'ring'
 export function spaceSkyArt(w: number, h: number, seed: number): PixelCanvas {
   const pc = new PixelCanvas(w, h);
   pc.rect(0, 0, w, h, C.ink0);
-  // the Milky Way: a tilted band of dithered glow with dark dust lanes
+  // the Milky Way: a tilted band of soft cloud in a few flat tones (seams only at their edges),
+  // torn by dark dust lanes
   const mid = (x: number) => h * (0.7 - (x / Math.max(1, w)) * 0.5) + Math.sin(x / 70 + seed) * h * 0.04;
   const bw = h * 0.16;
-  for (let x = 0; x < w; x++) {
-    const c = mid(x);
-    for (let y = Math.max(0, Math.floor(c - bw)); y < Math.min(h, Math.ceil(c + bw)); y++) {
-      const t = 1 - Math.abs(y - c) / bw;
+  const WAY = [C.ink0, C.night1, C.ink1, C.ink2];
+  paintLevels(
+    pc,
+    0,
+    0,
+    w,
+    h,
+    (x, y) => {
+      const c = mid(x);
+      const t = 1 - Math.abs(y + 0.5 - c) / bw;
+      if (t <= 0) return 0;
       const n = fbm(x / 34, y / 16, seed, 3) * t;
-      const lane = fbm(x / 22 + 9, y / 7, seed + 3, 2);
-      if (lane > 0.62 && t > 0.4) continue;
-      if (n > 0.44 && ditherAt(x, y, (n - 0.44) * 3)) pc.set(x, y, n > 0.56 ? C.ink3 : C.ink2);
-      else if (n > 0.3 && bayer(x, y) < 2) pc.set(x, y, C.night2);
-    }
-  }
-  // a faint violet nebula off to one side
+      if (fbm(x / 22 + 9, y / 7, seed + 3, 2) > 0.62 && t > 0.4) return 0;
+      return n > 0.6 ? 3 : n > 0.47 ? 2 : n > 0.35 ? 1 : 0;
+    },
+    WAY,
+  );
+  // a faint violet nebula off to one side, in two flat tones
   const nx = w * (0.3 + hash2(seed, 2, 5) * 0.4);
   const ny = h * 0.45;
-  for (let y = 0; y < h; y++) {
-    for (let x = Math.max(0, Math.floor(nx - 60)); x < Math.min(w, nx + 60); x++) {
+  const x0 = Math.max(0, Math.floor(nx - 60));
+  paintLevels(
+    pc,
+    x0,
+    0,
+    Math.min(w, Math.ceil(nx + 60)) - x0,
+    h,
+    (x, y) => {
+      if (pc.get(x, y) !== C.ink0) return -1;
       const d = Math.hypot((x - nx) / 60, (y - ny) / 30);
-      if (d > 1) continue;
+      if (d > 1) return -1;
       const n = fbm(x / 18, y / 12, seed + 11, 3) * (1 - d);
-      if (n > 0.3 && bayer(x, y) < (n - 0.3) * 30 && !pc.get(x, y)) pc.set(x, y, C.vio0);
-    }
-  }
+      return n > 0.56 ? 2 : n > 0.4 ? 1 : 0;
+    },
+    [C.ink0, C.night1, C.vio0],
+  );
   // stars, denser in the band
   const n = Math.round((w * h) / 120);
   for (let i = 0; i < n * 1.4; i++) {
@@ -297,16 +312,15 @@ export function stormCurtains(w: number, h: number, level: number, seed: number)
 export function trussStrip(w: number, h: number, f: number, feed: boolean): PixelCanvas {
   const pc = new PixelCanvas(w, h);
   const bot = 11;
-  // receding struts below, fading into the dark
+  // receding struts below, stepping darker into the shadow and ending at the far chord
+  const far = bot + Math.round((h - bot) * 0.55);
   for (let x0 = -h; x0 < w + h; x0 += 16) {
-    for (let y = bot + 2; y < h; y++) {
+    for (let y = bot + 2; y <= far; y++) {
       const x = x0 + Math.round((y - bot) * 0.6);
-      const t = (y - bot) / Math.max(1, h - bot);
-      if (bayer(x, y) < (1 - t) * 14) pc.set(x, y, t < 0.35 ? C.ink3 : C.ink2);
+      pc.set(x, y, y - bot < (far - bot) * 0.45 ? C.ink3 : C.ink2);
     }
   }
-  const far = bot + Math.round((h - bot) * 0.55);
-  for (let x = 0; x < w; x++) if (bayer(x, far) < 9) pc.set(x, far, C.ink2);
+  for (let x = 0; x < w; x++) pc.set(x, far, x % 16 === 0 ? C.ink3 : C.ink2);
   // deck (the walkway on the top chord)
   for (let x = 0; x < w; x++) {
     pc.set(x, 0, x % 16 === 0 ? C.ink7 : C.ink9);

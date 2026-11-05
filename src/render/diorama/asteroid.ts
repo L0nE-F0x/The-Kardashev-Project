@@ -13,13 +13,13 @@
  * Pure PixelCanvas code with palette indices only.
  */
 import { C } from '../palette';
-import { bayer, ditherAt, fbm, hash2, PixelCanvas } from '../pixels';
+import { fbm, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import type { AsteroidType } from '../../sim/types';
 import type { Emitter, FacilityArt, Mover } from './art';
 import type { SceneBands } from './scenery';
 import type { Ramp4 } from './act3kit';
-import { boulder, plate, quarantineNet, ROCK, rockAt, roboArm, stiffFlag, tugFrames, warnLight, type RockRamp } from './act5kit';
+import { boulder, cleanRuns, paintLevels, plate, quarantineNet, ROCK, rockSteps, rockTone, roboArm, seamColumn, stepOf, stiffFlag, tugFrames, warnLight, type RockRamp } from './act5kit';
 import { astronaut, capsuleFrames, scoutLander, type DriverSpec } from './moon';
 import { parseFlags, type YardFlags } from './yards';
 
@@ -79,17 +79,34 @@ function slopeLight(tops: number[], gain: number): number[] {
   return out;
 }
 
-/** Fill a silhouette (tops per column) with lit rock down to the bottom of the canvas. */
-function fillRock(pc: PixelCanvas, R: RockRamp, tops: number[], h: number, gain: number, fade = 0.004) {
+/**
+ * Fill a silhouette (tops per column) with lit rock down to the bottom of the canvas: broad flat
+ * faces (a lumpy noise breaks them into slabs and boulders), tint patches, a crisp crest line.
+ */
+function fillRock(pc: PixelCanvas, R: RockRamp, tops: number[], h: number, gain: number, fade = 0.004, seed = 0) {
   const light = slopeLight(tops, gain);
+  // one tone per facet, stepping down at fixed depths below the crest; lumps and hollows here and there
+  const face = cleanRuns(light.map((l) => stepOf(l, 6)), 4);
+  paintLevels(
+    pc,
+    0,
+    0,
+    tops.length,
+    h,
+    (x, y) => {
+      const t = Math.round(tops[x]);
+      if (!Number.isFinite(t) || y <= t) return -1;
+      let l = face[x] - Math.floor((y - t) * fade * 5 + 0.3);
+      const n = fbm(x / 12, y / 6, 23 + seed, 2);
+      if (n > 0.66) l += 1;
+      else if (n < 0.34) l -= 1;
+      return Math.max(0, Math.min(5, l));
+    },
+    (x, y, l) => rockTone(R, x, y, l, seed),
+  );
   for (let x = 0; x < tops.length; x++) {
     const t = Math.round(tops[x]);
-    for (let y = Math.max(0, t); y < h; y++) {
-      const dy = y - t;
-      let c = rockAt(R, x, y, light[x] - dy * fade + (fbm(x / 6, y / 4, 23, 2) - 0.5) * 0.35);
-      if (dy === 0) c = light[x] > 0.4 ? R.hi : light[x] > 0.2 ? R.lit : R.shade;
-      pc.set(x, y, c);
-    }
+    if (t >= 0 && t < h) pc.set(x, t, light[x] > 0.4 ? R.hi : light[x] > 0.2 ? R.lit : R.shade);
   }
 }
 
@@ -100,7 +117,7 @@ function asteroidFar(w: number, h: number, sc: AsteroidScenery, seed: number): P
   const tops = new Array<number>(w).fill(h + 5);
   const hump = (cx: number, hw: number, ht: number, pow = 1) => {
     for (let x = Math.max(0, Math.floor(cx - hw)); x < Math.min(w, cx + hw); x++) {
-      const t = 1 - Math.abs(x - cx) / hw;
+      const t = Math.max(0, 1 - Math.abs(x - cx) / hw);
       const y = h - 1 - Math.pow(Math.sin((t * Math.PI) / 2), pow) * ht + (fbm(x / 9, seed, 3) - 0.5) * 3;
       tops[x] = Math.min(tops[x], y);
     }
@@ -135,9 +152,12 @@ function asteroidFar(w: number, h: number, sc: AsteroidScenery, seed: number): P
     const mx = w * 0.62;
     for (let k = -4; k <= 4; k++) {
       const x0 = Math.round(mx + k * 5);
-      for (let y = Math.round(tops[Math.max(0, Math.min(w - 1, x0))]) + 1; y < h; y++) {
+      const y0 = Math.round(tops[Math.max(0, Math.min(w - 1, x0))]) + 1;
+      // each streak runs down a way and breaks off (longer near the summit's middle)
+      const len = Math.round((h - y0) * (1 - Math.abs(k) * 0.14));
+      for (let y = y0; y < y0 + len; y++) {
         const x = x0 + Math.round((y - h * 0.3) * k * 0.12);
-        if (pc.get(x, y) && bayer(x, y) < 10 - Math.abs(k)) pc.set(x, y, k === 0 || k === -1 ? C.white : C.ice2);
+        if (pc.get(x, y) && hash2(x, y >> 1, 5) > 0.18) pc.set(x, y, k === 0 || k === -1 ? C.white : C.ice2);
       }
     }
   }
@@ -145,12 +165,21 @@ function asteroidFar(w: number, h: number, sc: AsteroidScenery, seed: number): P
     // Dimorphos, the moonlet DART nudged
     const mx = Math.round(w * 0.42);
     const my = Math.round(h * 0.3);
-    for (let y = my - 5; y <= my + 5; y++) for (let x = mx - 7; x <= mx + 7; x++) {
-      const u = (x + 0.5 - mx) / 7;
-      const v = (y + 0.5 - my) / 5;
-      if (u * u + v * v > 1 + (hash2(x, y, 2) - 0.5) * 0.2) continue;
-      pc.set(x, y, rockAt(R, x, y, 0.75 - u * 0.5 - v * 0.3));
-    }
+    paintLevels(
+      pc,
+      mx - 7,
+      my - 5,
+      15,
+      11,
+      (x, y) => {
+        const u = (x + 0.5 - mx) / 7;
+        const v = (y + 0.5 - my) / 5;
+        if (u * u + v * v > 1 + (hash2(x, y, 2) - 0.5) * 0.2) return -1;
+        return stepOf(0.75 - u * 0.5 - v * 0.3, 6);
+      },
+      rockSteps(R),
+      1,
+    );
   }
   // a tumbling rock passing far off
   if (sc.id !== 'didymos') {
@@ -178,7 +207,7 @@ function asteroidMid(w: number, h: number, sc: AsteroidScenery, seed: number): P
     y = Math.min(h - 3, y);
     tops.push(y);
   }
-  fillRock(pc, R, tops, h, big ? 1.4 : 2, 0.006);
+  fillRock(pc, R, tops, h, big ? 1.4 : 2, 0.006, 5);
   // the rubble piles: boulders sitting proud of the horizon
   if (small) {
     for (let i = 0; i < w / 26; i++) {
@@ -216,20 +245,30 @@ function asteroidMid(w: number, h: number, sc: AsteroidScenery, seed: number): P
   return pc;
 }
 
-/** The ground strip: regolith, pebbles, small craters (glints that twinkle on metal: frames). */
+/**
+ * The ground strip: a lit lip, then flat regolith (the lane the suited figures walk stays one calm
+ * tone), slabs and hollows a step darker further out, dust drifts on the carbon-rich bodies,
+ * pebbles and small craters (glints that twinkle on metal: frames).
+ */
 function asteroidGround(w: number, h: number, sc: AsteroidScenery, f: number): PixelCanvas {
   const pc = new PixelCanvas(w, h);
   const R = ROCK[sc.type];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      let c: number;
-      if (y === 0) c = hash2(x, 3, 71) < 0.3 ? R.hi : R.lit;
-      else if (y < 3) c = bayer(x, y) < 6 ? R.shade : R.mid;
-      else c = rockAt(R, x, y, 0.46 - y * 0.008 + (fbm(x / 14, y / 5, 9) - 0.5) * 0.3);
-      if (sc.type === 'C' && y > 2 && fbm(x / 20, y / 6, 13) > 0.62 && bayer(x, y) < 4) c = R.dust;
-      pc.set(x, y, c);
-    }
-  }
+  const dip = (x: number) => 18 + Math.round((fbm(x / 44, 3, 9, 2) - 0.5) * 8);
+  paintLevels(
+    pc,
+    0,
+    0,
+    w,
+    h,
+    (x, y) => {
+      if (y === 0) return -1;
+      let l = y < dip(x) ? 3 : 2;
+      if (y > 11 && fbm(x / 13, y / 5, 9) > 0.64) l -= 1;
+      return l;
+    },
+    (x, y, l) => (y <= 11 ? rockSteps(R)[l] : sc.type === 'C' && l >= 2 && fbm(x / 20, y / 6, 13) > 0.63 ? R.dust : rockTone(R, x, y, l, 7)),
+  );
+  for (let x = 0; x < w; x++) pc.set(x, 0, hash2(x, 3, 71) < 0.3 ? R.hi : R.lit);
   for (let i = 0; i < w / 30; i++) {
     const cx = hash2(i, 5, 81) * w;
     const cy = 5 + hash2(i, 6, 81) * (h - 8);
@@ -284,9 +323,9 @@ function asteroidFg(w: number, h: number, R: RockRamp, seed: number): PixelCanva
   return pc;
 }
 
-/** The bottom three rows of an asteroid piece (they meet the ground strip). */
+/** The bottom three rows of an asteroid piece (they meet the ground strip): a lit lip, then flat rock. */
 export function rockGround(pc: PixelCanvas, W: number, H: number, R: RockRamp) {
-  for (let y = H - 3; y < H; y++) for (let x = 0; x < W; x++) pc.set(x, y, y === H - 3 ? (hash2(x, 3, 71) < 0.3 ? R.hi : R.lit) : bayer(x, y) < 6 ? R.shade : R.mid);
+  for (let y = H - 3; y < H; y++) for (let x = 0; x < W; x++) pc.set(x, y, y === H - 3 ? (hash2(x, 3, 71) < 0.3 ? R.hi : R.lit) : R.mid);
 }
 
 // ════════════════════════════════════════ PIECES ════════════════════════════════════════
@@ -505,20 +544,28 @@ export function astRig(type: AsteroidType, r: Ramp4, flags: YardFlags, seed: num
   for (let f = 0; f < N; f++) {
     const pc = new PixelCanvas(W, H);
     const g = new PixelCanvas(W, H);
-    for (let x = 0; x < 64; x++) {
-      const t0 = oTop(x);
-      if (t0 >= base) continue;
-      for (let y = t0; y < base; y++) {
-        if (inNotch(x, y)) continue;
-        // round lighting: the sunward (left) shoulder bright, the far flank in shadow, a rough skin
+    // round lighting in flat facets: the sunward (left) shoulder bright, the far flank in shadow,
+    // a lumpy skin and a few pits, then a crisp crest line
+    paintLevels(
+      pc,
+      0,
+      0,
+      64,
+      base,
+      (x, y) => {
+        const t0 = oTop(x);
+        if (t0 >= base || y <= t0 || inNotch(x, y)) return -1;
         const u = (x - 30) / 33;
         const v = (y - (base - oh * 0.4)) / oh;
-        let l = 0.62 - u * 0.55 - v * 0.25 + (fbm(x / 5, y / 4, seed + 5, 2) - 0.5) * 0.4;
-        if (hash2(x >> 1, y >> 1, seed + 6) > 0.93) l -= 0.3;
-        let c = rockAt(R, x, y, l);
-        if (y === t0) c = u < 0.3 ? R.hi : R.lit;
-        pc.set(x, y, c);
-      }
+        let l = 0.62 - u * 0.55 - v * 0.25 + (fbm(x / 8, y / 6, seed + 5, 2) - 0.5) * 0.32;
+        if (hash2(x >> 1, y >> 1, seed + 6) > 0.95) l -= 0.34;
+        return stepOf(l, 6);
+      },
+      (x, y, l) => rockTone(R, x, y, l, seed),
+    );
+    for (let x = 0; x < 64; x++) {
+      const t0 = oTop(x);
+      if (t0 < base && !inNotch(x, t0)) pc.set(x, t0, (x - 30) / 33 < 0.3 ? R.hi : R.lit);
     }
     // a crack or two, and rubble at its foot
     for (let k = 0; k < 2; k++) {
@@ -555,9 +602,9 @@ export function astRig(type: AsteroidType, r: Ramp4, flags: YardFlags, seed: num
       for (let k = 0; k <= n; k++) if (k % 2 === 0) pc.set(sx + Math.sign(ax - sx) * k, bt + 2 + Math.round((k / n) * (base - 2 - bt)), C.ink6);
       pc.rect(ax - 1, base - 2, 3, 2, C.ink5);
     }
+    const shadeX = bx0 + Math.round((bx1 - bx0) * 0.72);
     for (let y = bt; y < bb; y++) for (let x = bx0; x < bx1; x++) {
-      const t = (x - bx0) / (bx1 - bx0);
-      let c = x - bx0 < 2 ? C.ink9 : t < 0.5 ? C.ink8 : ditherAt(x, y, (t - 0.5) * 1.6) ? C.ink7 : C.ink8;
+      let c = x - bx0 < 2 ? C.ink9 : seamColumn(x, y, shadeX, C.ink8, C.ink7);
       if (y === bt) c = C.white;
       if ((x - bx0) % 12 === 11) c = C.ink6;
       pc.set(x, y, c);
@@ -590,7 +637,14 @@ export function astRig(type: AsteroidType, r: Ramp4, flags: YardFlags, seed: num
     pc.set(bx0 - 2, bt + 3, live ? C.yel2 : C.ink4);
     if (live) {
       g.set(bx0 - 2, bt + 3, C.yel2);
-      for (let y = ny - 10; y < base; y++) for (let x = nx - 2; x < 62; x++) if (pc.get(x, y) && !g.get(x, y) && bayer(x, y) < 3) g.set(x, y, type === 'C' ? C.ink6 : C.rck4);
+      // the lamp's pool on the rock around the notch (the rock in its own colours, lit)
+      for (let y = ny - 12; y < base; y++) {
+        for (let x = nx - 4; x < 64; x++) {
+          const c = pc.get(x, y);
+          if (!c || g.get(x, y) || Math.hypot((x - (nx + 10)) / 17, (y - ny) / 13) > 1) continue;
+          g.set(x, y, c);
+        }
+      }
     }
     // the boom and the cutter in the notch
     const tip: [number, number] = [nx + 6 + (live ? Math.round(Math.sin((f / N) * Math.PI * 2) * 2) : 0), ny];
@@ -693,7 +747,7 @@ export function astCatapult(type: AsteroidType, r: Ramp4, flags: YardFlags): Fac
     // the breech: a loading house with capacitor drums, pods waiting
     const top = base - 30;
     for (let y = top; y < base; y++) for (let x = 0; x < B + 6; x++) {
-      let c = x < 2 ? C.ink9 : x < (B + 6) * 0.5 ? C.ink8 : ditherAt(x, y, 0.5) ? C.ink7 : C.ink8;
+      let c = x < 2 ? C.ink9 : seamColumn(x, y, Math.round((B + 6) * 0.62), C.ink8, C.ink7);
       if (y === top) c = C.white;
       pc.set(x, y, c);
     }

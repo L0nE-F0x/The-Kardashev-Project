@@ -51,7 +51,8 @@ function drawRack(pc: PixelCanvas, g: PixelCanvas, f: number, frames: number, mo
       for (let u = 0; u < 19; u++) {
         const x = mx + u + Math.round(v * 0.5);
         const y = top - 18 + v - Math.round(u * 0.18);
-        let c = v === 0 ? C.sky4 : u % 5 === 0 || v % 4 === 0 ? C.ink6 : (u + v) % 2 ? C.blu3 : C.blu2;
+        // cells between the frame struts, each shaded a step down along its lower edge
+        let c = v === 0 ? C.sky4 : u % 5 === 0 || v % 4 === 0 ? C.ink6 : v % 4 === 3 ? C.blu2 : C.blu3;
         const glint = (u + f * 4 + k * 5) % 23;
         if (v > 0 && glint < 2) c = glint === 0 ? C.white : C.sky4;
         if (storm && hash2(u + f * 7, v + k, 41) < storm * 0.06) c = hash2(u, v, f) > 0.5 ? C.cyn6 : C.vio5;
@@ -83,8 +84,10 @@ function drawRack(pc: PixelCanvas, g: PixelCanvas, f: number, frames: number, mo
         // calm: a slow wave of brightness travelling along the ring
         if (mood === 2 && Math.abs(((x / 6 - f * (24 / frames)) % 24) + 24) % 24 < 2) c = C.cyn6;
         if (mood === 0 && hash2(x, y, f * 7 + 5) < 0.3) c = C.pnk1;
-        pc.set(x, y, on ? c : M.dim);
-        if (on) g.set(x, y, c);
+        // only the lit ones show: the dark ones are just the rack's face
+        if (!on) continue;
+        pc.set(x, y, c);
+        g.set(x, y, c);
       }
     }
   }
@@ -358,6 +361,9 @@ export function ringHead(mood: number, storm: number, start: boolean): FacilityA
   const src = new PixelCanvas(RACK_W, RACK_H);
   const srcG = new PixelCanvas(RACK_W, RACK_H);
   drawRack(src, srcG, 0, 4, mood, 0, 2, 5, 0);
+  // the blueprint's lines come from the bare racks (no LEDs lit), so it reads as a drawing
+  const plain = new PixelCanvas(RACK_W, RACK_H);
+  drawRack(plain, new PixelCanvas(RACK_W, RACK_H), 0, 4, mood, 0, -10, 5, 0);
   const K = 10;
   const frames: PixelCanvas[] = [];
   const glows: PixelCanvas[] = [];
@@ -369,7 +375,7 @@ export function ringHead(mood: number, storm: number, start: boolean): FacilityA
     const p = 0.12 + 0.84 * (k / (K - 1));
     const cut = Math.round(base - 56 + (1 - p) * 56) - oy;
     const g2 = new PixelCanvas(RACK_W, RACK_H);
-    const part = blueprintReveal(src, g2, cut, k);
+    const part = blueprintReveal(src, g2, cut, k, plain);
     glowBelow(srcG, g2, Math.max(cut, RACK_H - 30));
     pc.blit(part, 0, oy);
     g.blit(g2, 0, oy);

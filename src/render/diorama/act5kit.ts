@@ -3,18 +3,142 @@
  * asteroids and the Moon's foundry): rock ramps per asteroid type, robot arms (two-link IK), warning
  * beacons and quarantine nets for drifting foundries, a stiff flag for claims (no wind out here),
  * habitat cylinders seen from outside, little drones and tugs, and the blueprint "printing" reveal
- * the self-copying foundries use. Pure PixelCanvas code with palette indices only.
+ * the self-copying foundries use. Also the flat-band shading the off-world scenes share (the Moon
+ * too): big areas in solid tones, ordered dither only in narrow seams where two tones meet
+ * (`paintLevels`, `cleanRuns`, `cylShade`, `seamColumn`). Pure PixelCanvas code with palette indices only.
  */
 import { C, KEYS, type ColorKey } from '../palette';
-import { bayer, ditherAt, hash2, PixelCanvas } from '../pixels';
+import { bayer, fbm, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import { rampOf, type Ramp4 } from './act3kit';
+import type { Ramp } from './draw';
 import type { AsteroidType } from '../../sim/types';
 
 /** A palette index back to its ramp (pieces carry their accent as an index). */
 export function rampOfIndex(idx: number): Ramp4 {
   const key = KEYS[idx - 1] as ColorKey | undefined;
   return rampOf(key ?? 'cyn4');
+}
+
+// ════════════════════════════════════════ CLEAN SHADING ════════════════════════════════════════
+/** A brightness b (0..1) as the nearest of n flat steps (0 … n-1), no dither. */
+export const stepOf = (b: number, n: number) => Math.max(0, Math.min(n - 1, Math.round(Math.max(0, Math.min(1, b)) * (n - 1))));
+
+/**
+ * Paint a w×h region (from x0, y0) out of a level map as flat bands of colour, the way a pixel
+ * artist would shade it: big areas stay solid, and only where a pixel touches the next level up does
+ * a narrow ordered seam blend the two tones (a 50% checker on the first pixel, a sparse 25% on the
+ * second; `seam` 1 keeps just the first). Levels that jump by more than one meet on a hard edge, so
+ * cast shadows and rims stay crisp. Lone pixels are folded into the shape around them first, so a
+ * noisy map still comes out as clean shapes. `level` returns -1 to leave a pixel alone; `cols` is a
+ * ramp indexed by level, or a function for per-pixel colours (patches, haze).
+ */
+export function paintLevels(
+  pc: PixelCanvas,
+  x0: number,
+  y0: number,
+  w: number,
+  h: number,
+  level: (x: number, y: number) => number,
+  cols: number[] | ((x: number, y: number, level: number) => number),
+  seam = 2,
+): void {
+  if (w <= 0 || h <= 0) return;
+  const L = new Int16Array(w * h);
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const v = level(x0 + i, y0 + j);
+      L[j * w + i] = Number.isFinite(v) ? v : -1;
+    }
+  }
+  const raw = (i: number, j: number) => (i < 0 || j < 0 || i >= w || j >= h ? -1 : L[j * w + i]);
+  const M = L.slice();
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const l = L[j * w + i];
+      if (l < 0) continue;
+      const a = raw(i - 1, j);
+      const b = raw(i + 1, j);
+      const c = raw(i, j - 1);
+      const d = raw(i, j + 1);
+      // three of the four neighbours agree on another level: join them
+      for (const v of [a, b]) {
+        if (v >= 0 && v !== l && (v === a ? 1 : 0) + (v === b ? 1 : 0) + (v === c ? 1 : 0) + (v === d ? 1 : 0) >= 3) {
+          M[j * w + i] = v;
+          break;
+        }
+      }
+    }
+  }
+  const at = (i: number, j: number) => (i < 0 || j < 0 || i >= w || j >= h ? -1 : M[j * w + i]);
+  const col = typeof cols === 'function' ? cols : (_x: number, _y: number, l: number) => cols[Math.max(0, Math.min(cols.length - 1, l))];
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const l = M[j * w + i];
+      if (l < 0) continue;
+      const x = x0 + i;
+      const y = y0 + j;
+      const up = l + 1;
+      let k = l;
+      if (at(i - 1, j) === up || at(i + 1, j) === up || at(i, j - 1) === up || at(i, j + 1) === up) {
+        if ((x + y) & 1) k = up;
+      } else if (seam >= 2 && (at(i - 2, j) === up || at(i + 2, j) === up || at(i, j - 2) === up || at(i, j + 2) === up) && bayer(x, y) < 4) k = up;
+      pc.set(x, y, col(x, y, k));
+    }
+  }
+}
+
+/**
+ * Merge runs shorter than `min` in a row of levels into their neighbours (per-column shading turns
+ * into broad facets instead of thin flickering stripes). Returns a new array.
+ */
+export function cleanRuns(levels: number[], min = 4): number[] {
+  const out = levels.slice();
+  for (let pass = 0; pass < 3; pass++) {
+    let i = 0;
+    while (i < out.length) {
+      let j = i;
+      while (j + 1 < out.length && out[j + 1] === out[i]) j++;
+      if (j - i + 1 < min) {
+        // join the neighbour whose level is closest (the left one on a tie)
+        const left = i > 0 ? out[i - 1] : undefined;
+        const right = j + 1 < out.length ? out[j + 1] : undefined;
+        let v = left ?? right;
+        if (left !== undefined && right !== undefined && Math.abs(right - out[i]) < Math.abs(left - out[i])) v = right;
+        if (v !== undefined) for (let k = i; k <= j; k++) out[k] = v;
+      }
+      i = j + 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * A cylinder of half-width `half` lit from the left, at horizontal offset dx (-half..half), in flat
+ * vertical bands: the lit edge, a specular stripe, the body, the turning shadow, the far rim. Only
+ * the lit-edge→stripe and body→shadow joins get a 1-px checker seam.
+ */
+export function cylShade(r: Ramp, dx: number, half: number, x: number, y: number): number {
+  const W = Math.max(1, half * 2);
+  const u = dx + half;
+  const seam = (edge: number, a: number, b: number) => (u < edge - 1 ? a : u >= edge ? b : (x + y) & 1 ? b : a);
+  if (u < W * 0.3) return seam(W * 0.14, r.lit, r.hi);
+  if (u < W * 0.9) return seam(W * 0.66, r.mid, r.shade);
+  return r.dark;
+}
+
+/** Turn the right part of a facade (pixels of `from`, past `start` of its width) to `to`, meeting on a narrow seam. */
+export function facadeClean(pc: PixelCanvas, x0: number, y0: number, w: number, h: number, from: number, to: number, start = 0.62) {
+  const edge = x0 + Math.round(w * (start + (1 - start) * 0.4));
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (pc.get(x, y) === from) pc.set(x, y, seamColumn(x, y, edge, from, to));
+}
+
+/** A 1-px seam where a flat run of colour `a` meets `b` at column `edge` (checker on edge-1, sparse on edge-2). */
+export function seamColumn(x: number, y: number, edge: number, a: number, b: number): number {
+  if (x < edge - 2) return a;
+  if (x >= edge) return b;
+  if (x === edge - 1) return (x + y) & 1 ? b : a;
+  return bayer(x, y) < 4 ? b : a;
 }
 
 // ════════════════════════════════════════ ROCK ════════════════════════════════════════
@@ -28,51 +152,66 @@ export interface RockRamp {
   hi: number;
   /** Dust patches (C: bluish fines, S: tan, M: blue-grey). */
   dust: number;
-  /** A tint dithered into the mid tones (what makes S brown and M blue). */
+  /** A hue of the same value as step `tintLv`, laid in broad patches over it (what makes S brown and M blue). */
   tint: number;
+  tintLv: number;
   /** Specular glints (M sparkles; the others barely). */
   glint: number;
 }
 
 export const ROCK: Record<AsteroidType, RockRamp> = {
   // carbonaceous: charcoal black with a bluish dust
-  C: { deep: C.ink0, dark: C.ink1, shade: C.ink2, mid: C.ink3, lit: C.ink4, hi: C.ink6, dust: C.blu1, tint: C.blu1, glint: C.ink7 },
-  // stony: grey-brown
-  S: { deep: C.rck0, dark: C.rck1, shade: C.rck2, mid: C.rck3, lit: C.rck4, hi: C.rck6, dust: C.snd3, tint: C.snd2, glint: C.rck6 },
+  C: { deep: C.ink0, dark: C.ink1, shade: C.ink2, mid: C.ink3, lit: C.ink4, hi: C.ink6, dust: C.blu1, tint: C.blu1, tintLv: 3, glint: C.ink7 },
+  // stony: grey-brown (brown patches in the shaded faces)
+  S: { deep: C.rck0, dark: C.rck1, shade: C.rck2, mid: C.rck3, lit: C.rck4, hi: C.rck6, dust: C.snd3, tint: C.snd2, tintLv: 2, glint: C.rck6 },
   // metal: grey-blue nickel-iron with bright glints
-  M: { deep: C.blu0, dark: C.ink3, shade: C.ink4, mid: C.ink5, lit: C.ink7, hi: C.ink9, dust: C.blu2, tint: C.blu3, glint: C.white },
+  M: { deep: C.blu0, dark: C.ink3, shade: C.ink4, mid: C.ink5, lit: C.ink7, hi: C.ink9, dust: C.blu2, tint: C.blu3, tintLv: 3, glint: C.white },
 };
 
-/** Rock lit by b (0 turned away … 1 full on), dithered between the ramp's steps. */
-export function rockAt(R: RockRamp, x: number, y: number, b: number): number {
-  const steps = [R.deep, R.dark, R.shade, R.mid, R.lit, R.hi];
-  const t = Math.max(0, Math.min(0.999, b)) * (steps.length - 1);
-  const i = Math.floor(t);
-  const c = steps[ditherAt(x, y, t - i) ? Math.min(steps.length - 1, i + 1) : i];
-  // the tint creeps into the middle tones
-  if ((c === R.mid || c === R.shade) && bayer(x + 1, y + 2) < 3) return R.tint;
-  return c;
+/** The rock's six steps, deep shadow → sunlit crest (indexed by level). */
+export const rockSteps = (R: RockRamp): number[] => [R.deep, R.dark, R.shade, R.mid, R.lit, R.hi];
+
+/** Rock lit by b (0 turned away … 1 full on): one flat step of the ramp. */
+export function rockAt(R: RockRamp, b: number): number {
+  return rockSteps(R)[stepOf(b, 6)];
+}
+
+/**
+ * Rock colour for a level, with the type's tint lying in broad patches over one tone of the same
+ * value (what makes S brown and M blue) instead of being sprinkled through every pixel.
+ */
+export function rockTone(R: RockRamp, x: number, y: number, l: number, seed = 0): number {
+  if (l === R.tintLv && fbm(x / 15, y / 6, seed + 41, 2) > 0.66) return R.tint;
+  return rockSteps(R)[Math.max(0, Math.min(5, l))];
 }
 
 /** A boulder resting on baseY, lit from the upper left (r = radius; squash < 1 flattens it). */
 export function boulder(pc: PixelCanvas, R: RockRamp, cx: number, baseY: number, r: number, seed: number, squash = 0.75) {
   const ry = r * squash;
   const cy = baseY - ry + 1;
-  for (let y = Math.floor(cy - ry - 1); y <= baseY; y++) {
-    for (let x = Math.floor(cx - r - 2); x <= Math.ceil(cx + r + 2); x++) {
+  const x0 = Math.floor(cx - r - 2);
+  const y0 = Math.floor(cy - ry - 1);
+  // flat facets lit from the upper left, a bright rim on the sunward shoulder, a few chipped faces
+  paintLevels(
+    pc,
+    x0,
+    y0,
+    Math.ceil(cx + r + 2) - x0 + 1,
+    baseY - y0 + 1,
+    (x, y) => {
       const dx = (x + 0.5 - cx) / r;
       const dy = (y + 0.5 - cy) / ry;
       const lump = (hash2(Math.round(Math.atan2(dy, dx) * 2.2), seed, 31) - 0.5) * 0.35;
       const d = Math.hypot(dx, dy);
-      if (d > 1 + lump) continue;
+      if (d > 1 + lump) return -1;
       const l = 0.55 - dx * 0.42 - dy * 0.38;
-      let c = rockAt(R, x, y, l);
-      if (d > 0.82 + lump && dx < -0.2 && dy < 0.2) c = R.hi;
-      // facets and pits
-      if (hash2(x >> 1, y >> 1, seed) > 0.9) c = l > 0.5 ? R.mid : R.dark;
-      pc.set(x, y, c);
-    }
-  }
+      if (d > 0.82 + lump && dx < -0.2 && dy < 0.2) return 5;
+      if (r > 3 && hash2(x >> 1, y >> 1, seed) > 0.93) return l > 0.5 ? 3 : 1;
+      return stepOf(l, 6);
+    },
+    rockSteps(R),
+    r > 5 ? 2 : 1,
+  );
   // the shadow it throws to the right (the sun is low on the left)
   for (let x = Math.round(cx + r * 0.6); x < Math.round(cx + r * 2.4); x++) {
     if (!pc.get(x, baseY) || pc.get(x, baseY) === R.lit || pc.get(x, baseY) === R.hi || pc.get(x, baseY) === R.mid) pc.set(x, baseY, R.deep);
@@ -306,15 +445,14 @@ export function habCylinder(len: number, r: number, seed: number): { base: Pixel
     for (let x = x0; x <= x1; x++) {
       let c: number;
       if (window) {
-        c = l > 0.7 ? C.sky4 : l > 0.35 ? C.blu4 : C.blu2;
+        c = l > 0.95 ? C.white : l > 0.7 ? C.sky4 : l > 0.35 ? C.blu4 : C.blu2;
         if ((x + seed) % 9 === 0) c = C.ink6;
-        if (bayer(x, y) < 2 && l > 0.5) c = C.white;
         if ((x + seed) % 9 !== 0 && hash2(x >> 2, y, seed) > 0.7) g.set(x, y, C.sky4);
       } else {
         c = l > 0.85 ? C.white : l > 0.6 ? C.ink9 : l > 0.35 ? C.ink8 : l > 0.1 ? C.ink7 : C.ink6;
         if ((x + seed * 3) % 12 === 0) c = l > 0.5 ? C.ink7 : C.ink5;
         // fields seen through a gap in the shielding
-        if (band === 2 && hash2(x >> 3, seed, 7) > 0.75) c = ditherAt(x, y, 0.5) ? C.grn5 : C.grn4;
+        if (band === 2 && hash2(x >> 3, seed, 7) > 0.75) c = l > 0.5 ? C.grn5 : C.grn4;
       }
       pc.set(x, y, c);
     }
@@ -375,15 +513,35 @@ export function tugFrames(r: Ramp4): PixelCanvas[] {
   });
 }
 
+/** A palette index as its ramp and step ('ink7' → ['ink', 7]; white tops the ink ramp). */
+function rampStep(idx: number): [string, number] {
+  const key = KEYS[idx - 1] ?? '';
+  if (key === 'white') return ['ink', 10];
+  if (key === 'foam') return ['sea', 9];
+  const m = /^([a-z]+)(\d)$/.exec(key);
+  return m ? [m[1], Number(m[2])] : [key, 0];
+}
+
+/** Is there a line in the drawing between these two colours (a new material, or a jump of two steps or more)? */
+function structureEdge(a: number, b: number): boolean {
+  if (!b || a === b) return false;
+  const [fa, la] = rampStep(a);
+  const [fb, lb] = rampStep(b);
+  return fa !== fb || Math.abs(la - lb) >= 2;
+}
+
 /**
  * Self-replication: a copy of `src` being printed from the bottom up. Below `cut` the real thing;
- * above it the blueprint: the silhouette's outline in marching cyan ants and a faint hologram fill.
+ * above it the blueprint: the silhouette's outline in marching cyan ants, its inner structure drawn
+ * as thin dim cyan lines (where the finished part changes material; `lines` can be a plainer drawing
+ * of the same part to take them from), the rest left open.
  */
-export function blueprintReveal(src: PixelCanvas, g: PixelCanvas, cut: number, phase: number): PixelCanvas {
+export function blueprintReveal(src: PixelCanvas, g: PixelCanvas, cut: number, phase: number, lines: PixelCanvas = src): PixelCanvas {
   const pc = new PixelCanvas(src.w, src.h);
   for (let y = 0; y < src.h; y++) {
     for (let x = 0; x < src.w; x++) {
       const c = src.get(x, y);
+      const s = lines.get(x, y);
       if (!c) continue;
       if (y >= cut) {
         pc.set(x, y, c);
@@ -395,9 +553,15 @@ export function blueprintReveal(src: PixelCanvas, g: PixelCanvas, cut: number, p
           pc.set(x, y, C.cyn4);
           g.set(x, y, C.cyn5);
         }
-      } else if (bayer(x, y) === 0 || (y === cut - 1 && x % 2 === 0)) {
+      } else if (y === cut - 1) {
+        // the layer being laid down
+        if (x % 2 === 0) {
+          pc.set(x, y, C.cyn3);
+          g.set(x, y, C.cyn4);
+        }
+      } else if (structureEdge(s, lines.get(x - 1, y)) || structureEdge(s, lines.get(x, y - 1))) {
         pc.set(x, y, C.cyn2);
-        if (bayer(x, y) === 0 && (x + phase) % 2 === 0) g.set(x, y, C.cyn3);
+        if ((x + y + phase) % 9 === 0) g.set(x, y, C.cyn3);
       }
     }
   }
