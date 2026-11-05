@@ -13,6 +13,8 @@ Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 ```bash
 npm run dev           # Vite dev server → http://127.0.0.1:5317 (landing at /, game at /play/)
 npm run build         # typecheck (tsc 7) + production build → dist/ (both pages + service worker)
+BALANCE=1 npx vitest run tests/balance.test.ts   # the balance report: every act's bot × Relaxed/Standard/Hard × seeds
+                      # (BALANCE_ACTS=4,5 BALANCE_SEEDS=21,7 BALANCE_DIR=…; Act I searches 24 plans per run)
 npm test              # vitest: sim determinism, Act I bot, Act II bot (preset → IPO), Act III bot (preset → renewal),
                       # Act IV bot (preset → jumps → the Heat Wall), Act V bot (preset → eras → Solar Maximum → Type I),
                       # offline, saves, routing, map + diorama scenes
@@ -71,6 +73,8 @@ src/
     act4.ts       Act IV framework: beginAct4, stages in `s.planet.stage` (0 Mandate · 1 Supergrid · 2 Fusion Age ·
                   3 High Frontier · 4 Heat Wall · 5 done), stage gates, `planetChecklist` (live); act4preset.ts =
                   "Start at Act IV" (the Act III preset fast-forwarded to 2045)
+    sandbox.ts    sandbox mode: `meta.sandbox` switches (unlimited money, research fast/all, overnight builds) and
+                  scenario sliders (politics, climate, shocks, chips) read by the sim's formulas; `tickSandbox` daily
     plans.ts      five-year plans and time jumps (real daily ticks with `flags.offline = 'jump'`), the planner that
                   posts/awards contracts by priority, autopilot for events (first enabled choice), the report + Bit's diary
     supergrid.ts / provinces.ts / climate.ts / fusion.ts / orbit.ts (+ the Moon) / airegions.ts / heatwall.ts
@@ -139,7 +143,9 @@ src/
     briefings.ts  Act II (`b-*`), Act III (`c-*`), Act IV (`d-*`) and Act V (`e-*`) unlock briefings: the owning advisor's 1–3 step
                   spotlight, shown once (each act's briefings only fire in that act)
     showcase.ts   the fake "day 900" world the menu tour flies over
-    tour.ts       TourDirector: map glides + campus cuts behind the main menu
+    tour.ts       TourDirector: map glides + campus cuts behind the main menu; Act III–V shots borrow the preview
+                  worlds (`act4PreviewState`, `act5PreviewState`) and the orbit and solar-system scenes
+    playtest.ts   the playtest report (real time per act from `meta.log`, the notes) that Settings → Data → Log saves
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window
     panels/Act2Panels.tsx  Team (advisor jobs), Deals (supply · customers · companies), Blocs, Board & debt, Crunch tracker
     panels/Act3Panels.tsx  Charter (overview · contracts · missions · partners · world), Council, Charter desk,
@@ -154,8 +160,11 @@ src/
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
   landing/    website script + css: spinning globe canvas, install button, GitHub-release downloads, What's New
   platform/   platform.ts: browser vs installed PWA vs desktop app (quit, fullscreen, install prompt, service worker)
-  save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks)
-  audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips), music.ts (menu theme MP3 or chiptune fallback, game ambience)
+  save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
+              achievements.ts (per-device achievement store: unlocked, advisors met, places visited)
+  audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips, noise bursts: launches, the mass driver, jumps,
+              stings), music.ts (menu theme MP3 or chiptune fallback; a chiptune track per era in sections, following the
+              palette), ambience.ts (a sound bed per place: map, campus, night, rain, coast, lake, Moon, space, habitat)
 src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the game bundled; capabilities = close, fullscreen,
               updater, restart, opener scoped to the ApexForge page). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
               only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater)
@@ -202,7 +211,8 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   price crises with `cc(s, n)` so difficulty scales them.
 - **Tutorial targets:** UI elements Bit (and the Act II briefings) point at carry `data-tut="..."`; keep them when refactoring panels.
 - **Act gating:** Act II content carries `act: 2` and/or `phase: n` (facilities, techs, events, objectives, sites, jobs,
-  deals). Act I must stay byte-identical: gate new behaviour on `s.act >= 2` and keep the Act I bot at ~day 812.
+  deals). Gate new behaviour on `s.act >= 2`. M5's balance pass retuned Act I on purpose (first hall 10 months,
+  Standard $450M / Hard $380M seed): the Act I bot now finishes on day 687; later changes should still be deliberate.
 - **Act II prices:** Act I events use `cc(s, n)`, which scales up in Act II; Act II events (events2.ts) use `c2(s, n)`,
   written at Act II scale.
 - **Act III gating:** `s.charter` exists only from Act III (null before). Act III phases live in `s.charter.phase`;
@@ -210,7 +220,7 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   resolutions, missions, desks). Charter money is separate from company cash: `chSpend`/`chEarn` and the Charter ledger;
   Act III events price the Charter side with `ch3(s, n)` and the company side with `c2(s, n)`. New formula hooks
   (`grid:price`, `grid:carbon`, `market:hbm`, `market:pkg`, `charter:build`, `world:growth`) are modifiers that only
-  exist in Act III, so Acts I–II stay byte-identical (Act I bot: day 812; Act II bot: IPO after 5.6 years).
+  exist in Act III, so Acts I–II stay byte-identical (Act I bot: day 687 since M5; Act II bot: IPO after 5.6 years).
 - **Act IV gating:** `s.planet` exists only from Act IV (null before); `s.charter.phase` stays 6. Act IV content uses
   `act: 4` and `stage` (contract kinds, techs, resolutions, events, objectives). New hooks (`charter:space`,
   `orbit:debris`, `grid:faults`, `prov:<region>`, `heatwall:<front>`, the Act IV growth parts, gridYield in siteYield)
@@ -264,6 +274,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | New objective / act goal | `content/objectives.ts` |
 | New Field Guide entry | `content/fieldGuide.ts` (body, in-game note, unlock rule) |
 | Advisor's campus line | `content/campusLines.ts` (act range per line) |
+| Achievement | `content/achievements.ts` (`done(s)` check, or `done: null` + `game.achieve(id)`; ids are for Steam later) |
+| Sandbox switch or slider | `SandboxOpts` in `sim/types.ts`, read it in the sim formula, add the control in `ui/menu/SandboxControls.tsx` |
+| Province governor | `GOVERNORS` in `content/planet.ts` + a look in `GOVERNOR_LOOKS` (`render/sprites/portraits.ts`) |
+| Era music / place ambience | `ERA_SONGS` in `audio/music.ts` (sections, instruments) · `build()` in `audio/ambience.ts` |
 | Person look, pose, outfit | `render/diorama/people.ts` (`tests/people-preview.test.ts` checks sizes and the closed outline) |
 | Campus behaviour, critter, vehicle | `render/diorama/life.ts` (the scene feeds it `Spot`s and a `LifeEnv` each frame) |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
@@ -308,15 +322,16 @@ builds — then v1.0.0. Later: Type II as an Act VI that continues a finished sa
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
 **Still open:**
-- The main menu's background tour (`game/tour.ts` `SHOTS`, `game/showcase.ts`) only flies over Acts I–II: no Charter
-  HQ, megaproject, launch, orbit-view, Moon, solar-system or Act V diorama shots yet.
-- Act V (v0.6.0): audio is only the ending cue; rewilding isn't drawn over old megaproject sites; Android apps older
-  than 0.6.0 can't save the end card (they suggest updating); Act V screens checked in headless desktop and phone emulation only.
+- M5 (branch `m5`, SPEC §21): built through step 7 (playtest log + notes, the balance report and first retune, sandbox,
+  achievements, era music + ambience + new sounds, the menu tour's Act III–V shots, governors, the Moon lander, rewilding,
+  a phone pass). Waiting for the user's full playthrough (Settings → Gameplay → Playtest notes; Data → Log), then the
+  retune and v1.0.0. The music was level-checked in headless Chrome but nobody has listened to it yet.
+- Act V (v0.6.0): Android apps older than 0.6.0 can't save the end card (they suggest updating); Act V screens checked in
+  headless desktop and phone emulation only.
   The 0.6.0 APK's `saveImage` bridge compiled (local debug build) but hasn't been tried on the emulator or a phone yet.
 - Local Android builds on the dev machine: `JAVA_HOME=~/.local/share/jdk/jdk-17.0.21+9 ANDROID_HOME=~/.local/share/android-sdk
   ./gradlew assembleDebug --offline` (in `android/`).
-- Act IV (v0.5.0): no province governor portraits, no Act IV audio (ambience, launches, mass driver), the Moon's crew
-  lander doesn't take off; Act IV screens checked in headless desktop and phone emulation only.
+- Act IV (v0.5.0): screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
 - In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
   refused; the Android app in the emulator) and on the user's real Xiaomi phone, which updated itself to v0.5.1. Not yet

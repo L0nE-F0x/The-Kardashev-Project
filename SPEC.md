@@ -1603,7 +1603,7 @@ Polish and ship: the balance pass across all five acts, a sandbox next to the ca
 achievements, the leftovers from earlier milestones and a phone pass, then **v1.0.0**. Planned 2026-11-05 in two Q&A
 rounds, right after v0.6.1 "Signs of Life" (the diorama art overhaul).
 
-**Status: planned, waiting for "go".**
+**Status: steps 1–7 built on the `m5` branch (2026-11-05); step 8 (your playthrough → retune → v1.0.0) is next.** As-built notes at the end of this section.
 
 ### Decisions (locked 2026-11-05)
 
@@ -1698,3 +1698,40 @@ screens), then your Xiaomi.
 - Sandbox saves don't unlock campaign rewards; achievements are per device, not per save.
 - Google Play is dropped for 1.0 along with the other stores; the Windows/macOS checks wait for someone with those
   machines.
+
+### As built (2026-11-05, steps 1–7)
+- **Playtest tools:** `meta.log` keeps real seconds per act (by speed, paused, in time-lapses), cards seen and decisions;
+  Settings → Gameplay → **Playtest notes** adds a ✎ button and the J key (the clock stops while you write; the note is
+  stamped with the act, date and screen); Settings → Data → **Log** saves a Markdown report; the campaign stats show real
+  time per act. Game shortcuts now ignore every text field (they used to fire while typing in a textarea).
+- **The balance report** (`BALANCE=1 npx vitest run tests/balance.test.ts`): every act × difficulty × seed. Act I searches
+  24 plans (rental, chip orders, battery, inference share); Act II uses a careful bot (budgets scaled to its cash).
+- **What it found, and the first retune:**
+  - Hard Act I had *no* winning plan (0 of 24): a hall, solar and ~8,000 chips cost ~$350M against a $250M seed, and
+    the first hall took 15 months to build. Now: the hall builds in 10 months, seeds are Relaxed $600M / Standard $450M /
+    Hard $380M. Hard finishes with 2–5 of 24 plans (2.6–3 years), Standard with 16–22 (1.9 years), Relaxed all 24.
+  - Acts end on the calendar, so difficulty can't make them shorter or longer: **difficulty is margin for error**. The
+    report's target line says so (it no longer asks Relaxed to be faster).
+  - Card fatigue: Act III showed ~200 cards (103 of them three repeats) and Act IV up to 300. Board reviews the board
+    passed are news (and all of them once you're the Steward); routine project overruns and scandals settle themselves
+    between cards (one card per 240 days; overruns over 10% of the treasury always ask). Act III is now ~120–160 cards,
+    Act IV ~135–215, Act V ~85–125.
+  - A company you sold or handed over as a public utility kept bleeding money and sent 17 bridge-loan cards in Act IV;
+    it's now off your books. From Act III a company that runs dry gets a bridge loan, never a campaign game over (the
+    autopilot, which takes the first choice during jumps, could have closed a Hard company mid-jump).
+  - Estimated real time at ~2.5 days/second plus ~40 s per card: Act I ~45 min (under its 1–1.5 h budget), II ~1.5 h,
+    III ~2.5–3 h, IV ~3 h, V ~2 h: ~10–11 h in all. Your playthrough's log replaces this guess.
+- **Sandbox** (New Company → Campaign | Sandbox; the 🧪 badge in the top bar changes it mid-game): money never runs out
+  (company, and the Charter's treasury), research normal / 4× / everything reachable, build overnight, and sliders for
+  bloc politics, climate sensitivity, crises and supply shocks, chip prices. No records, no founder unlock.
+- **37 achievements** with pixel medals (bronze, silver, gold), a menu screen and a toast; per device; campaign ones
+  don't unlock in a sandbox, and an act a preset skips isn't yours to collect.
+- **Audio:** a chiptune track per era (A minor squares → D major drive → pentatonic G → E Lydian echoes → B major
+  shimmer), each in sections, following the palette; ambience per place; sounds for launches, the mass driver, jumps,
+  big decisions, swarm arcs, the storm, campus bubbles and advisors. Levels checked even across eras (~±1 dB).
+- **Leftovers:** nine Act III–V menu-tour shots; twelve province governors (faces and lines in the Provinces table);
+  the Moon's crew lander takes off; garden provinces rewild old megaproject land on the Act V map.
+- **Phone pass:** the new screens at 780×360 and 863×300 (the sandbox badge had been hidden on phones; fixed).
+- **Not done / needs you:** your playthrough and the retune from it; the Windows/macOS installers on real machines; the
+  theme song MP3. Nobody has listened to the new music yet (headless only).
+
