@@ -1,4 +1,4 @@
-import type { FacilityType, GameState, SupplierId } from '../sim/types';
+import type { FacilityType, GameState, SandboxOpts, SupplierId } from '../sim/types';
 import type { MapLod } from '../world/mapData';
 import type { Router } from '../world/routing';
 import type { PixelStage, Scene } from '../render/stage';
@@ -47,7 +47,7 @@ import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | null;
 export type PlanetTab = 'overview' | 'provinces' | 'grid' | 'fusion' | 'space' | 'climate';
 export type SystemTab = 'overview' | 'thermal' | 'foundries' | 'asteroids' | 'swarm' | 'minds' | 'people';
 /** The Type I ending, step by step. */
@@ -1217,7 +1217,8 @@ export class Game {
       s.flags.endingShown = s.day;
       s.flags.act5Complete ??= s.day;
       const year = s.system?.typeI ? new Date(Date.UTC(2027, 0, 1) + s.system.typeI * 86_400_000).getUTCFullYear() : null;
-      if (year) {
+      // a sandbox run is for fun: no records, no unlocks
+      if (year && !s.meta.sandbox) {
         const best = { ...(this.settings.typeIBest ?? {}) };
         const d = s.meta.difficulty;
         if (!best[d] || year < best[d]) best[d] = year;
@@ -1411,6 +1412,16 @@ export class Game {
     else a.bySpeed[this.speed] = (a.bySpeed[this.speed] ?? 0) + dt;
     if (s.events.active && s.events.active !== this.seenCard) a.events++;
     this.seenCard = s.events.active;
+  }
+
+  /** Change a sandbox's switches mid-game (only a sandbox company has them). */
+  setSandbox(opts: SandboxOpts): void {
+    const s = this.state;
+    if (!s?.meta.sandbox) return;
+    s.meta.sandbox = { ...opts };
+    refreshStats(s);
+    this.save();
+    this.notify();
   }
 
   /** The quick playtest note box (Settings → Gameplay → Playtest notes, or J). */

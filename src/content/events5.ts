@@ -11,7 +11,6 @@ import { REGIONS } from './regions';
 import { REGION_IDS, type RegionId } from './mapcodes';
 import { ASTEROID_BY_ID, CAST5, MAX_FRONT_NAMES, SUCCESSOR, SYSTEM } from './system';
 import { ADVISORS } from './advisors';
-import { DIFFICULTIES } from './difficulty';
 import { AIS } from './planet';
 import { WEALTH } from './charter';
 import { addModifier } from '../sim/effects';
@@ -27,10 +26,11 @@ import { startLastClimb } from '../sim/eras';
 import { deskHolder, segmentsLit } from '../sim/systemView';
 import { headroomTW, spaceTW } from '../sim/swarm';
 import { warming } from '../sim/climate';
+import { crisisMult } from '../sim/model';
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 /** Charter-side price written at 2068 scale; grows with the world economy and the difficulty. */
-const ch5 = (s: GameState, amount: number) => amount * Math.pow(1.05, Math.max(0, yearsElapsed(s.day) - 41)) * (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1);
+const ch5 = (s: GameState, amount: number) => amount * Math.pow(1.05, Math.max(0, yearsElapsed(s.day) - 41)) * crisisMult(s);
 const treasury = (s: GameState, cost: number): string | false => ((s.charter?.budget ?? 0) >= cost ? false : `Needs ${fmtMoney(cost)} in the treasury`);
 const capital = (s: GameState, n: number): string | false => ((s.charter?.capital ?? 0) >= n ? false : `Needs ${n} political capital`);
 const desk = (s: GameState, id: AdvisorId) => deskHolder(s, id) as Speaker;

@@ -12,8 +12,7 @@ import { RESOLUTION_BY_ID } from './council';
 import { addModifier } from '../sim/effects';
 import { earn, spend } from '../sim/economy';
 import { clamp, fmtMoney, news, pick, rand, randInt, yearsElapsed } from '../sim/core';
-import { crisisCost2 } from '../sim/model';
-import { DIFFICULTIES } from './difficulty';
+import { crisisCost2, crisisMult } from '../sim/model';
 import { addRelation, addRelationAll } from '../sim/politics';
 import { addCapital, addLegitimacy, addPartnerRel, cancelProject, chEarn, chSpend, partnerName, postTender, setBlindTrust, canPost } from '../sim/charter';
 import { endWalkout } from '../sim/council';
@@ -25,7 +24,7 @@ import { bitTrusted } from '../sim/desk';
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 const c2 = (s: GameState, amount: number) => crisisCost2(s, amount);
 /** Charter-side price: written at 2035 scale, grows with the world economy. */
-const ch3 = (s: GameState, amount: number) => amount * Math.pow(1.05, Math.max(0, yearsElapsed(s.day) - 8)) * (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1);
+const ch3 = (s: GameState, amount: number) => amount * Math.pow(1.05, Math.max(0, yearsElapsed(s.day) - 8)) * crisisMult(s);
 const afford = (s: GameState, cost: number): string | false => (s.finance.cash >= cost ? false : `Needs ${fmtMoney(cost)} of company cash`);
 const treasury = (s: GameState, cost: number): string | false => ((s.charter?.budget ?? 0) >= cost ? false : `Needs ${fmtMoney(cost)} in the treasury`);
 const rName = (r: string | number) => REGIONS[r as RegionId]?.name ?? String(r);

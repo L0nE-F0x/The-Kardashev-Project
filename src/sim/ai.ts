@@ -26,6 +26,7 @@ import {
   tierMult,
   tierOf,
 } from './model';
+import { sandboxResearch } from './sandbox';
 
 export interface ComputeResult {
   /** Peak PFLOP/s available today. */
@@ -131,7 +132,7 @@ export function computeOutputs(s: GameState, power: PowerResult): ComputeResult 
     if (f.type === 'hq') talent += FACILITIES.hq.rp! * Math.sqrt(site.talent);
   }
   const researchAccel = (totalPF * a.research) / RENTAL.perf;
-  const rpDay = talent * (1 + Math.sqrt(researchAccel / 800)) * (1 + 0.15 * Math.max(0, c - 1)) * techMult(s, 'research') * modMult(s, 'research');
+  const rpDay = talent * (1 + Math.sqrt(researchAccel / 800)) * (1 + 0.15 * Math.max(0, c - 1)) * techMult(s, 'research') * modMult(s, 'research') * sandboxResearch(s);
 
   return { totalPF, ownedPF, rentedPF, locationFactor, installed, revenueDay, rpDay, trainFlopDay, safetyFlopDay, contractDay, penaltyDay, served, demand: demandBy, delivered };
 }

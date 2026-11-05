@@ -10,7 +10,6 @@ import type { AiId, FusionDesignId, GameState, HeatFront } from '../sim/types';
 import { REGIONS } from './regions';
 import { REGION_IDS, type RegionId } from './mapcodes';
 import { AIS, FUSION_DESIGNS, HEAT_FRONT_NAMES, PLANET, STAGE_NAMES, SUPERGRID_BY_ID } from './planet';
-import { DIFFICULTIES } from './difficulty';
 import { addModifier } from '../sim/effects';
 import { clamp, fmtMoney, news, pick, rand, yearsElapsed } from '../sim/core';
 import { scheduleEvent } from '../sim/events';
@@ -22,10 +21,11 @@ import { pressure4 } from '../sim/heatwall';
 import { warming } from '../sim/climate';
 import { worldMargin } from '../sim/frontier';
 import { tableResolution } from '../sim/council';
+import { crisisMult } from '../sim/model';
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 /** Charter-side price written at 2045 scale; grows with the world economy and the difficulty. */
-const ch4 = (s: GameState, amount: number) => amount * Math.pow(1.05, Math.max(0, yearsElapsed(s.day) - 18)) * (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1);
+const ch4 = (s: GameState, amount: number) => amount * Math.pow(1.05, Math.max(0, yearsElapsed(s.day) - 18)) * crisisMult(s);
 const treasury = (s: GameState, cost: number): string | false => ((s.charter?.budget ?? 0) >= cost ? false : `Needs ${fmtMoney(cost)} in the treasury`);
 const capital = (s: GameState, n: number): string | false => ((s.charter?.capital ?? 0) >= n ? false : `Needs ${n} political capital`);
 const rName = (r: string | number) => REGIONS[r as RegionId]?.name ?? String(r);

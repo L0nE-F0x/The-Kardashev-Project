@@ -34,6 +34,8 @@ export interface SlotInfo {
   /** The year the campaign reached Type I. */
   typeI?: number;
   gameOver: boolean;
+  /** A sandbox company. */
+  sandbox?: boolean;
 }
 
 function storage(): Storage | null {
@@ -85,6 +87,7 @@ function infoOf(id: string, s: GameState): SlotInfo {
     act4: !!s.flags.act4Complete,
     typeI: s.system?.typeI ? new Date(Date.UTC(2027, 0, 1) + s.system.typeI * 86_400_000).getUTCFullYear() : undefined,
     gameOver: !!s.meta.gameOver,
+    sandbox: !!s.meta.sandbox,
   };
 }
 

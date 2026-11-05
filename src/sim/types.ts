@@ -979,6 +979,24 @@ export interface GameMeta {
   act5Start?: boolean;
   /** Real play time per act and playtest notes (written by the game layer; the sim never reads it). */
   log?: PlayLog;
+  /** A sandbox company (no campaign unlocks); its switches can change any time. */
+  sandbox?: SandboxOpts;
+}
+
+/** Sandbox switches and scenario sliders. */
+export interface SandboxOpts {
+  /** Money never runs out: company cash (and, from Act III, the Charter's treasury) are topped up. */
+  unlimited: boolean;
+  /** Research at the normal pace, four times as fast, or everything you can reach already known. */
+  research: 'normal' | 'fast' | 'all';
+  /** Construction (facilities, upgrades, links, grid hook-ups, Charter projects) finishes overnight. */
+  instant: boolean;
+  /** Scenario sliders, 1 = as designed: how touchy bloc politics is, how hard the climate responds,
+   *  how hard crises and supply shocks hit, and what accelerators cost. */
+  politics: number;
+  climate: number;
+  shocks: number;
+  chips: number;
 }
 
 /** How a company was played, in real time (for the balance pass and playtest feedback). */

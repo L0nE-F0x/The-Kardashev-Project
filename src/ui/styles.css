@@ -1804,3 +1804,18 @@ img.endcard {
   margin-bottom: 10px;
   line-height: 1.4;
 }
+
+/* sandbox */
+.sandbox-badge {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  margin-right: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.sandbox-controls {
+  display: grid;
+  gap: 6px;
+}

@@ -19,6 +19,7 @@ import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
 import { FieldGuideBody } from './menu/FieldGuide';
 import { BriefingOverlay, TutorialOverlay } from './Tutorial';
+import { SandboxControls } from './menu/SandboxControls';
 
 function Hud() {
   const game = useGame();
@@ -52,6 +53,12 @@ function Hud() {
       {panel === 'settings' && (
         <Panel title="Settings" icon="settings" class="wide" onClose={() => game.openPanel(null)}>
           <SettingsBody />
+        </Panel>
+      )}
+      {panel === 'sandbox' && game.state.meta.sandbox && (
+        <Panel title="Sandbox" icon="research" class="wide" onClose={() => game.openPanel(null)}>
+          <p class="small muted">Flip these any time. A sandbox keeps no records and unlocks nothing.</p>
+          <SandboxControls value={game.state.meta.sandbox} onChange={(v) => game.setSandbox(v)} />
         </Panel>
       )}
       {panel === 'guide' && (

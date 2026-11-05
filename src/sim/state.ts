@@ -3,7 +3,7 @@ import { DIFFICULTIES, FOUNDERS, type Difficulty, type EventRate, type FounderId
 import { REGION_IDS } from '../content/mapcodes';
 import { REGIONS } from '../content/regions';
 import { SITES } from '../content/sites';
-import type { GameState, Stats } from './types';
+import type { GameState, SandboxOpts, Stats } from './types';
 import { monthKey, randInt } from './core';
 import { emptyLedger } from './economy';
 import { kardashev, worldBaselineTW } from './model';
@@ -21,6 +21,8 @@ export interface NewGameOptions {
   /** Overrides the difficulty's seed money (custom start). */
   startCash?: number;
   tutorial?: boolean;
+  /** A sandbox company with these switches. */
+  sandbox?: SandboxOpts;
 }
 
 export function emptyStats(): Stats {
@@ -101,6 +103,7 @@ export function newGame(opts: NewGameOptions): GameState {
       playtime: 0,
       tutorialStep: opts.tutorial ? 0 : -1,
       createdAt: Date.now(),
+      ...(opts.sandbox ? { sandbox: { ...opts.sandbox } } : {}),
     },
     seed,
     rng: seed,

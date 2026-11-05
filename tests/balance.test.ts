@@ -7,6 +7,8 @@
  *   BALANCE=1 npx vitest run tests/balance.test.ts
  *   BALANCE=1 BALANCE_ACTS=4,5 BALANCE_SEEDS=21,7 BALANCE_DIR=/some/dir npx vitest run tests/balance.test.ts
  * Writes balance-act<N>.md (and .json) to BALANCE_DIR (default: the OS temp dir).
+ * Act I runs 24 plans per difficulty and seed (tests/helpers/act1bot.ts#act1Plans); Act II uses the
+ * careful bot (budgets scaled to the cash it starts with).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -157,7 +159,7 @@ function report(act: number, rows: RunResult[]): string {
   const std = by('standard');
   out.push('');
   out.push(
-    `Mean years: relaxed ${by('relaxed').toFixed(2)} (${(((by('relaxed') - std) / std) * 100).toFixed(0)}%), standard ${std.toFixed(2)}, hard ${by('hard').toFixed(2)} (${(((by('hard') - std) / std) * 100).toFixed(0)}%) — target: relaxed 15–25% faster, hard 15–25% slower, no stall over ~120 days.`,
+    `Mean years: relaxed ${by('relaxed').toFixed(2)} (${(((by('relaxed') - std) / std) * 100).toFixed(0)}%), standard ${std.toFixed(2)}, hard ${by('hard').toFixed(2)} (${(((by('hard') - std) / std) * 100).toFixed(0)}%). Targets: every act finishes on every difficulty with a sensible plan; difficulty is margin for error (Act I: how many of the 24 plans finish — Relaxed all, Standard most, Hard a few), not act length, since acts end on the calendar. The stall column means something in Acts I–III; Acts IV–V move in jumps.`,
   );
   return out.join('\n');
 }

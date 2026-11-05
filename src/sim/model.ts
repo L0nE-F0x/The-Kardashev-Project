@@ -248,7 +248,7 @@ export function chipSpec(s: GameState, supplier: SupplierId) {
   let dealPrice = 1;
   for (const d of s.stack?.deals ?? []) if (d.kind === 'cofund' && d.partner === supplier && s.day >= d.readyDay) dealPrice = Math.min(dealPrice, d.partner === 'lumen' ? 0.95 : 0.92);
   return {
-    price: def.price * Math.pow(0.97, y) * dealPrice * modMult(s, `supplier:${supplier}:price`) * (supplier === 'own' ? 1 : modMult(s, 'supplier:*:price')),
+    price: def.price * Math.pow(0.97, y) * dealPrice * modMult(s, `supplier:${supplier}:price`) * (supplier === 'own' ? 1 : modMult(s, 'supplier:*:price')) * (s.meta?.sandbox?.chips ?? 1),
     perf: def.perf * Math.pow(1.3, y),
     kw: def.kw * Math.pow(1.05, y),
   };
@@ -382,12 +382,17 @@ export function alignmentOf(s: GameState): number {
 export function crisisCost(s: GameState, amount: number): number {
   // Act II companies are ~10× bigger; Act I crisis prices scale with them
   const scale = (s.act ?? 1) >= 2 ? 2.5 * Math.pow(1.4, Math.max(0, yearsElapsed(s.day) - 2.2)) : 1;
-  return amount * scale * (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1);
+  return amount * scale * crisisMult(s);
 }
 
 /** Crisis price for Act II events, which are already written at Act II scale (difficulty only). */
 export function crisisCost2(s: GameState, amount: number): number {
-  return amount * Math.pow(1.15, Math.max(0, yearsElapsed(s.day) - 2.2)) * (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1);
+  return amount * Math.pow(1.15, Math.max(0, yearsElapsed(s.day) - 2.2)) * crisisMult(s);
+}
+
+/** How hard crises hit: the difficulty, times the sandbox's supply-shock slider. */
+export function crisisMult(s: GameState): number {
+  return (DIFFICULTIES[s.meta?.difficulty ?? 'standard']?.crisis ?? 1) * (s.meta?.sandbox?.shocks ?? 1);
 }
 
 /** Monthly probability of a safety incident at a given margin. */

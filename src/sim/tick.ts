@@ -58,6 +58,7 @@ import {
   worldBaselineTW,
 } from './model';
 import { RENTAL } from '../content/companies';
+import { tickSandbox } from './sandbox';
 
 /** Advance the world by one day. */
 export function tick(s: GameState, ctx: SimContext): void {
@@ -69,6 +70,7 @@ export function tick(s: GameState, ctx: SimContext): void {
   const power = solvePower(s);
   const compute = tickCompute(s, power);
   const econ = tickEconomy(s, power, compute);
+  tickSandbox(s);
   if (act2) {
     const lease = leaseCost(s) / DAYS_PER_MONTH;
     if (lease) spend(s, 'opex', lease);

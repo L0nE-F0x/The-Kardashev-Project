@@ -14,7 +14,7 @@ const passed = (s: GameState, id: string) => !!s.charter?.council.passed.include
 /** Warming before geoengineering (°C). */
 export function rawWarming(s: GameState): number {
   const left = s.charter?.world.carbonGt ?? CHARTER.carbon0;
-  return PLANET.warming0 + PLANET.warmingPerGt * (CHARTER.carbon0 - left);
+  return PLANET.warming0 + PLANET.warmingPerGt * (CHARTER.carbon0 - left) * (s.meta?.sandbox?.climate ?? 1);
 }
 
 /** Warming felt today (°C). */

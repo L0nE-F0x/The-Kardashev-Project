@@ -44,7 +44,14 @@ export function TopBar() {
         )}
       </div>
       <div class="date frame" data-tip={`Day ${s.day} of the campaign.\nAt 1× speed one day passes per second.`}>
-        <span class="label">{s.company.name}</span>
+        <span class="label">
+          {s.meta.sandbox && (
+            <button class="btnless sandbox-badge" onClick={() => game.openPanel(game.panel === 'sandbox' ? null : 'sandbox')} data-tip="Sandbox: change the switches" aria-label="Sandbox switches">
+              🧪
+            </button>
+          )}
+          {s.company.name}
+        </span>
         <span class="d">{fmtDate(s.day)}</span>
       </div>
       <div class="stats frame" data-tut="stats">

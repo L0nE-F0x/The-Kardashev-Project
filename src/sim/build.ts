@@ -10,7 +10,7 @@ export function tickConstruction(s: GameState): void {
   for (const f of s.facilities) {
     // expansions run alongside a working facility
     if (f.upgrade) {
-      f.upgrade.progress += 1;
+      f.upgrade.progress += s.meta.sandbox?.instant ? f.upgrade.buildDays : 1;
       if (f.upgrade.progress >= f.upgrade.buildDays) {
         f.tier = f.upgrade.to;
         f.upgrade = undefined;
@@ -27,7 +27,7 @@ export function tickConstruction(s: GameState): void {
       f.blocked = blocked ? 'euv' : undefined;
       if (blocked) continue;
     }
-    f.progress += 1;
+    f.progress += s.meta.sandbox?.instant ? f.buildDays : 1;
     if (f.progress >= f.buildDays) {
       f.status = 'online';
       f.onlineDay = s.day;
@@ -38,7 +38,7 @@ export function tickConstruction(s: GameState): void {
   }
   for (const l of s.network?.fiber ?? []) {
     if (l.status !== 'building') continue;
-    l.progress += 1;
+    l.progress += s.meta.sandbox?.instant ? 1e6 : 1;
     if (l.progress >= l.buildDays) {
       l.status = 'online';
       news(s, `🌐 Fiber lit: ${siteDef(l.a).name} ⇄ ${siteDef(l.b).name}.`, 'good');
@@ -46,7 +46,7 @@ export function tickConstruction(s: GameState): void {
   }
   for (const c of s.network?.own ?? []) {
     if (c.status !== 'building') continue;
-    c.progress += 1;
+    c.progress += s.meta.sandbox?.instant ? 1e6 : 1;
     if (c.progress >= c.buildDays) {
       c.status = 'online';
       news(s, `🌊 Your subsea cable ${siteDef(c.a).name} ⇄ ${siteDef(c.b).name} is carrying traffic.`, 'good');
@@ -64,7 +64,7 @@ export function tickConstruction(s: GameState): void {
   }
   for (const l of s.links) {
     if (l.status !== 'building') continue;
-    l.progress += 1;
+    l.progress += s.meta.sandbox?.instant ? 1e6 : 1;
     if (l.progress >= l.buildDays) {
       l.status = 'online';
       news(s, `⚡ Transmission line ${siteDef(l.a).name} ⇄ ${siteDef(l.b).name} energised.`, 'good');

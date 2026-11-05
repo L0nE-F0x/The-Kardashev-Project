@@ -5,6 +5,9 @@ import { REGIONS } from '../../content/regions';
 import { DIFFICULTIES, EVENT_RATES, FOUNDERS, RIVAL_PACES, type Difficulty, type EventRate, type FounderId, type RivalPace } from '../../content/difficulty';
 import { fmtMoney } from '../../sim/core';
 import { sitePreviewUrl } from '../sitePreview';
+import { SandboxControls } from './SandboxControls';
+import { SANDBOX_DEFAULT } from '../../sim/sandbox';
+import type { SandboxOpts } from '../../sim/types';
 
 const randomSeed = () => Math.floor(Math.random() * 900000) + 100000;
 
@@ -21,22 +24,39 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
   const [rivalPace, setRivalPace] = useState<RivalPace>('normal');
   const [seed, setSeed] = useState<number>(randomSeed());
   const [start, setStart] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [mode, setMode] = useState<'campaign' | 'sandbox'>('campaign');
+  const [sandbox, setSandbox] = useState<SandboxOpts>(SANDBOX_DEFAULT);
+  const [scenario, setScenario] = useState(false);
+  const sb = mode === 'sandbox';
   const lod = game.world.lods[1];
   const startCash = (cash ?? DIFFICULTIES[difficulty].cash) + FOUNDERS[founder].cash;
 
   const found = () => {
-    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4, act5: start === 5 });
+    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: !sb && start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4, act5: start === 5, sandbox: sb ? sandbox : undefined });
   };
 
   return (
-    <Window title="New company" icon="hq" wide onClose={() => game.openMenuScreen('main')}>
+    <Window title={sb ? 'New sandbox' : 'New company'} icon="hq" wide onClose={() => game.openMenuScreen('main')}>
+      <div class="row wrap" style={{ gap: '10px', alignItems: 'center', marginBottom: '10px' }} data-tut="mode">
+        <div class="seg">
+          <button class={`btn small ${!sb ? 'active' : ''}`} onClick={() => setMode('campaign')} aria-pressed={!sb}>
+            Campaign
+          </button>
+          <button class={`btn small ${sb ? 'active' : ''}`} onClick={() => setMode('sandbox')} aria-pressed={sb}>
+            🧪 Sandbox
+          </button>
+        </div>
+        <span class="small muted grow">
+          {sb ? 'The same world, with switches: money that never runs out, research on fast-forward, building overnight, and sliders for the world itself. No records or unlocks.' : 'The story from a garage to Type I, with its goals, crises and records.'}
+        </span>
+      </div>
       <div class="row wrap" style={{ gap: '12px', alignItems: 'flex-end' }}>
         <label class="grow" style={{ minWidth: '220px' }}>
           <span class="label">Company name</span>
           <input type="text" value={name} maxLength={28} onInput={(e) => setName((e.target as HTMLInputElement).value)} style={{ width: '100%' }} />
         </label>
         <div style={{ minWidth: '240px' }}>
-          {start === 1 ? (
+          {start === 1 && !sb ? (
             <Toggle label="Bit shows me around" hint="A guided first ten minutes." value={tutorial} onChange={setTutorial} />
           ) : (
             <span class="small muted">Advisors brief you on each new system as it opens.</span>
@@ -77,6 +97,15 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
           <span class="b">January 2068. A hundred terawatts, the Heat Wall behind you, a mass driver on the Moon — and a hundredfold climb to go.</span>
         </button>
       </div>
+
+      {sb && (
+        <>
+          <h4 class="section">Sandbox switches (change them any time from the 🧪 badge in the top bar)</h4>
+          <div class="custom">
+            <SandboxControls value={sandbox} onChange={setSandbox} scenario={scenario} onScenario={setScenario} />
+          </div>
+        </>
+      )}
 
       <h4 class="section">{start === 1 ? 'Where is your garage?' : 'Where is your HQ? (your campus goes to the roomiest site in that region)'}</h4>
       <div class="cardgrid four">
@@ -159,11 +188,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       <div class="row between wrap section" style={{ gap: '8px' }}>
         <span class="small muted">
+          {sb ? '🧪 Sandbox · ' : ''}
           {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : start === 5 ? 'Act V · ' : ''}
           {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : start === 3 ? 'public, with Charter Standing 2' : 'Series A in the bank'}
         </span>
         <button class="btn primary big" onClick={found} disabled={game.slotsFull()} data-tip={game.slotsFull() ? 'All 5 slots are in use — delete a company first.' : undefined}>
-          <Icon name="play" size="sm" /> Found the company
+          <Icon name="play" size="sm" /> {sb ? 'Open the sandbox' : 'Found the company'}
         </button>
       </div>
     </Window>

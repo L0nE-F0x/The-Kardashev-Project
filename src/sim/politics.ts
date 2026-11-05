@@ -24,7 +24,8 @@ export function relationBase(r: RegionId): number {
 export function addRelation(s: GameState, r: RegionId, d: number): void {
   const b = s.blocs[r];
   if (!b) return;
-  b.relation = clamp(b.relation + (d > 0 ? d * techMult(s, 'relationGain') : d), 0, 100);
+  const touchy = s.meta?.sandbox?.politics ?? 1;
+  b.relation = clamp(b.relation + (d > 0 ? d * techMult(s, 'relationGain') : d) * touchy, 0, 100);
 }
 
 export function addRelationAll(s: GameState, d: number | ((r: RegionId) => number)): void {

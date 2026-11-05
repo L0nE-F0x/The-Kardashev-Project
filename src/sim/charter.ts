@@ -674,7 +674,7 @@ export function tickCharter(s: GameState, revenueDay: number): void {
       p.paid += due;
     } else p.arrears += due;
     const speed = (p.arrears > 0 ? 0.5 : 1) * modMult(s, 'charter:build') * (p.kind === 'fab' && s.charter!.projects.some((x) => x.kind === 'euv' && x.status === 'done') ? 1.25 : 1);
-    p.progress += speed;
+    p.progress += s.meta.sandbox?.instant ? p.days : speed;
     if ((s.day - p.startDay) % 30 === 29) troubleRoll(s, p);
     if (p.progress >= p.days) completeProject(s, p);
   }
