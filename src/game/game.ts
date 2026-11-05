@@ -360,7 +360,8 @@ export class Game {
     this.hover = null;
     this.dioramaSite = null;
     this.confirm = null;
-    this.stage.setZoomBoost(this.settings.zoom);
+    // the tour's first shot sets the zoom itself (doing it here rebuilt a diorama at the map's size just before
+    // destroying it)
     this.startTour();
     playMusic('menu');
     setAmbience('none');

@@ -701,7 +701,9 @@ export function tickCharter(s: GameState, revenueDay: number): void {
   // projects: progress, payments, trouble, completion
   for (const p of c.projects) {
     if (p.status !== 'building') continue;
-    const due = (p.price * (1 - CHARTER.upfront)) / Math.max(1, p.days);
+    // a day's instalment, but never more than what's left of the price (a project slowed by arrears or trouble
+    // builds for longer than planned and used to keep paying past its price)
+    const due = Math.min((p.price * (1 - CHARTER.upfront)) / Math.max(1, p.days), Math.max(0, p.price - p.paid - p.arrears));
     // pay what's owed first
     if (p.arrears > 0 && c.budget > p.arrears) {
       chSpend(s, 'payments', p.arrears);
