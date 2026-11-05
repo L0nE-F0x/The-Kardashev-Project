@@ -4,15 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>The Kardashev Project — a pixel-art sim of the AI boom</title>
-    <meta name="description" content="A cozy-but-real pixel-art management sim about the AI boom. Build power, chips, compute and supply lines on a real Earth, and lift civilisation up the Kardashev scale. Free to play in your browser." />
+    <meta name="description" content="A cozy-but-real pixel-art management sim about the AI boom. Build power, chips, compute and supply lines on a real Earth, run a planet, and lift civilisation up the Kardashev scale to Type I. Free to play in your browser." />
     <link rel="canonical" href="%VITE_SITE_URL%/" />
-    <meta name="theme-color" content="#0b0a12" />
+    <meta name="theme-color" content="#07060d" />
     <meta name="color-scheme" content="dark" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="The Kardashev Project" />
     <meta property="og:title" content="The Kardashev Project" />
-    <meta property="og:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute on a real Earth — and climb the Kardashev scale." />
+    <meta property="og:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute on a real Earth — and climb the Kardashev scale to Type I." />
     <meta property="og:url" content="%VITE_SITE_URL%/" />
     <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
     <meta property="og:image:width" content="1200" />
@@ -20,7 +20,7 @@
     <meta property="og:image:alt" content="A pixel-art Earth at dusk beside a data center campus, with the Kardashev Project logo." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="The Kardashev Project" />
-    <meta name="twitter:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute — and climb the Kardashev scale." />
+    <meta name="twitter:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute — and climb the Kardashev scale to Type I." />
     <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
 
     <link rel="icon" href="./favicon.ico" sizes="48x48" />
@@ -38,7 +38,7 @@
         "name": "The Kardashev Project",
         "url": "%VITE_SITE_URL%/",
         "image": "%VITE_SITE_URL%/og-image.png",
-        "description": "A cozy-but-real pixel-art management sim about the AI boom: energy, chips, compute and supply lines on a real Earth.",
+        "description": "A cozy-but-real pixel-art management sim about the AI boom: energy, chips, compute and supply lines on a real Earth, from a garage startup to a Type I civilisation.",
         "genre": ["Simulation", "Strategy", "Management"],
         "gamePlatform": ["Web browser", "Windows", "macOS", "Linux", "Android", "iOS"],
         "applicationCategory": "Game",
@@ -50,112 +50,231 @@
     </script>
   </head>
   <body class="landing">
-    <header class="nav">
-      <a class="brand" href="./">
-        <img src="./icons/icon-32.png" width="24" height="24" alt="" />
-        <span>The Kardashev Project</span>
-      </a>
-      <nav>
-        <a href="#features">Features</a>
-        <a href="#download">Get it</a>
-        <a href="#news">What’s new</a>
-        <a class="btn small primary" href="./play/">Play</a>
-      </nav>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="nav" id="nav">
+      <div class="nav-inner">
+        <a class="brand" href="./" aria-label="The Kardashev Project, home">
+          <img src="./icons/icon-32.png" width="26" height="26" alt="" />
+          <span>The Kardashev Project</span>
+        </a>
+        <nav aria-label="Sections">
+          <a href="#game">The game</a>
+          <a href="#acts">Five acts</a>
+          <a href="#gallery">Screenshots</a>
+          <a href="#download">Get it</a>
+          <a href="#news">What’s new</a>
+        </nav>
+        <a class="button primary small" href="./play/">Play free</a>
+      </div>
     </header>
 
-    <main>
-      <section class="hero">
+    <main id="main">
+      <!-- the hero stays as it was: the logo, the pitch and the spinning Earth -->
+      <section class="hero wrap">
         <div class="hero-text">
           <h1 class="sr-only">The Kardashev Project</h1>
           <img class="logo" src="./logo.png" width="484" height="164" alt="The Kardashev Project" />
           <p class="tagline">A cozy-but-real pixel sim of the AI boom. Build power, chips and compute on a real Earth — and lift civilisation up the Kardashev scale.</p>
           <div class="cta">
-            <a class="btn primary big" href="./play/">▶ Play in your browser</a>
-            <a class="btn big" href="#download" id="cta-get">Install / download</a>
+            <a class="button primary big" href="./play/"><span aria-hidden="true">▶</span> Play in your browser</a>
+            <a class="button ghost big" href="#download" id="cta-get">Install / download</a>
           </div>
-          <p class="small muted">Free · the whole campaign, Acts I–V, from a garage to Type I · desktop, Android and iPhone (landscape), installable as an app.</p>
+          <p class="fineprint">Free · the whole campaign, Acts I–V, from a garage to Type I · desktop, Android and iPhone (landscape), installable as an app.</p>
         </div>
         <div class="hero-globe">
+          <div class="glow" aria-hidden="true"></div>
           <canvas id="globe" width="200" height="200" aria-label="A spinning pixel Earth with the real night side"></canvas>
           <noscript><img src="./globe.png" alt="A pixel-art Earth" /></noscript>
-          <div class="kbadge frame"><span class="label">Earth today</span><b id="kval">K 0.729</b></div>
+          <div class="kbadge"><span>Earth today</span><b id="kval">K 0.729</b></div>
         </div>
       </section>
 
-      <section id="features" class="features">
-        <h2>Run the whole AI stack</h2>
-        <div class="cards">
-          <article class="card frame"><img class="px lg" data-icon="power" alt="" /><h3>Power the boom</h3><p>Solar, wind, batteries, gas and grid connections — real capacity factors, real interconnect queues, turbines back-ordered for years.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="ship" alt="" /><h3>Chips &amp; supply lines</h3><p>Order accelerators and watch them sail through Malacca, Suez and Panama — and reroute when a strait closes.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="brain" alt="" /><h3>Train your models</h3><p>Split compute between training, revenue, research and safety while rival labs keep shipping.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="globe" alt="" /><h3>A real Earth</h3><p>Natural Earth coastlines, twelve regional blocs, a live day/night line and 36 build sites from the Atacama to Luleå.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="shield" alt="" /><h3>Crises with trade-offs</h3><p>Quakes, export controls, heatwaves, memory crunches and AI incidents — and your advisors don’t always agree.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="datacenter" alt="" /><h3>Cozy campus views</h3><p>Zoom into any site: chillers spin, turbines turn, rain falls and the lights come on at night.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="campus" alt="" /><h3>Scale up</h3><p>Gigawatt campuses, reactors, your own fab and packaging, subsea cables, a board to answer to and an IPO at the end of the Crunch.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="charter" alt="" /><h3>Run the Charter</h3><p>Become Steward of the Kardashev Project: post contracts, judge bids from every company on Earth, and win votes in a Council of twelve blocs.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="launch" alt="" /><h3>Megaprojects to orbit</h3><p>Sahara solar belts, North Sea wind, intercontinental HVDC links — and a launch pad for the first data centre in orbit.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="supergrid" alt="" /><h3>Run the planet</h3><p>Wire the continents into one supergrid that follows the sun, look after twelve provinces, and hand some of them to AIs you trust.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="fusion" alt="" /><h3>The fusion race</h3><p>Four designs, four sets of odds. Fund the pilots, build fleets of the ones that work, and breed the fuel to run them.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="moon" alt="" /><h3>Orbit and the Moon</h3><p>Data centres in permanent sunlight, power beamed from geostationary orbit, and a Moon base with a mass driver.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="foundry" alt="" /><h3>Machines that build machines</h3><p>Seed foundries on the Moon and real asteroids double on their own. Turn the growth dial — and watch for copies that drift off-spec.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="swarm" alt="" /><h3>The swarm</h3><p>Earth can only shed so much heat. Ring the Sun with collectors, move the minds to orbit, and decide what the people — and the AIs — are owed.</p></article>
-          <article class="card frame"><img class="px lg" data-icon="k" alt="" /><h3>Type I</h3><p>Ten petawatts. Ride out Solar Maximum, then watch the last climb stop on K 1.0000. Your score is the year you get there.</p></article>
+      <section class="stats wrap reveal" aria-label="At a glance">
+        <div class="stat"><b>5 acts</b><span>From a garage in 2027 to a Type I civilisation</span></div>
+        <div class="stat"><b>19.6 TW → 10 PW</b><span>The climb, measured in watts — K 0.729 to 1.0000</span></div>
+        <div class="stat"><b>A real Earth</b><span>Natural Earth coastlines, twelve blocs, real chokepoints</span></div>
+        <div class="stat"><b>Free</b><span>In your browser, on desktop and on Android</span></div>
+      </section>
+
+      <section id="game" class="game wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">A management sim about the AI boom</p>
+          <h2>Build the AI boom.<br /><span class="grad">Then build what comes after it.</span></h2>
+          <p class="lede">You start in 2027 with a garage, a seed round and a tiny model called Bit. Rent compute, pour concrete, order chips that sail through real chokepoints and keep your models safe. Grow into a hyperscaler, then into the steward of a planet-wide project — and climb from Kardashev 0.73 to Type I.</p>
+        </header>
+
+        <div class="bento">
+          <article class="tile tile-wide reveal">
+            <img class="tile-shot" src="./screenshots/ui-crisis.png" loading="lazy" alt="The game in June 2027: the world map, a goal card with progress bars, the Mojave Flats site panel with three builds under way, and an earthquake card where two advisors weigh in on three choices" />
+            <div class="tile-body">
+              <h3>Real constraints, readable at a glance</h3>
+              <p>A data hall really takes the best part of a year, a fab really needs ultrapure water, and the grid queue is real. Icons up front; the real units are a hover away.</p>
+            </div>
+          </article>
+          <article class="tile tile-tall reveal">
+            <img class="tile-shot" src="./screenshots/map-zoom.png" loading="lazy" alt="The world map with campuses, power lines and cargo ships crossing the Pacific" />
+            <div class="tile-body">
+              <h3>Geography matters</h3>
+              <p>Sun in the Sahara, cold in the Nordics, fabs on the Pacific rim. Your chips sail through Malacca, Suez and Panama — and reroute when a strait closes.</p>
+            </div>
+          </article>
+          <article class="tile reveal">
+            <img class="tile-icon" data-icon="warn" alt="" />
+            <h3>Crises are puzzles</h3>
+            <p>Quakes, export controls, heatwaves, memory crunches and AI incidents. Every card is a trade-off, and your advisors don’t always agree.</p>
+          </article>
+          <article class="tile reveal">
+            <img class="tile-icon" data-icon="shield" alt="" />
+            <h3>Safety is the job</h3>
+            <p>When capability outruns alignment, incidents follow. Safety research also earns trust, permits — and the right to hand the wheel to an AI.</p>
+          </article>
+          <article class="tile reveal">
+            <img class="tile-icon" data-icon="k" alt="" />
+            <h3>Something always grows</h3>
+            <p>Exponential compute, learning-curve costs, offline progress and goals with progress bars. Coming back feels good.</p>
+          </article>
+          <article class="tile reveal">
+            <img class="tile-icon" data-icon="people" alt="" />
+            <h3>Charm, at every scale</h3>
+            <p>Zoom into any site: people, rain, night lights, a dog on the pavement — and advisors with opinions, ageing with you across seventy years.</p>
+          </article>
         </div>
       </section>
 
-      <section class="shots" aria-label="Screenshots">
-        <figure><img src="./screenshots/map.png" loading="lazy" alt="The pixel world map with the night side and city lights" /><figcaption>The world at night</figcaption></figure>
-        <figure><img src="./screenshots/campus-day.png" loading="lazy" alt="A data center campus with solar, batteries and wind" /><figcaption>A campus by day</figcaption></figure>
-        <figure><img src="./screenshots/campus-night.png" loading="lazy" alt="The same campus at night with lights on" /><figcaption>…and by night</figcaption></figure>
-        <figure><img src="./screenshots/map-zoom.png" loading="lazy" alt="A zoomed-in map with campuses, power lines and cargo ships" /><figcaption>Supply lines across the Pacific</figcaption></figure>
-        <figure><img src="./screenshots/charter-map.png" loading="lazy" alt="Europe and Africa at night with the Sahara Solar Belt and an HVDC link running north to Europe" /><figcaption>Act III: megaprojects and a supergrid</figcaption></figure>
-        <figure><img src="./screenshots/charter-hq.png" loading="lazy" alt="The Kardashev Project's Council hall in Geneva by day, with bloc banners and the Alps" /><figcaption>The Charter’s home in Geneva</figcaption></figure>
-        <figure><img src="./screenshots/orbit.png" loading="lazy" alt="The pixel Earth from orbit with data centres in low orbit, space-solar stations beaming power down and the Moon base" /><figcaption>Act IV: the planet from orbit</figcaption></figure>
-        <figure><img src="./screenshots/moon-base.png" loading="lazy" alt="Shackleton Base on the Moon at night, with solar masts on the crater rim and the Earth in the sky" /><figcaption>Shackleton Base on the Moon</figcaption></figure>
-        <figure><img src="./screenshots/solar-system.png" loading="lazy" alt="The inner solar system with the Sun ringed by a glittering golden swarm of collectors along Earth's orbit, and a close-up of the Earth and Moon" /><figcaption>Act V: the swarm round the Sun</figcaption></figure>
-        <figure><img src="./screenshots/l4-yards.png" loading="lazy" alt="A self-replicating foundry at the Earth–Moon L4 point, robot arms assembling thin-film collectors that drift off into space" /><figcaption>A foundry that builds foundries</figcaption></figure>
-        <figure><img src="./screenshots/aurora.png" loading="lazy" alt="Inside the Aurora habitat: farms, a river and a town, with the far side of the cylinder curving overhead" /><figcaption>Aurora, the first town in space</figcaption></figure>
+      <section id="acts" class="acts">
+        <header class="section-head wrap reveal">
+          <p class="eyebrow">The campaign · about 10–15 hours</p>
+          <h2>From a garage <span class="grad">to Type I</span></h2>
+          <p class="lede">Your role changes as you climb — and so does the game. Every act ends in a crisis you can actually lose.</p>
+        </header>
+
+        <article class="act wrap reveal" style="--accent: #fbd46e">
+          <div class="act-text">
+            <p class="act-tag"><span class="act-num">I</span> The Garage · 2027–29</p>
+            <h3>A tiny AI startup</h3>
+            <p>Rent compute, train Bit-1, build your first data hall and fill it with chips before the seed money runs out. Keep the model safe, then raise your Series A.</p>
+            <ul class="chips"><li>Compute &amp; models</li><li>Chips &amp; shipping</li><li>Research</li></ul>
+          </div>
+          <figure class="act-shot"><img src="./screenshots/campus-dusk.png" loading="lazy" alt="A desert data center campus at dusk, with people walking home, a cyclist and Bit the AI floating by" /></figure>
+        </article>
+
+        <article class="act wrap flip reveal" style="--accent: #f29a52">
+          <div class="act-text">
+            <p class="act-tag"><span class="act-num">II</span> The Scale-Up · 2029–34</p>
+            <h3>A hyperscaler</h3>
+            <p>Gigawatt campuses, reactors and your own fab; supply deals, export rules and subsea cables; a board to answer to and rivals racing you to the frontier. Survive the Crunch and ring the IPO bell.</p>
+            <ul class="chips"><li>Supply deals</li><li>Export rules</li><li>The Crunch</li></ul>
+          </div>
+          <figure class="act-shot"><img src="./screenshots/map.png" loading="lazy" alt="The world map at night with city lights, campuses and shipping lanes" /></figure>
+        </article>
+
+        <article class="act wrap reveal" style="--accent: #5fd3b5">
+          <div class="act-text">
+            <p class="act-tag"><span class="act-num">III</span> The Charter · 2035–45</p>
+            <h3>Steward of the Kardashev Project</h3>
+            <p>Twelve blocs found a planetary project and hand you the keys. Post contracts, judge bids from every company on Earth, win votes in the Council — and keep your hands off your own company’s bids. The renewal vote judges your decade.</p>
+            <ul class="chips"><li>Megaprojects</li><li>The Council</li><li>The Threshold</li></ul>
+          </div>
+          <figure class="act-shot"><img src="./screenshots/charter-hq.png" loading="lazy" alt="The Kardashev Project's Council hall in Geneva, with bloc banners and the Alps" /></figure>
+        </article>
+
+        <article class="act wrap flip reveal" style="--accent: #79a8ff">
+          <div class="act-text">
+            <p class="act-tag"><span class="act-num">IV</span> Planetary · 2045–65</p>
+            <h3>A planet to run</h3>
+            <p>Wire the continents into one supergrid that follows the sun, race four fusion designs, hand provinces to AIs you trust and go to orbit and the Moon — in five-year plans and time-lapse jumps. Then comes the Heat Wall.</p>
+            <ul class="chips"><li>Supergrid</li><li>Fusion race</li><li>Orbit &amp; the Moon</li></ul>
+          </div>
+          <figure class="act-shot"><img src="./screenshots/orbit.png" loading="lazy" alt="The pixel Earth from orbit with data centres in low orbit, power stations beaming energy down, and the Moon" /></figure>
+        </article>
+
+        <article class="act wrap reveal" style="--accent: #c89bff">
+          <div class="act-text">
+            <p class="act-tag"><span class="act-num">V</span> Type I · 2068–</p>
+            <h3>A civilisation’s steward</h3>
+            <p>Earth can only shed so much heat. Seed self-replicating foundries on the Moon and real asteroids, ring the Sun with collectors, decide what the minds are owed — and ride out Solar Maximum to the last climb. Your score is the year you reach K 1.0000.</p>
+            <ul class="chips"><li>Foundries</li><li>The swarm</li><li>Big decisions</li></ul>
+          </div>
+          <figure class="act-shot"><img src="./screenshots/solar-system.png" loading="lazy" alt="The inner solar system with the Sun ringed by a golden swarm of collectors along Earth's orbit" /></figure>
+        </article>
       </section>
 
-      <section class="scale">
-        <div class="frame scalebox">
-          <h2>What is the Kardashev scale?</h2>
-          <p>In 1964 astronomer Nikolai Kardashev ranked civilisations by the power they command. Carl Sagan made it continuous:</p>
-          <p class="formula">K = (log₁₀ P − 6) / 10</p>
-          <p>Humanity runs on about <b>19.6 terawatts</b> — <b>K 0.729</b>. A <b>Type I</b> civilisation harnesses <b>10 petawatts</b>, around five hundred times more. AI is how you climb; energy is how you’re measured.</p>
+      <section id="gallery" class="gallery wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">Screenshots</p>
+          <h2>Every pixel drawn <span class="grad">in code</span></h2>
+          <p class="lede">The art, the people, the weather and the music are all generated by the game itself. Click any shot to see it full size.</p>
+        </header>
+        <div class="shots reveal">
+          <figure class="span2"><button type="button" class="shot" data-full="./screenshots/charter-map.png"><img src="./screenshots/charter-map.png" loading="lazy" alt="Europe and Africa at night with the Sahara Solar Belt and an HVDC link running north to Europe" /></button><figcaption>Act III: a solar belt in the Sahara, wired to Europe</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/campus-night-lit.png"><img src="./screenshots/campus-night-lit.png" loading="lazy" alt="A desert data center campus at night, windows lit, people under the street lamps" /></button><figcaption>A campus after dark</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/north-sea-wind.png"><img src="./screenshots/north-sea-wind.png" loading="lazy" alt="Offshore wind turbines and a substation platform in the North Sea" /></button><figcaption>Act III: North Sea wind</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/fusion-fleet.png"><img src="./screenshots/fusion-fleet.png" loading="lazy" alt="Two fusion plants with glowing rings and steaming cooling towers on the Great Plains" /></button><figcaption>Act IV: a tokamak fleet on the Great Plains</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/moon-base.png"><img src="./screenshots/moon-base.png" loading="lazy" alt="Shackleton Base on the Moon at night, with solar masts on the crater rim and the Earth in the sky" /></button><figcaption>Shackleton Base on the Moon</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/l4-yards.png"><img src="./screenshots/l4-yards.png" loading="lazy" alt="A self-replicating foundry at the Earth–Moon L4 point assembling thin-film collectors" /></button><figcaption>A foundry that builds foundries</figcaption></figure>
+          <figure class="span2 right"><button type="button" class="shot" data-full="./screenshots/spaceport-launch.png"><img src="./screenshots/spaceport-launch.png" loading="lazy" alt="A rocket lifting off from a spaceport pad between launch towers, trailing smoke" /></button><figcaption>Act IV: liftoff</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/bennu-mine.png"><img src="./screenshots/bennu-mine.png" loading="lazy" alt="Mining rigs on the asteroid Bennu, with the Sun and the swarm of collectors across the sky" /></button><figcaption>Act V: mining Bennu</figcaption></figure>
+          <figure><button type="button" class="shot" data-full="./screenshots/aurora.png"><img src="./screenshots/aurora.png" loading="lazy" alt="Inside the Aurora habitat: farms, a river and a town" /></button><figcaption>Aurora, the first town in space</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="scale" class="scale wrap">
+        <div class="scale-card reveal">
+          <div class="scale-text">
+            <p class="eyebrow">The score</p>
+            <h2>What is the <span class="grad">Kardashev scale?</span></h2>
+            <p>In 1964 astronomer Nikolai Kardashev ranked civilisations by the power they command. Carl Sagan made it continuous:</p>
+            <p class="formula">K = (log₁₀ P − 6) / 10</p>
+            <p>Humanity runs on about <b>19.6 terawatts</b> — <b>K 0.729</b>. A <b>Type I</b> civilisation harnesses <b>10 petawatts</b>, around five hundred times more. AI is how you climb; energy is how you’re measured. Your score is the year you get there.</p>
+          </div>
           <!-- axis runs K 0.70 → 1.00; positions are (K − 0.70) / 0.30 -->
           <div class="kscale" aria-hidden="true">
-            <div class="track"><i class="now" style="width: 9.7%"></i><b class="here" style="left: 9.7%">today</b></div>
-            <div class="marks">
-              <span style="left: 0%">0.70<br />10 TW</span>
-              <span style="left: 33.33%">0.80<br />100 TW</span>
-              <span style="left: 66.67%">0.90<br />1 PW</span>
-              <span style="left: 100%">1.00<br />Type I</span>
+            <div class="ktrack"><i style="width: 9.7%"></i><b class="here" style="left: 9.7%">you are here</b></div>
+            <div class="kacts">
+              <span style="left: 10%">I–II</span>
+              <span style="left: 16.7%">III</span>
+              <span style="left: 33.33%">IV</span>
+              <span style="left: 100%">V</span>
+            </div>
+            <div class="kmarks">
+              <span style="left: 0%"><b>0.70</b>10 TW</span>
+              <span style="left: 33.33%"><b>0.80</b>100 TW</span>
+              <span style="left: 66.67%"><b>0.90</b>1 PW</span>
+              <span style="left: 100%"><b>1.00</b>Type I</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="download" class="download">
-        <h2>Play anywhere</h2>
-        <div class="cards three">
-          <article class="card frame">
+      <section id="download" class="download wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">Free</p>
+          <h2>Play <span class="grad">anywhere</span></h2>
+          <p class="lede">Your saves stay on your device. Phones play in landscape.</p>
+        </header>
+        <div class="get">
+          <article class="get-card featured reveal">
+            <img class="tile-icon" data-icon="globe" alt="" />
             <h3>In your browser</h3>
-            <p>No install. Chrome, Edge, Firefox and Safari on desktop; phones in landscape.</p>
-            <a class="btn primary" href="./play/">▶ Play now</a>
+            <p>No install, no account. Chrome, Edge, Firefox and Safari on desktop; phones and tablets in landscape.</p>
+            <a class="button primary" href="./play/"><span aria-hidden="true">▶</span> Play now</a>
           </article>
-          <article class="card frame" id="install-card">
+          <article class="get-card reveal" id="install-card">
+            <img class="tile-icon" data-icon="people" alt="" />
             <h3>As an app</h3>
-            <p>Its own icon, full screen and offline play — on Android, iPhone/iPad and desktop.</p>
-            <a class="btn" id="android-btn" href="https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk">⬇ Android app (.apk)</a>
-            <button class="btn" id="install-btn" hidden>Install the app</button>
-            <div id="install-help" class="small"></div>
+            <p>Its own icon, full screen and offline play — on Android, iPhone and iPad, and desktop.</p>
+            <div class="stack">
+              <a class="button" id="android-btn" href="https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk"><span aria-hidden="true">⬇</span> Android app (.apk)</a>
+              <button class="button" id="install-btn" hidden>Install the app</button>
+            </div>
+            <div id="install-help" class="hint"></div>
           </article>
-          <article class="card frame" id="desktop-card">
-            <h3>Desktop download</h3>
-            <p>Windows, macOS and Linux builds.</p>
-            <div id="desktop-links" class="dl-links"><span class="muted small">Checking for the latest release…</span></div>
-            <details class="small unsigned">
+          <article class="get-card reveal" id="desktop-card">
+            <img class="tile-icon" data-icon="datacenter" alt="" />
+            <h3>Desktop</h3>
+            <p>Windows, macOS and Linux builds that update themselves.</p>
+            <div id="desktop-links" class="stack"><span class="hint">Checking for the latest release…</span></div>
+            <details class="unsigned">
               <summary>“Unknown publisher”? How to open it</summary>
               <p>The builds aren’t code-signed yet, so your computer will ask before running them.</p>
               <ul>
@@ -169,26 +288,49 @@
         </div>
       </section>
 
-      <section id="news" class="news">
-        <h2>What’s new</h2>
-        <div id="changelog"></div>
+      <section id="news" class="news wrap">
+        <header class="section-head reveal">
+          <p class="eyebrow">Changelog</p>
+          <h2>What’s <span class="grad">new</span></h2>
+        </header>
+        <div id="changelog" class="reveal"></div>
       </section>
 
-      <section id="about" class="about">
-        <div class="frame aboutbox">
-          <h2>About</h2>
-          <p>The Kardashev Project is a hobby game by <b>Lone Fox</b>, built with Claude. Companies, people and events are fictional; the geography and the physics are real.</p>
-          <p class="small muted">Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next, Silkscreen and Pixelify Sans (SIL Open Font License). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.</p>
+      <section class="closer wrap reveal">
+        <div class="closer-card">
+          <h2>Ten petawatts won’t build themselves.</h2>
+          <p>Start in a garage in 2027. See how far you get.</p>
+          <a class="button primary big" href="./play/"><span aria-hidden="true">▶</span> Play in your browser</a>
         </div>
       </section>
     </main>
 
-    <footer class="foot small muted">
-      <span>© 2026 Lone Fox</span>
-      <span>Built by <a href="https://ame-apexforge.org/" target="_blank" rel="noopener">ApexForge</a></span>
-      <span id="foot-version"></span>
-      <a href="./play/">Play</a>
+    <footer class="foot">
+      <div class="foot-inner wrap">
+        <div class="foot-brand">
+          <a class="brand" href="./"><img src="./icons/icon-32.png" width="26" height="26" alt="" /><span>The Kardashev Project</span></a>
+          <p>A hobby game by <b>Lone Fox</b>, built with Claude. Companies, people and events are fictional; the geography and the physics are real.</p>
+        </div>
+        <div class="foot-links">
+          <a href="./play/">Play</a>
+          <a href="#download">Download</a>
+          <a href="#news">What’s new</a>
+          <a href="https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest" target="_blank" rel="noopener">Releases</a>
+          <a href="https://ame-apexforge.org/" target="_blank" rel="noopener">ApexForge</a>
+        </div>
+      </div>
+      <div class="foot-fine wrap">
+        <span>© 2026 Lone Fox · Built by <a href="https://ame-apexforge.org/" target="_blank" rel="noopener">ApexForge</a> · <span id="foot-version"></span></span>
+        <span>Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next, Silkscreen and Pixelify Sans (SIL Open Font License). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.</span>
+      </div>
     </footer>
+
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Screenshot" hidden>
+      <button type="button" class="lb-close" aria-label="Close">×</button>
+      <button type="button" class="lb-prev" aria-label="Previous screenshot">‹</button>
+      <figure><img alt="" /><figcaption></figcaption></figure>
+      <button type="button" class="lb-next" aria-label="Next screenshot">›</button>
+    </div>
     <script type="module" src="/src/landing/main.ts"></script>
   </body>
 </html>

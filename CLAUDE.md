@@ -159,7 +159,10 @@ src/
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
-  landing/    website script + css: spinning globe canvas, install button, GitHub-release downloads, What's New
+  landing/    website script + css (the 2026 redesign: the hero's logo and spinning globe, then glass panels on the starfield:
+              sticky nav, a bento of pillars, one row per act, a screenshot gallery with a lightbox, the K-scale bar, install +
+              GitHub-release downloads, a compact What's New). Shots live in public/screenshots/ (campus-day.png and map.png
+              also feed the PWA manifest); the gallery's 2-wide shots need their order kept (see the comment in landing.css)
   platform/   platform.ts: browser vs installed PWA vs desktop app (quit, fullscreen, install prompt, service worker)
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
               achievements.ts (per-device achievement store: unlocked, advisors met, places visited)

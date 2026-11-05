@@ -14,6 +14,8 @@ import { canPromptInstall, initInstallPrompt, installHelp, isAndroid, isStandalo
 const REPO = 'L0nE-F0x/The-Kardashev-Project';
 
 syncCssVars();
+// scroll reveals and the other progressive touches only switch on when the script runs
+document.documentElement.classList.add('js');
 
 // ── pixel icons in the feature cards ─────────────────────────────────────────────────────────
 document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
@@ -68,18 +70,122 @@ async function spinGlobe() {
 }
 void spinGlobe();
 
-// ── what's new ───────────────────────────────────────────────────────────────────────────────
+// ── what's new: the latest release open (its first few changes, the rest a click away), two before it folded ──
 {
   const box = document.getElementById('changelog');
   if (box) {
-    box.innerHTML = RELEASES.slice(0, 3)
-      .map(
-        (r) => `<article class="release frame"><h3>v${r.version} — ${escapeHtml(r.title)}</h3>${r.date ? `<div class="small muted">${escapeHtml(r.date)}</div>` : ''}<ul>${r.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul></article>`,
-      )
-      .join('');
+    const head = (r: (typeof RELEASES)[number]) =>
+      `<div class="release-head"><span class="ver">v${escapeHtml(r.version)}</span><h3>${escapeHtml(r.title)}</h3>${r.date ? `<span class="date">${escapeHtml(r.date)}</span>` : ''}</div>`;
+    const list = (items: string[]) => `<ul>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+    const [latest, ...older] = RELEASES;
+    const SHOW = 6;
+    const latestHtml = latest
+      ? `<article class="release latest">${head(latest)}${list(latest.items.slice(0, SHOW))}${
+          latest.items.length > SHOW ? `<details><summary>Show all ${latest.items.length} changes</summary>${list(latest.items.slice(SHOW))}</details>` : ''
+        }</article>`
+      : '';
+    box.innerHTML = latestHtml + older.slice(0, 2).map((r) => `<details class="release"><summary>${head(r)}</summary>${list(r.items)}</details>`).join('');
   }
   const v = document.getElementById('foot-version');
   if (v) v.textContent = `v${APP_VERSION}`;
+}
+
+// ── reveal on scroll ─────────────────────────────────────────────────────────────────────────
+{
+  const els = document.querySelectorAll<HTMLElement>('.reveal');
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries)
+          if (e.isIntersecting) {
+            e.target.classList.add('in');
+            io.unobserve(e.target);
+          }
+      },
+      { rootMargin: '0px 0px -8% 0px', threshold: 0.08 },
+    );
+    els.forEach((el) => io.observe(el));
+  } else els.forEach((el) => el.classList.add('in'));
+}
+
+// ── the nav: a glass bar once you scroll, and the section you're in lit ─────────────────────
+{
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav?.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('.nav nav a[href^="#"]')];
+  const sections = links.map((a) => document.querySelector<HTMLElement>(a.getAttribute('href')!)).filter((x): x is HTMLElement => !!x);
+  if ('IntersectionObserver' in window && sections.length) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          for (const a of links) a.classList.toggle('on', a.getAttribute('href') === `#${e.target.id}`);
+        }
+      },
+      { rootMargin: '-45% 0px -50% 0px' },
+    );
+    sections.forEach((sec) => io.observe(sec));
+  }
+}
+
+// ── screenshots: click for full size, arrows to step through ────────────────────────────────
+{
+  const lb = document.getElementById('lightbox');
+  const shots = [...document.querySelectorAll<HTMLButtonElement>('.shot')];
+  if (lb && shots.length) {
+    const img = lb.querySelector('img')!;
+    const cap = lb.querySelector('figcaption')!;
+    let at = 0;
+    let opener: HTMLElement | null = null;
+    // while it's open, the page behind it can't take focus or clicks
+    const behind = [...document.querySelectorAll<HTMLElement>('#nav, #main, .foot')];
+    const show = (i: number) => {
+      at = (i + shots.length) % shots.length;
+      const b = shots[at];
+      img.src = b.dataset.full ?? b.querySelector('img')!.src;
+      img.alt = b.querySelector('img')!.alt;
+      cap.textContent = b.closest('figure')?.querySelector('figcaption')?.textContent ?? '';
+    };
+    const open = (i: number, from: HTMLElement) => {
+      opener = from;
+      show(i);
+      lb.hidden = false;
+      behind.forEach((el) => (el.inert = true));
+      document.body.style.overflow = 'hidden';
+      lb.querySelector<HTMLButtonElement>('.lb-close')!.focus();
+    };
+    const close = () => {
+      lb.hidden = true;
+      behind.forEach((el) => (el.inert = false));
+      document.body.style.overflow = '';
+      opener?.focus();
+    };
+    shots.forEach((b, i) => b.addEventListener('click', () => open(i, b)));
+    lb.querySelector('.lb-close')!.addEventListener('click', close);
+    lb.querySelector('.lb-prev')!.addEventListener('click', () => show(at - 1));
+    lb.querySelector('.lb-next')!.addEventListener('click', () => show(at + 1));
+    // a click anywhere but the picture and the buttons closes it
+    lb.addEventListener('click', (e) => {
+      if (!(e.target as Element).closest('img, button')) close();
+    });
+    // phones: swipe sideways for the next shot (the arrow buttons are hidden there)
+    let x0: number | null = null;
+    lb.addEventListener('touchstart', (e) => (x0 = e.touches.length === 1 ? e.touches[0].clientX : null), { passive: true });
+    lb.addEventListener('touchend', (e) => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      x0 = null;
+      if (Math.abs(dx) > 50) show(at + (dx < 0 ? 1 : -1));
+    });
+    window.addEventListener('keydown', (e) => {
+      if (lb.hidden) return;
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowLeft') show(at - 1);
+      else if (e.key === 'ArrowRight') show(at + 1);
+    });
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -155,11 +261,11 @@ async function desktopLinks() {
     if (!avail.length) throw new Error('no assets');
     box.innerHTML =
       avail
-        .map(([label, plat, a]) => `<a class="btn ${plat === os ? 'primary' : ''}" href="${a!.browser_download_url}">⬇ ${label} <span class="small">${(a!.size / 1e6).toFixed(0)} MB</span></a>`)
-        .join('') + `<a class="small link" href="${rel.html_url}">${escapeHtml(rel.tag_name)} release notes</a>`;
+        .map(([label, plat, a]) => `<a class="button ${plat === os ? 'primary' : ''}" href="${a!.browser_download_url}"><span aria-hidden="true">⬇</span> ${label} <span class="size">${(a!.size / 1e6).toFixed(0)} MB</span></a>`)
+        .join('') + `<a class="hint" href="${rel.html_url}">${escapeHtml(rel.tag_name)} release notes</a>`;
   } catch {
     // the GitHub API is rate-limited (60 requests/hour per address): fall back to the Releases page
-    box.innerHTML = `<a class="btn primary" href="https://github.com/${REPO}/releases/latest">⬇ Download for Windows, macOS or Linux</a><span class="small muted">Opens the latest release on GitHub.</span>`;
+    box.innerHTML = `<a class="button primary" href="https://github.com/${REPO}/releases/latest"><span aria-hidden="true">⬇</span> Download for Windows, macOS or Linux</a><span class="hint">Opens the latest release on GitHub.</span>`;
   }
 }
 void desktopLinks();
