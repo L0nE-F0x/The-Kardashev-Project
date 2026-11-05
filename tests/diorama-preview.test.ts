@@ -98,7 +98,7 @@ function compose(s: GameState, siteId: string, opts: { night: boolean; vw?: numb
   const t = opts.t ?? 6;
   // sky
   const sky = new PixelCanvas(W, b.groundY + 4);
-  sky.vgradient(0, 0, W, sky.h, opts.night ? [C.night0, C.night1, C.night2, C.night3] : [C.sky1, C.sky2, C.sky3, C.sky4, C.sky5]);
+  sky.vbands(0, 0, W, sky.h, opts.night ? [C.night0, C.night1, C.night2, C.night3] : [C.sky1, C.sky2, C.sky3, C.sky4, C.sky5]);
   fr.draw(sky, 0, 0, tint);
   if (opts.night) {
     const st = new PixelCanvas(W, Math.round(sky.h * 0.7));

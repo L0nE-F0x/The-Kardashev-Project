@@ -1,21 +1,28 @@
-import { Container, Sprite, type Texture } from 'pixi.js';
+import { Container, Sprite, Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
 import type { PixelPointer, Scene } from '../stage';
 import { siteDef, type SiteDef } from '../../content/sites';
 import type { GameState } from '../../sim/types';
-import { C, getEra } from '../palette';
+import { chipSpec, dcCapacityUnits, facilityIT } from '../../sim/model';
+import { C, getEra, hex } from '../palette';
 import { bayer, hash2, PixelCanvas } from '../pixels';
 import { cachedTexture, releaseTexture, textureOf } from '../textures';
 import { pixelTexture } from '../sprites/mapIcons';
 import { subsolar, sunAltitude, localSolarHour } from '../../world/sun';
-import { bigRotorFrames, emptyPlotArt, personFrames, rotorFrames, surfFrames, truckArt, truckVariant, type Emitter, type Mover, type RotorSpec } from './art';
+import { BIOMES, bigRotorFrames, emptyPlotArt, rotorFrames, surfFrames, truckArt, truckVariant, vanArt, type Emitter, type Mover, type RotorSpec } from './art';
+import { Life, type LifeEnv, type NamedSpec, type Spot } from './life';
+import { shade } from './people';
+import { ADVISORS } from '../../content/advisors';
+import { campusLines } from '../../content/campusLines';
+import { bitForm, castAge, deskHolder } from '../../sim/systemView';
+import type { AdvisorId } from '../../sim/types';
 import { bloomOf, puffArt } from './draw';
 import { bands, campusLayout, itemTop, PARALLAX, type CampusLayout, type LayoutItem } from './layout';
 import { bucket, itemArt } from './campusArt';
 import { act3Key } from './act3Pieces';
 import { sceneBands, type BandProp, type SceneBands } from './scenery';
 import { launchFlash, rocketPose, type LaunchSpec } from './launch';
-import { astronautFrames, driverPose, earthDisc, lunarSky, lunarStars, lunarSunArt, moonRoverArt, type DriverSpec } from './moon';
+import { driverPose, earthDisc, lunarSky, lunarStars, lunarSunArt, moonRoverArt, type DriverSpec } from './moon';
 import { moonDiscArt, paleBlueDot, spaceSkyArt, spaceSkyPlan, spaceSunArt, swarmArt } from './space';
 import { habitatSkyArt } from './habitat';
 import { terrainCanvas } from '../worldMap/terrain';
@@ -48,6 +55,16 @@ interface Plot {
   driver?: Driver;
   /** Textures baked for this plot only (released when it goes). */
   own: Texture[];
+  /** How full a hall is (0..1): dims its lights and steam when it's empty. 1 for everything else. */
+  fill: number;
+  /** Seconds left of the "just came online" glow. */
+  flash: number;
+  /** Red warning light on the roof during a brownout. */
+  beacon?: Sprite;
+  /** Seconds to the next welding spark on a building site. */
+  sparkT: number;
+  /** The first frame's pixels (for the ground shadow). */
+  base: PixelCanvas;
 }
 
 interface Rocket {
@@ -100,21 +117,21 @@ interface Particle {
   drag: number;
 }
 
-interface Walker {
-  sprite: Sprite;
-  frames: Texture[];
-  x: number;
-  target: number;
-  speed: number;
-  pause: number;
-}
-
 type Weather = 'clear' | 'cloudy' | 'rain' | 'snow' | 'dust';
 
 /** How the sky works: Earth, the Moon, open space (Act V's yards and ring), an asteroid, inside a habitat. */
 type SkyMode = 'earth' | 'lunar' | 'space' | 'asteroid' | 'habitat';
 
 const MAX_PARTICLES = 420;
+
+/** The grass and posts in front of the camera scroll a little faster than the campus. */
+const NEAR_PARALLAX = 1.25;
+
+/** Which line each advisor says next when clicked (cycles through them). */
+const LINE_INDEX = new Map<AdvisorId, number>();
+
+/** Facilities people walk in and out of (no doors on solar fields and turbines). */
+const ENTERABLE = new Set<string>(['hq', 'datacenter', 'lab', 'gas', 'packaging', 'fab', 'campus', 'smr', 'reactor', 'restart', 'geothermal', 'hydro']);
 
 /**
  * Side-view campus diorama. Build sites show your plots (tiered facilities, construction,
@@ -136,6 +153,27 @@ export class DioramaScene implements Scene {
   private readonly actorL = new Container();
   private readonly fxL = new Container();
   private readonly fgL = new Container();
+  /** People, the dog, cyclists, the truck: untinted, each sprite lit on its own (street lamps at night). */
+  private readonly actorRoot = new Container();
+  /** Particles and the foreground lip (tinted like the world, drawn over the people). */
+  private readonly front = new Container();
+  private readonly life: Life;
+  /** The lit world's tint (night grading), for the people layer. */
+  private worldTint = 0xffffff;
+  /** Ground lights at night: lamps and lit doors (scene x). */
+  private lights: number[] = [];
+  private lastToast = 0;
+  /** Haze over the far ridge and mid band (atmospheric depth), tinted to the horizon. */
+  private hazeSprites: { sprite: Sprite; alpha: number }[] = [];
+  private horizon: number = C.sky5;
+  /** Grass tufts and fence posts right in front of the camera (parallax 1.25). */
+  private readonly nearL = new Container();
+  /** Warning beacons (always visible, additive). */
+  private readonly alertL = new Container();
+  /** Facilities that were building at the last rebuild (to catch the moment they open). */
+  private wasBuilding = new Set<string>();
+  private brownout = false;
+  private statTimer = 0;
   private readonly weatherL = new Container();
   private readonly glowL = new Container();
   private readonly bloomL = new Container();
@@ -161,7 +199,6 @@ export class DioramaScene implements Scene {
   private groundY = 300;
   private plots: Plot[] = [];
   private plotKey = '';
-  private walkers: Walker[] = [];
   private particles: Particle[] = [];
   private pool: Sprite[] = [];
   private rain: Sprite[] = [];
@@ -172,7 +209,7 @@ export class DioramaScene implements Scene {
   private backGlow: { sprite: Sprite; bloom: Sprite; frames: Texture[]; bloomFrames: Texture[] } | null = null;
   private bandsInfo: SceneBands | null = null;
   private clouds: { sprite: Sprite; x: number; v: number }[] = [];
-  private truck: { sprite: Sprite; x: number; target: number; wait: number } | null = null;
+  private truck: { sprite: Sprite; lamps: Sprite; x: number; target: number; wait: number } | null = null;
   private skySprite = new Sprite();
   private stars = new Sprite();
   private sun = new Sprite();
@@ -213,10 +250,15 @@ export class DioramaScene implements Scene {
     this.airless = this.mode === 'lunar' || this.mode === 'space' || this.mode === 'asteroid';
     this.skyGlowL.addChild(this.skyGlow);
     this.skyGlowL.visible = false;
-    this.root.addChild(this.skyL, this.skyGlowL, this.farL, this.cloudL, this.midL, this.midGlowL, this.backL, this.backGlowL, this.world, this.weatherL, this.glowL, this.bloomL, this.hintL);
+    this.life = new Life(this.glowL);
+    this.root.addChild(this.skyL, this.skyGlowL, this.farL, this.cloudL, this.midL, this.midGlowL, this.backL, this.backGlowL, this.world, this.actorRoot, this.front, this.nearL, this.weatherL, this.glowL, this.bloomL, this.alertL, this.hintL);
+    this.alertL.blendMode = 'add';
     this.skyL.addChild(this.skySprite, this.stars, this.sun, this.moon, this.earth, this.haze);
     this.earth.visible = false;
-    this.world.addChild(this.groundL, this.plotL, this.actorL, this.fxL, this.fgL);
+    this.world.addChild(this.groundL, this.plotL, this.life.skyL);
+    this.actorRoot.addChild(this.life.shadowL, this.life.actorL, this.actorL);
+    this.front.addChild(this.fxL, this.fgL);
+    this.lastToast = this.game.toasts?.at(-1)?.id ?? 0;
     this.bloomL.blendMode = 'add';
     this.sun.texture = cachedTexture('dio:sun', () => {
       const pc = new PixelCanvas(13, 13);
@@ -254,6 +296,11 @@ export class DioramaScene implements Scene {
       };
       canvas.addEventListener('wheel', this.wheelX, { passive: true });
     }
+  }
+
+  /** The people out on campus (tests count them). */
+  get walkers() {
+    return this.life.people;
   }
 
   // ── public API ────────────────────────────────────────────────────────────────────────────
@@ -363,6 +410,7 @@ export class DioramaScene implements Scene {
         p.driver.bloom.destroy();
       }
       for (const t of p.own) releaseTexture(t);
+      p.beacon?.destroy();
     }
     this.plots = [];
     this.hoverPlot = null;
@@ -393,6 +441,52 @@ export class DioramaScene implements Scene {
     this.camTarget = this.clampCam(this.camTarget);
     this.rebuildBands();
     this.spawnWalkers();
+    // a facility that just finished building: a flash, sparks and a cheer
+    const building = new Set<string>();
+    let opened = 0;
+    for (const p of this.plots) {
+      const f = p.item.facility;
+      if (!f) continue;
+      if (!p.live) building.add(f.id);
+      else if (this.wasBuilding.has(f.id)) {
+        p.flash = 2.4;
+        opened++;
+        for (let k = 0; k < 14; k++) this.spawnPuff('spark', p.x + Math.random() * p.w, p.top + Math.random() * p.h * 0.6);
+        for (let k = 0; k < 6; k++) this.spawnPuff('vapor', p.x + Math.random() * p.w, this.groundY - 1);
+      }
+    }
+    this.wasBuilding = building;
+    if (opened) this.life.react('good');
+    this.updateStatus();
+  }
+
+  /** Halls dim when they're empty; a brownout puts beacons on the roofs. Cheap, a few times a second. */
+  private updateStatus() {
+    const s = this.game.view;
+    if (!s || this.viewOnly) return;
+    const sp = s.stats?.sitePower?.[this.siteId];
+    const brown = !!sp && sp.load > 0.5 && sp.frac < 0.95;
+    if (brown && !this.brownout) this.life.react('bad');
+    this.brownout = brown;
+    const kw = chipSpec(s, 'lumen').kw;
+    for (const p of this.plots) {
+      const f = p.item.facility;
+      if (!f || !p.live) continue;
+      if (f.type === 'datacenter' || f.type === 'campus') {
+        const installed = (f.racks ?? []).reduce((a, r) => a + r.qty, 0);
+        const cap = Math.max(1, dcCapacityUnits(f.racks?.[0]?.kw ?? kw, facilityIT(f)));
+        p.fill = Math.max(0.15, Math.min(1, installed / cap));
+      }
+      const lit = f.type === 'datacenter' || f.type === 'campus' || f.type === 'lab' || f.type === 'fab' || f.type === 'packaging' || f.type === 'hq';
+      if (brown && lit && !p.beacon) {
+        p.beacon = new Sprite(cachedTexture('dio:beacon', beaconArt));
+        p.beacon.position.set(p.x + Math.floor(p.w / 2) - 2, p.top - 3);
+        this.alertL.addChild(p.beacon);
+      } else if (!brown && p.beacon) {
+        p.beacon.destroy();
+        p.beacon = undefined;
+      }
+    }
   }
 
   private makePlot(item: LayoutItem, label: string, day: number): Plot | null {
@@ -515,6 +609,10 @@ export class DioramaScene implements Scene {
       rocket,
       driver,
       own,
+      fill: 1,
+      flash: 0,
+      base: art.base[0],
+      sparkT: hash2(item.x, 3, 7) * 2,
     };
   }
 
@@ -529,6 +627,9 @@ export class DioramaScene implements Scene {
     this.backGlowL.removeChildren();
     this.groundL.removeChildren();
     this.fgL.removeChildren();
+    this.nearL.removeChildren();
+    this.hazeSprites = [];
+    this.lights = [];
     const L = this.layout!;
     const b = bands(this.vw, this.vh, this.sceneW);
     const sb = sceneBands(this.site, L, this.vw, this.vh);
@@ -544,6 +645,16 @@ export class DioramaScene implements Scene {
     const midS = new Sprite(own(sb.mid));
     midS.y = b.midY;
     this.midL.addChild(midS);
+    // air between here and the hills: the far ridge fades toward the horizon colour, the mid band a little
+    if (this.mode === 'earth') {
+      for (const [band, layer, y, alpha] of [[sb.far, this.farL, b.farY, 0.3], [sb.mid, this.midL, b.midY, 0.12]] as const) {
+        const hz = new Sprite(own(silhouette(band)));
+        hz.y = y;
+        hz.alpha = alpha;
+        layer.addChild(hz);
+        this.hazeSprites.push({ sprite: hz, alpha });
+      }
+    }
     if (sb.midGlow) {
       const mg = new Sprite(own(sb.midGlow));
       mg.y = b.midY;
@@ -633,6 +744,43 @@ export class DioramaScene implements Scene {
       halo.position.set(x - 7, this.groundY - 3);
       halo.blendMode = 'add';
       this.glowL.addChild(halo);
+      // and the pool of light it throws on the pavement
+      const pool = new Sprite(cachedTexture('dio:pool:31', () => poolArt(31)));
+      pool.position.set(x - 14, this.groundY + 4);
+      pool.blendMode = 'add';
+      pool.alpha = 0.4;
+      this.glowL.addChild(pool);
+      this.lights.push(x + 1);
+    }
+    // lit doorways spill onto the pavement too
+    for (const sp of this.spots()) {
+      if (sp.door === null) continue;
+      const p = this.plots.find((q) => q.x === sp.x);
+      if (!p?.glowFrames.length) continue;
+      const pool = new Sprite(cachedTexture('dio:pool:17', () => poolArt(17)));
+      pool.position.set(sp.door - 8, this.groundY + 3);
+      pool.blendMode = 'add';
+      pool.alpha = 0.4;
+      this.glowL.addChild(pool);
+      this.lights.push(sp.door);
+    }
+    // soft shadows where the buildings meet the ground
+    for (const p of this.plots) {
+      if (p.kind === 'empty' || p.h < 10) continue;
+      const sh = contactShadow(p.base);
+      if (!sh) continue;
+      const ss = new Sprite(own(sh));
+      ss.position.set(p.x, this.groundY + 1);
+      ss.alpha = 0.32;
+      this.groundL.addChild(ss);
+    }
+    // grass, bushes and posts right in front of the lens (Earth, on land)
+    if (this.mode === 'earth' && sb.walkers && L.beachFrom === undefined && L.lakeFrom === undefined) {
+      const bio = BIOMES[this.site.backdrop];
+      const w = Math.ceil(this.vw + Math.max(0, this.sceneW - this.vw) * NEAR_PARALLAX) + 20;
+      const near = new Sprite(own(nearForeground(w, 14, sb.seed, bio ? shade(shade(bio.ground[0])) : C.grn1, bio ? shade(bio.ground[0]) : C.grn3)));
+      near.y = this.vh - 14;
+      this.nearL.addChild(near);
     }
     // clouds
     this.cloudL.removeChildren();
@@ -653,26 +801,96 @@ export class DioramaScene implements Scene {
     return Math.max(40, (L?.lakeFrom ?? L?.beachFrom ?? this.sceneW + 20) - 20);
   }
 
+  /** Plots as the crowd sees them: doors to walk into, building sites for the crews. */
+  private spots(): Spot[] {
+    const out: Spot[] = [];
+    for (const p of this.plots) {
+      if (p.kind === 'empty') continue;
+      const f = p.item.facility;
+      const upgrading = !!f?.upgrade;
+      let door: number | null = null;
+      if (p.live && p.kind !== 'rival') {
+        const pt = p.points.door ?? p.points.dock;
+        if (pt) door = p.x + pt[0];
+        else if (f && ENTERABLE.has(f.type)) door = p.x + Math.round(p.w / 2);
+      }
+      out.push({ x: p.x, w: p.w, door, building: !p.live || upgrading });
+    }
+    return out;
+  }
+
+  /** Who of the cast is out on this campus (2–3 of them, picked by what the site is for). */
+  private namedHere(s: GameState | null): NamedSpec[] {
+    if (!s || this.mode === 'space') return [];
+    const kind = this.site.kind as string;
+    const ours = kind === 'build' ? s.facilities.some((f) => f.siteId === this.siteId) || s.company.homeSite === this.siteId : ['charter', 'mega', 'launch', 'moon', 'habitat', 'asteroid'].includes(kind);
+    if (!ours) return [];
+    const suited = this.lunar || this.mode === 'asteroid';
+    const cast: AdvisorId[] = ['juno', 'penny', 'mira', 'sol', 'iris'];
+    if (s.act >= 3) cast.push('kip');
+    if (s.act >= 4) cast.push('lena');
+    const building = this.plots.some((p) => !p.live && p.kind !== 'empty');
+    const has = (t: string) => this.plots.some((p) => p.item.facility?.type === t || p.item.piece?.kind?.toLowerCase().includes(t));
+    const score = (id: AdvisorId) => {
+      let v = hash2(this.siteId.length * 7 + this.siteId.charCodeAt(0), cast.indexOf(id), 23) * 1.5;
+      if (id === 'juno' && building) v += 2;
+      if (id === 'iris' && has('lab')) v += 1.5;
+      if (id === 'mira' && (has('fab') || has('packaging'))) v += 2;
+      if (id === 'penny' && s.company.homeSite === this.siteId) v += 1.5;
+      if (id === 'sol' && kind === 'charter') v += 3;
+      if (id === 'kip' && ['launch', 'moon', 'asteroid'].includes(kind)) v += 4;
+      if (id === 'lena' && has('fusion')) v += 4;
+      if (suited && id !== 'kip' && id !== 'juno') v -= 3;
+      return v;
+    };
+    const present = cast.filter((id) => deskHolder(s, id) === id);
+    const picked = present.sort((a, b) => score(b) - score(a)).slice(0, suited ? 2 : 3);
+    const out: NamedSpec[] = picked.map((id) => ({ id, name: ADVISORS[id].name, age: castAge(s, id), bitForm: -1, suited }));
+    // Bit comes out at home and at the Charter's HQ (and drops in elsewhere now and then)
+    if (!suited && (s.company.homeSite === this.siteId || kind === 'charter' || hash2(this.siteId.charCodeAt(1), 3, 41) < 0.4)) {
+      out.push({ id: 'bit', name: 'Bit', age: 0, bitForm: bitForm(s), suited: false });
+    }
+    return out;
+  }
+
+  private lifeEnv(): LifeEnv {
+    const L = this.layout;
+    const truck = this.truck;
+    const atDock = truck && truck.x >= truck.target - 0.5 && truck.wait > 0;
+    return {
+      groundY: this.groundY,
+      sceneW: this.sceneW,
+      walkLimit: Math.min(this.sceneW - 12, this.walkLimit()),
+      camX: this.camX,
+      vw: this.vw,
+      era: getEra(),
+      darkness: this.darkness,
+      tint: this.worldTint,
+      lights: this.lights,
+      truckDock: atDock ? truck!.target + 4 : null,
+      road: this.mode === 'earth' && this.bandsInfo?.walkers !== false && L?.scenery?.kind !== 'moon',
+      air: !this.airless && this.mode !== 'habitat',
+      rainy: this.weather === 'rain' || this.weather === 'snow',
+    };
+  }
+
   private spawnWalkers() {
-    this.walkers.forEach((w) => w.sprite.destroy());
-    this.walkers = [];
+    this.life.clear();
+    this.life.setSpots(this.spots());
     if (this.bandsInfo?.walkers === false) return;
+    const s = this.game.view ?? null;
     const solid = this.plots.filter((p) => p.kind !== 'empty').length;
     let count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
     // Act V: a few suited figures on an asteroid; the habitat fills up as it's lived in
     const sc = this.layout?.scenery;
     if (this.mode === 'asteroid') count = Math.min(count, 2 + Math.floor(solid / 2));
     if (sc?.kind === 'habitat') count = Math.round(count * (0.5 + sc.lived * 0.35));
-    const limit = Math.min(this.sceneW - 20, this.walkLimit());
-    for (let i = 0; i < count; i++) {
-      const frames = this.lunar || this.mode === 'asteroid'
-        ? astronautFrames(i).map((pc, k) => cachedTexture(`dio:astronaut:${i % 14}:${k}`, () => pc))
-        : personFrames(i).map((pc, k) => cachedTexture(`dio:person:${i % 12}:${k}`, () => pc));
-      const sp = new Sprite(frames[0]);
-      this.actorL.addChild(sp);
-      const x = 20 + hash2(i, 1, 9) * (limit - 20);
-      this.walkers.push({ sprite: sp, frames, x, target: x, speed: 6 + hash2(i, 2, 9) * 6, pause: hash2(i, 3, 9) * 3 });
-    }
+    const named = this.namedHere(s);
+    const sites = this.plots.filter((p) => p.kind !== 'empty' && (!p.live || p.item.facility?.upgrade)).length;
+    const crews = Math.min(4, sites * 2);
+    count = Math.max(0, count - named.length - Math.floor(crews / 2));
+    const suited = this.lunar || this.mode === 'asteroid';
+    this.life.spawn({ count, suited, named, crews: suited ? 0 : crews, dog: !suited && this.mode !== 'space' && hash2(this.siteId.charCodeAt(0), 9, 77) < 0.7 }, this.lifeEnv());
   }
 
   private pickWeather(): Weather {
@@ -743,7 +961,8 @@ export class DioramaScene implements Scene {
       if (this.weather === 'rain' || this.weather === 'snow') ramp = phase === 'day' || phase === 'golden' ? [C.ink5, C.ink6, C.ink7, C.ink8] : ramp;
       if (this.weather === 'dust' && (phase === 'day' || phase === 'golden')) ramp = [C.snd4, C.snd5, C.snd6, C.snd7];
       const pc = new PixelCanvas(this.vw + 2, skyH);
-      pc.vgradient(0, 0, pc.w, pc.h, ramp);
+      pc.vbands(0, 0, pc.w, pc.h, ramp);
+      this.horizon = ramp[ramp.length - 1];
       if (this.skyTex) releaseTexture(this.skyTex);
       this.skyTex = textureOf(pc);
       this.skySprite.texture = this.skyTex;
@@ -787,7 +1006,8 @@ export class DioramaScene implements Scene {
       b *= 0.92;
     }
     const tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
-    for (const l of [this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    for (const l of [this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.world, this.front, this.nearL, this.weatherL]) l.tint = tint;
+    this.worldTint = tint;
     const lightsOn = Math.max(0, Math.min(1, (this.darkness - 0.25) * 2.4));
     this.glowL.alpha = lightsOn;
     this.backGlowL.alpha = lightsOn;
@@ -846,7 +1066,8 @@ export class DioramaScene implements Scene {
     const d = this.darkness;
     const tint = (Math.round((1 - 0.78 * d) * 255) << 16) | (Math.round((1 - 0.74 * d) * 255) << 8) | Math.round((1 - 0.48 * d) * 255);
     this.skyL.tint = 0xffffff;
-    for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.front, this.nearL, this.weatherL]) l.tint = tint;
+    this.worldTint = tint;
     const lightsOn = Math.max(0, Math.min(1, (d - 0.25) * 2.4));
     this.glowL.alpha = lightsOn;
     this.backGlowL.alpha = lightsOn;
@@ -924,7 +1145,8 @@ export class DioramaScene implements Scene {
     const [lr, lg, lb] = plan.light;
     const tint = (Math.round(lr * flick * 255) << 16) | (Math.round(lg * flick * 255) << 8) | Math.round(Math.min(1, lb * (flick < 1 ? 1.1 : 1)) * flick * 255);
     this.skyL.tint = 0xffffff;
-    for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    for (const l of [this.farL, this.cloudL, this.midL, this.backL, this.world, this.front, this.nearL, this.weatherL]) l.tint = tint;
+    this.worldTint = tint;
     this.glowL.alpha = flick < 1 ? 0.45 : 0.92;
     this.backGlowL.alpha = 0.9;
     this.midGlowL.alpha = 0.9;
@@ -973,7 +1195,8 @@ export class DioramaScene implements Scene {
       b *= warm[2];
     }
     const tint = (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
-    for (const l of [this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.world, this.weatherL]) l.tint = tint;
+    for (const l of [this.skyL, this.farL, this.cloudL, this.midL, this.backL, this.world, this.front, this.nearL, this.weatherL]) l.tint = tint;
+    this.worldTint = tint;
     const lightsOn = Math.max(0, Math.min(1, (d - 0.25) * 2.4));
     this.skyGlowL.alpha = lightsOn;
     this.skyGlowL.visible = lightsOn > 0.01;
@@ -994,6 +1217,11 @@ export class DioramaScene implements Scene {
     this.weatherL.visible = this.game.settings.weather && !this.game.settings.reducedMotion;
     const cx = Math.round(this.camX);
     this.world.x = -cx;
+    this.actorRoot.x = -cx;
+    this.front.x = -cx;
+    this.alertL.x = -cx;
+    this.nearL.x = -Math.round(this.camX * NEAR_PARALLAX);
+    for (const h of this.hazeSprites) h.sprite.tint = hex(this.horizon);
     this.glowL.x = -cx;
     this.bloomL.x = -cx;
     this.farL.x = -Math.round(this.camX * PARALLAX.far);
@@ -1022,7 +1250,7 @@ export class DioramaScene implements Scene {
       for (const em of p.emitters) {
         em.timer -= dt;
         if (em.timer > 0) continue;
-        em.timer += (saver ? 2.2 : 1) / Math.max(0.1, em.e.rate);
+        em.timer += (saver ? 2.2 : 1) / Math.max(0.1, em.e.rate * p.fill);
         const e = em.e;
         if (cull && (p.x + e.x < viewL || p.x + e.x > viewR)) continue;
         const sx = p.x + e.x + (e.spread ? (Math.random() - 0.5) * 2 * e.spread : 0);
@@ -1052,12 +1280,32 @@ export class DioramaScene implements Scene {
       this.backGlow.sprite.texture = this.backGlow.frames[fi];
       this.backGlow.bloom.texture = this.backGlow.bloomFrames[fi];
     }
+    // building state: dim empty halls, flicker in a brownout, blink the beacons, weld on sites
+    this.statTimer -= dt;
+    if (this.statTimer <= 0) {
+      this.statTimer = 1.5;
+      this.updateStatus();
+    }
+    const flicker = this.brownout ? (Math.sin(this.time * 23) > 0.6 || Math.sin(this.time * 7.3) > 0.85 ? 0.35 : 1) : 1;
+    for (const p of this.plots) {
+      if (p.glow) p.glow.alpha = (0.35 + 0.65 * p.fill) * flicker;
+      if (p.bloom) p.bloom.alpha = p.fill * flicker;
+      if (p.beacon) p.beacon.visible = Math.floor(this.time * 2.2 + p.x * 0.01) % 2 === 0;
+      if (p.flash > 0) p.flash -= dt;
+      if (!p.live && p.kind !== 'empty' && !saver) {
+        p.sparkT -= dt;
+        if (p.sparkT <= 0) {
+          p.sparkT = 0.25 + Math.random() * 1.4;
+          if (p.x + p.w > viewL && p.x < viewR) for (let k = 0; k < 3; k++) this.spawnPuff('spark', p.x + p.w * (0.15 + Math.random() * 0.7), p.top + p.h * (0.2 + Math.random() * 0.5));
+        }
+      }
+    }
     for (const p of this.plots) if (p.rocket) this.updateRocket(p, p.rocket, dt);
     for (const p of this.plots) if (p.driver) this.updateDriver(p, p.driver);
     // hover highlight
     for (const p of this.plots) {
       if (p.kind === 'empty') p.sprite.texture = cachedTexture(`dio:empty:${p.w}:${p === this.hoverPlot}`, () => emptyPlotArt(p.w, p === this.hoverPlot));
-      else p.sprite.tint = p === this.hoverPlot ? 0xfff2cc : 0xffffff;
+      else p.sprite.tint = p === this.hoverPlot ? 0xfff2cc : p.flash > 0 && Math.floor(p.flash * 5) % 2 === 0 ? 0xfff6dd : 0xffffff;
     }
     // edge hints
     const max = Math.max(0, this.sceneW - this.vw);
@@ -1307,26 +1555,13 @@ export class DioramaScene implements Scene {
   }
 
   private updateWalkers(dt: number) {
-    const footY = this.groundY + 3;
-    for (const w of this.walkers) {
-      if (w.pause > 0) {
-        w.pause -= dt;
-        w.sprite.texture = w.frames[0];
-      } else {
-        const dir = Math.sign(w.target - w.x);
-        w.x += dir * w.speed * dt;
-        if (Math.abs(w.target - w.x) < 1) {
-          w.pause = 1 + Math.random() * 4;
-          const limit = this.walkLimit();
-          const plots = this.plots.filter((p) => p.kind !== 'empty' && p.x < limit);
-          const p = plots[Math.floor(Math.random() * Math.max(1, plots.length))];
-          w.target = Math.min(limit, p ? p.x + p.w * (0.2 + Math.random() * 0.6) : 20 + Math.random() * (this.sceneW - 40));
-        }
-        w.sprite.texture = w.frames[Math.floor(this.time * 6 + w.x) % 2];
-        w.sprite.scale.x = dir < 0 ? -1 : 1;
-      }
-      w.sprite.position.set(Math.round(w.x) + (w.sprite.scale.x < 0 ? 3 : 0), footY);
+    // a toast is news on campus: people react with a bubble (good news gets a cheer)
+    const last = this.game.toasts?.at(-1);
+    if (last && last.id !== this.lastToast) {
+      this.lastToast = last.id;
+      this.life.react(last.kind === 'bad' ? 'bad' : last.kind === 'good' ? 'good' : 'info');
     }
+    this.life.update(dt, this.lifeEnv(), this.game.settings.reducedMotion);
   }
 
   /** Trucks call at loading docks: chips to your halls, wafers and gases at suppliers. */
@@ -1344,7 +1579,11 @@ export class DioramaScene implements Scene {
       const dock = docks[Math.floor(Math.random() * docks.length)];
       let tex: Texture;
       if (this.lunar) tex = cachedTexture('dio:moonrover', () => moonRoverArt());
-      else if (!this.viewOnly) tex = cachedTexture('dio:truck', truckArt);
+      else if (!this.viewOnly) {
+        // the era's delivery: a diesel box truck, an electric van, then a driverless pod
+        const e = getEra();
+        tex = e >= 3 ? cachedTexture('dio:truck:pod', () => vanArt('pod')) : e >= 2 ? cachedTexture('dio:truck:ev', () => vanArt('ev')) : cachedTexture('dio:truck', truckArt);
+      }
       else {
         const pc = dock.item.piece;
         const kind = pc?.kind === 'gasWorks' || pc?.kind === 'gasYard' ? 'tanker' : this.site.kind === 'mine' ? 'flatbed' : 'box';
@@ -1353,18 +1592,27 @@ export class DioramaScene implements Scene {
       }
       const sp = new Sprite(tex);
       this.actorL.addChild(sp);
-      this.truck = { sprite: sp, x: -30, target: dock.x + dock.points.dock[0] - 4, wait: 3 };
+      // headlights and tail lights (additive, they show at night)
+      const lamps = new Sprite(cachedTexture(`dio:truckLamps:${tex.width}`, () => truckLampArt(tex.width)));
+      lamps.blendMode = 'add';
+      this.glowL.addChild(lamps);
+      this.truck = { sprite: sp, lamps, x: -30, target: dock.x + dock.points.dock[0] - 4, wait: 6 };
       return;
     }
     const t = this.truck;
     if (t.x < t.target) t.x = Math.min(t.target, t.x + 28 * dt);
     else if (t.wait > 0) t.wait -= dt;
     else t.x += 28 * dt;
-    t.sprite.position.set(Math.round(t.x), this.groundY + 8);
+    // on the road's near lane, kerbside at the dock
+    t.sprite.position.set(Math.round(t.x), this.groundY + 13);
+    t.sprite.tint = this.worldTint;
+    t.lamps.position.set(Math.round(t.x) - 2, this.groundY + 13);
+    t.lamps.alpha = Math.max(0, Math.min(1, (this.darkness - 0.25) * 2.4));
     const shore = this.layout?.beachFrom ?? this.layout?.lakeFrom;
     const end = shore ?? this.sceneW;
     if (t.x > end + 30 || (shore !== undefined && t.x > end - 20)) {
       t.sprite.destroy();
+      t.lamps.destroy();
       this.truck = null;
       this.truckTimer = 10 + Math.random() * 15;
     }
@@ -1422,6 +1670,13 @@ export class DioramaScene implements Scene {
         return;
       }
     }
+    // the advisors (and Bit) wear a name tag on hover
+    const who = this.life.namedAt(this.camX + p.x, p.y);
+    this.life.setHover(who);
+    if (who) {
+      this.hoverPlot = null;
+      return this.game.setHover(null);
+    }
     const plot = this.plotAt(p.x, p.y);
     this.hoverPlot = plot;
     if (!plot) return this.game.setHover(null);
@@ -1440,12 +1695,23 @@ export class DioramaScene implements Scene {
       return;
     }
     this.vel = 0;
+    const who = this.life.namedAt(this.camX + p.x, p.y);
+    const met = who ? this.life.greet(who) : null;
+    if (met) {
+      const lines = campusLines(met.id, this.game.view?.act ?? 1);
+      const k = LINE_INDEX.get(met.id) ?? Math.floor(hash2(met.id.length, 5, 3) * lines.length);
+      LINE_INDEX.set(met.id, k + 1);
+      if (lines.length) this.game.toast(lines[k % lines.length], 'info', met.id);
+      this.lastToast = this.game.toasts?.at(-1)?.id ?? this.lastToast;
+      return;
+    }
     const plot = this.plotAt(p.x, p.y);
     this.game.select({ kind: 'site', id: this.siteId });
     if (plot?.kind === 'empty') this.game.toast('Pick something to build from the panel on the right →', 'info', 'juno');
   }
 
   pointerLeave() {
+    this.life.setHover(null);
     this.hoverPlot = null;
     this.game.setHover(null);
   }
@@ -1461,6 +1727,7 @@ export class DioramaScene implements Scene {
     for (const p of this.plots) for (const t of p.own) releaseTexture(t);
     for (const t of [this.skyTex, this.starTex, this.hazeTex, this.earthTex, this.skyGlowTex]) if (t) releaseTexture(t);
     for (const sp of this.pool) sp.destroy();
+    this.life.destroy();
     this.root.destroy({ children: true });
   }
 }
@@ -1489,6 +1756,104 @@ function sameCanvas(a: PixelCanvas, b: PixelCanvas): boolean {
 function rotorTextures(r: RotorSpec): Texture[] {
   if (r.style === 'big') return bigRotorFrames(r.size, r.col).map((pc, k) => cachedTexture(`dio:brotor:${r.size}:${r.col}:${k}`, () => pc));
   return rotorFrames(r.size, r.col).map((pc, k) => cachedTexture(`dio:rotor:${r.size}:${r.col}:${k}`, () => pc));
+}
+
+/** A red rooftop warning light (5×4, additive). */
+function beaconArt(): PixelCanvas {
+  const pc = new PixelCanvas(5, 4);
+  pc.set(2, 0, C.red2);
+  pc.hline(1, 1, 3, C.red3);
+  pc.set(2, 1, C.org1);
+  pc.hline(0, 2, 5, C.red2);
+  pc.set(2, 2, C.red3);
+  pc.set(2, 3, C.red1);
+  return pc;
+}
+
+/** A warm pool of light on the pavement (additive), `w` wide. */
+function poolArt(w: number): PixelCanvas {
+  const h = 7;
+  const pc = new PixelCanvas(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const d = Math.hypot((x - (w - 1) / 2) / (w / 2), (y - 3) / 3.5);
+      if (d > 1) continue;
+      if (bayer(x, y) < (1 - d) * 13) pc.set(x, y, d < 0.3 ? C.org1 : d < 0.65 ? C.snd4 : C.snd2);
+    }
+  }
+  return pc;
+}
+
+/** The fake air between the camera and the far hills: the band's silhouette in white (tinted). */
+function silhouette(src: PixelCanvas): PixelCanvas {
+  const pc = new PixelCanvas(src.w, src.h);
+  for (let i = 0; i < src.data.length; i++) if (src.data[i]) pc.data[i] = C.white;
+  return pc;
+}
+
+/** A soft cast shadow on the ground in front of a piece (light from the upper left). */
+function contactShadow(base: PixelCanvas): PixelCanvas | null {
+  const w = base.w + 4;
+  const pc = new PixelCanvas(w, 3);
+  let any = false;
+  const bottom = base.h - 1;
+  for (let x = 0; x < base.w; x++) {
+    if (!base.get(x, bottom) && !base.get(x, bottom - 1)) continue;
+    any = true;
+    for (let y = 0; y < 3; y++) {
+      const sx = x + 1 + y;
+      if (y === 0 || bayer(sx, y) < (y === 1 ? 9 : 4)) pc.set(sx, y, C.ink0);
+    }
+  }
+  return any ? pc : null;
+}
+
+/** Tufts, bushes and the odd fence post right in front of the camera, dark against the field. */
+function nearForeground(w: number, h: number, seed: number, dark: number, mid: number): PixelCanvas {
+  const pc = new PixelCanvas(w, h);
+  for (let x = 0; x < w; x++) {
+    const r = hash2(x, seed, 19);
+    if (r < 0.1) {
+      // a grass tuft: three blades
+      const tall = 3 + Math.floor(hash2(x, 2, seed) * 5);
+      pc.vline(x, h - tall, tall, dark);
+      if (x > 0) pc.vline(x - 1, h - tall + 2, tall - 2, dark);
+      pc.vline(x + 1, h - tall + 1, tall - 1, dark);
+      pc.set(x, h - tall, mid);
+    } else if (r < 0.118) {
+      // a round bush
+      const rr = 3 + hash2(x, 4, seed) * 3;
+      pc.ellipse(x, h - rr + 1, rr * 1.3, rr, dark);
+      pc.set(Math.round(x - rr * 0.4), Math.round(h - rr * 1.6 + 1), mid);
+      pc.set(Math.round(x - rr * 0.4) + 1, Math.round(h - rr * 1.6 + 1), mid);
+      x += Math.ceil(rr * 2);
+    } else if (r < 0.124) {
+      // a fence post
+      pc.rect(x, h - 11, 2, 11, dark);
+      pc.set(x, h - 11, mid);
+      x += 3;
+    }
+  }
+  return pc;
+}
+
+/** A truck's lights for a body `w` wide: a dithered beam ahead, red tail lights behind (additive). */
+function truckLampArt(w: number): PixelCanvas {
+  const pc = new PixelCanvas(w + 18, 8);
+  pc.set(1, 3, C.red3);
+  pc.set(1, 4, C.red2);
+  pc.set(0, 3, C.red1);
+  for (let x = 0; x < 16; x++) {
+    const spread = 1 + Math.floor(x / 5);
+    for (let dy = -spread; dy <= spread; dy++) {
+      const y = 4 + dy;
+      if (y < 0 || y > 7) continue;
+      const k = 1 - x / 16 - Math.abs(dy) * 0.12;
+      if (k > 0 && bayer(x, y) < k * 12) pc.set(w + 2 + x, y, k > 0.6 ? C.yel1 : C.org2);
+    }
+  }
+  pc.set(w + 1, 4, C.yel2);
+  return pc;
 }
 
 /** Dithered pixel halo for lamps (additive). */

@@ -960,6 +960,36 @@ export function truckArt(): PixelCanvas {
   );
 }
 
+/** Later deliveries (18×7): an electric van with a leaf on the side, then a driverless pod. */
+export function vanArt(kind: 'ev' | 'pod'): PixelCanvas {
+  if (kind === 'ev') {
+    return PixelCanvas.from(
+      `
+      ..aaaaaaaaaaaaa...
+      .abbbbbbbbbbbbaa..
+      .abbbbbbbbbbbbacc.
+      .abgggbbdbbbbbaccc
+      .abbbbbbbbbbbbbbbe
+      .aaaaaaaaaaaaaaaaa
+      ...ff........ff...
+    `,
+      { a: 'ink6', b: 'white', c: 'sky4', d: 'grn5', g: 'grn4', e: 'yel1', f: 'ink0' },
+    );
+  }
+  return PixelCanvas.from(
+    `
+    ....aaaaaaaaaa....
+    ..aabbbbbbbbbbaa..
+    .abcccbbbbbbcccba.
+    .abcccbbbbbbcccbe.
+    .abbbbbddddbbbbba.
+    ..aaaaaaaaaaaaaa..
+    ...ff........ff...
+  `,
+    { a: 'ink5', b: 'ink9', c: 'cyn5', d: 'cyn4', e: 'cyn6', f: 'ink0' },
+  );
+}
+
 /** Tanker / flatbed variants for supplier sites (gases, wafers, ore). */
 export function truckVariant(kind: 'tanker' | 'flatbed' | 'box', accent: number): PixelCanvas {
   const pc = new PixelCanvas(18, 7);
@@ -1195,6 +1225,20 @@ export function backlot(w: number, h: number, seed: number, density: number): { 
  * Ground strip with a road. With `beachFrom`, the land gives way to sand and surf; with
  * `lakeFrom` (Geneva), the promenade ends at a stone quay and the lake begins.
  */
+/** The pavement people walk along: rows 3–11 of the ground strip (their feet land on rows 7–9). */
+export const SIDEWALK_TOP = 3;
+export const SIDEWALK_BOTTOM = 11;
+
+/** One pixel of pavement: a light top edge, slabs with joints, a kerb. */
+export function sidewalkAt(x: number, y: number): number {
+  if (y === SIDEWALK_TOP) return C.rck6;
+  if (y === SIDEWALK_BOTTOM) return C.rck3;
+  if (y === SIDEWALK_BOTTOM - 1) return C.rck4;
+  if (x % 14 === 0) return C.rck4;
+  // a few slabs a shade lighter, so the pavement isn't one flat band
+  return hash2(Math.floor(x / 14), 1, 61) < 0.2 && y > SIDEWALK_TOP + 1 && y < SIDEWALK_BOTTOM - 2 ? C.rck6 : C.rck5;
+}
+
 export function groundStrip(b: Backdrop, w: number, h: number, opts: { beachFrom?: number; cableX?: number; lakeFrom?: number } = {}): PixelCanvas {
   if (opts.lakeFrom !== undefined) return lakeShore(groundStrip(b, w, h, { cableX: opts.cableX }), opts.lakeFrom);
   const bio = BIOMES[b];
@@ -1204,13 +1248,21 @@ export function groundStrip(b: Backdrop, w: number, h: number, opts: { beachFrom
     for (let x = 0; x < w; x++) {
       let c: number;
       if (y < 2) c = (x + y) % 3 === 0 ? bio.ground[2] : bio.ground[1];
+      else if (y >= SIDEWALK_TOP && y <= SIDEWALK_BOTTOM) c = sidewalkAt(x, y);
       else if (y >= roadY && y < roadY + 7) c = y === roadY || y === roadY + 6 ? C.ink5 : C.ink3;
-      else c = bayer(x, y) < 5 + (y > roadY ? 4 : 0) ? bio.ground[0] : bio.ground[1];
+      else {
+        // calm patches of the two ground tones, dithered only along their edges
+        const n = fbm(x / 11, y / 3.5, 913);
+        c = Math.abs(n - 0.5) < 0.035 ? (ditherAt(x, y, 0.5) ? bio.ground[0] : bio.ground[1]) : n > 0.5 ? bio.ground[0] : bio.ground[1];
+        if (hash2(x, y, 57) < 0.025) c = bio.ground[2];
+      }
       pc.set(x, y, c);
     }
   }
   for (let x = 0; x < w; x += 10) pc.hline(x, roadY + 3, 5, C.yel0);
   for (let x = 0; x < w; x++) if (hash2(x, 7, 41) < 0.12) pc.set(x, 0, bio.ground[2]);
+  // tufts along the verge between the pavement and the road
+  for (let x = 0; x < w; x++) if (hash2(x, 3, 43) < 0.18) pc.set(x, roadY - 2, bio.ground[2]);
   if (opts.beachFrom !== undefined) {
     const bx = opts.beachFrom;
     for (let y = 0; y < h; y++) {

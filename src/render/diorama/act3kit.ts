@@ -3,7 +3,8 @@
  * colour ramps from a palette key, builder-coloured cranes, flags and banners, survey stakes,
  * billboards, lush trees and tiny people. Pure PixelCanvas code with palette indices only.
  */
-import { C, type ColorKey } from '../palette';
+import { C, getEra, type ColorKey } from '../palette';
+import { stampPerson, stampSeated } from './people';
 import { bayer, ditherAt, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import { builderColor } from '../../sim/charterView';
@@ -379,40 +380,18 @@ export function billboard(pc: PixelCanvas, g: PixelCanvas, x: number, baseY: num
 }
 
 // ── people & plants ────────────────────────────────────────────────────────────────────────
-const SHIRTS = [C.blu4, C.org1, C.grn5, C.vio4, C.red3, C.cyn4, C.yel0, C.pnk0, C.white, C.sea6];
-const SKINS = [C.skn1, C.skn2, C.skn3, C.skn4, C.skn5];
-const HAIR = [C.ink1, C.snd1, C.snd3, C.ink2, C.yel0, C.rck2];
 
-/** A standing person (3×7) with feet on footY. */
+/**
+ * A standing person with feet on footY (the body's left column at x): the same outlined figure
+ * the walkers use (people.ts). pose 1 waves. Half of them face left.
+ */
 export function person(pc: PixelCanvas, x: number, footY: number, seed: number, pose = 0) {
-  const shirt = SHIRTS[Math.floor(hash2(seed, 1, 5) * SHIRTS.length)];
-  const skin = SKINS[Math.floor(hash2(seed, 2, 5) * SKINS.length)];
-  const hair = HAIR[Math.floor(hash2(seed, 3, 5) * HAIR.length)];
-  const legs = hash2(seed, 4, 5) > 0.5 ? C.ink2 : C.blu1;
-  const y = footY - 7;
-  pc.set(x + 1, y, hair);
-  pc.set(x + 1, y + 1, skin);
-  pc.hline(x, y + 2, 3, shirt);
-  pc.hline(x, y + 3, 3, shirt);
-  if (pose === 1) pc.set(x + 3, y + 2, skin); // waving / pointing
-  pc.set(x + 1, y + 4, legs);
-  pc.set(x, y + 5, legs);
-  pc.set(x + 2, y + 5, legs);
-  pc.set(x, y + 6, C.ink1);
-  pc.set(x + 2, y + 6, C.ink1);
+  stampPerson(pc, x, footY, seed, pose === 1 ? 'wave' : 'stand', getEra(), hash2(seed, 9, 3) < 0.5);
 }
 
 /** A seated person (on a bench at seatY). */
 export function seated(pc: PixelCanvas, x: number, seatY: number, seed: number) {
-  const shirt = SHIRTS[Math.floor(hash2(seed, 1, 6) * SHIRTS.length)];
-  const skin = SKINS[Math.floor(hash2(seed, 2, 6) * SKINS.length)];
-  const hair = HAIR[Math.floor(hash2(seed, 3, 6) * HAIR.length)];
-  pc.set(x + 1, seatY - 5, hair);
-  pc.set(x + 1, seatY - 4, skin);
-  pc.hline(x, seatY - 3, 3, shirt);
-  pc.hline(x, seatY - 2, 3, shirt);
-  pc.hline(x + 1, seatY - 1, 3, C.ink2);
-  pc.set(x + 3, seatY, C.ink2);
+  stampSeated(pc, x, seatY, seed, getEra());
 }
 
 /**

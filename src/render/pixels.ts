@@ -167,6 +167,26 @@ export class PixelCanvas {
     }
   }
 
+  /**
+   * A banded vertical gradient: solid bands of each colour with short dithered seams between them
+   * (`seam` rows), instead of dithering the whole height. Reads calmer than vgradient at game scale.
+   */
+  vbands(x: number, y: number, w: number, h: number, cols: Col[], seam = 6) {
+    const n = cols.length - 1;
+    const band = h / Math.max(1, n);
+    const k = Math.min(0.5, seam / 2 / Math.max(1, band));
+    for (let j = 0; j < h; j++) {
+      const t = (j / Math.max(1, h - 1)) * n;
+      const i0 = Math.min(n, Math.floor(t));
+      const f = t - i0;
+      const g = f < 0.5 - k ? 0 : f > 0.5 + k ? 1 : (f - (0.5 - k)) / (2 * k);
+      for (let i = 0; i < w; i++) {
+        const c = i0 < n && ditherAt(x + i, y + j, g) ? cols[i0 + 1] : cols[i0];
+        this.set(x + i, y + j, c);
+      }
+    }
+  }
+
   blit(src: PixelCanvas, dx: number, dy: number, flipX = false) {
     for (let y = 0; y < src.h; y++) {
       for (let x = 0; x < src.w; x++) {
