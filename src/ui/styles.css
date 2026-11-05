@@ -71,6 +71,7 @@ body {
   padding: 3px 4px;
 }
 .date {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1807,6 +1808,9 @@ img.endcard {
 
 /* sandbox */
 .sandbox-badge {
+  position: absolute;
+  right: 4px;
+  top: 2px;
   background: none;
   border: 0;
   padding: 0;
@@ -1878,4 +1882,8 @@ img.endcard {
 .badge .glyph b {
   color: var(--muted);
   font-family: var(--font-pixel);
+}
+
+.date.has-badge {
+  padding-right: 24px;
 }
