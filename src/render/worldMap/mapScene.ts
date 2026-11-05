@@ -4,7 +4,7 @@ import { dragSlop, touchRadius, type Scene, type PixelPointer } from '../stage';
 import type { MapLod } from '../../world/mapData';
 import { sampleRegionCode } from '../../world/mapData';
 import { CHOKEPOINTS } from '../../world/routing';
-import { REGION_BY_CODE, CODE_BY_REGION } from '../../content/mapcodes';
+import { BIOME, REGION_BY_CODE, CODE_BY_REGION } from '../../content/mapcodes';
 import { REGIONS } from '../../content/regions';
 import { CHARTER_HQ, SITES, siteDef } from '../../content/sites';
 import type { GameState, Shipment } from '../../sim/types';
@@ -13,7 +13,7 @@ import { closedChokepoints } from '../../sim/effects';
 import { C, getEra, hex } from '../palette';
 import { PixelCanvas } from '../pixels';
 import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf } from '../textures';
-import { renderBloom, renderBorders, renderTerrain } from './terrain';
+import { renderBloom, renderBorders, terrainCanvas, terrainSlice } from './terrain';
 import { lightPoints, renderLights, renderNight, type LightPoint } from './night';
 import {
   cableShipTexture,
@@ -139,14 +139,169 @@ interface LodLayer {
   lod: MapLod;
   terrain: Texture;
   borders: Texture;
-  highlightPc: PixelCanvas;
-  highlight: Texture;
-  highlightCode: number;
   nightPc: PixelCanvas;
   night: Texture;
   lightsPc: PixelCanvas;
   lights: Texture;
   lightPts: LightPoint[];
+}
+
+/**
+ * Act IV's province overlay per LOD (two shimmer phases) and Act V's garden ↔ forge ground: full-map
+ * textures that outlive scenes like the LOD layers (repainted in place), so a trip to a diorama
+ * and back neither leaks them nor paints them again. `pending` = shimmer phases still to repaint.
+ */
+interface ProvinceLayer {
+  key: string;
+  pcs: [PixelCanvas, PixelCanvas];
+  texs: [Texture, Texture];
+  built: number;
+  pending: [boolean, boolean];
+}
+const PROVINCE_CACHE: (ProvinceLayer | null)[] = [null, null];
+interface GroundLayer {
+  key: string;
+  pc: PixelCanvas;
+  tex: Texture;
+  built: number;
+}
+const GROUND_CACHE: (GroundLayer | null)[] = [null, null];
+
+/** The province and ground overlays repaint at most this often (ms) as they change, and less often during a jump. */
+const OVERLAY_GAP = 2000;
+const OVERLAY_GAP_JUMP = 4500;
+
+/** A region's box of land pixels at a LOD; `x` + `w` can run past the map's width for a region across the date line. */
+interface Box {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+const REGION_BOXES = new WeakMap<MapLod, Map<number, Box>>();
+
+/** Every region's land box at a LOD, in one pass over the map (for the hover highlight). */
+function regionBoxes(lod: MapLod): Map<number, Box> {
+  let boxes = REGION_BOXES.get(lod);
+  if (boxes) return boxes;
+  const { W, H, region, biome } = lod;
+  const cols = new Map<number, Uint8Array>();
+  const rows = new Map<number, [number, number]>();
+  for (let y = 0; y < H - 1; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const r = region[i];
+      if (r === 0 || biome[i] === BIOME.OCEAN) continue;
+      let c = cols.get(r);
+      if (!c) {
+        cols.set(r, (c = new Uint8Array(W)));
+        rows.set(r, [y, y]);
+      }
+      c[x] = 1;
+      rows.get(r)![1] = y;
+    }
+  }
+  boxes = new Map();
+  for (const [r, c] of cols) {
+    // the widest run of empty columns (going round the wrap) is where the box doesn't need to be
+    let gapStart = 0;
+    let gapLen = 0;
+    for (let x = 0; x < W; x++) {
+      if (c[x]) continue;
+      let n = 0;
+      while (n < W && !c[(x + n) % W]) n++;
+      if (n > gapLen) {
+        gapLen = n;
+        gapStart = x;
+      }
+      if (x + n >= W) break;
+      x += n;
+    }
+    const [y0, y1] = rows.get(r)!;
+    const x0 = (gapStart + gapLen) % W;
+    boxes.set(r, { x: x0, y: y0, w: W - gapLen, h: y1 - y0 + 1 });
+  }
+  REGION_BOXES.set(lod, boxes);
+  return boxes;
+}
+
+/**
+ * A region's hover highlight: the same dotted pattern renderBorders draws for it, but only in the
+ * region's box (a small texture instead of a whole-map repaint and upload on every hover).
+ */
+function highlightCanvas(lod: MapLod, code: number, box: Box): PixelCanvas {
+  const { W, region, biome } = lod;
+  const pc = new PixelCanvas(box.w, box.h);
+  for (let j = 0; j < box.h; j++) {
+    const y = box.y + j;
+    for (let i = 0; i < box.w; i++) {
+      const x = (box.x + i) % W;
+      const k = y * W + x;
+      const r = region[k];
+      if (r !== code || biome[k] === BIOME.OCEAN || ((x + y) & 3) !== 0) continue;
+      const right = region[y * W + ((x + 1) % W)];
+      const down = region[k + W];
+      const border = (right !== 0 && right !== r) || (down !== 0 && down !== r);
+      if (!border) pc.data[j * box.w + i] = C.white;
+    }
+  }
+  return pc;
+}
+
+/** The pieces of a LOD's layers, one slice of work at a time (so they can be built in idle moments). */
+function* buildLayer(lod: MapLod): Generator<void, LodLayer> {
+  while (!terrainSlice(lod, 4)) yield;
+  const terrain = textureOf(terrainCanvas(lod));
+  yield;
+  const borders = textureOf(renderBorders(lod));
+  yield;
+  const nightPc = renderNight(lod, new Date());
+  yield;
+  const lightPts = lightPoints(lod);
+  yield;
+  const lightsPc = renderLights(lod, nightPc, lightPts);
+  const night = textureOf(nightPc);
+  yield;
+  const lights = textureOf(lightsPc);
+  // the detailed map's region boxes too, so the first hover up close doesn't pay for them
+  yield;
+  if (lod.res <= 0.25) regionBoxes(lod);
+  return { lod, terrain, borders, nightPc, night, lightsPc, lights, lightPts };
+}
+
+/** LOD layers being built in idle slices (layer() finishes one at once if it's wanted now). */
+const LAYER_JOBS: (Generator<void, LodLayer> | null)[] = [null, null];
+
+const idle = (fn: (d?: IdleDeadline) => void) => {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(fn, { timeout: 1500 });
+  else setTimeout(fn, 40);
+};
+
+/**
+ * Build a map LOD's layers in idle moments, a few milliseconds at a time (the detailed map is a
+ * second or two of work on a phone): after the player starts or continues a game, and in the menu
+ * tour just before a close-up shot needs it.
+ */
+export function prebuildMapLod(lods: MapLod[], i: number): void {
+  if (LAYER_CACHE[i] || LAYER_JOBS[i] || !lods[i]) return;
+  const job = buildLayer(lods[i]);
+  LAYER_JOBS[i] = job;
+  const step = (d?: IdleDeadline) => {
+    if (LAYER_JOBS[i] !== job) return;
+    const t0 = performance.now();
+    for (;;) {
+      const r = job.next();
+      if (r.done) {
+        LAYER_CACHE[i] = r.value;
+        LAYER_JOBS[i] = null;
+        return;
+      }
+      const left = d && !d.didTimeout ? d.timeRemaining() : 8 - (performance.now() - t0);
+      if (left < 4) break;
+    }
+    idle(step);
+  };
+  idle(step);
 }
 
 /**
@@ -219,6 +374,14 @@ export class MapScene implements Scene {
   private cine: { x0: number; y0: number; x1: number; y1: number; t: number; secs: number } | null = null;
   private targetY: number | null = null;
   private lastNight = 0;
+  /** Day/night was on last frame (turning it back on repaints the terminator at once). */
+  private nightOn = true;
+  /** The region highlight on screen: which region, for which LOD, and its texture (just the region's box). */
+  private hl: { code: number; lod: number; tex: Texture | null } = { code: -1, lod: -1, tex: null };
+  /** What the marker layout was last worked out from (it's skipped while nothing it reads has changed). */
+  private markerKey = '';
+  private markerView: unknown = null;
+  private markerAt = -1;
   private time = 0;
   private clouds: { lon: number; lat: number; v: number; sprite: Sprite; shadow: Sprite }[] = [];
   private markers = new Map<string, { sprite: Sprite; icons: Sprite[]; label: Sprite | null; key: string; lift: boolean; prio: number; z: number }>();
@@ -249,7 +412,11 @@ export class MapScene implements Scene {
   private traffic: Sprite[] = [];
   private shipSprites = new Map<string, Sprite>();
   private linkKey = '';
+  private linkWraps = '';
   private routeKey = '';
+  private routeWraps = '';
+  private cutWraps = '';
+  private sgDownWraps = '';
   // ── Act III ──
   private megaSprites = new Map<string, { sprite: Sprite; key: string; tex: Texture | null; ox: number; oy: number; lights: LightPoint[] }>();
   private megaCraneSprites: { sprite: Sprite; site: string; i: number }[] = [];
@@ -278,7 +445,8 @@ export class MapScene implements Scene {
   private readonly planetGroundL = new Container();
   private readonly sgDownG = new Graphics();
   private readonly sgPulseL = new Container();
-  private province: { lod: number; key: string; pcs: [PixelCanvas, PixelCanvas]; texs: [Texture, Texture]; wrap: WrapSprite; built: number } | null = null;
+  /** This scene's sprites over the shared province overlay (PROVINCE_CACHE) for a LOD. */
+  private province: { lod: number; layer: ProvinceLayer; wrap: WrapSprite } | null = null;
   private rectennaSprites: { sprite: Sprite; tex: Texture; lat: number; lon: number; ox: number; oy: number }[] = [];
   private rectennaSpriteKey = '';
   private glyph4Sprites: { sprite: Sprite; site: string; i: number; kind: 'fusion' | 'dac'; building: boolean; progress: number }[] = [];
@@ -290,6 +458,8 @@ export class MapScene implements Scene {
   private sgPulses: { sprite: Sprite; tail: Sprite; id: string; t: number; speed: number; dir: 1 | -1 }[] = [];
   private sgPulseKey = '';
   private sgDownKey = '';
+  /** The first pixel's x of the down links' drawing (it's drawn next to the camera from there). */
+  private sgDownRef: number | null = null;
   private sgFlowAt = -1e9;
   private planetSeen: unknown = null;
   private planetLod = -1;
@@ -298,7 +468,8 @@ export class MapScene implements Scene {
   // ── Act V ──
   /** Garden ↔ forge ground and the beams' rectenna fields (under Act IV's province overlay). */
   private readonly systemGroundL = new Container();
-  private earthGround: { lod: number; key: string; pc: PixelCanvas; tex: Texture; wrap: WrapSprite; built: number } | null = null;
+  /** This scene's sprites over the shared garden ↔ forge ground (GROUND_CACHE) for a LOD. */
+  private earthGround: { lod: number; layer: GroundLayer; pc: PixelCanvas; tex: Texture; wrap: WrapSprite } | null = null;
   private beamSprites: { sprite: Sprite; tex: Texture; lat: number; lon: number; ox: number; oy: number }[] = [];
   private beamSpriteKey = '';
   private earthSeen: unknown = null;
@@ -318,11 +489,12 @@ export class MapScene implements Scene {
   constructor(private readonly game: Game) {
     this.root.addChild(this.world);
     this.markerL.sortableChildren = true;
-    this.world.addChild(this.terrainL, this.megaL, this.systemGroundL, this.planetGroundL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.areaL, this.leaderG, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
+    // megaprojects sit over Act IV's province tints and Act V's garden ↔ forge ground (their own art shows), under the night
+    this.world.addChild(this.terrainL, this.systemGroundL, this.planetGroundL, this.megaL, this.overlayL, this.netL, this.cutG, this.sgDownG, this.netPulseL, this.hvdcPulseL, this.sgPulseL, this.cloudL, this.routeG, this.linkG, this.pulseL, this.stationL, this.chokeL, this.areaL, this.leaderG, this.markerL, this.shipL, this.skyL, this.previewG, this.selSprite, this.labelL);
     const initial = this.layer(0);
     this.terrain = new WrapSprite(this.terrainL, initial.terrain);
     this.borders = new WrapSprite(this.overlayL, initial.borders, { alpha: 0.32 });
-    this.highlight = new WrapSprite(this.overlayL, initial.highlight, { alpha: 0.55 });
+    this.highlight = new WrapSprite(this.overlayL, Texture.EMPTY, { alpha: 0.55 });
     this.night = new WrapSprite(this.overlayL, initial.night, { blend: 'multiply' });
     this.lights = new WrapSprite(this.overlayL, initial.lights);
     this.applyLod();
@@ -330,34 +502,21 @@ export class MapScene implements Scene {
     // start centred on the player's home, or the Atlantic on the title screen
     const home = game.view ? siteDef(game.view.company.homeSite) : null;
     this.centreOn(home ? home.lon : -20, home ? home.lat : 25);
-    // pre-build the detailed LOD while the player looks around
-    setTimeout(() => this.layer(1), 400);
+    // a game is on: build the detailed LOD in idle moments while the player looks around (not behind the menu)
+    if (game.mode !== 'title') prebuildMapLod(game.world.lods, 1);
   }
 
   // ── LOD management ────────────────────────────────────────────────────────────────────────
   private layer(i: number): LodLayer {
     const existing = LAYER_CACHE[i];
     if (existing) return existing;
-    const lod = this.game.world.lods[i];
-    const nightPc = renderNight(lod, new Date());
-    const lightPts = lightPoints(lod);
-    const lightsPc = renderLights(lod, nightPc, lightPts);
-    const highlightPc = new PixelCanvas(lod.W, lod.H);
-    const L: LodLayer = {
-      lod,
-      terrain: textureOf(renderTerrain(lod)),
-      borders: textureOf(renderBorders(lod)),
-      highlightPc,
-      highlight: textureOf(highlightPc),
-      highlightCode: -1,
-      nightPc,
-      night: textureOf(nightPc),
-      lightsPc,
-      lights: textureOf(lightsPc),
-      lightPts,
-    };
-    LAYER_CACHE[i] = L;
-    return L;
+    // wanted now: finish an idle build at once (or do the whole thing)
+    const job = LAYER_JOBS[i] ?? buildLayer(this.game.world.lods[i]);
+    LAYER_JOBS[i] = null;
+    let r = job.next();
+    while (!r.done) r = job.next();
+    LAYER_CACHE[i] = r.value;
+    return r.value;
   }
 
   private get L(): LodLayer {
@@ -373,7 +532,7 @@ export class MapScene implements Scene {
     const W = L.lod.W;
     this.terrain.setTexture(L.terrain, W);
     this.borders.setTexture(L.borders, W);
-    this.highlight.setTexture(L.highlight, W);
+    this.hl.lod = -1;
     this.night.setTexture(L.night, W);
     this.lights.setTexture(L.lights, W);
     this.refreshNight(true);
@@ -513,9 +672,15 @@ export class MapScene implements Scene {
 
   /** World x of a longitude, shifted by whole map widths to sit nearest the camera centre. */
   private wrapX(x: number): number {
-    const W = this.lod.W;
-    const centre = this.camX + this.vw / 2;
-    return x + Math.round((centre - x) / W) * W;
+    return x + this.wrapK(x) * this.lod.W;
+  }
+
+  /**
+   * How many map widths wrapX shifts an x by. Lines drawn at wrapped positions only need redrawing
+   * when this changes for them (the camera centre crossing to their far side), not as the camera pans.
+   */
+  private wrapK(x: number): number {
+    return Math.round((this.camX + this.vw / 2 - x) / this.lod.W);
   }
 
   private proj(lon: number, lat: number): { x: number; y: number } {
@@ -545,7 +710,9 @@ export class MapScene implements Scene {
       this.clampCam();
     }
     this.world.position.set(-Math.floor(this.camX), -Math.floor(this.camY));
-    if (now - this.lastNight > 30_000) this.refreshNight(false);
+    // the terminator creeps a pixel a minute up close, every two zoomed out: repaint it then (never while it's hidden)
+    if (st.dayNight && (!this.nightOn || now - this.lastNight > (this.lodIndex ? 60_000 : 120_000))) this.refreshNight(false);
+    this.nightOn = st.dayNight;
     this.updateClouds(dt);
     this.updateBloom();
     this.routeBudget = 1;
@@ -651,18 +818,23 @@ export class MapScene implements Scene {
     return -1;
   }
 
+  /** The hovered or selected region's dotted highlight: a texture the size of the region's box, wrapped like the map. */
   private updateHighlight() {
-    const L = this.L;
     const code = this.hoverRegionCode();
-    if (code === L.highlightCode) return;
-    L.highlightCode = code;
-    if (code < 0) L.highlightPc.data.fill(0);
-    else {
-      const pc = renderBorders(L.lod, code);
-      // keep only the highlight pixels (white), not the borders
-      for (let i = 0; i < pc.data.length; i++) L.highlightPc.data[i] = pc.data[i] === C.white ? C.white : 0;
-    }
-    refreshTexture(L.highlight);
+    const hl = this.hl;
+    if (code === hl.code && hl.lod === this.lodIndex) return;
+    hl.code = code;
+    hl.lod = this.lodIndex;
+    if (hl.tex) releaseTexture(hl.tex);
+    hl.tex = null;
+    const box = code >= 0 ? regionBoxes(this.lod).get(code) : undefined;
+    if (box) hl.tex = textureOf(highlightCanvas(this.lod, code, box));
+    const W = this.lod.W;
+    this.highlight.sprites.forEach((sp, i) => {
+      sp.visible = !!hl.tex;
+      sp.texture = hl.tex ?? Texture.EMPTY;
+      if (box) sp.position.set(box.x + (i - 1) * W, box.y);
+    });
   }
 
   // ── markers ───────────────────────────────────────────────────────────────────────────────
@@ -678,6 +850,45 @@ export class MapScene implements Scene {
     // Act III: the rocket leaves its pad while the liftoff replays
     const act3 = act3On(s);
     const flying = act3 && !g.settings.reducedMotion && liftoffActive(charterView(s), s!.day);
+    // the markers' looks, footprints and spread only change with the world (a new day, an action), the
+    // hover, the selection, the tool or the zoom: work them out again then (and twice a second regardless)
+    const frameKey = `${this.lodIndex}|${hoveredSite}|${selectedSite}|${toolFrom}|${g.mode === 'title'}|${flying}|${s?.day}|${s?.act}|${s?.phase}|${g.version}|${this.extrasSig()}`;
+    if (s !== this.markerView || frameKey !== this.markerKey || this.time - this.markerAt > 0.5) {
+      this.markerView = s;
+      this.markerKey = frameKey;
+      this.markerAt = this.time;
+      this.layoutMarkers(s, act2, hoveredSite, selectedSite, toolFrom, fine, act3, flying);
+    }
+    for (const [id, m] of this.markers) {
+      if (!m.sprite.visible) continue;
+      const a = this.anchorPx(id);
+      const tex = m.sprite.texture;
+      m.sprite.position.set(a.x - Math.floor(tex.width / 2), a.y - (m.lift ? tex.height - 1 : Math.floor(tex.height / 2)));
+      // facility glyphs in a row under the marker, bottoms aligned (cranes poke up)
+      const total = m.icons.reduce((n, ic) => n + ic.texture.width + 1, 0);
+      let ix = a.x - Math.floor(total / 2);
+      for (const ic of m.icons) {
+        ic.position.set(ix, a.y + 10 - ic.texture.height);
+        ic.zIndex = m.z;
+        ix += ic.texture.width + 1;
+      }
+    }
+    this.updateLeaders();
+  }
+
+  /** A cheap fingerprint of the sprites hanging off markers (their sizes feed the footprints). */
+  private extrasSig(): number {
+    let h = 17;
+    const add = (id: string, sp: Sprite) => (h = (Math.imul(h, 31) + id.length * 7919 + sp.texture.width * 131 + sp.texture.height) | 0);
+    for (const [k, sp] of this.rivalSprites) add(k, sp);
+    for (const c of this.megaCraneSprites) add(c.site, c.sprite);
+    for (const gl of this.glyph4Sprites) add(gl.site, gl.sprite);
+    return h;
+  }
+
+  /** Marker textures, glyph rows and labels, each one's footprint, and the spread of crowded markers. */
+  private layoutMarkers(s: GameState | null, act2: boolean, hoveredSite: string | null, selectedSite: string | null, toolFrom: string | null, fine: boolean, act3: boolean, flying: boolean) {
+    const g = this.game;
     // what hangs off each marker (from last frame's sprites; a change re-spreads a frame later)
     const extras = this.extraSizes();
     const spread: SpreadItem[] = [];
@@ -771,21 +982,6 @@ export class MapScene implements Scene {
       this.shifts = spreadMarkers(spread, { W: this.lod.W, ...(fine ? SPREAD_FINE : SPREAD_WORLD) });
       this.spreadVersion++;
     }
-    for (const [id, m] of this.markers) {
-      if (!m.sprite.visible) continue;
-      const a = this.anchorPx(id);
-      const tex = m.sprite.texture;
-      m.sprite.position.set(a.x - Math.floor(tex.width / 2), a.y - (m.lift ? tex.height - 1 : Math.floor(tex.height / 2)));
-      // facility glyphs in a row under the marker, bottoms aligned (cranes poke up)
-      const total = m.icons.reduce((n, ic) => n + ic.texture.width + 1, 0);
-      let ix = a.x - Math.floor(total / 2);
-      for (const ic of m.icons) {
-        ic.position.set(ix, a.y + 10 - ic.texture.height);
-        ic.zIndex = m.z;
-        ix += ic.texture.width + 1;
-      }
-    }
-    this.updateLeaders();
   }
 
   /** Sizes of the sprites hanging off each site's marker (rival campuses, Charter cranes, Act IV glyphs). */
@@ -817,7 +1013,10 @@ export class MapScene implements Scene {
 
   /** A thin dark tether from a nudged marker back to its site's true pixel, with a dot on the spot. */
   private updateLeaders() {
-    const key = `${this.spreadVersion}|${Math.round(this.camX / 50)}`;
+    // redrawn when the spread changes, or a tether's site wraps round to the other side of the camera
+    let wraps = '';
+    for (const [id, sh] of this.shifts) if (Math.abs(sh.dx) + Math.abs(sh.dy) >= 2) wraps += this.wrapK(this.proj(siteDef(id).lon, 0).x);
+    const key = `${this.spreadVersion}|${wraps}`;
     if (key === this.leaderKey) return;
     this.leaderKey = key;
     const g = this.leaderG;
@@ -991,9 +1190,11 @@ export class MapScene implements Scene {
     const s = this.game.view;
     const links = s?.links ?? [];
     const act2 = actOf(s).act >= 2;
-    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${links.map((l) => l.id + l.status).join(',')}|${act2}`;
-    if (key === this.linkKey) return;
-    this.linkKey = key;
+    const key = `${this.lodIndex}|${links.map((l) => l.id + l.status).join(',')}|${act2}`;
+    // the lines are drawn next to the camera: redrawn when one wraps round, not every few pixels of a pan
+    const wraps = links.map((l) => this.wrapK(this.proj(siteDef(l.a).lon, 0).x)).join(',');
+    if (key === this.linkKey && wraps === this.linkWraps) return;
+    this.linkWraps = wraps;
     this.linkG.clear();
     for (const l of links) {
       const a = this.sitePx(l.a);
@@ -1012,7 +1213,9 @@ export class MapScene implements Scene {
         this.pixelLine(this.linkG, a.x, a.y, bx, b.y, hex(C.org2), 3, 2);
       }
     }
-    // reset pulses
+    // the pulses keep running unless the lines themselves changed (they're placed every frame)
+    if (key === this.linkKey) return;
+    this.linkKey = key;
     this.pulses.forEach((p) => {
       p.sprite.destroy();
       p.tail?.destroy();
@@ -1171,9 +1374,11 @@ export class MapScene implements Scene {
   /** Cut cables blink bright red over their dark-red line; a cross and a repair ship mark the break. */
   private updateCuts(cables: CableDraw[]) {
     const cut = cables.filter((c) => c.cut && this.cableTrack(c));
-    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${cut.map((c) => c.id).join(',')}`;
-    if (key !== this.cutKey) {
+    const key = `${this.lodIndex}|${cut.map((c) => c.id).join(',')}`;
+    const wraps = cut.map((c) => this.wrapK(this.cableTrack(c)![0].x)).join(',');
+    if (key !== this.cutKey || wraps !== this.cutWraps) {
       this.cutKey = key;
+      this.cutWraps = wraps;
       this.cutG.clear();
       const W = this.lod.W;
       for (const c of cut) {
@@ -1628,8 +1833,8 @@ export class MapScene implements Scene {
   // ── Act IV: the supergrid, fusion and air capture, rectennas, provinces, AI banners ───────
   private clearPlanet() {
     if (this.province) {
+      // the overlay's textures stay cached for the next scene that needs them
       this.province.wrap.sprites.forEach((sp) => sp.destroy());
-      this.province.texs.forEach((t) => releaseTexture(t));
       this.province = null;
     }
     this.rectennaSprites.forEach((r) => {
@@ -1690,8 +1895,8 @@ export class MapScene implements Scene {
   // ── Act V: what Earth becomes (garden ↔ forge), beams' rectenna fields ─────────────────────
   private clearEarth() {
     if (this.earthGround) {
+      // the ground's texture stays cached for the next scene that needs it
       this.earthGround.wrap.sprites.forEach((sp) => sp.destroy());
-      releaseTexture(this.earthGround.tex);
       this.earthGround = null;
     }
     this.beamSprites.forEach((b) => {
@@ -1716,29 +1921,32 @@ export class MapScene implements Scene {
     const fresh = v !== this.earthSeen || this.lodIndex !== this.earthLod;
     this.earthSeen = v;
     this.earthLod = this.lodIndex;
-    // the ground: repainted when a province moves by a step (at most every 2 s), or for a new LOD
+    // the ground: repainted when a province moves by a step (at most every 2 s, 4.5 s in a time-lapse), or for a new LOD
     const key = earthGroundKey(v);
-    const G = this.earthGround;
-    const stale = !G || G.lod !== this.lodIndex || (G.key !== key && performance.now() - G.built > 2000);
-    if (stale) {
-      if (G && G.lod === this.lodIndex) {
-        paintEarth(this.lod, v, G.pc);
-        refreshTexture(G.tex);
-        G.key = key;
-        G.built = performance.now();
-      } else {
-        if (G) {
-          G.wrap.sprites.forEach((sp) => sp.destroy());
-          releaseTexture(G.tex);
-        }
-        const pc = paintEarth(this.lod, v);
-        const tex = textureOf(pc);
-        const wrap = new WrapSprite(this.systemGroundL, tex);
-        wrap.setTexture(tex, this.lod.W);
-        // the ground stays under the fields
-        wrap.sprites.forEach((sp, i) => this.systemGroundL.setChildIndex(sp, i));
-        this.earthGround = { lod: this.lodIndex, key, pc, tex, wrap, built: performance.now() };
-      }
+    const now = performance.now();
+    let G = GROUND_CACHE[this.lodIndex];
+    const attach = !this.earthGround || this.earthGround.lod !== this.lodIndex;
+    let stale = false;
+    if (!G) {
+      const pc = paintEarth(this.lod, v);
+      G = GROUND_CACHE[this.lodIndex] = { key, pc, tex: textureOf(pc), built: now };
+      stale = true;
+    } else if (G.key !== key && (attach || now - G.built > (this.jumping() ? OVERLAY_GAP_JUMP : OVERLAY_GAP))) {
+      // (a cached ground from another world, or another day, is brought up to date at once when it comes on screen)
+      paintEarth(this.lod, v, G.pc);
+      refreshTexture(G.tex);
+      G.key = key;
+      G.built = now;
+      stale = true;
+    }
+    if (attach) {
+      if (this.earthGround) this.earthGround.wrap.sprites.forEach((sp) => sp.destroy());
+      const wrap = new WrapSprite(this.systemGroundL, G.tex);
+      wrap.setTexture(G.tex, this.lod.W);
+      // the ground stays under the fields
+      wrap.sprites.forEach((sp, i) => this.systemGroundL.setChildIndex(sp, i));
+      this.earthGround = { lod: this.lodIndex, layer: G, pc: G.pc, tex: G.tex, wrap };
+      stale = true;
     }
     // rectenna fields where the swarm's beams come down
     const bkey = fresh ? `${this.lodIndex}|${beamKey(v)}` : this.beamSpriteKey;
@@ -1772,34 +1980,50 @@ export class MapScene implements Scene {
     }
   }
 
-  /** Greening and heat haze over the provinces: two shimmer phases swapped a few times a second. */
+  /** A time-lapse (Act IV jump, Act V era) is running: the overlays change every frame, so repaint them less often. */
+  private jumping(): boolean {
+    const s = this.game.view;
+    return !!(s?.planet?.jump || s?.system?.jump);
+  }
+
+  /**
+   * Greening and heat haze over the provinces: two shimmer phases swapped a few times a second.
+   * The pair is shared per LOD (PROVINCE_CACHE); a change repaints the phase on screen at once and
+   * the other one next frame, so a time-lapse never pays for two full-map repaints in one frame.
+   */
   private updateProvinces(v: ReturnType<typeof planetView>) {
     const key = provinceKey(v);
-    const P = this.province;
-    const stale = !P || P.lod !== this.lodIndex || (P.key !== key && performance.now() - P.built > 2000);
-    if (stale) {
-      if (P && P.lod === this.lodIndex) {
-        // same LOD: repaint in place
-        paintProvinces(this.lod, v, 0, P.pcs[0]);
-        paintProvinces(this.lod, v, 1, P.pcs[1]);
-        P.texs.forEach((t) => refreshTexture(t));
-        P.key = key;
-        P.built = performance.now();
-      } else {
-        if (P) {
-          P.wrap.sprites.forEach((sp) => sp.destroy());
-          P.texs.forEach((t) => releaseTexture(t));
-        }
-        const pcs: [PixelCanvas, PixelCanvas] = [paintProvinces(this.lod, v, 0), paintProvinces(this.lod, v, 1)];
-        const texs: [Texture, Texture] = [textureOf(pcs[0]), textureOf(pcs[1])];
-        const wrap = new WrapSprite(this.planetGroundL, texs[0]);
-        wrap.setTexture(texs[0], this.lod.W);
-        this.province = { lod: this.lodIndex, key, pcs, texs, wrap, built: performance.now() };
-      }
+    const lod = this.lodIndex;
+    const now = performance.now();
+    const attach = !this.province || this.province.lod !== lod;
+    let P = PROVINCE_CACHE[lod];
+    if (!P) {
+      const pcs: [PixelCanvas, PixelCanvas] = [paintProvinces(this.lod, v, 0), paintProvinces(this.lod, v, 1)];
+      P = PROVINCE_CACHE[lod] = { key, pcs, texs: [textureOf(pcs[0]), textureOf(pcs[1])], built: now, pending: [false, false] };
+    } else if (P.key !== key && (attach || now - P.built > (this.jumping() ? OVERLAY_GAP_JUMP : OVERLAY_GAP))) {
+      P.key = key;
+      P.built = now;
+      P.pending = [true, true];
+    }
+    const phase = this.game.settings.reducedMotion || !v.showHeat ? 0 : Math.floor(this.time * 2.2) % 2;
+    // (a cached overlay from another world comes up to date in full before it's shown)
+    for (const ph of attach ? [0, 1] : [phase, 1 - phase]) {
+      if (!P.pending[ph]) continue;
+      paintProvinces(this.lod, v, ph, P.pcs[ph]);
+      refreshTexture(P.texs[ph]);
+      P.pending[ph] = false;
+      if (!attach) break;
+    }
+    if (attach) {
+      if (this.province) this.province.wrap.sprites.forEach((sp) => sp.destroy());
+      const wrap = new WrapSprite(this.planetGroundL, P.texs[phase]);
+      wrap.setTexture(P.texs[phase], this.lod.W);
+      // the overlay stays under the rectenna fields
+      wrap.sprites.forEach((sp, i) => this.planetGroundL.setChildIndex(sp, i));
+      this.province = { lod, layer: P, wrap };
     }
     const Q = this.province!;
-    const phase = this.game.settings.reducedMotion || !v.showHeat ? 0 : Math.floor(this.time * 2.2) % 2;
-    if (Q.wrap.sprites[0].texture !== Q.texs[phase]) Q.wrap.setTexture(Q.texs[phase], this.lod.W);
+    if (Q.wrap.sprites[0].texture !== P.texs[phase]) Q.wrap.setTexture(P.texs[phase], this.lod.W);
   }
 
   /** Rectenna fields where space-solar stations beam power down. */
@@ -1983,12 +2207,16 @@ export class MapScene implements Scene {
   /** Links that are down blink bright red over their dark line. */
   private updateSgDown(v: ReturnType<typeof planetView>) {
     const down = v.links.filter((l) => l.status === 'down');
-    const key = `${this.lodIndex}|${Math.round(this.camX / 50)}|${down.map((l) => l.route.id).join(',')}`;
-    if (key !== this.sgDownKey) {
+    const key = `${this.lodIndex}|${down.map((l) => l.route.id).join(',')}`;
+    // drawn next to the camera from the first pixel: redrawn when that wraps round, not as the camera pans
+    const wraps = key === this.sgDownKey && this.sgDownRef !== null ? String(this.wrapK(this.sgDownRef)) : '';
+    if (key !== this.sgDownKey || wraps !== this.sgDownWraps) {
       this.sgDownKey = key;
       this.sgDownG.clear();
       const W = this.lod.W;
       const pts = sgDownPixels(sgDraws({ ...v, links: down }, this.lod, (l) => this.hvdcTrackOf(l.route)));
+      this.sgDownRef = pts.length ? pts[0].x : null;
+      this.sgDownWraps = this.sgDownRef !== null ? String(this.wrapK(this.sgDownRef)) : '';
       if (pts.length) {
         const shift = this.wrapX(pts[0].x) - pts[0].x;
         for (const off of [-W, 0, W]) for (const p of pts) this.sgDownG.rect(p.x + shift + off, p.y, 1, 1);
@@ -2010,9 +2238,17 @@ export class MapScene implements Scene {
     const s = this.game.view;
     const ships = s?.shipments ?? [];
     const sel = this.game.hover?.kind === 'shipment' ? this.game.hover.id : '';
-    const key = `${this.lodIndex}|${Math.round(this.camX / 40)}|${ships.map((x) => x.id + x.portDay).join(',')}|${sel}`;
-    if (key === this.routeKey) return;
+    const key = `${this.lodIndex}|${ships.map((x) => x.id + x.portDay).join(',')}|${sel}`;
+    // each route is drawn next to the camera from its first point: redrawn when one wraps round, not as the camera pans
+    const wraps = ships
+      .map((sh) => {
+        const first = sh.route[0] ?? sh.overland[1];
+        return first ? this.wrapK(this.proj(first[0], first[1]).x) : 0;
+      })
+      .join(',');
+    if (key === this.routeKey && wraps === this.routeWraps) return;
     this.routeKey = key;
+    this.routeWraps = wraps;
     this.routeG.clear();
     for (const sh of ships) {
       const pts = this.routePixels([...sh.route, ...sh.overland.slice(1)]);
@@ -2192,7 +2428,17 @@ export class MapScene implements Scene {
     this.game.setHover(null);
   }
 
-  pointerDown(p: PixelPointer) {
+  /**
+   * The stage hands pointers over with the camera's sub-pixel offset added (that's where they sit
+   * in the drawn picture). Take it back off: the view's own pixels, so camX + x is the world point
+   * under the pointer and a drag follows the finger without counting the offset twice.
+   */
+  private local(p: PixelPointer): PixelPointer {
+    return { ...p, x: p.x - (this.camX - Math.floor(this.camX)), y: p.y - (this.camY - Math.floor(this.camY)) };
+  }
+
+  pointerDown(raw: PixelPointer) {
+    const p = this.local(raw);
     this.pointers.set(p.id, { x: p.x, y: p.y });
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
@@ -2204,7 +2450,8 @@ export class MapScene implements Scene {
     this.targetX = this.targetY = null;
   }
 
-  pointerMove(p: PixelPointer) {
+  pointerMove(raw: PixelPointer) {
+    const p = this.local(raw);
     this.cursor = { x: p.x, y: p.y };
     if (this.pointers.has(p.id)) this.pointers.set(p.id, { x: p.x, y: p.y });
     if (this.pointers.size === 2) {
@@ -2235,8 +2482,10 @@ export class MapScene implements Scene {
     this.hoverAt(p);
   }
 
-  pointerUp(p: PixelPointer) {
+  pointerUp(raw: PixelPointer) {
+    const p = this.local(raw);
     this.pointers.delete(p.id);
+    if (this.pointers.size < 2) this.pinchDist = 0;
     const d = this.down;
     this.down = null;
     if (!d || d.moved || this.game.mode !== 'map' || !this.game.state) return;
@@ -2264,12 +2513,19 @@ export class MapScene implements Scene {
     this.game.select(region ? { kind: 'region', id: region } : null);
   }
 
+  /** A cancelled press (the browser took the gesture): no tap, no select, no double-tap into a diorama. */
+  pointerCancel(p: PixelPointer) {
+    this.pointers.delete(p.id);
+    if (this.pointers.size < 2) this.pinchDist = 0;
+    this.down = null;
+  }
+
   pointerLeave() {
     this.cursor = null;
     this.game.setHover(null);
   }
 
-  wheel(p: PixelPointer, deltaY: number) {
+  wheel(raw: PixelPointer, deltaY: number) {
     if (this.game.settings.wheel === 'pan') {
       this.pan(0, Math.sign(deltaY) * 14);
       return;
@@ -2277,8 +2533,14 @@ export class MapScene implements Scene {
     const now = performance.now();
     if (now - this.lastWheel < 220) return;
     this.lastWheel = now;
+    const p = this.local(raw);
     if (deltaY < 0) this.zoomIn(p);
     else this.zoomOut(p);
+  }
+
+  /** The camera is gliding (a cinematic, a focus) or under the player's hand. */
+  busy(): boolean {
+    return (this.cine !== null && this.cine.t < 1) || this.targetX !== null || !!this.down?.moved || this.pointers.size >= 2;
   }
 
   /** Pan the camera by internal pixels (keyboard). */
@@ -2295,8 +2557,11 @@ export class MapScene implements Scene {
   }
 
   destroy() {
-    if (this.earthGround) releaseTexture(this.earthGround.tex);
+    // the LOD layers, network, bloom, province and ground overlays are shared caches; this scene's own textures go
+    for (const m of this.megaSprites.values()) if (m.tex) releaseTexture(m.tex);
+    this.rectennaSprites.forEach((r) => releaseTexture(r.tex));
     this.beamSprites.forEach((b) => releaseTexture(b.tex));
+    if (this.hl.tex) releaseTexture(this.hl.tex);
     this.root.destroy({ children: true });
   }
 }

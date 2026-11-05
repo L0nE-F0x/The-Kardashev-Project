@@ -268,11 +268,11 @@ describe('act V map scene', () => {
     expect(sc.earthGround.lod).toBe(1);
     expect(sc.beamSprites.length).toBe(3);
     for (const b of sc.beamSprites) expect(Number.isFinite(b.sprite.x) && Number.isFinite(b.sprite.y)).toBe(true);
-    // a province turns from forge to garden: the ground repaints (after its throttle)
+    // a province turns from forge to garden: the ground repaints (after its throttle; the ground is a per-LOD cache shared by scenes)
     s.system!.garden.mena = 60;
-    sc.earthGround.built -= 5000;
+    sc.earthGround.layer.built -= 5000;
     for (let i = 0; i < 3; i++) scene.update(1 / 60, 1200 + i * 16);
-    expect(sc.earthGround.key).toContain('mena6');
+    expect(sc.earthGround.layer.key).toContain('mena6');
     // back to Act IV: the Act V layers go away, the planet's stay
     const s4 = act4PreviewState({ stage: 3 });
     game.view = game.state = s4;
