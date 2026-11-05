@@ -170,8 +170,25 @@ export class Life {
     this.spots = spots;
   }
 
+  private specKey = '';
+
+  /**
+   * Fill the campus. If the cast is the same as last time (the campus only changed a little, say
+   * a building site moved on), everyone stays where they are and just learns the new plots.
+   */
   spawn(spec: LifeSpec, env: LifeEnv) {
+    const key = `${spec.count}|${spec.crews}|${spec.suited}|${spec.dog}|${spec.named.map((n) => `${n.id}${n.age}${n.bitForm}`).join(',')}|${env.era}`;
+    if (key === this.specKey && this.walkers.length) {
+      this.env = env;
+      const limit = Math.max(30, Math.min(env.sceneW - 20, env.walkLimit));
+      for (const w of this.walkers) {
+        if (w.x > limit) w.x = limit;
+        if (w.target > limit) w.target = limit;
+      }
+      return;
+    }
     this.clear();
+    this.specKey = key;
     this.env = env;
     const limit = Math.max(30, Math.min(env.sceneW - 20, env.walkLimit));
     const at = (i: number) => 20 + hash2(i, 1, 9) * (limit - 20);
@@ -269,6 +286,7 @@ export class Life {
     this.label = null;
     this.hover = null;
     this.carrier = null;
+    this.specKey = '';
   }
 
   destroy() {
@@ -448,9 +466,11 @@ export class Life {
     const r = rand();
     const doors = this.spots.filter((s) => s.door !== null && s.door < limit);
     if (w.role === 'worker') {
+      // crews stick to their site: a few steps along it, then back to work (now and then another site)
       const sites = this.spots.filter((s) => s.building && s.x < limit);
-      if (sites.length && r < 0.8) {
-        const s = choose(sites);
+      const here = sites.find((s) => w.x >= s.x - 2 && w.x <= s.x + s.w + 2);
+      if (sites.length && r < 0.85) {
+        const s = here && rand() < 0.85 ? here : choose(sites);
         return this.goTo(w, s.x + s.w * (0.15 + rand() * 0.7), 'work');
       }
     }
@@ -461,7 +481,7 @@ export class Life {
     if (r < 0.22 && doors.length) return this.goTo(w, choose(doors).door!, 'enter');
     if (r < 0.32 && w.bot === null && w.role !== 'astronaut') {
       w.state = 'phone';
-      w.timer = 3 + rand() * 5;
+      w.timer = 4 + rand() * 6;
       return;
     }
     if (r < 0.46 && w.bot === null) {
@@ -513,7 +533,7 @@ export class Life {
       case 'chat': {
         const o = w.partner;
         if (o && o.partner === w && o.state === 'wait') {
-          const t = 3 + rand() * 4;
+          const t = 4 + rand() * 5;
           w.state = o.state = 'chat';
           w.timer = o.timer = t;
           w.dir = o.x > w.x ? 1 : -1;
@@ -527,7 +547,7 @@ export class Life {
       }
       default:
         w.state = 'idle';
-        w.timer = 1 + rand() * 3.5;
+        w.timer = 2 + rand() * 5;
     }
   }
 

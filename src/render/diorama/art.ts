@@ -919,32 +919,7 @@ export function emptyPlotArt(w: number, hover: boolean): PixelCanvas {
   return pc;
 }
 
-// ── people & vehicles ──────────────────────────────────────────────────────────────────────
-export function personFrames(variant: number): PixelCanvas[] {
-  const shirts = [C.blu4, C.org1, C.grn5, C.vio4, C.red3, C.cyn4];
-  const skins = [C.skn2, C.skn3, C.skn4, C.skn5];
-  const shirt = shirts[variant % shirts.length];
-  const skin = skins[Math.floor(variant / 2) % skins.length];
-  const hat = variant % 3 === 0 ? C.yel0 : variant % 3 === 1 ? C.ink1 : C.snd2;
-  return [0, 1].map((f) => {
-    const pc = new PixelCanvas(3, 7);
-    pc.hline(0, 0, 3, hat);
-    pc.set(1, 1, skin);
-    pc.hline(0, 2, 3, shirt);
-    pc.hline(0, 3, 3, shirt);
-    pc.set(1, 4, C.ink2);
-    if (f === 0) {
-      pc.set(0, 5, C.ink2);
-      pc.set(2, 6, C.ink1);
-      pc.set(0, 6, C.ink1);
-    } else {
-      pc.set(1, 5, C.ink2);
-      pc.set(1, 6, C.ink1);
-    }
-    return pc;
-  });
-}
-
+// ── vehicles ───────────────────────────────────────────────────────────────────────────────
 export function truckArt(): PixelCanvas {
   return PixelCanvas.from(
     `

@@ -875,9 +875,8 @@ export class DioramaScene implements Scene {
   }
 
   private spawnWalkers() {
-    this.life.clear();
     this.life.setSpots(this.spots());
-    if (this.bandsInfo?.walkers === false) return;
+    if (this.bandsInfo?.walkers === false) return this.life.clear();
     const s = this.game.view ?? null;
     const solid = this.plots.filter((p) => p.kind !== 'empty').length;
     let count = Math.min(Math.round(8 + this.sceneW / 60), 2 + solid * 2);
@@ -890,7 +889,7 @@ export class DioramaScene implements Scene {
     const crews = Math.min(4, sites * 2);
     count = Math.max(0, count - named.length - Math.floor(crews / 2));
     const suited = this.lunar || this.mode === 'asteroid';
-    this.life.spawn({ count, suited, named, crews: suited ? 0 : crews, dog: !suited && this.mode !== 'space' && hash2(this.siteId.charCodeAt(0), 9, 77) < 0.7 }, this.lifeEnv());
+    this.life.spawn({ count, suited, named, crews: suited ? 0 : crews, dog: !suited && this.mode !== 'space' && (s?.company.homeSite === this.siteId || hash2(this.siteId.charCodeAt(0), 9, 77) < 0.5) }, this.lifeEnv());
   }
 
   private pickWeather(): Weather {

@@ -197,17 +197,18 @@ export function figure(L: PersonLook, pose: Pose): PixelCanvas {
     put(3, t + 3, S);
     put(4, t + 4, hand);
   } else if (pose === 'work0') {
+    // hammer up
     farDown();
     put(3, t + 3, S);
     put(4, t + 2, hand);
+    put(3, t + 1, C.ink6);
     put(4, t + 1, C.ink7);
-    put(5, t + 1, C.ink6);
   } else if (pose === 'work1') {
+    // hammer down
     farDown();
     put(3, t + 3, S);
     put(4, t + 4, hand);
-    put(5, t + 5, C.ink7);
-    put(4, t + 5, C.snd3);
+    put(4, t + 5, C.ink7);
   } else {
     farDown();
     nearDown();
