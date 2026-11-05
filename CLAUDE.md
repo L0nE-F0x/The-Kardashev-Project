@@ -22,8 +22,10 @@ npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to sk
 PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts \
   tests/act3-map-preview.test.ts tests/act3-diorama-preview.test.ts tests/act4-map-preview.test.ts \
   tests/act4-orbit-preview.test.ts tests/act4-diorama-preview.test.ts tests/act4-portraits.test.ts \
-  tests/act5-system-preview.test.ts tests/act5-map-preview.test.ts tests/act5-diorama-preview.test.ts tests/act5-portraits.test.ts
-                      # render map / portrait / route / Act II–V map / diorama / orbit / solar-system previews to PNG
+  tests/act5-system-preview.test.ts tests/act5-map-preview.test.ts tests/act5-diorama-preview.test.ts tests/act5-portraits.test.ts \
+  tests/people-preview.test.ts tests/map-declutter.test.ts
+                      # render map / portrait / route / Act II–V map / diorama / orbit / solar-system previews to PNG,
+                      # the people contact sheet and live MapScene snapshots (live-*.png, via tests/helpers/mapshot.ts)
 cd android && KP_ANDROID_KEYSTORE=~/.config/kardashev-project/android/kardashev-release.p12 \
   KP_ANDROID_KEYSTORE_PASSWORD=$(cat ~/.config/kardashev-project/android/keystore-password.txt) ./gradlew assembleRelease
                       # signed Android APK → android/app/build/outputs/apk/release/ (needs JDK 17 + Android SDK:
@@ -86,7 +88,8 @@ src/
     network.ts    regional inference markets: private graph (fiber, leased/own cables), serve efficiency, contracts first
     stack.ts / politics.ts / capital.ts / rivals.ts / jobs.ts / finale.ts   (see SPEC §17)
   content/    data: regions, sites, facilities (with tiers), techs, companies, events (+ events2.ts for Act II), objectives,
-              advisors, cities, difficulty.ts, fieldGuide.ts, changelog.ts (parses CHANGELOG.md)
+              advisors, cities, difficulty.ts, fieldGuide.ts, changelog.ts (parses CHANGELOG.md), campusLines.ts (what the
+              advisors say when you click them on campus)
               Act II: network.ts (cables), stack.ts (deals, mines, materials), politics.ts (export rules, treaties,
               sovereign deals), capital.ts (customers, Series B, board, finance), rivals.ts (rival prefs, startups), jobs.ts
               Act III: charter.ts (partners, contract kinds, HVDC routes, missions, bloc economics, factions, access,
@@ -107,8 +110,13 @@ src/
     globe.ts      orthographic pixel Earth (landing hero, icons, OG image) with real sun + city lights
     worldMap/     terrain painter, night terminator + city lights, MapScene (markers, links, ships, input, cinematic glides),
                   act2Layers.ts (Act II site visibility, landing/mine/rival markers, cables, fiber, cosmetic shipping lanes),
-                  act3Layers.ts (Charter HQ, megaproject markers + overlays, HVDC links, launch, bloc anchors, satellites)
-    diorama/      side-view campus scenes: dioramaScene.ts (scrolling wide campuses, view-only supplier/mine/landing scenes),
+                  act3Layers.ts (Charter HQ, megaproject markers + overlays, HVDC links, launch, bloc anchors, satellites),
+                  declutter.ts (pure: label placement without overlaps, crowded markers nudged apart; mapScene's anchorPx)
+    diorama/      side-view campus scenes: dioramaScene.ts (scrolling wide campuses, view-only supplier/mine/landing scenes;
+                  night light pools, haze, contact shadows, the near foreground, hall fill / brownout beacons / opening flash),
+                  people.ts (8×14 outlined figures: 4-frame walk with a bob, poses, looks by job and era, the advisors, Bit,
+                  speech bubbles; `stampPerson` for people baked into set pieces), life.ts (the crowd: doors, chats, phones,
+                  crews, carrying, reactions to toasts, named advisors you can click, the dog, cyclists, birds, drones),
                   art.ts (backdrops + the makeArt switch), plants.ts (Act II plants), industry.ts (suppliers, mines,
                   landing stations, rival campuses), sizes.ts (per-tier sizes), layout.ts (plots), campusArt.ts, draw.ts;
                   Act III: act3Pieces.ts (planner + art dispatch + `act3Key`), charterHQ.ts (Geneva), mega.ts (megaprojects
@@ -254,6 +262,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | New event | `content/events.ts` |
 | New objective / act goal | `content/objectives.ts` |
 | New Field Guide entry | `content/fieldGuide.ts` (body, in-game note, unlock rule) |
+| Advisor's campus line | `content/campusLines.ts` (act range per line) |
+| Person look, pose, outfit | `render/diorama/people.ts` (`tests/people-preview.test.ts` checks sizes and the closed outline) |
+| Campus behaviour, critter, vehicle | `render/diorama/life.ts` (the scene feeds it `Spot`s and a `LifeEnv` each frame) |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
 | Menu tour shot | `game/tour.ts` (`SHOTS`) and, for a new campus, `game/showcase.ts` |
