@@ -62,7 +62,10 @@ function back(game: Game): boolean {
 function bindKeys(game: Game) {
   onHostBack(() => back(game));
   window.addEventListener('keydown', (e) => {
-    if ((e.target as HTMLElement)?.tagName === 'INPUT' || game.mode === 'title' || !game.state) return;
+    // typing in a text field (a name, a seed, a playtest note) never fires game shortcuts
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    if (game.mode === 'title' || !game.state) return;
     const scene = game.stage.getScene();
     const pan = (dx: number, dy: number) => (scene as MapScene)?.pan?.(dx, dy);
     switch (e.key) {
