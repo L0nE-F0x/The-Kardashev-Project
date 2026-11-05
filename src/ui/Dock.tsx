@@ -3,6 +3,7 @@ import { Icon, useGame } from './components';
 import type { PanelId } from '../game/game';
 import type { IconName } from './icons';
 import { researchable } from '../sim/actions';
+import { councilReady } from '../sim/council';
 
 /**
  * Later acts add a panel each, so the dock can outgrow a short screen (Act V has 17 buttons). The buttons shrink
@@ -46,7 +47,7 @@ export function Dock() {
     ...((s.act ?? 1) >= 3 && s.charter
       ? ([
           ['charter', 'charter', 'The Charter: treasury, contracts, missions, partners, world (H)', s.charter.tenders.filter((t) => t.bids.length && !t.pending.length).length || undefined],
-          ['council', 'council', 'The Council: resolutions and votes (U)', !s.charter.council.agenda.length && s.charter.capital >= 10 ? 1 : undefined],
+          ['council', 'council', 'The Council: resolutions and votes (U)', councilReady(s) ? 1 : undefined],
         ] as [PanelId, IconName, string, number?][])
       : []),
     ...((s.act ?? 1) >= 4 && s.planet

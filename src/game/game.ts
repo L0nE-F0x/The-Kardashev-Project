@@ -704,6 +704,8 @@ export class Game {
         this.lastArrivalChime = s.day;
       } else if (n.text.startsWith('🔌 Grid connection energised')) sfx('build');
       else if (n.text.startsWith('💸 Penny')) this.toast(n.text.replace('💸 Penny: ', ''), 'bad', 'penny');
+      else if (n.text.startsWith('📬 Bids are in for ')) this.toast(n.text.replace('📬 ', ''), 'info', 'mira');
+      else if (n.text.startsWith('🗂 Bit (Charter desk): pausing') || n.text.startsWith('🗂 Bit (Charter desk): back on') || n.text.startsWith('🧪 Bit can’t start')) this.toast(n.text.replace(/^(🗂|🧪) /, ''), 'info', 'bit');
     }
     this.lastNewsSeen = s.news[0]?.day ?? this.lastNewsSeen;
     if (s.flags.act1Complete && !s.flags.act1Shown) {
@@ -1418,6 +1420,11 @@ export class Game {
     this.jumpReport = null;
     sfx('click');
     this.notify();
+  }
+
+  /** Give a walked-out bloc what it asked for (a development package from the treasury). */
+  meetDemand(r: Rid) {
+    return this.after(CO.meetDemand(this.state!, r), 'cash');
   }
 
   delegateProvince(r: Rid, ai: AiId) {

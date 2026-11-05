@@ -57,7 +57,7 @@ import {
   youCanBid,
   TRUST_COOLDOWN,
 } from '../../sim/charter';
-import { canFavour, canMeetDemand, canTable, canWhip, demandCost, demandHint, favourCost, forecast, meetDemand, type Vote } from '../../sim/council';
+import { canFavour, canMeetDemand, canTable, canWhip, demandCost, demandHint, favourCost, forecast, type Vote } from '../../sim/council';
 import { carbonYearsLeft, charterGWByRegion, growthParts, worldClean } from '../../sim/world';
 import { capInForce, COMPUTE_CAP, ownRunStatus, worldFrontier, worldMargin } from '../../sim/frontier';
 import { DESKS, bitTrusted } from '../../sim/desk';
@@ -941,7 +941,7 @@ function BlocsTab() {
                   </button>
                 )}
                 {w.demand !== 'the renewal vote' && (
-                  <button class="btn small" disabled={!!why} onClick={() => (meetDemand(s, r), game.notify())} data-tip={why ?? `A development package from the treasury (${fmtMoney(demandCost(s, r), 1)}): they come back now and their faction calms down.`}>
+                  <button class="btn small" disabled={!!why} onClick={() => game.meetDemand(r)} data-tip={why ?? `A development package from the treasury (${fmtMoney(demandCost(s, r), 1)}): they come back now and their faction calms down.`}>
                     Development package ({fmtMoney(demandCost(s, r), 0)})
                   </button>
                 )}
