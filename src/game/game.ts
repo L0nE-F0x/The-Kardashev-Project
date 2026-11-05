@@ -158,6 +158,8 @@ export class Game {
   private acc = 0;
   private lastAutosave = 0;
   private toastId = 0;
+  /** Achievement toasts that came during the tutorial, shown when it ends. */
+  private heldToasts: { text: string; kind: Toast['kind']; advisor?: string }[] = [];
   private notifyQueued = false;
   private lastObjectiveSeen: string | number | boolean | undefined;
   private lastNewsSeen = 0;
@@ -258,6 +260,7 @@ export class Game {
     this.slotId = newSlotId();
     refreshStats(this.state);
     this.awayReport = null;
+    this.heldToasts = [];
     this.showActComplete = false;
     this.selection = { kind: 'site', id: opts.homeSite };
     this.lastObjectiveSeen = undefined;
@@ -291,7 +294,7 @@ export class Game {
     this.selection = null;
     this.showActComplete = false;
     this.enterMap();
-    this.speed = this.awayReport || saved.events.active || saved.meta.tutorialStep >= 0 ? 0 : 1;
+    this.speed = this.awayReport || saved.events.active || (saved.meta.tutorialStep >= 0 && saved.meta.tutorialStep <= PLAY_STEP) ? 0 : 1;
     this.resumeSpeed = 1;
     sfx('start');
     return true;
@@ -626,7 +629,11 @@ export class Game {
     }
     for (const n of s.news) {
       if (n.day <= this.lastNewsSeen) break;
-      if (n.text.startsWith('🤖')) sfx('fanfare');
+      if (n.text.startsWith('🤖')) {
+        sfx('fanfare');
+        // a new model is the beat everything else builds toward: say it out loud, not just in the ticker
+        if (n.text.includes(' released!')) this.toast(n.text.replace('🤖 ', ''), 'good', 'bit');
+      }
       else if (n.text.startsWith('🏗') && n.text.includes('online')) sfx('build');
       else if (n.text.startsWith('🔬')) sfx('research');
       else if (n.text.startsWith('📦') && n.text.includes('arrived')) sfx('cash');
@@ -713,11 +720,12 @@ export class Game {
   }
 
   private checkGuide(): void {
-    const fresh = unlockGuide(unlockedFor(this.state));
-    for (const id of fresh.slice(0, 2)) {
-      const e = GUIDE_BY_ID[id];
-      if (e && e.unlock !== 'start') this.toast(`New Field Guide entry: ${e.title}`, 'info', 'bit');
-    }
+    const fresh = unlockGuide(unlockedFor(this.state))
+      .map((id) => GUIDE_BY_ID[id])
+      .filter((e) => e && e.unlock !== 'start');
+    // the dock's badge counts them anyway: stay quiet while Bit is talking, and say several in one line
+    if (!fresh.length || (this.state?.meta.tutorialStep ?? -1) >= 0) return;
+    this.toast(fresh.length === 1 ? `New Field Guide entry: ${fresh[0].title}` : `${fresh.length} new Field Guide entries: ${fresh.map((e) => e.title).join(' · ')}`, 'info', 'bit');
   }
 
   guideBadge(): number {
@@ -766,6 +774,7 @@ export class Game {
     if (s.meta.tutorialStep >= TUTORIAL.length) {
       s.meta.tutorialStep = -1;
       this.toast('Tutorial complete — the goal card takes it from here.', 'good', 'bit');
+      this.flushHeldToasts();
     } else {
       TUTORIAL[s.meta.tutorialStep].enter?.(this);
       sfx('page');
@@ -776,8 +785,13 @@ export class Game {
   tutorialSkip(): void {
     if (!this.state) return;
     this.state.meta.tutorialStep = -1;
+    this.flushHeldToasts();
     if (this.speed === 0 && !this.blocked) this.setSpeed(1);
     this.notify();
+  }
+
+  private flushHeldToasts(): void {
+    for (const t of this.heldToasts.splice(0).slice(-3)) this.toast(t.text, t.kind, t.advisor);
   }
 
   tutorialRestart(): void {
@@ -839,6 +853,12 @@ export class Game {
   }
 
   toast(text: string, kind: Toast['kind'] = 'info', advisor?: string): void {
+    // Bit's tutorial points at real buttons, often where the toasts stack (phones): only errors interrupt it;
+    // an achievement waits for the end, the rest Bit is already saying
+    if ((this.state?.meta.tutorialStep ?? -1) >= 0 && kind !== 'bad') {
+      if (text.startsWith('🏆')) this.heldToasts.push({ text, kind, advisor });
+      return;
+    }
     const t: Toast = { id: ++this.toastId, text, kind, advisor, at: performance.now() };
     this.toasts = [...this.toasts.slice(-3), t];
     this.notify();

@@ -85,10 +85,19 @@ export const TUTORIAL: TutorialStep[] = [
   {
     id: 'wait-bit1',
     mood: 'happy',
+    target: () => 'objectives',
+    enter: (g) => {
+      // the goal card sits under the Compute panel: close it so the card can be seen (narrow screens also hide
+      // the card while the inspector is open)
+      if (g.panel === 'compute') g.openPanel(null);
+      if (window.innerWidth <= 820) g.selection = null;
+    },
     text: (g) => {
       const run = s(g).training;
       const pct = run ? Math.floor((run.done / run.target) * 100) : 100;
-      return `Training… ${pct}%. It takes about two weeks of game time. Meanwhile — notice the goal card on the left? It always knows what’s next.`;
+      const rate = s(g).stats.trainPFd;
+      const days = run && rate > 0 ? Math.max(1, Math.ceil((run.target - run.done) / rate)) : 0;
+      return `Training… ${pct}%${days ? ` — about ${days} days to go (▶▶ makes them fly)` : ''}. Meanwhile, see the goal card? It always knows what’s next.`;
     },
     done: (g) => s(g).models.length > 0,
   },
@@ -127,7 +136,7 @@ export const TUTORIAL: TutorialStep[] = [
   {
     id: 'build-dc',
     target: () => 'build-datacenter',
-    text: () => 'Build a Data Center here. It takes over a year — so start early!',
+    text: () => 'Build a Data Center here. It takes the best part of a year — so start early!',
     done: (g) => s(g).facilities.some((f) => f.type === 'datacenter'),
   },
   {
@@ -150,7 +159,7 @@ export const TUTORIAL: TutorialStep[] = [
     enter: (g) => {
       g.panel = null;
     },
-    text: () => 'That’s the loop! The goal card will guide you to your Series A. Curious how anything works in the real world? It’s all in the Field Guide.',
+    text: () => 'That’s the loop! Building takes months, so speed time up (▶▶▶) — a card stops the clock whenever something needs you. The goal card leads to your Series A, and the Field Guide explains the real world behind it all.',
     next: 'Let’s go!',
   },
 ];

@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
-import type { Scene, PixelPointer } from '../stage';
+import { dragSlop, touchRadius, type Scene, type PixelPointer } from '../stage';
 import type { MapLod } from '../../world/mapData';
 import { sampleRegionCode } from '../../world/mapData';
 import { CHOKEPOINTS } from '../../world/routing';
@@ -2137,11 +2137,11 @@ export class MapScene implements Scene {
   }
 
   // ── input ─────────────────────────────────────────────────────────────────────────────────
-  private hitSite(px: number, py: number): string | null {
+  private hitSite(px: number, py: number, radius = 7): string | null {
     const wx = this.camX + px;
     const wy = this.camY + py;
     let best: string | null = null;
-    let bestD = 7;
+    let bestD = radius;
     const s = this.game.view;
     for (const site of SITES) {
       if (!siteVisible(site, s)) continue;
@@ -2223,7 +2223,7 @@ export class MapScene implements Scene {
     if (this.down) {
       const dx = p.x - this.down.x;
       const dy = p.y - this.down.y;
-      if (!this.down.moved && Math.hypot(dx, dy) > 3) this.down.moved = true;
+      if (!this.down.moved && Math.hypot(dx, dy) > dragSlop(p)) this.down.moved = true;
       if (this.down.moved) {
         this.camX = this.down.camX - dx;
         this.camY = this.down.camY - dy;
@@ -2240,7 +2240,8 @@ export class MapScene implements Scene {
     const d = this.down;
     this.down = null;
     if (!d || d.moved || this.game.mode !== 'map' || !this.game.state) return;
-    const site = this.hitSite(p.x, p.y);
+    // a finger covers a marker: take the nearest one within ~20 CSS px (a mouse keeps the tight 7 px)
+    const site = this.hitSite(p.x, p.y, touchRadius(p, 7));
     const tool = this.game.tool as AnyTool;
     if (tool?.kind === 'link' || tool?.kind === 'fiber') {
       // Game.linkClick handles both line tools (power and fiber)

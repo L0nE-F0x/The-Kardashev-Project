@@ -1,6 +1,31 @@
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Icon, useGame } from './components';
 import type { PanelId } from '../game/game';
 import type { IconName } from './icons';
+
+/**
+ * Later acts add a panel each, so the dock can outgrow a short screen (Act V has 17 buttons). The buttons shrink
+ * to fit (CSS, from `--dock-n`); where even that isn't enough (phones) the dock scrolls, and `more` fades its foot
+ * so it's clear there's more below.
+ */
+function useScrollHint(n: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollHeight - el.clientHeight - el.scrollTop > 4);
+    check();
+    el.addEventListener('scroll', check, { passive: true });
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', check);
+      ro.disconnect();
+    };
+  }, [n]);
+  return { ref, more };
+}
 
 export function Dock() {
   const game = useGame();
@@ -33,8 +58,11 @@ export function Dock() {
     ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
     ['news', 'news', 'News (N)'],
   ];
+  // the panels, the line tool, the fiber tool (Act II on) and Settings
+  const n = items.length + (s.act >= 2 ? 3 : 2);
+  const { ref, more } = useScrollHint(n);
   return (
-    <div class="dock frame">
+    <div ref={ref} class={`dock frame ${n >= 15 ? 'many' : ''} ${more ? 'more' : ''}`} style={{ '--dock-n': n }}>
       {items.map(([id, icon, tip, badge]) => (
         <button key={id} class={`btn ${game.panel === id ? 'active' : ''}`} onClick={() => game.openPanel(id)} data-tip={tip} aria-label={tip} data-tut={`dock-${id}`}>
           <Icon name={icon} size="lg" />

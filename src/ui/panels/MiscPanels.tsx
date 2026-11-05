@@ -1,5 +1,13 @@
 import { Icon, Panel, Portrait, useGame } from '../components';
-import { OBJECTIVES, actObjectives } from '../../content/objectives';
+import { OBJECTIVES, actObjectives, type ObjectiveDef } from '../../content/objectives';
+import { ObjectiveBar } from '../Objectives';
+import type { GameState } from '../../sim/types';
+
+/** A numeric goal's bar, while it's open. */
+function GoalProgress({ o, s }: { o: ObjectiveDef; s: GameState }) {
+  const p = o.progress?.(s);
+  return p ? <ObjectiveBar p={p} /> : null;
+}
 import { PHASE_NAMES } from '../../sim/actions';
 import { CHARTER_PHASES } from '../../content/charter';
 import { fmtDate } from '../../sim/core';
@@ -44,6 +52,7 @@ export function GoalsPanel() {
                 {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
               </div>
               <div class="h">{o.hint}</div>
+                    {!done && <GoalProgress o={o} s={s} />}
             </div>
           </div>
         );
@@ -80,6 +89,7 @@ function Act2Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                     </div>
                     <div class="h">{o.hint}</div>
+                    {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>
               );
@@ -121,6 +131,7 @@ function Act5Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                     </div>
                     <div class="h">{o.hint}</div>
+                    {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>
               );
@@ -165,6 +176,7 @@ function Act3Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                     </div>
                     <div class="h">{o.hint}</div>
+                    {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>
               );

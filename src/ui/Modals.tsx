@@ -16,7 +16,7 @@ export function EventModal() {
   const choices = def.choices(s, ctx);
   return (
     <div class="scrim">
-      <div class={`modal frame ${def.big ? 'bigdecision' : ''}`} role="dialog" aria-label={def.title(s, ctx)}>
+      <div class={`modal frame event ${def.big ? 'bigdecision' : ''}`} role="dialog" aria-label={def.title(s, ctx)}>
         <div class="head">
           <span class="ico">{def.icon}</span>
           <div class="grow">

@@ -12,6 +12,18 @@ export interface PixelPointer {
   id: number;
   button: number;
   pointerType: string;
+  /** Internal pixels per CSS pixel: touch slop and touch targets are sized in CSS pixels (a finger is ~40 wide). */
+  perCss?: number;
+}
+
+/** How far a press may wander before it's a drag: a mouse holds still, a finger doesn't (10 CSS px). */
+export function dragSlop(p: PixelPointer): number {
+  return p.pointerType === 'mouse' || !p.perCss ? 3 : Math.max(3, 10 * p.perCss);
+}
+
+/** Hit radius around a tappable marker, in internal pixels: `mouse` for a mouse, about 20 CSS px for a finger. */
+export function touchRadius(p: PixelPointer, mouse: number): number {
+  return p.pointerType === 'mouse' || !p.perCss ? mouse : Math.max(mouse, 20 * p.perCss);
 }
 
 export interface Scene {
@@ -161,7 +173,15 @@ export class PixelStage {
   private bindInput(): void {
     const c = this.canvas;
     c.style.touchAction = 'none';
-    const toP = (e: PointerEvent): PixelPointer => ({ ...this.toInternal(e.clientX, e.clientY), clientX: e.clientX, clientY: e.clientY, id: e.pointerId, button: e.button, pointerType: e.pointerType });
+    const toP = (e: PointerEvent): PixelPointer => ({
+      ...this.toInternal(e.clientX, e.clientY),
+      clientX: e.clientX,
+      clientY: e.clientY,
+      id: e.pointerId,
+      button: e.button,
+      pointerType: e.pointerType,
+      perCss: (window.devicePixelRatio || 1) / this.scale,
+    });
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
       this.scene?.pointerDown?.(toP(e));

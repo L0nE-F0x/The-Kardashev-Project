@@ -2,7 +2,8 @@ import { Bar, Icon, KV, Panel, pct, useGame } from '../components';
 import { OwnLicenceBox } from './Act3Panels';
 import { RENTAL } from '../../content/companies';
 import { fmtDate, fmtDays, fmtMoney, fmtSci } from '../../sim/core';
-import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, rentalMax, rentalPrice, tierOf } from '../../sim/model';
+import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, rentalMax, rentalPrice, tierOf, MFU } from '../../sim/model';
+import { modMult } from '../../sim/effects';
 import { nextModelPlan } from '../../sim/ai';
 import type { AllocKey } from '../../sim/actions';
 import type { IconName } from '../icons';
@@ -22,7 +23,9 @@ export function ComputePanel() {
   const run = s.training;
   const trainPerDay = st.trainPFd;
   const etaDays = run && trainPerDay > 0 ? (run.target - run.done) / trainPerDay : Infinity;
-  const planDays = trainPerDay > 0 ? plan.flop / trainPerDay : Infinity;
+  // with no run going the training share serves customers, so estimate what it WOULD train (same formula as ai.ts)
+  const wouldTrainPerDay = run ? trainPerDay : st.computeEF * 1000 * 1e15 * MFU * s.alloc.train * 86400 * modMult(s, 'training');
+  const planDays = wouldTrainPerDay > 0 ? plan.flop / wouldTrainPerDay : Infinity;
   const inferChips = (st.computeEF * 1000 * s.alloc.infer) / RENTAL.perf;
   const marginCls = st.margin >= 0.25 ? 'good' : st.margin >= 0 ? '' : st.margin >= -0.5 ? 'warn' : 'bad';
   const safetyCapped = s.flags.safetyCapUntil && s.day < Number(s.flags.safetyCapUntil);
@@ -111,7 +114,7 @@ export function ComputePanel() {
           <div class="row between wrap">
             <span class="small">
               Next: <b>{plan.name}</b> · {fmtSci(plan.flop)} FLOP · capability ≈ {capabilityOf(plan.flop, algoEff(s)).toFixed(2)}
-              <span class="muted"> · ~{Number.isFinite(planDays) ? fmtDays(planDays) : '∞'} at current rate</span>
+              <span class="muted"> · {Number.isFinite(planDays) ? `~${fmtDays(planDays)} at current rate` : 'needs compute: rent some or build a hall'}</span>
             </span>
             <button class="btn primary" data-tut="start-train" onClick={() => game.startTraining()}>
               <Icon name="play" size="sm" /> Start {plan.name}

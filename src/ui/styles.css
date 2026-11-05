@@ -150,13 +150,45 @@ body {
   flex-direction: column;
   gap: 4px;
   padding: 5px;
+  /* every act adds panels: shrink the buttons to fit the screen (Dock.tsx sets --dock-n), scroll past that */
+  --dock-b: clamp(30px, calc((100vh - 128px) / var(--dock-n, 10) - 4px), 46px);
+  max-height: calc(100% - 108px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.dock::-webkit-scrollbar {
+  display: none;
+}
+.dock.more {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
 }
 .dock .btn {
-  width: 46px;
-  height: 46px;
+  width: var(--dock-b);
+  height: var(--dock-b);
+  flex: none;
   justify-content: center;
   padding: 0;
   position: relative;
+}
+@supports (width: round(down, 10.5px, 1px)) {
+  .dock {
+    --dock-b: round(down, clamp(30px, calc((100vh - 128px) / var(--dock-n, 10) - 4px), 46px), 1px);
+  }
+}
+/* a long dock on a short screen: tighter, with the small icons (still a whole-number scale) */
+@media (max-height: 940px) {
+  .dock.many {
+    gap: 2px;
+  }
+  .dock.many .sep {
+    margin: 0;
+  }
+  .dock.many .btn img.px.lg {
+    width: 18px;
+    height: 18px;
+  }
 }
 .dock .btn .badge {
   position: absolute;
@@ -205,6 +237,16 @@ body {
 .objective .h {
   font-size: 12px;
   color: var(--muted);
+}
+.oprog {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 3px;
+}
+.oprog .small {
+  font-size: 12px;
+  line-height: 1.2;
 }
 .objectives .collapse {
   float: right;
@@ -695,6 +737,38 @@ select:focus {
   font-size: 12px;
   color: var(--bad);
 }
+/* phones on their side: an event card in two columns, so the choices are on screen without scrolling */
+@media (max-height: 520px) {
+  .modal.event {
+    width: min(880px, 100%);
+  }
+  .modal.event .body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 40%);
+    column-gap: 12px;
+    align-items: start;
+  }
+  .modal.event .body > * {
+    grid-column: 1;
+  }
+  .modal.event .body > .choices {
+    grid-column: 2;
+    grid-row: 1 / span 12;
+    margin-top: 0;
+    position: sticky;
+    top: 0;
+  }
+  .modal.event .story {
+    font-size: 14px;
+  }
+  .modal.event .quote {
+    margin: 6px 0;
+  }
+  .modal.event .quote img.portrait {
+    width: 40px;
+    height: 40px;
+  }
+}
 
 /* ── tooltip ──────────────────────────────────────────────────────────────────── */
 .tooltip {
@@ -840,6 +914,13 @@ select:focus {
     flex-direction: row;
     justify-content: space-around;
     padding: 4px;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    --dock-b: 40px;
+  }
+  .dock.more {
+    mask-image: none;
   }
   .dock .sep {
     display: none;
@@ -1490,6 +1571,9 @@ ol.steps li {
     top: 50px;
     gap: 2px;
     padding: 3px;
+    /* above the ticker; past that the dock scrolls (and fades at the foot) */
+    max-height: calc(100% - 92px);
+    --dock-b: 34px;
   }
   .dock .btn {
     width: 34px;

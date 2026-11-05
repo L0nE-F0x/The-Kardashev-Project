@@ -417,6 +417,8 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s) => {
       const affected = s.shipments.filter((sh) => ['eam', 'stp'].includes(siteDef(sh.dest).region));
+      // nothing of ours on the water there: no point paying lawyers (the card is a heads-up)
+      if (!affected.length) return [{ label: 'Noted', detail: 'None of our shipments are affected. Worth remembering before we build there.', apply: () => {} }];
       return [
         {
           label: `Apply for licences (${fmtMoney(cc(s, 2e6), 0)})`,

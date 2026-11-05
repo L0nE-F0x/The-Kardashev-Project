@@ -26,6 +26,20 @@ function locateTarget(target: string | null | undefined, game: ReturnType<typeof
   return { x: r.left - 6, y: r.top - 6, w: r.width + 12, h: r.height + 12, round: false };
 }
 
+/**
+ * Bring a step's target on screen once: on a phone the button Bit points at can sit below the fold of a panel
+ * (Compute → Start Bit-1 at 780×360). True once the element exists (it may render a frame after the step starts).
+ */
+function revealTarget(target: string | null | undefined): boolean {
+  if (!target || target.startsWith('site:')) return true;
+  const el = document.querySelector(`[data-tut="${target}"]`) as HTMLElement | null;
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  if (r.top < 0 || r.left < 0 || r.bottom > window.innerHeight || r.right > window.innerWidth) el.scrollIntoView({ block: 'center', inline: 'nearest' });
+  else el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  return true;
+}
+
 /** Bit's walkthrough: a spotlight on the real UI and a speech bubble with what to do. */
 export function TutorialOverlay() {
   const game = useGame();
@@ -39,8 +53,11 @@ export function TutorialOverlay() {
   useEffect(() => {
     if (hidden || !step) return;
     let raf = 0;
+    let revealed: string | null = null;
     const loop = () => {
-      const b = locateTarget(step.target?.(game), game);
+      const t = step.target?.(game) ?? null;
+      if (t && t !== revealed && revealTarget(t)) revealed = t;
+      const b = locateTarget(t, game);
       setBox((prev) => (prev && b && prev.x === b.x && prev.y === b.y && prev.w === b.w && prev.h === b.h ? prev : b));
       raf = requestAnimationFrame(loop);
     };
@@ -105,8 +122,11 @@ export function BriefingOverlay() {
   useEffect(() => {
     if (hidden || !step) return;
     let raf = 0;
+    let revealed: string | null = null;
     const loop = () => {
-      const nb = locateTarget(step.target?.(game), game);
+      const t = step.target?.(game) ?? null;
+      if (t && t !== revealed && revealTarget(t)) revealed = t;
+      const nb = locateTarget(t, game);
       setBox((prev) => (prev && nb && prev.x === nb.x && prev.y === nb.y && prev.w === nb.w && prev.h === nb.h ? prev : nb));
       raf = requestAnimationFrame(loop);
     };

@@ -28,9 +28,14 @@ export function tickEvents(s: GameState): void {
     }
   }
 
+  // Bit's tutorial (the first ten minutes) isn't interrupted by random cards or incidents; the first one comes a
+  // few weeks after it ends
+  const tutorial = (s.meta.tutorialStep ?? -1) >= 0 && (s.act ?? 1) === 1;
+  if (tutorial) s.events.nextRoll = Math.max(s.events.nextRoll, s.day + 20);
+
   // safety incidents — checked twice a month once a model is in the wild
   const c = currentCapability(s);
-  if (c > 0 && s.day % 15 === 0 && s.day - s.safety.lastIncidentDay > 45) {
+  if (c > 0 && !tutorial && s.day % 15 === 0 && s.day - s.safety.lastIncidentDay > 45) {
     const p = (incidentChance(s.stats.margin) / 2) * DIFFICULTIES[s.meta.difficulty].incident;
     if (rand(s) < p) {
       const major = c >= 2.5 && s.stats.margin < -0.3 && rand(s) < 0.6;

@@ -95,12 +95,12 @@ export function MainMenu() {
           game.openMenuScreen('new');
         })}
         {slots.length > 0 && item('orders', `Load company (${slots.length}/5)`, () => game.openMenuScreen('load'))}
-        {item('goals', 'Tutorial', () => {
+        {item('play', 'Tutorial', () => {
           setTutorialNew(true);
           game.openMenuScreen('new');
         })}
-        {item('research', 'Field Guide', () => game.openMenuScreen('guide'), game.guideBadge() > 0)}
-        {item('goals', 'Achievements', () => game.openMenuScreen('achievements'))}
+        {item('guide', 'Field Guide', () => game.openMenuScreen('guide'), game.guideBadge() > 0)}
+        {item('legit', 'Achievements', () => game.openMenuScreen('achievements'))}
         {item('settings', 'Settings', () => game.openMenuScreen('settings'))}
         {item('news', 'What’s new', () => {
           game.updateSettings({ lastSeenVersion: APP_VERSION });

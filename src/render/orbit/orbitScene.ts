@@ -16,7 +16,7 @@ import { orbitExtras, type OrbitExtras } from '../../sim/systemView';
 import { subsolar } from '../../world/sun';
 import { getEra, hex, C } from '../palette';
 import { PixelCanvas } from '../pixels';
-import type { PixelPointer, Scene } from '../stage';
+import { dragSlop, type PixelPointer, type Scene } from '../stage';
 import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf } from '../textures';
 import { pixelTexture } from '../sprites/mapIcons';
 import { planetView, rectennaKey, sgKey } from '../worldMap/act4Layers';
@@ -402,7 +402,7 @@ export class OrbitScene implements Scene {
     if (d && this.pointers.has(p.id)) {
       const dx = p.x - d.x;
       const dy = p.y - d.y;
-      if (!d.moved && Math.hypot(dx, dy) > 3) d.moved = true;
+      if (!d.moved && Math.hypot(dx, dy) > dragSlop(p)) d.moved = true;
       if (d.moved) {
         // the surface follows the finger
         this.cam.lon0 = d.lon0 - dx / (this.L.r * RAD);

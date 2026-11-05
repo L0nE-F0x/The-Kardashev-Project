@@ -1,6 +1,6 @@
 import { Container, Sprite, Texture } from 'pixi.js';
 import type { Game } from '../../game/game';
-import type { PixelPointer, Scene } from '../stage';
+import { dragSlop, type PixelPointer, type Scene } from '../stage';
 import { siteDef, type SiteDef } from '../../content/sites';
 import type { GameState } from '../../sim/types';
 import { chipSpec, dcCapacityUnits, facilityIT } from '../../sim/model';
@@ -1685,7 +1685,7 @@ export class DioramaScene implements Scene {
   pointerMove(p: PixelPointer) {
     if (this.down) {
       const dx = p.x - this.down.x;
-      if (Math.abs(dx) > 3) this.down.moved = true;
+      if (Math.abs(dx) > dragSlop(p)) this.down.moved = true;
       if (this.down.moved) {
         const now = performance.now();
         const dtm = Math.max(1, now - this.down.lastT) / 1000;

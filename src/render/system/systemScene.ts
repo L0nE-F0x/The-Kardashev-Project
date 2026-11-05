@@ -16,7 +16,7 @@ import type { Game } from '../../game/game';
 import { orbitExtras, systemView, type SystemView } from '../../sim/systemView';
 import { getEra, hex, C } from '../palette';
 import { PixelCanvas } from '../pixels';
-import type { PixelPointer, Scene } from '../stage';
+import { dragSlop, touchRadius, type PixelPointer, type Scene } from '../stage';
 import { cachedTexture, labelTexture, refreshTexture, releaseTexture, textureOf } from '../textures';
 import { pixelTexture } from '../sprites/mapIcons';
 import { orbitTerrain } from '../orbit/orbitArt';
@@ -419,14 +419,14 @@ export class SystemScene implements Scene {
   }
 
   /** The nearest target under a point: lens targets inside the lens, the main view's outside it. */
-  private hitAt(x: number, y: number): Hit | null {
+  private hitAt(x: number, y: number, slack = 2): Hit | null {
     const lens = this.inLens(x, y);
     let best: Hit | null = null;
     let bd = Infinity;
     for (const h of this.hits) {
       if (!!h.lens !== lens) continue;
       const d = Math.hypot(h.x - x, h.y - y);
-      if (d <= h.r + 2 && d < bd) {
+      if (d <= h.r + slack && d < bd) {
         bd = d;
         best = h;
       }
@@ -510,7 +510,7 @@ export class SystemScene implements Scene {
     if (d && this.pointers.has(p.id)) {
       const dx = p.x - d.x;
       const dy = p.y - d.y;
-      if (!d.moved && Math.hypot(dx, dy) > 3) d.moved = true;
+      if (!d.moved && Math.hypot(dx, dy) > dragSlop(p)) d.moved = true;
       if (d.moved) {
         // sideways turns the system round the Sun, up and down tilts it
         this.rot = d.rot0 + dx * 0.008;
@@ -531,7 +531,8 @@ export class SystemScene implements Scene {
     const d = this.down;
     this.down = null;
     if (!d || d.moved) return;
-    const h = this.hitAt(p.x, p.y);
+    // a finger is wider than a planet here: the nearest target within ~20 CSS px
+    const h = this.hitAt(p.x, p.y, touchRadius(p, 2));
     if (!h || !h.open || this.game.mode === 'title') return;
     if (h.open === 'orbit') this.game.enterOrbit();
     else this.game.enterDiorama(h.open);
