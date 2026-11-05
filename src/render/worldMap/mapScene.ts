@@ -171,6 +171,18 @@ const GROUND_CACHE: (GroundLayer | null)[] = [null, null];
 const OVERLAY_GAP = 2000;
 const OVERLAY_GAP_JUMP = 4500;
 
+/** A game without the planet (or the system) is on: its overlays won't be needed again soon, so free them. */
+function dropOverlays(which: 'province' | 'ground') {
+  const cache = which === 'province' ? PROVINCE_CACHE : GROUND_CACHE;
+  for (let i = 0; i < cache.length; i++) {
+    const e = cache[i];
+    if (!e) continue;
+    if ('texs' in e) e.texs.forEach((t) => releaseTexture(t));
+    else releaseTexture(e.tex);
+    cache[i] = null;
+  }
+}
+
 /** A region's box of land pixels at a LOD; `x` + `w` can run past the map's width for a region across the date line. */
 interface Box {
   x: number;
@@ -1870,6 +1882,8 @@ export class MapScene implements Scene {
     const s = this.game.view;
     if (!s || !act4On(s)) {
       if (this.province || this.rectennaSprites.length || this.glyph4Sprites.length || this.bannerSprites.length || this.sgSprites.length || this.sgPulses.length || this.sgDownKey || this.planetLights.pts.length) this.clearPlanet();
+      // (the menu tour comes back to its Act IV world, so it keeps them)
+      if (this.game.mode !== 'title' && (PROVINCE_CACHE[0] || PROVINCE_CACHE[1])) dropOverlays('province');
       return;
     }
     const v = planetView(s);
@@ -1915,6 +1929,7 @@ export class MapScene implements Scene {
     const s = this.game.view;
     if (!s || !act5On(s)) {
       if (this.earthGround || this.beamSprites.length || this.earthLights.pts.length) this.clearEarth();
+      if (this.game.mode !== 'title' && (GROUND_CACHE[0] || GROUND_CACHE[1])) dropOverlays('ground');
       return;
     }
     const v = earthMapView(s);
