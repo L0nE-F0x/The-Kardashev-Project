@@ -1,16 +1,15 @@
-import type { AiId, FivePlan, GameState, Priority } from '../../src/sim/types';
+import type { AiId, FivePlan, GameState } from '../../src/sim/types';
 import { REGION_IDS } from '../../src/content/mapcodes';
 import { RESOLUTION_BY_ID } from '../../src/content/council';
 import { botDay3 } from './act3bot';
 import { canTable, canWhip, forecast, tableResolution, voteScore, whipBloc } from '../../src/sim/council';
-import { confirmPlan, defaultPlan, plannerTick, runJump } from '../../src/sim/plans';
+import { confirmPlan, defaultPlan, runJump } from '../../src/sim/plans';
 import { canDelegate, delegate } from '../../src/sim/airegions';
 import { resolveEvent } from '../../src/sim/events';
 import { EVENT_BY_ID } from '../../src/content/events';
 import type { SimContext } from '../../src/sim/supply';
 
 const AGENDA4 = ['ai-charters', 'planetary-powers', 'debris-rules', 'he3-sharing', 'access-pledge', 'run-licensing'];
-const PLAY: Record<number, Priority[]> = { 1: ['grid', 'fusion', 'provinces'], 2: ['fusion', 'climate', 'provinces'], 3: ['space', 'fusion', 'climate'] };
 
 /** Take each waiting decision: the first available choice (what autopilot would do). */
 function decide(s: GameState): void {
@@ -28,8 +27,8 @@ function decide(s: GameState): void {
 
 /**
  * A planning Act IV player: takes the first sensible choice, accepts the default five-year plans and
- * jumps, plays each stage like the planner would (by the stage's priorities), hands provinces to
- * the most trusted AIs, and tables the Act IV resolutions.
+ * jumps, leaves the autopilot on between jumps (the planner keeps working the plan's priorities), hands
+ * provinces to the most trusted AIs, and tables the Act IV resolutions.
  */
 export function botDay4(s: GameState, ctx: SimContext): void {
   if ((s.act ?? 1) < 4 || !s.planet) {
@@ -45,7 +44,8 @@ export function botDay4(s: GameState, ctx: SimContext): void {
     decide(s);
     return;
   }
-  if (s.day % 7 === 0 && pl.stage >= 1 && pl.stage <= 3) plannerTick(s, { years: 4, priorities: PLAY[pl.stage], reserve: 0.15, bitRuns: false });
+  // the planner runs between jumps through the game's own autopilot (on by default from the Mandate)
+  s.flags.autopilot4 = true;
   if (s.day % 30 === 0 && pl.stage >= 1) {
     const order: AiId[] = ['weft', 'bit', 'sapling', 'apex'];
     let count = REGION_IDS.filter((r) => pl.provinces[r].ai).length;

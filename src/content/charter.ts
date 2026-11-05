@@ -413,14 +413,15 @@ export const CONTRACT_KINDS: Record<ContractKind, ContractKindDef> = {
     bidders: ['sunforge'], effect: 'A chance at ignition before the act is out.',
   }),
   // ════════════════════ Act IV ════════════════════
+  // (stage 0 kinds can be posted at the Mandate, so the first five-year plan isn't drawn blind)
   link: k({
-    kind: 'link', name: 'Supergrid link', icon: 'hvdc', cat: 'grid', where: 'sgroute', cphase: 1, stage: 1,
+    kind: 'link', name: 'Supergrid link', icon: 'hvdc', cat: 'grid', where: 'sgroute', cphase: 1, stage: 0,
     blurb: 'An intercontinental superconducting-cable link: one more stitch in a grid that follows the sun around the planet.',
     sizes: [30, 80, 200], unit: 'GW', value: 1.0e6, yearly: 0.98, share: 0.3, days: [900, 1100, 1300],
     bidders: ['spanwire', 'halcyon', 'tidewater'], effect: 'Joins two provinces into the supergrid: solar travels with the daylight, so less is wasted (K ↑), power is cheaper and wellbeing rises at both ends.',
   }),
   fpilot: k({
-    kind: 'fpilot', name: 'Fusion pilot plant', icon: 'fusion', cat: 'fusion', where: 'design', cphase: 1, stage: 1, fixed: true,
+    kind: 'fpilot', name: 'Fusion pilot plant', icon: 'fusion', cat: 'fusion', where: 'design', cphase: 1, stage: 0, fixed: true,
     blurb: 'Fund a design’s pilot plant to net electricity. Some designs will work. Some won’t.',
     sizes: [1, 1, 1], unit: '', value: 1, yearly: 1.0, share: 1, days: [1000, 1000, 1000],
     bidders: [], effect: 'If it works, the design can be built as fleets. If it half-works, fleets cost more. If it fails, try again or back another.',
@@ -432,13 +433,13 @@ export const CONTRACT_KINDS: Record<ContractKind, ContractKindDef> = {
     bidders: ['halcyon', 'littlesun'], effect: 'Firm clean power that gets cheaper with every plant (K ↑). D-T designs need tritium, which fleets breed.',
   }),
   dac: k({
-    kind: 'dac', name: 'Direct air capture farm', icon: 'co2', cat: 'planet', where: 'mega', cphase: 1, stage: 1,
+    kind: 'dac', name: 'Direct air capture farm', icon: 'co2', cat: 'planet', where: 'mega', cphase: 1, stage: 0,
     blurb: 'Banks of giant fans pulling CO₂ out of the air, powered by the megaproject next door, burying it as stone.',
     sizes: [1, 3, 8], unit: 'Gt CO₂/yr', value: 120e9, yearly: 0.95, share: 0.5, days: [700, 900, 1100],
     bidders: ['carbonfold', 'deepvein', 'saltflat', 'brightwater'], effect: 'Removes carbon every year: warming falls back.',
   }),
   desal: k({
-    kind: 'desal', name: 'Water & cooling programme', icon: 'hydro', cat: 'planet', where: 'region', cphase: 1, stage: 1,
+    kind: 'desal', name: 'Water & cooling programme', icon: 'hydro', cat: 'planet', where: 'region', cphase: 1, stage: 0,
     blurb: 'Desalination plants on cheap power, aquifer recharge and cooling centres for the hot season.',
     sizes: [1, 2, 3], unit: 'programmes', value: 40e9, yearly: 1.0, share: 0.5, days: [500, 650, 800],
     bidders: ['brightwater', 'halcyon', 'tidewater'], effect: 'Water stress and heat fall in the province; wellbeing rises.',

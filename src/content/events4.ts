@@ -18,10 +18,13 @@ import { addCapital, addLegitimacy, addPartnerRel, chEarn, chSpend } from '../si
 import { aiIncident, addTrust, canDelegate, delegate, recall, regionsOf } from '../sim/airegions';
 import { inMainGrid } from '../sim/supergrid';
 import { pressure4 } from '../sim/heatwall';
+import { stageGate } from '../sim/act4';
 import { warming } from '../sim/climate';
 import { worldMargin } from '../sim/frontier';
-import { tableResolution } from '../sim/council';
+import { canTable, tableResolution } from '../sim/council';
 import { crisisMult } from '../sim/model';
+import { dtGW } from '../sim/fusion';
+import { companyHandedOver } from '../sim/economy';
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 /** Charter-side price written at 2045 scale; grows with the world economy and the difficulty. */
@@ -38,6 +41,8 @@ const relief = (s: GameState, front: HeatFront, now: number, perDay = 0, days = 
   if (perDay && days) addModifier(s, `heatwall:${front}`, days, 'Crisis measures', { add: perDay });
 };
 const passed = (s: GameState, id: string) => !!s.charter?.council.passed.includes(id);
+/** Why a resolution can't be tabled right now (a card's tabling choice is disabled then), or false. */
+const noTable = (s: GameState, id: string): string | false => canTable(s, id) || false;
 const stageOk = (s: GameState, n: number) => (s.planet?.stage ?? 0) >= n && !s.planet?.heatwall;
 const hotProvince = (s: GameState): RegionId => [...REGION_IDS].sort((a, b) => (s.planet?.provinces[b].heat ?? 0) - (s.planet?.provinces[a].heat ?? 0))[0];
 const valuation = (s: GameState) => Math.max(50e9, s.finance.valuation || 0);
@@ -109,7 +114,7 @@ export const ACT4_EVENTS: EventDef[] = [
       },
       {
         label: 'Keep it',
-        detail: 'Two hats, as before: you can run it or put it in the blind trust. It can bid on fusion fleets and orbital data centres.',
+        detail: 'Two hats, as before — and it still needs running: halls, chips, power and its next model, by you or (in the blind trust) by your advisors. Legitimacy −2. It can bid on fusion fleets and orbital data centres.',
         apply: () => {
           s.planet!.company = 'keep';
           addLegitimacy(s, -2);
@@ -128,7 +133,7 @@ export const ACT4_EVENTS: EventDef[] = [
       { id: 'penny', text: 'Caretakers get smaller budgets. Spend like it.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Campaign for planetary powers', detail: 'Tables the resolution now (if you have the capital); Legitimacy +3.', apply: () => (tableResolution(s, 'planetary-powers'), addLegitimacy(s, 3)) },
+      { label: 'Campaign for planetary powers', detail: 'Tables “Planetary powers” for the next session; Legitimacy +3.', disabled: noTable(s, 'planetary-powers'), apply: () => (tableResolution(s, 'planetary-powers'), addLegitimacy(s, 3)) },
       { label: 'Work within the limits', detail: 'Political capital +8.', apply: () => addCapital(s, 8) },
     ],
   },
@@ -139,7 +144,8 @@ export const ACT4_EVENTS: EventDef[] = [
     title: () => `The next five years`,
     body: (s) => {
       const st = s.planet?.stage ?? 0;
-      return `${st === 0 ? 'The Mandate is settled.' : `${STAGE_NAMES[st]} has done what it set out to do.`} Time to plan the next stage: ${STAGE_NAMES[st + 1]}.\n\nPick up to three priorities, a reserve for the treasury and how long the plan runs. Then the years jump: the planner posts and awards contracts by your priorities, decisions are taken on autopilot, and you get the report at the other end.`;
+      const met = stageGate(s)?.items.every((g) => g.done) ?? true;
+      return `${st === 0 ? 'The Mandate is settled.' : met ? `${STAGE_NAMES[st]} has done what it set out to do.` : `${STAGE_NAMES[st]} has run its course, done or not.`} Time to plan the next stage: ${STAGE_NAMES[st + 1]}.\n\nPick up to three priorities, a reserve for the treasury and how long the plan runs. Then the years jump: the planner posts and awards contracts by your priorities, decisions are taken on autopilot, and you get the report at the other end.`;
     },
     advisors: (s) => [
       { id: 'bit', text: (s.planet?.ais.bit.trust ?? 0) >= 60 ? 'I could run the plan, if you want. I promise to write it all down.' : 'I will keep a diary. Someone should.', mood: 'happy' },
@@ -160,7 +166,7 @@ export const ACT4_EVENTS: EventDef[] = [
       { id: 'juno', text: 'Give me cable ships and I’ll give you a planet-sized battery.', mood: 'excited' },
     ],
     choices: (s) => [
-      { label: 'Link the poorest provinces first', detail: 'Developing provinces’ relations +4; Legitimacy +2.', apply: () => { for (const r of REGION_IDS) if (['lat', 'ssa', 'sas', 'seo'].includes(r)) addRelation(s, r, 4); addLegitimacy(s, 2); scheduleEvent(s, 'bit-aim-1', 160); } },
+      { label: 'Put the poorest provinces first', detail: 'Developing provinces’ relations +4; Legitimacy +2.', apply: () => { for (const r of REGION_IDS) if (['lat', 'ssa', 'sas', 'seo'].includes(r)) addRelation(s, r, 4); addLegitimacy(s, 2); scheduleEvent(s, 'bit-aim-1', 160); } },
       { label: 'Build as fast as possible', detail: 'Charter projects build 8% faster for two years.', apply: () => { addModifier(s, 'charter:build', 730, 'The supergrid rush', { mult: 1.08 }); scheduleEvent(s, 'bit-aim-1', 160); } },
       { label: 'Start the AI provinces carefully', detail: 'Every AI’s trust +4.', apply: () => { for (const a of Object.keys(AIS) as AiId[]) addTrust(s, a, 4); scheduleEvent(s, 'bit-aim-1', 160); } },
     ],
@@ -331,7 +337,7 @@ export const ACT4_EVENTS: EventDef[] = [
     ],
     choices: (s, ctx) => [
       { label: 'Fine the lab and rewrite the rules', detail: `${aiName(ctx.ai)}’s trust −8; its lab −10; the treasury gets ${fmtMoney(ch4(s, 4e9), 0)}; Legitimacy +2.`, apply: () => (addTrust(s, ctx.ai as AiId, -8), addPartnerRel(s, AIS[ctx.ai as AiId].owner, -10), chEarn(s, 'income', ch4(s, 4e9)), addLegitimacy(s, 2)) },
-      { label: 'Take the province back', detail: 'Trust −10; its lab −12.', apply: () => (addTrust(s, ctx.ai as AiId, -10), recall(s, ctx.region as RegionId), addPartnerRel(s, AIS[ctx.ai as AiId].owner, -8)) },
+      { label: 'Take the province back', detail: 'The Charter runs it again. Its trust −13; its lab −12.', apply: () => (addTrust(s, ctx.ai as AiId, -10), recall(s, ctx.region as RegionId), addPartnerRel(s, AIS[ctx.ai as AiId].owner, -8)) },
       { label: 'Let it go quietly', detail: 'Legitimacy −3; the province’s wellbeing −4 for a year.', apply: () => (addLegitimacy(s, -3), wellbeingBoost(s, ctx.region as RegionId, -4, 365, 'Favouritism')) },
     ],
   },
@@ -433,8 +439,9 @@ export const ACT4_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'Fund more air capture instead', detail: `${fmtMoney(ch4(s, 10e9), 0)}: carbon budget +15 Gt.`, disabled: treasury(s, ch4(s, 10e9)), apply: () => (chSpend(s, 'programmes', ch4(s, 10e9)), (s.charter!.world.carbonGt += 15)) },
-      { label: 'Table geoengineering', detail: 'Puts it before the Council (needs political capital).', apply: () => void tableResolution(s, 'geoengineering') },
-      { label: 'Table a moratorium', detail: 'Puts a permanent ban before the Council.', apply: () => void tableResolution(s, 'geo-moratorium') },
+      { label: 'Table geoengineering', detail: 'Puts it before the Council.', disabled: noTable(s, 'geoengineering'), apply: () => void tableResolution(s, 'geoengineering') },
+      { label: 'Table a moratorium', detail: 'Puts a permanent ban before the Council.', disabled: noTable(s, 'geo-moratorium'), apply: () => void tableResolution(s, 'geo-moratorium') },
+      { label: 'Not now', detail: 'The hot provinces feel ignored: their relations −3.', apply: () => [...REGION_IDS].sort((a, b) => (s.planet?.provinces[b].heat ?? 0) - (s.planet?.provinces[a].heat ?? 0)).slice(0, 3).forEach((r) => addRelation(s, r, -3)) },
     ],
   },
 
@@ -499,7 +506,7 @@ export const ACT4_EVENTS: EventDef[] = [
     id: 'tritium-pinch',
     category: 'supply',
     icon: '⚛',
-    weight: (s) => (stageOk(s, 2) && (s.planet?.tritium ?? 0) < 200 ? 0.7 : 0),
+    weight: (s) => (stageOk(s, 2) && !!s.planet && dtGW(s) >= 0.85 * s.planet.tritium ? 1.2 : 0),
     act: 4,
     cooldown: 600,
     title: () => 'Tritium is the bottleneck',
@@ -560,7 +567,7 @@ export const ACT4_EVENTS: EventDef[] = [
     advisors: () => [{ id: 'ceo:ade', text: 'Nobody hurt. Lots of things broken. Your call on how fast we fix them.', mood: 'worried' }],
     choices: (s) => [
       { label: `Fly up spares now (${fmtMoney(ch4(s, 3e9), 0)})`, detail: 'Back to normal within weeks.', disabled: treasury(s, ch4(s, 3e9)), apply: () => chSpend(s, 'programmes', ch4(s, 3e9)) },
-      { label: 'Fix it with what’s there', detail: 'Moon contracts build 20% slower for half a year.', apply: () => addModifier(s, 'charter:build', 180, 'Lunar repairs', { mult: 0.95 }) },
+      { label: 'Fix it with what’s there', detail: 'Crews and parts go to the Moon: every Charter project builds 5% slower for half a year.', apply: () => addModifier(s, 'charter:build', 180, 'Lunar repairs', { mult: 0.95 }) },
     ],
   },
   {
@@ -575,7 +582,7 @@ export const ACT4_EVENTS: EventDef[] = [
     body: (_s, ctx) => `${rName(ctx.region)} announces it will build its own helium-3 operation at the south pole, next to Shackleton, “in the spirit of the Charter”. The other provinces read it differently.`,
     advisors: () => [{ id: 'sol', text: 'Share the helium-3 and the claim loses its point.', mood: 'neutral' }],
     choices: (s, ctx) => [
-      { label: 'Table helium-3 sharing', detail: 'Puts it before the Council.', apply: () => void tableResolution(s, 'he3-sharing') },
+      { label: 'Table helium-3 sharing', detail: 'Puts it before the Council.', disabled: noTable(s, 'he3-sharing'), apply: () => void tableResolution(s, 'he3-sharing') },
       { label: 'Negotiate a joint site', detail: `Political capital −6; ${rName(ctx.region)} +6.`, disabled: capital(s, 6), apply: () => (addCapital(s, -6), addRelation(s, ctx.region as RegionId, 6)) },
       { label: 'Ignore it', detail: 'Tension: every other province −2.', apply: () => addRelationAll(s, (r) => (r === ctx.region ? 0 : -2)) },
     ],
@@ -592,7 +599,7 @@ export const ACT4_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: `Emergency clean-up (${fmtMoney(ch4(s, 4e9), 0)})`, detail: 'Low-orbit debris −12.', disabled: treasury(s, ch4(s, 4e9)), apply: () => (chSpend(s, 'programmes', ch4(s, 4e9)), s.planet && (s.planet.debris.leo = clamp(s.planet.debris.leo - 12, 0, 100))) },
-      { label: 'Table orbital traffic rules', detail: 'Puts them before the Council.', apply: () => void tableResolution(s, 'debris-rules') },
+      { label: 'Table orbital traffic rules', detail: 'Puts them before the Council.', disabled: noTable(s, 'debris-rules'), apply: () => void tableResolution(s, 'debris-rules') },
       { label: 'Track it and carry on', detail: 'No cost.', apply: () => {} },
     ],
   },
@@ -623,7 +630,9 @@ export const ACT4_EVENTS: EventDef[] = [
     advisors: (s) => [{ id: 'juno', text: inMainGrid(s, s.planet?.heatwall?.regions[0] ?? 'mena') ? 'Pull power from the night side. That’s what the supergrid is for.' : 'The hot provinces aren’t all on the grid. That hurts now.', mood: 'worried' }],
     choices: (s) => [
       { label: `Emergency cooling for everyone (${fmtMoney(ch4(s, 12e9), 0)})`, detail: 'Heat pressure −25 and easing for a month.', disabled: treasury(s, ch4(s, 12e9)), apply: () => (chSpend(s, 'programmes', ch4(s, 12e9)), relief(s, 'heat', 25, 0.25, 30)) },
-      { label: 'Move compute to the cool side and to orbit', detail: 'Heat pressure −15; your company’s revenue −15% for 60 days.', apply: () => (relief(s, 'heat', 15), addModifier(s, 'revenue', 60, 'Compute moved for the heat', { mult: 0.85 })) },
+      companyHandedOver(s)
+        ? { label: `Move compute to the cool side and to orbit (${fmtMoney(ch4(s, 3e9), 0)})`, detail: 'Heat pressure −15; the Charter pays the data centres’ owners for the move.', disabled: treasury(s, ch4(s, 3e9)), apply: () => (chSpend(s, 'programmes', ch4(s, 3e9)), relief(s, 'heat', 15)) }
+        : { label: 'Move compute to the cool side and to orbit', detail: 'Heat pressure −15; your company’s revenue −15% for 60 days.', apply: () => (relief(s, 'heat', 15), addModifier(s, 'revenue', 60, 'Compute moved for the heat', { mult: 0.85 })) },
       { label: 'Rolling cuts', detail: 'Heat pressure −6; the hot provinces’ wellbeing −5.', apply: () => (relief(s, 'heat', 6), (s.planet?.heatwall?.regions ?? []).forEach((r) => wellbeingBoost(s, r, -5, 365, 'Rolling cuts'))) },
     ],
   },
@@ -664,9 +673,11 @@ export const ACT4_EVENTS: EventDef[] = [
     body: () => 'A second band of fragments forms at a higher altitude. If it spreads, low orbit closes for a generation.',
     advisors: () => [{ id: 'iris', text: 'This is the commons failing in real time.', mood: 'worried' }],
     choices: (s) => [
-      { label: 'Sacrifice the oldest satellites as shields', detail: 'Cascade pressure −18; your company’s revenue −3% for a year.', apply: () => (relief(s, 'cascade', 18), addModifier(s, 'revenue', 365, 'Lost satellites', { mult: 0.97 })) },
+      companyHandedOver(s)
+        ? { label: `Sacrifice the oldest satellites as shields (${fmtMoney(ch4(s, 4e9), 0)})`, detail: 'Cascade pressure −18; the Charter compensates their owners.', disabled: treasury(s, ch4(s, 4e9)), apply: () => (chSpend(s, 'programmes', ch4(s, 4e9)), relief(s, 'cascade', 18)) }
+        : { label: 'Sacrifice the oldest satellites as shields', detail: 'Cascade pressure −18; your company’s revenue −3% for a year.', apply: () => (relief(s, 'cascade', 18), addModifier(s, 'revenue', 365, 'Lost satellites', { mult: 0.97 })) },
       ...(passed(s, 'debris-rules') ? [{ label: 'Enforce the traffic rules hard', detail: 'Cascade pressure −22.', disabled: false as const, apply: () => relief(s, 'cascade', 22) }] : []),
-      { label: 'Hope', detail: 'Cascade pressure −3.', apply: () => relief(s, 'cascade', 3) },
+      { label: 'Hope', detail: 'No relief: the fragments go where they go.', apply: () => {} },
     ],
   },
   {

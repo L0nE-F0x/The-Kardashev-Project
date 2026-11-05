@@ -7,41 +7,62 @@ import { useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, useGame } from '../components';
 import type { IconName } from '../icons';
 import type { PlanetTab } from '../../game/game';
-import type { AiId, ContractKind, ContractSize, FivePlan, Priority, Project } from '../../sim/types';
+import type { AiId, ContractKind, ContractSize, FivePlan, PlanetState, Priority, Project } from '../../sim/types';
 import { CONTRACT_KINDS, PARTNERS, SIZE_NAMES, YOU } from '../../content/charter';
 import { AI_IDS, AIS, DESIGN_IDS, FUSION_DESIGNS, GOVERNORS, HEAT_FRONT_NAMES, HEAT_FRONTS, PLANET, PRIORITIES, PRIORITY_IDS, SHELLS, STAGE_NAMES, SUPERGRID_ROUTES } from '../../content/planet';
 import { REGIONS } from '../../content/regions';
 import { REGION_IDS, type RegionId } from '../../content/mapcodes';
 import { canPost, contractEstimate, sizeText, biddersFor, youCanBid } from '../../sim/charter';
 import { fmtDate, fmtDays, fmtMoney, fmtMW } from '../../sim/core';
-import { planetChecklist } from '../../sim/act4';
+import { planetChecklist, stageGate } from '../../sim/act4';
 import { aiRegionCount, canDelegate, regionsOf } from '../../sim/airegions';
 import { avgWellbeing, wellbeingTarget } from '../../sim/provinces';
 import { allJoined, gridSpan, linksBuilt, mainGrid } from '../../sim/supergrid';
-import { designGW, dtGW, fleetBlocked, fleetValuePerGW, fusionTW, he3Cap, pilotBlocked, pilotOdds } from '../../sim/fusion';
+import { designGW, designsOnline, dtGW, fleetBlocked, fleetValuePerGW, fusionTW, he3Cap, pilotBlocked, pilotOdds } from '../../sim/fusion';
 import { cadence, moonStage, orbitGW, padsBuilt, spsGW } from '../../sim/orbit';
 import { dacGt, rawWarming, warming } from '../../sim/climate';
 import { worldMargin } from '../../sim/frontier';
-import { bitPlanBlocked, defaultPlan } from '../../sim/plans';
+import { bitPlanBlocked, defaultPlan, priorityBlocked } from '../../sim/plans';
 import { heatRise } from '../../sim/heatwall';
 import { worldClean } from '../../sim/world';
 import { Face, ProjectRow, TenderCard, whereOptions } from './Act3Panels';
 import { governorPortraitUrl } from '../../render/sprites/portraits';
 
+/** What the stage is about, and what ends it (the "Next" box under it has the details). */
 const STAGE_BLURB = [
-  'Settle the company question and set the first five-year plan.',
-  'Lay the intercontinental links, fund fusion pilots, hand the first provinces to AIs, help the provinces in trouble.',
-  'Build fleets of the fusion designs that worked; keep warming and the AIs in check.',
-  'Spaceports, orbital data centres, space solar, the Moon base — and the planetary checklist.',
+  'Settle the company question. The first five-year plan opens a few weeks in.',
+  'Lay the intercontinental links, fund fusion pilots, hand the first provinces to AIs, help the provinces in trouble. The next plan opens when the items below hold (after at least a year here), or on the date shown.',
+  'Build fleets of the fusion designs that worked; keep warming and the AIs in check. The next plan opens once a fleet runs and Kardashev reaches 0.77 (after at least a year here), or on the date shown.',
+  'Spaceports, orbital data centres, space solar, the Moon base — and the planetary checklist. The Heat Wall begins when every item holds at once, or on the date shown.',
   'The Heat Wall: hold three fronts for 120 days.',
   'Act IV is complete.',
 ];
 
 /** What opens when a stage begins (shown on the plan screen). */
-const STAGE_OPENS = ['', 'Supergrid links, fusion pilots, AI provinces, carbon capture, water & cooling.', 'Fusion fleets of the designs that worked.', 'Spaceports, orbital data centres, space-solar stations, debris clean-up and the Moon.'];
+const STAGE_OPENS = ['', 'AI provinces; the planner takes over supergrid links, fusion pilots, carbon capture and water & cooling.', 'Fusion fleets of the designs that worked.', 'Spaceports, orbital data centres, space-solar stations, debris clean-up and the Moon.'];
 
 const oddsWord = (p: number) => (p < 0.45 ? 'a long shot' : p < 0.6 ? 'a coin toss' : p < 0.78 ? 'likely' : 'very likely');
 const aiFace = (ai: AiId, size = 32) => (ai === 'bit' ? <Portrait id="bit" size={size} /> : <SpeakerPortrait id={`ceo:${ai}`} size={size} />);
+
+type GameRef = ReturnType<typeof useGame>;
+/**
+ * "Not yet — let me look first": the plan screen steps aside so you can look around (Planet, the map, the Charter)
+ * until you reopen it. A UI choice only (for the planet it was made on): the clock waits for the plan either way.
+ */
+let planLater: PlanetState | null = null;
+const reopenPlan = (game: GameRef) => {
+  planLater = null;
+  game.openPanel(null);
+};
+/** The Act IV autopilot switch (game.setAutopilot4 plays the sound and the toast; until it exists, the flag flips here). */
+const setAutopilot4 = (game: GameRef, on: boolean) => {
+  const g = game as GameRef & { setAutopilot4?: (on: boolean) => void };
+  if (g.setAutopilot4) g.setAutopilot4(on);
+  else {
+    game.state!.flags.autopilot4 = on;
+    game.notify();
+  }
+};
 
 // ════════════════════════════════════════ THE PANEL ════════════════════════════════════════
 export function PlanetPanel() {
@@ -77,6 +98,14 @@ export function PlanetPanel() {
         </span>
       }
     >
+      {pl.planOpen && (
+        <div class="row wrap small" style={{ gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+          <span class="grow gold">🗓 The five-year plan for {STAGE_NAMES[pl.stage + 1]} is waiting. The clock waits with it.</span>
+          <button class="btn small primary" onClick={() => reopenPlan(game)} data-tip="Back to the plan screen">
+            <Icon name="plan" size="sm" /> Open the plan
+          </button>
+        </div>
+      )}
       <div class="tabs" role="tablist">
         {tabs.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} class={`btn small ${tab === id ? 'active' : ''}`} onClick={() => game.setPlanetTab(id)} data-tut={`planet-${id}`}>
@@ -165,12 +194,55 @@ export function OpenWork({ kinds }: { kinds: ContractKind[] }) {
 }
 
 // ── overview ───────────────────────────────────────────────────────────────────────────────
+/** What ends this stage: the gate's items, the minimum time in the stage and the date it comes regardless. */
+function NextStep() {
+  const game = useGame();
+  const s = game.state!;
+  const pl = s.planet!;
+  const g = stageGate(s);
+  if (!g || pl.planOpen) return null;
+  const heat = pl.stage >= 3;
+  const held = g.items.every((x) => x.done);
+  const days = s.day - g.start;
+  return (
+    <div class="section" data-tut="planet-next" style={{ marginTop: '8px' }}>
+      <h4>
+        <Icon name={heat ? 'heat' : 'plan'} size="sm" /> Next: {heat ? 'The Heat Wall' : `the plan for ${STAGE_NAMES[pl.stage + 1]}`}
+      </h4>
+      {heat ? (
+        <div class="small">When every checklist item holds at once — by {fmtDate(g.by)} at the latest.</div>
+      ) : (
+        <>
+          {g.items.map((x) => (
+            <div key={x.id} class="row small" style={{ gap: '6px', alignItems: 'center' }}>
+              <span class={x.done ? 'good' : 'muted'}>{x.done ? '✓' : '○'}</span>
+              <span class="grow">{x.label}</span>
+              {x.note && <span class="muted">{x.note}</span>}
+            </div>
+          ))}
+          {g.minDays > 0 && (
+            <div class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip="The stage is played for at least this long before the next plan opens.">
+              <span class={days >= g.minDays ? 'good' : 'muted'}>{days >= g.minDays ? '✓' : '○'}</span>
+              <span class="grow">{g.minDays >= 365 ? 'A year into the stage' : 'A few weeks into the stage'}</span>
+              <span class="muted">{days >= g.minDays ? '' : `from ${fmtDate(g.start + g.minDays)}`}</span>
+            </div>
+          )}
+          <div class="small muted" style={{ marginTop: '2px' }}>
+            {held && days < g.minDays ? `Opens ${fmtDate(g.start + g.minDays)}.` : `Opens when every item holds — by ${fmtDate(g.by)} at the latest.`}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab() {
   const game = useGame();
   const s = game.state!;
   const pl = s.planet!;
   const checks = planetChecklist(s);
   const co = pl.company;
+  const auto = !!s.flags.autopilot4;
   return (
     <>
       <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
@@ -188,28 +260,46 @@ function OverviewTab() {
               ['Kardashev', `${s.stats.K.toFixed(4)} · ${s.stats.worldTW.toFixed(1)} / ${PLANET.targetTW} TW`],
               ['Wellbeing', `${Math.round(avgWellbeing(s))} average`],
               ['Warming', `${warming(s).toFixed(2)} °C`],
+              ['Treasury', fmtMoney(s.charter?.budget ?? 0)],
             ]}
           />
-          {pl.planOpen && (
-            <button class="btn primary" style={{ marginTop: '6px' }} onClick={() => game.openPanel(null)} data-tip="The plan screen is waiting">
-              <Icon name="plan" size="sm" /> Plan the next five years
-            </button>
-          )}
+          <div class="row wrap" style={{ gap: '8px', marginTop: '6px' }}>
+            {pl.planOpen && (
+              <button class="btn primary" onClick={() => reopenPlan(game)} data-tip="The plan screen is waiting">
+                <Icon name="plan" size="sm" /> Plan the next five years
+              </button>
+            )}
+            {pl.stage <= 3 && (
+              <button
+                class={`btn small ${auto ? 'active' : ''}`}
+                onClick={() => setAutopilot4(game, !auto)}
+                data-tut="planet-autopilot"
+                data-tip="Autopilot: between jumps the planner keeps posting and awarding contracts by the current plan’s priorities, within its budget (it never spends the reserve, nor the treasury faster than over three years). Decisions on cards stay yours."
+              >
+                <Icon name="ai" size="sm" /> Autopilot {auto ? 'on' : 'off'}
+              </button>
+            )}
+          </div>
+          <NextStep />
         </div>
         <div class="grow" style={{ minWidth: '260px' }} data-tut="planet-checklist">
           <h4>
             <Icon name="goals" size="sm" /> The planetary checklist
           </h4>
           <div class="small muted" style={{ marginBottom: '4px' }}>
-            When every item holds at once, The Heat Wall begins — or in 2070 at the latest.
+            From the High Frontier (stage 3), The Heat Wall begins when every item holds at once — or when the stage runs out.
           </div>
-          {checks.map((g) => (
-            <div key={g.id} class="row small" style={{ gap: '6px', alignItems: 'center' }}>
-              <span class={g.done ? 'good' : 'muted'}>{g.done ? '✓' : '○'}</span>
-              <span class="grow">{g.label}</span>
-              {g.note && <span class="muted">{g.note}</span>}
-            </div>
-          ))}
+          {checks.map((g) => {
+            // orbit and the Moon can't be worked before the High Frontier
+            const later = pl.stage < 3 && (g.id === 'orbit' || g.id === 'moon');
+            return (
+              <div key={g.id} class={`row small ${later ? 'muted' : ''}`} style={{ gap: '6px', alignItems: 'center' }} data-tip={later ? 'Opens in stage 3 · The High Frontier.' : undefined}>
+                <span class={g.done ? 'good' : 'muted'}>{g.done ? '✓' : '○'}</span>
+                <span class="grow">{g.label}</span>
+                <span class="muted">{later ? 'stage 3' : g.note}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
       {pl.jumps.length > 0 && (
@@ -570,10 +660,30 @@ export function PlanModal() {
   const game = useGame();
   const s = game.state;
   const pl = s?.planet;
-  const [plan, setPlan] = useState<FivePlan | null>(null);
-  if (!s || !pl?.planOpen || s.events.active || game.mode === 'title') return null;
-  const p = plan ?? defaultPlan(s);
+  // a draft belongs to one plan (this planet, this stage): the next plan — or another game — starts from the defaults
+  const [draft, setDraft] = useState<{ pl: PlanetState; stage: number; plan: FivePlan } | null>(null);
+  if (!s || !pl?.planOpen) {
+    if (pl) planLater = null;
+    return null;
+  }
+  if (s.events.active || game.mode === 'title') return null;
   const next = pl.stage + 1;
+  if (planLater === pl)
+    return (
+      <div class="jump frame interactive" role="status">
+        <div class="row between" style={{ alignItems: 'center', gap: '10px' }}>
+          <span class="label">
+            <Icon name="plan" size="sm" /> Plan · {STAGE_NAMES[next]}
+          </span>
+          <button class="btn small primary" onClick={() => reopenPlan(game)}>
+            Open the plan
+          </button>
+        </div>
+        <div class="small muted">The next five-year plan is waiting; the clock waits with it.</div>
+      </div>
+    );
+  const p = draft && draft.pl === pl && draft.stage === pl.stage ? draft.plan : defaultPlan(s);
+  const setPlan = (x: FivePlan) => setDraft({ pl, stage: pl.stage, plan: x });
   const bitWhy = bitPlanBlocked(s);
   const toggle = (x: Priority) => {
     const has = p.priorities.includes(x);
@@ -597,14 +707,17 @@ export function PlanModal() {
           </p>
           <h4>Priorities ({p.priorities.length} / 3)</h4>
           <div class="cardgrid three">
-            {PRIORITY_IDS.map((x) => (
-              <button key={x} class={`btn buildcard ${p.priorities.includes(x) ? 'active' : ''}`} onClick={() => toggle(x)} data-tip={PRIORITIES[x].blurb}>
-                <span class="t">
-                  <Icon name={PRIORITIES[x].icon} size="sm" /> {PRIORITIES[x].name}
-                </span>
-                <span class="m">{p.priorities.includes(x) ? `#${p.priorities.indexOf(x) + 1}` : PRIORITIES[x].blurb}</span>
-              </button>
-            ))}
+            {PRIORITY_IDS.map((x) => {
+              const shut = priorityBlocked(pl.stage, x);
+              return (
+                <button key={x} class={`btn buildcard ${p.priorities.includes(x) ? 'active' : ''}`} disabled={!!shut} onClick={() => toggle(x)} data-tip={shut ? `${PRIORITIES[x].blurb}\n${shut}: the planner can’t build in space before then.` : PRIORITIES[x].blurb}>
+                  <span class="t">
+                    <Icon name={PRIORITIES[x].icon} size="sm" /> {PRIORITIES[x].name}
+                  </span>
+                  <span class="m">{shut ?? (p.priorities.includes(x) ? `#${p.priorities.indexOf(x) + 1}` : PRIORITIES[x].blurb)}</span>
+                </button>
+              );
+            })}
           </div>
           <div class="row wrap" style={{ gap: '16px', marginTop: '8px' }}>
             <div>
@@ -633,7 +746,12 @@ export function PlanModal() {
                 <button class={`btn small ${!p.bitRuns ? 'active' : ''}`} onClick={() => setPlan({ ...p, bitRuns: false })}>
                   The planner
                 </button>
-                <button class={`btn small ${p.bitRuns ? 'active' : ''}`} disabled={!!bitWhy} onClick={() => setPlan({ ...p, bitRuns: true })} data-tip={bitWhy ?? 'Bit runs the plan: projects build 8% faster and its trust grows.'}>
+                <button
+                  class={`btn small ${p.bitRuns ? 'active' : ''}`}
+                  disabled={!!bitWhy}
+                  onClick={() => setPlan({ ...p, bitRuns: true })}
+                  data-tip={bitWhy ?? `Bit runs the plan: projects build 8% faster, its trust +4 and your bond +5. The price: fewer human hands on the plan (world alignment −${PLANET.bitRunsAlign}).`}
+                >
                   Bit
                 </button>
               </div>
@@ -651,7 +769,17 @@ export function PlanModal() {
               <span class="t">
                 <Icon name="jump" size="sm" /> Begin the plan — to {to}
               </span>
-              <span class="d">The years run on autopilot; you’ll get the report at the other end.</span>
+              <span class="d">The years run on autopilot; you’ll get the report at the other end (sooner if the treasury runs dry, Legitimacy crashes or a bloc walks out).</span>
+            </button>
+            <button
+              class="btn choice"
+              onClick={() => {
+                planLater = pl;
+                game.notify();
+              }}
+            >
+              <span class="t">Not yet — let me look first</span>
+              <span class="d">Look around the Planet panel, the map and the Charter first; the clock waits. Reopen it from the plan bar or Planet → Overview.</span>
             </button>
           </div>
         </div>
@@ -715,6 +843,11 @@ export function JumpReportModal() {
           </div>
         </div>
         <div class="body">
+          {rec.cut && (
+            <p class="small warn" style={{ marginTop: 0 }}>
+              ⏸ The plan stopped early: {rec.cut}. The rest of the stage runs in real time — it needs you now.
+            </p>
+          )}
           <div class="quote">
             <Portrait id="bit" size={56} />
             <div class="bubble">
@@ -733,6 +866,7 @@ export function JumpReportModal() {
             {delta('Wellbeing', `${Math.round(a.wellbeing)}`, `${Math.round(b.wellbeing)}`, b.wellbeing >= a.wellbeing)}
             {delta('Fusion', fmtMW(a.fusionGW * 1000), fmtMW(b.fusionGW * 1000))}
             {delta('Legitimacy', `${Math.round(a.legitimacy)}`, `${Math.round(b.legitimacy)}`, b.legitimacy >= a.legitimacy - 2)}
+            {delta('Treasury', fmtMoney(a.budget), fmtMoney(b.budget), b.budget >= a.budget * 0.5)}
           </div>
           {rec.built.length > 0 && (
             <>
@@ -752,7 +886,10 @@ export function JumpReportModal() {
           )}
           {rec.auto.length > 0 && (
             <details class="small" style={{ marginTop: '4px' }}>
-              <summary>Decisions taken on autopilot ({rec.auto.length})</summary>
+              <summary>
+                Decisions taken on autopilot ({rec.autoTotal ?? rec.auto.length}
+                {(rec.autoTotal ?? 0) > rec.auto.length ? `, the first ${rec.auto.length} below` : ''})
+              </summary>
               <ul style={{ margin: '2px 0', paddingLeft: '18px' }}>
                 {rec.auto.map((h, i) => (
                   <li key={i}>{h}</li>
@@ -815,6 +952,7 @@ export function Act4CompleteModal() {
   const held = pl.heatwall?.held ?? 0;
   const st = s.stats;
   const doneProjects = (k: ContractKind) => (s.charter?.projects ?? []).filter((p: Project) => p.kind === k && p.status === 'done').length;
+  const designs = designsOnline(s).length;
   return (
     <div class="scrim">
       <div class="modal frame">
@@ -827,7 +965,7 @@ export function Act4CompleteModal() {
         </div>
         <div class="body">
           <div class="story">
-            A quarter-century as the planet’s operator: {doneProjects('link')} supergrid links, fusion from {[...new Set((s.charter?.projects ?? []).filter((p) => p.kind === 'ffleet' && p.status === 'done').map((p) => p.opt))].length} designs, {orbitGW(s)} GW of compute in orbit and a Moon base that is {['still a plan', 'an outpost', 'a mine', 'an industrial port'][moonStage(s)]}. The Heat Wall showed the limit: the climb to Type I continues above the sky.
+            {Math.max(1, Math.round((s.day - pl.begun) / 365))} years as the planet’s operator: {doneProjects('link')} supergrid links, {designs ? `fusion from ${designs} design${designs === 1 ? '' : 's'}` : 'no fusion fleet yet'}, {orbitGW(s)} GW of compute in orbit and a Moon base that is {['still a plan', 'an outpost', 'a mine', 'an industrial port'][moonStage(s)]}. The Heat Wall showed the limit: the climb to Type I continues above the sky.
           </div>
           <div class="deltas">
             <div class="delta">

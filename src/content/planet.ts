@@ -17,10 +17,12 @@ export const PLANET = {
   /** World growth can run hotter in Act IV (5% cap in Act III). */
   maxGrowth: 0.055,
   heatWallDays: 120,
+  /** The Heat Wall's daily pressure on every front before the world's state (starts come from it too: heatwall.ts). */
+  heatWallRise: 0.55,
   /** 1 Jan 2070: The Heat Wall starts by then even if the checklist isn't met. */
   deadline: dayOf(2070),
-  /** Stage gates fall back to these many days in a stage. */
-  stageMaxDays: [400, 2200, 2200, 2000],
+  /** Stage gates fall back to these many days in a stage (years pass in jumps, not on the clock). */
+  stageMaxDays: [400, 1100, 1100, 1500],
   /** Years a five-year plan can jump. */
   jumpYears: [3, 4, 5] as const,
   /** GW of D-T fusion the tritium supply can fuel at the start, and how fast fleets breed more (GW per GW-year). */
@@ -36,6 +38,8 @@ export const PLANET = {
   aiTrustRevert: 25,
   /** Political capital a delegation or an intercontinental link costs under limited powers. */
   approvalCapital: 8,
+  /** World alignment a plan costs when Bit runs it (less human oversight). */
+  bitRunsAlign: 0.05,
   /** Warming (°C): 1.45 at the start of Act III's 500 Gt budget, 2.0 when it is spent. */
   warming0: 1.45,
   warmingPerGt: 0.0011,

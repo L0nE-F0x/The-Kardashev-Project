@@ -38,6 +38,19 @@ function hottest(s: GameState): RegionId[] {
   return [...REGION_IDS].sort((a, b) => pl.provinces[b].heat - pl.provinces[a].heat).slice(0, 3);
 }
 
+/**
+ * Where each front starts: the world the heat finds. Warming above 2 °C, a crowded low orbit and a thin (or negative)
+ * world safety margin all start their front higher; a planet that met its checklist starts it lower.
+ */
+export function heatStart(s: GameState): Record<HeatFront, number> {
+  const pl = s.planet!;
+  return {
+    heat: clamp(40 + 40 * (warming(s) - 2), 20, 70),
+    cascade: clamp(15 + 0.5 * pl.debris.leo, 15, 65),
+    controls: clamp(35 - 20 * worldMargin(s), 15, 70),
+  };
+}
+
 export function startHeatWall(s: GameState): void {
   const pl = s.planet;
   if (!pl || pl.heatwall) return;
@@ -45,16 +58,18 @@ export function startHeatWall(s: GameState): void {
   pl.stageDay = s.day;
   s.flags.stage4Day = s.day;
   const ai = controlsAi(s);
+  // the season opens with a satellite breaking up in low orbit
+  pl.debris.leo = clamp(pl.debris.leo + 10, 0, 100);
+  const p0 = heatStart(s);
   const hw: HeatWallState = {
     startDay: s.day,
     endDay: s.day + PLANET.heatWallDays,
-    fronts: { heat: { pressure: 20, lost: false }, cascade: { pressure: 15, lost: false }, controls: { pressure: 15, lost: false } },
+    fronts: { heat: { pressure: p0.heat, lost: false }, cascade: { pressure: p0.cascade, lost: false }, controls: { pressure: p0.controls, lost: false } },
     ai,
     regions: hottest(s),
     done: false,
   };
   pl.heatwall = hw;
-  pl.debris.leo = clamp(pl.debris.leo + 10, 0, 100);
   for (const r of hw.regions) addModifier(s, `prov:${r}`, PLANET.heatWallDays, 'The Heat Wall', { add: -6 });
   queueEvent(s, 'hw-begin', { ai });
   scheduleEvent(s, 'hw-heat-1', 9, {});
@@ -78,7 +93,7 @@ export function pressure4(s: GameState, front: HeatFront, d: number): void {
 export function heatRise(s: GameState, front: HeatFront): { v: number; parts: [string, number][] } {
   const pl = s.planet!;
   const hw = pl.heatwall!;
-  const parts: [string, number][] = [['The crisis', 0.35]];
+  const parts: [string, number][] = [['The crisis', PLANET.heatWallRise]];
   if (front === 'heat') {
     const w = warming(s);
     if (w > 1.5) parts.push([`Warming ${w.toFixed(2)} °C`, (w - 1.5) * 0.9]);
@@ -94,7 +109,7 @@ export function heatRise(s: GameState, front: HeatFront): { v: number; parts: [s
     if (dacGt(s)) parts.push(['Air capture', -Math.min(0.15, dacGt(s) * 0.03)]);
     if (passed(s, 'emergency-powers')) parts.push(['Emergency powers', -0.12]);
   } else if (front === 'cascade') {
-    parts.push(['Debris in low orbit', pl.debris.leo / 90]);
+    parts.push(['Debris in low orbit', pl.debris.leo / 75]);
     if (cadence(s) > 2) parts.push(['Launch traffic', Math.min(0.2, (cadence(s) - 2) * 0.04)]);
     const clean = doneUnits(s, 'cleanup');
     if (clean) parts.push(['Clean-up programmes', -Math.min(0.45, clean * 0.15)]);
@@ -102,8 +117,9 @@ export function heatRise(s: GameState, front: HeatFront): { v: number; parts: [s
   } else {
     const m = worldMargin(s);
     parts.push(m < 0 ? ['Negative world safety margin', 0.3 - m * 0.6] : ['Safety margin', -Math.min(0.25, m * 0.4)]);
+    // trust grows quietly over the decades; however high it is, an AI asking for the grid still worries people
     const trust = pl.ais[hw.ai].trust;
-    parts.push([`Trust in ${AIS[hw.ai].name}`, (50 - trust) / 120]);
+    parts.push([`Trust in ${AIS[hw.ai].name}`, Math.max(-0.15, (50 - trust) / 120)]);
     if (hw.ai === 'bit') parts.push(['Your bargains with Bit', -pl.bitBond / 220]);
     else if (pl.bitBond > 30) parts.push(['Bit stands with you', -0.15]);
     const prog = doneUnits(s, 'evals') + doneUnits(s, 'interp');

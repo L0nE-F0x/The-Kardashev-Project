@@ -14,6 +14,7 @@ import { tick } from './tick';
 import { nextModelPlan } from './ai';
 import { algoEff, capabilityOf } from './model';
 import { techMult } from './effects';
+import { worldFrontier } from './frontier';
 import type { NewGameOptions } from './state';
 import type { SimContext } from './supply';
 
@@ -97,6 +98,12 @@ export function newAct4Game(opts: NewGameOptions, ctx: SimContext): GameState {
   // the Charter enters its second term whole: no walkouts, no late payers
   c.council.walkouts = {};
   c.council.late = {};
+  // ...with the books it was meant to have (the fast-forward above runs the world, and would otherwise hand over its
+  // ten years of unspent dues and drift), and a small positive world safety margin over the new Bit-7 (AI provinces can open)
+  c.legitimacy = 68;
+  c.capital = 45;
+  c.budget = 220e9;
+  c.regime.alignment = Math.max(c.regime.alignment, worldFrontier(s) + 0.15);
   Object.assign(s.flags, { liftoff: s.day, act3Complete: s.day, act3Shown: true });
   retireEarlierStories(s, 4, ['bit-7q']);
   beginAct4(s);
