@@ -21,7 +21,7 @@ import { warming } from './climate';
 import { worldMargin } from './frontier';
 import { autoResolve, plannerTick } from './plans';
 import { enterStage5 } from './act5';
-import { feedFactor, foundryMt, growthMult, seedPlaces, siteEff } from './foundries';
+import { climbPush, feedFactor, foundryMt, growthMult, seedPlaces, siteEff } from './foundries';
 import { claimAsteroid, canClaim, claimCost, unknownInReach } from './asteroids';
 import { headroomTW, massPerTW, spaceTW, surfaceTW } from './swarm';
 import { beamsUsed, earthOwnTW, lineTW, placeOf, segmentsLit } from './systemView';
@@ -84,8 +84,8 @@ export function typeIEstimate(s: GameState, dial = s.system?.dial ?? 3, reinvest
   // early on the industry still has its research, its fed yards, the minds' designs and its asteroid
   // types to come (measured on the guard-rail runs: about +20% growth and −15% mass per TW by stage 2)
   const young = sy.stage === 0 ? 1 : sy.stage === 1 ? 0.5 : 0;
-  // research, ownership, the minds and any setbacks in force (the reach part is redone as the industry grows)
-  const mult = (growthMult(s) / reachOf(mt)) * (1 + 0.12 * young);
+  // research, ownership, the minds and any setbacks in force (the reach part and the climb's push are redone below)
+  const mult = (growthMult(s) / reachOf(mt) / climbPush(s)) * (1 + 0.12 * young);
   const eff = Math.max(mt > 0 ? sy.foundries.reduce((a, f) => a + f.cap * siteEff(s, f), 0) / mt : 1, 1 + 0.08 * young);
   const m = massPerTW(s);
   const perTW = (1.04 * m.collectors + sy.minds * m.rings + (1 - sy.minds) * m.habitat) * (1 - 0.12 * young);
@@ -97,11 +97,14 @@ export function typeIEstimate(s: GameState, dial = s.system?.dial ?? 3, reinvest
   const r = clamp(reinvest, 0.2, 0.7);
   const perYear = (Math.LN2 * 12 * (r / 0.4) * mult * eff) / SYSTEM.doubling[clamp(Math.round(dial), 1, 5) - 1];
   let years = 0;
-  let climb = sy.solarmax ? (sy.solarmax.done ? 0 : 0.4) : -1;
   const grow = (dt: number, push: number) => (cap *= Math.exp(perYear * reachOf(cap) * push * dt));
-  if (climb > 0) {
-    grow(climb, 1);
-    years += climb;
+  // where we are: in the last climb (years into it), in or before the storm (the yards' pause left), or still climbing to it
+  let climb = -1;
+  if (sy.jump?.last) climb = (s.day - sy.jump.from) / 365;
+  else if (sy.solarmax || s.flags.v3ready) {
+    const hold = sy.solarmax ? (sy.solarmax.done ? 0 : (sy.solarmax.endDay - s.day) / 365 + 0.05) : 0.4;
+    grow(hold, 1);
+    years += hold;
     climb = 0;
   }
   while (tw < SYSTEM.targetTW && years < 80) {
@@ -117,7 +120,8 @@ export function typeIEstimate(s: GameState, dial = s.system?.dial ?? 3, reinvest
       climb = 0;
     }
   }
-  return yearOf(s.day + Math.round(years * 365.25));
+  // no foundries to speak of (all lost, none planted yet in a later stage): no honest forecast
+  return years >= 80 ? null : yearOf(s.day + Math.round(years * 365.25));
 }
 
 /** Apply an era plan's levers (dial, reinvestment, minds share). Also used by the System panel between eras. */
