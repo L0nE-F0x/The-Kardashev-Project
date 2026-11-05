@@ -12,12 +12,12 @@
  * Pure PixelCanvas code with palette indices only.
  */
 import { C } from '../palette';
-import { bayer, ditherAt, hash2, PixelCanvas } from '../pixels';
+import { bayer, hash2, PixelCanvas } from '../pixels';
 import { drawText, measureText } from '../font';
 import type { FacilityArt, Mover } from './art';
-import { roundShade, STEEL } from './draw';
+import { STEEL } from './draw';
 import type { Ramp4 } from './act3kit';
-import { blueprintReveal, glowBelow, plate, quarantineNet, roboArm, tugFrames, warnLight } from './act5kit';
+import { blueprintReveal, cylShade, glowBelow, plate, quarantineNet, roboArm, seamColumn, tugFrames, warnLight } from './act5kit';
 import { moonGround } from './moon';
 
 /** What a module makes: c collectors, r radiator rings, h hull sections. */
@@ -95,10 +95,10 @@ function drawModule(pc: PixelCanvas, g: PixelCanvas, ox: number, base: number, o
   const hx1 = ox + 82;
   const ht = base - 48;
   const hb = base - 5;
+  const shadeX = hx0 + Math.round((hx1 - hx0) * 0.7);
   for (let y = ht; y < hb; y++) {
     for (let x = hx0; x < hx1; x++) {
-      const t = (x - hx0) / (hx1 - hx0);
-      let c = x - hx0 < 2 ? C.ink9 : t < 0.45 ? C.ink8 : ditherAt(x, y, (t - 0.45) * 1.8) ? C.ink7 : C.ink8;
+      let c = x - hx0 < 2 ? C.ink9 : seamColumn(x, y, shadeX, C.ink8, C.ink7);
       if ((x - hx0) % 13 === 12) c = C.ink6;
       if (y === ht) c = C.white;
       else if (y === ht + 1) c = C.ink9;
@@ -133,7 +133,7 @@ function drawModule(pc: PixelCanvas, g: PixelCanvas, ox: number, base: number, o
   const sx0 = ox + 6;
   const sx1 = ox + 30;
   const st = base - 62;
-  for (let y = st; y < hb; y++) for (let x = sx0; x < sx1; x++) pc.set(x, y, roundShade(STEEL, x + 0.5 - (sx0 + sx1) / 2, (sx1 - sx0) / 2, x, y));
+  for (let y = st; y < hb; y++) for (let x = sx0; x < sx1; x++) pc.set(x, y, cylShade(STEEL, x + 0.5 - (sx0 + sx1) / 2, (sx1 - sx0) / 2, x, y));
   for (let y = st + 6; y < hb; y += 9) pc.hline(sx0, y, sx1 - sx0, C.ink6);
   pc.hline(sx0, st, sx1 - sx0, C.white);
   const fcx = ox + 18;
@@ -250,7 +250,8 @@ function drawModule(pc: PixelCanvas, g: PixelCanvas, ox: number, base: number, o
       for (let u = 0; u < 12; u++) {
         const x = rx - 6 + u - sh;
         const y = top + v;
-        let c = u % 4 === 0 || v % 5 === 0 ? C.ink7 : (u + v) % 2 ? C.blu3 : C.blu2;
+        // cells of film between the seams, each a touch darker along its lower edge
+        let c = u % 4 === 0 || v % 5 === 0 ? C.ink7 : v % 5 === 4 ? C.blu2 : C.blu3;
         const gd = Math.abs(v + u * 0.6 - glintAt);
         if (gd < 1.5) c = C.white;
         else if (gd < 3.5 && c !== C.ink7) c = C.sky4;
@@ -551,7 +552,7 @@ export function yardsDock(flags: YardFlags, r: Ramp4, label: string): FacilityAr
     // the silo at the narrow end, and its chute to the feed line
     const s0 = 26;
     const s1 = 62;
-    for (let y = base - 74; y < base - 30; y++) for (let x = s0; x < s1; x++) pc.set(x, y, roundShade(STEEL, x + 0.5 - (s0 + s1) / 2, (s1 - s0) / 2, x, y));
+    for (let y = base - 74; y < base - 30; y++) for (let x = s0; x < s1; x++) pc.set(x, y, cylShade(STEEL, x + 0.5 - (s0 + s1) / 2, (s1 - s0) / 2, x, y));
     for (let y = base - 74; y < base - 30; y += 10) pc.hline(s0, y, s1 - s0, C.ink6);
     for (let x = s0; x < s1; x++) {
       pc.set(x, base - 68, r.base);
@@ -572,7 +573,7 @@ export function yardsDock(flags: YardFlags, r: Ramp4, label: string): FacilityAr
       pc.set(x, yt + 1, C.ink6);
       pc.set(x, yb, C.ink6);
       pc.set(x, yb - 1, C.ink4);
-      for (let y = yt + 2; y < yb - 1; y++) if ((x + y) % 5 === 0 || (x - y + 200) % 5 === 0) pc.set(x, y, bayer(x, y) < 6 ? C.ink5 : C.ink4);
+      for (let y = yt + 2; y < yb - 1; y++) if ((x + y) % 5 === 0 || (x - y + 200) % 5 === 0) pc.set(x, y, y < ay ? C.ink5 : C.ink4);
     }
     for (const rx of [62, 84, 106, 128, W - 6]) {
       const rr = rad(rx);
@@ -671,8 +672,7 @@ function lunarBlock(pc: PixelCanvas, g: PixelCanvas, ox: number, base: number, f
   // printed regolith walls (the Moon's foundries are built of the Moon)
   for (let y = top; y < base; y++) {
     for (let x = ox; x < ox + 40; x++) {
-      const t = (x - ox) / 40;
-      let c = x - ox < 2 ? C.ink9 : t < 0.5 ? C.ink8 : ditherAt(x, y, (t - 0.5) * 1.6) ? C.ink6 : C.ink7;
+      let c = x - ox < 2 ? C.ink9 : seamColumn(x, y, ox + 22, C.ink8, C.ink7);
       if ((base - y) % 3 === 0) c = c === C.ink9 ? C.ink8 : c === C.ink8 ? C.ink7 : C.ink6;
       if (y === top) c = C.white;
       pc.set(x, y, c);
