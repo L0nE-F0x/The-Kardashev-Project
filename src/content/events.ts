@@ -808,6 +808,13 @@ function severity(s: GameState): number {
   return techMult(s, 'incidentSeverity');
 }
 
+/**
+ * The company's own cards: Act I's and Act II's (supply, finance, staff, incidents with your models…). From Act III,
+ * when you aren't the one running the company (blind trust, sold, a public utility), the trustee or its new owners
+ * answer these; every other card — the Charter's, the planet's, the big decisions — is always yours.
+ */
+export const COMPANY_EVENT_IDS: ReadonlySet<string> = new Set([...EVENTS, ...ACT2_EVENTS].filter((e) => !e.big).map((e) => e.id));
+
 EVENTS.push(...ACT2_EVENTS, ...ACT3_EVENTS, ...ACT4_EVENTS, ...ACT5_EVENTS, ...DECISIONS);
 
 export const EVENT_BY_ID: Record<string, EventDef> = Object.fromEntries(EVENTS.map((e) => [e.id, e]));

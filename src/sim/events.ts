@@ -1,4 +1,4 @@
-import { EVENT_BY_ID, EVENTS, type EventDef } from '../content/events';
+import { COMPANY_EVENT_IDS, EVENT_BY_ID, EVENTS, type EventDef } from '../content/events';
 import { DIFFICULTIES, EVENT_RATES } from '../content/difficulty';
 import type { GameState } from './types';
 import { news, rand, randInt, weightedPick } from './core';
@@ -28,9 +28,9 @@ export function finaleRunning(s: GameState): boolean {
   return false;
 }
 
-/** A card about running the company: the Act I–II pool (no Charter phase, no Act V stage). */
+/** A card about running the company: one of Act I's or Act II's (never a Charter, planet or big-decision card). */
 function companyCard(def: EventDef): boolean {
-  return (def.act ?? 1) <= 2 && def.cphase === undefined && def.vstage === undefined;
+  return COMPANY_EVENT_IDS.has(def.id);
 }
 
 /** From Act III the company is one actor among many: are you still the one running it? */
