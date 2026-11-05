@@ -54,15 +54,8 @@ const reopenPlan = (game: GameRef) => {
   planLater = null;
   game.openPanel(null);
 };
-/** The Act IV autopilot switch (game.setAutopilot4 plays the sound and the toast; until it exists, the flag flips here). */
-const setAutopilot4 = (game: GameRef, on: boolean) => {
-  const g = game as GameRef & { setAutopilot4?: (on: boolean) => void };
-  if (g.setAutopilot4) g.setAutopilot4(on);
-  else {
-    game.state!.flags.autopilot4 = on;
-    game.notify();
-  }
-};
+/** The Act IV autopilot switch (the game plays the sound and the toast). */
+const setAutopilot4 = (game: GameRef, on: boolean) => game.setAutopilot4(on);
 
 // ════════════════════════════════════════ THE PANEL ════════════════════════════════════════
 export function PlanetPanel() {

@@ -1291,6 +1291,15 @@ export class Game {
     this.notify();
   }
 
+  /** Act IV: between jumps the planner keeps posting and awarding by the plan's priorities. */
+  setAutopilot4(on: boolean): void {
+    const s = this.state!;
+    s.flags.autopilot4 = on;
+    sfx(on ? 'confirm' : 'click');
+    this.toast(on ? '🧭 Autopilot on: between jumps the planner posts and awards contracts by the plan’s priorities.' : '🧭 Autopilot off: the contracts are yours again.', 'info', 'bit');
+    this.notify();
+  }
+
   claimAsteroid(id: string) {
     return this.after(claimAst(this.state!, id), 'confirm');
   }

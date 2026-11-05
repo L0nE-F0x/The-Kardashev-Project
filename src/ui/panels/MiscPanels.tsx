@@ -34,6 +34,7 @@ export function GoalsPanel() {
   const game = useGame();
   const s = game.state!;
   if ((s.act ?? 1) >= 5 && s.system) return <Act5Goals />;
+  if ((s.act ?? 1) >= 4 && s.planet) return <Act4Goals />;
   if ((s.act ?? 1) >= 3) return <Act3Goals />;
   if ((s.act ?? 1) >= 2) return <Act2Goals />;
   return (
@@ -101,6 +102,48 @@ function Act2Goals() {
   );
 }
 
+
+const STAGE4 = ['The Mandate', 'The Supergrid', 'The Fusion Age', 'The High Frontier', 'The Heat Wall'];
+function Act4Goals() {
+  const game = useGame();
+  const s = game.state!;
+  const st = Math.min(4, s.planet?.stage ?? 0);
+  const list = actObjectives(s);
+  return (
+    <Panel title="Act IV · Planetary" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <p class="small muted" style={{ marginTop: 0 }}>
+        {s.flags.act4Complete
+          ? 'The Heat Wall is behind you: the climb to Type I goes on in Act V.'
+          : `Planetary operator. Stage ${st} of 4: ${STAGE4[st]}. Five-year plans move the years; Planet → Overview shows what opens the next one. When the planetary checklist holds, the Heat Wall begins.`}
+      </p>
+      {[0, 1, 2, 3, 4].filter((p) => p <= st).map((p) => (
+        <div key={p} class="section">
+          <h4>
+            Stage {p} · {STAGE4[p]}
+          </h4>
+          {list
+            .filter((o) => (o.phase ?? 0) === p)
+            .map((o) => {
+              const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
+              const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
+              return (
+                <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>
+                  <Portrait id={o.advisor} size={32} />
+                  <div class="grow">
+                    <div class="t">
+                      {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                    </div>
+                    <div class="h">{o.hint}</div>
+                    {!done && <GoalProgress o={o} s={s} />}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      ))}
+    </Panel>
+  );
+}
 
 const STAGE5 = ['The Thermal Line', 'The Foundries', 'The Swarm', 'The Last Climb', 'Solar Maximum'];
 function Act5Goals() {

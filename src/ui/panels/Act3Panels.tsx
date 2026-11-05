@@ -59,6 +59,7 @@ import {
 } from '../../sim/charter';
 import { canFavour, canMeetDemand, canTable, canWhip, demandCost, demandHint, favourCost, forecast, type Vote } from '../../sim/council';
 import { carbonYearsLeft, charterGWByRegion, growthParts, worldClean } from '../../sim/world';
+import { PLANET } from '../../content/planet';
 import { capInForce, COMPUTE_CAP, ownRunStatus, worldFrontier, worldMargin } from '../../sim/frontier';
 import { DESKS, bitTrusted } from '../../sim/desk';
 import { FRONT3_NAMES, frontRise, MANDATE_FRONT, RENEWAL_MEANS, RENEWAL_NAMES, renewalForecast, renewalRecord, THRESHOLD_FRONTS } from '../../sim/threshold';
@@ -622,6 +623,9 @@ function WorldTab() {
   const c = s.charter!;
   const w = c.world;
   const parts = growthParts(s);
+  // Act IV: the planetary goal, and the growth cap the parts can run into
+  const act4 = !!s.planet && !s.system;
+  const capped = act4 && parts.reduce((a, p) => a + p.v, 0) > PLANET.maxGrowth;
   const local = charterGWByRegion(s);
   const yrs = carbonYearsLeft(s);
   const wm = worldMargin(s);
@@ -631,13 +635,18 @@ function WorldTab() {
       <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
         <div class="grow" style={{ minWidth: '240px' }} data-tut="world-k">
           <h4>
-            <Icon name="k" size="sm" /> Toward Kardashev 0.75
+            <Icon name="k" size="sm" /> Toward Kardashev {act4 ? '0.80' : '0.75'}
           </h4>
-          <Bar value={(s.stats.worldTW - 22) / (31.62 - 22)} kind="gold" tall tip="31.6 TW is K 0.75, the first Kardashev milestone." />
+          <Bar
+            value={act4 ? (s.stats.worldTW - 31.62) / (PLANET.targetTW - 31.62) : (s.stats.worldTW - 22) / (31.62 - 22)}
+            kind="gold"
+            tall
+            tip={act4 ? `${PLANET.targetTW} TW is K 0.80: grid-scale abundance, the planetary goal.` : '31.6 TW is K 0.75, the first Kardashev milestone.'}
+          />
           <KV
             rows={[
               ['Kardashev', `K ${s.stats.K.toFixed(4)}`],
-              ['World power', `${s.stats.worldTW.toFixed(2)} TW of 31.62`],
+              ['World power', `${s.stats.worldTW.toFixed(2)} TW of ${act4 ? PLANET.targetTW : '31.62'}`],
               ['Built by the Charter', `${(w.charterTW * 1000).toFixed(0)} GW average`],
               ['Your own plants', fmtMW(s.stats.playerGenMW)],
               ['World clean share', `${Math.round(worldClean(s) * 100)}% · new builds ${Math.round(w.newClean * 100)}%`],
@@ -647,6 +656,7 @@ function WorldTab() {
         <div class="grow" style={{ minWidth: '240px' }}>
           <h4>
             <Icon name="finance" size="sm" /> World growth: {(w.growth * 100).toFixed(2)}%/yr
+            {capped && <span class="small muted" data-tip="The parts below add up to more, but the world can't grow faster than this: what's left over doesn't count."> · capped at {(PLANET.maxGrowth * 100).toFixed(1)}%</span>}
           </h4>
           {parts.map((p) => (
             <div key={p.label} class="row between small">

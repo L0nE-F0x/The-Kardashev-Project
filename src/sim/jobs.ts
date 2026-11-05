@@ -10,7 +10,9 @@ import { REGION_IDS } from '../content/mapcodes';
 import type { AdvisorId, FacilityType, GameState, Job, SupplierId } from './types';
 import { fmtMoney, fmtMW, news } from './core';
 import { spend } from './economy';
-import { buildCost, chipSpec, DAYS_PER_MONTH, facilityIT, facilityMW, gridHeadroomLeft, landCost, pueAt, supplierDailyRate } from './model';
+import { buildCost, chipSpec, DAYS_PER_MONTH, facilityIT, facilityMW, gridHeadroomLeft, landCost, MFU, pueAt, supplierDailyRate } from './model';
+import { nextModelPlan } from './ai';
+import { modMult } from './effects';
 import { applyLicence, borrow, build, buyLand, canApplyLicence, canBuild, canBuyLand, canUpgrade, placeOrder, requestGrid, setAlloc, startTraining, upgradeFacility } from './actions';
 import type { SimContext } from './supply';
 import { ownFabSites } from './supply';
@@ -73,6 +75,18 @@ function bit(s: GameState): void {
   if (!j || s.training) return;
   const def = JOB_BY_ADVISOR.bit!;
   if (def.minMargin !== undefined && s.stats.margin < def.minMargin) return;
+  // from Act IV a company's next model can need centuries of its halls: don't start a run that can't finish
+  if (s.planet) {
+    const plan = nextModelPlan(s);
+    const perDay = s.stats.computeEF * 1e18 * MFU * Math.max(s.alloc.train, j.a) * 86400 * modMult(s, 'training');
+    if (plan.flop > perDay * 3 * 365) {
+      if (!j.last || s.day - j.last > 365) {
+        j.last = s.day;
+        report(s, 'bit', `${plan.name} would take ${Math.round(plan.flop / Math.max(1, perDay) / 365)} years on our halls. I’ll wait for more compute.`);
+      }
+      return;
+    }
+  }
   if (startTraining(s).ok) {
     if (s.alloc.train < j.a) setAlloc(s, 'train', j.a);
     report(s, 'bit', `started training ${s.training!.name}. I promise to be careful.`);
