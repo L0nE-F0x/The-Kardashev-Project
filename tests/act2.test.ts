@@ -37,7 +37,7 @@ describe('act II', () => {
     expect(run()).toEqual(run());
   });
 
-  it('a delegating player reaches the IPO in 4–6 game years', () => {
+  it('a delegating player reaches the IPO in 3.5–6.5 game years', () => {
     const s = newAct2Game({ name: 'Scale Bot', homeSite: 'bay-area', seed: 21 });
     const start = s.day;
     let ipo = -1;
