@@ -1,7 +1,8 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.7.0 "Sandbox & Soundtrack"** (M5 steps 1–7) on top of v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
+Current build: **v0.8.0 "Stakes & Polish"** (a whole-game audit for fun, bugs and speed: SPEC §22) on top of v0.7.0 "Sandbox &
+Soundtrack" (M5 steps 1–7) and v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
 Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
 desktop builds). v0.6.1 "Signs of Life" redrew the diorama people (people.ts, life.ts), lighting and depth, decluttered the world map
 and cleaned up the off-world dither. v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
@@ -212,7 +213,7 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 - **Tutorial targets:** UI elements Bit (and the Act II briefings) point at carry `data-tut="..."`; keep them when refactoring panels.
 - **Act gating:** Act II content carries `act: 2` and/or `phase: n` (facilities, techs, events, objectives, sites, jobs,
   deals). Gate new behaviour on `s.act >= 2`. M5's balance pass retuned Act I on purpose (first hall 10 months,
-  Standard $450M / Hard $380M seed): the Act I bot now finishes on day 687; later changes should still be deliberate.
+  Standard $450M / Hard $380M seed): the Act I bot finishes on day 686 (v0.8.0); later changes should still be deliberate.
 - **Act II prices:** Act I events use `cc(s, n)`, which scales up in Act II; Act II events (events2.ts) use `c2(s, n)`,
   written at Act II scale.
 - **Act III gating:** `s.charter` exists only from Act III (null before). Act III phases live in `s.charter.phase`;
@@ -220,11 +221,11 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   resolutions, missions, desks). Charter money is separate from company cash: `chSpend`/`chEarn` and the Charter ledger;
   Act III events price the Charter side with `ch3(s, n)` and the company side with `c2(s, n)`. New formula hooks
   (`grid:price`, `grid:carbon`, `market:hbm`, `market:pkg`, `charter:build`, `world:growth`) are modifiers that only
-  exist in Act III, so Acts I–II stay byte-identical (Act I bot: day 687 since M5; Act II bot: IPO after 5.6 years).
+  exist in Act III, so Acts I–II stay byte-identical (v0.8.0 bots: Act I day 686; Act II IPO Jan 2033, 3.8 years).
 - **Act IV gating:** `s.planet` exists only from Act IV (null before); `s.charter.phase` stays 6. Act IV content uses
   `act: 4` and `stage` (contract kinds, techs, resolutions, events, objectives). New hooks (`charter:space`,
   `orbit:debris`, `grid:faults`, `prov:<region>`, `heatwall:<front>`, the Act IV growth parts, gridYield in siteYield)
-  only act when `s.planet` exists, so Acts I–III stay byte-identical (Act III bot: renewal on 31 Dec 2043). Act IV
+  only act when `s.planet` exists, so Acts I–III stay byte-identical (v0.8.0 Act III bot: renewal Jan 2043). Act IV
   partners carry `act: 4` and join the Charter at beginAct4. Act IV events price the Charter side with `ch4(s, n)`
   (2045 scale). **Autopilot takes the first enabled choice during jumps**, so put the sensible default first.
   Checklist objectives are `live` (never ticked off; shown from `o.done(s)`).
@@ -232,11 +233,29 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   and `vstage` (contract kinds, techs, random events) or `phase` = the system stage (objectives). New hooks
   (`foundry:growth`, `foundry:drift`, `minds:mood`, `longevity:rate`, `solarmax:<front>`, the Act V growth parts and
   wellbeing parts, waste-heat warming, the space power in K) only act when `s.system` exists, so Acts I–IV stay
-  byte-identical (Act IV bot: ends 26 Feb 2065). Act V partners carry `act: 5`. Act V events price the Charter side with
+  byte-identical (v0.8.0 Act IV bot: 16–18 years; Act V bot: Type I Nov 2094). Act V partners carry `act: 5`. Act V events price the Charter side with
   `ch5(s, n)` (2068 scale) and voice retired advisors through `desk(s, id)` (their successor). Big decisions go in
   `content/decisions.ts` with `big: true`; the first enabled choice is the autopilot default.
 - **Company vs Charter:** while the blind trust is on, `game.*` company wrappers refuse with a toast (`locked()`); the
   sim actions stay open so advisors and the trustee can act.
+- **Event cards (v0.8.0, `sim/events.ts`):** no random card while a finale runs (`finaleRunning`: the Crunch, Charter
+  phases 4–5, the Heat Wall, Solar Maximum) or during Bit's Act I tutorial. Company cards are an explicit list
+  (`COMPANY_EVENT_IDS` = Act I + Act II defs, never `big`): from Act III they only roll while you run the company
+  (`runsCompany`), and queued ones are answered by the trustee / new owners (first enabled choice, a "🗂" news line).
+  Act V's pool is its `vstage` cards plus `ACT5_EXTRA`, rolled half as often; earlier acts' leftovers carry `actOnly`.
+  A card must touch something the player owns (or say "Noted" and cost nothing); the highlighted choice is the first
+  enabled one; a card with every choice disabled gets a Continue button (`dismissEvent`) — never strand the player.
+- **Clock & time away:** anything that blocks the clock pauses it with `autoPaused` and it resumes by itself when the
+  block goes away; `setSpeed` is the player's choice. Skips run in ~14 ms slices (`stepBudgeted`); jumps advance per
+  1/60 s of real time. Offline catch-up only in Acts I–III, only if the clock was running (`meta.pausedAtSave`) and
+  nothing is waiting (`offlineAllowed`); research picks the cheapest project while away. Toasts: errors only during
+  the tutorial (achievements held to its end).
+- **Goals:** numeric objectives carry `progress(s) → { frac, text }`: the goal card shows a bar (hint in the tooltip),
+  the Goals panels show it under the hint. Acts II–III list the phase's headline goals first.
+- **Input & frames:** touch slop and tap radius come from `dragSlop(p)` / `touchRadius(p, mouse)` (stage.ts); scenes
+  implement `pointerCancel` (a cancelled press is never a tap) and `busy()` (camera moving). Switch scenes with
+  `stage.setScene(scene, zoom)`. Frame pacing lives in `main.ts` (60 fps cap, 30 with Battery saver or when calm).
+  Textures are RGBA buffers in a Map registry (no canvas per texture); 1×1 particle pools use `render/pixelPool.ts`.
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
   it in `game.updateSettings` (CSS-level ones in `applyCssSettings`).
 - **Save compatibility:** adding optional fields → default them in `save/save.ts#migrate`. Breaking changes →
@@ -317,15 +336,16 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 ## Known gaps / next (see SPEC §12, §16, §17, §18, §19, §20)
 
-**Next: M5, polish and ship** (SPEC §12): the beta and the balance pass across all five acts, audio, the menu tour, store
-builds — then v1.0.0. Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
+**Next: the user's playthrough of v0.8.0** (Settings → Gameplay → Playtest notes, J to note; Data → Log), then the
+retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
 
 **Still open:**
-- M5 (SPEC §21): steps 1–7 shipped in v0.7.0 (playtest log + notes, the balance report and first retune, sandbox,
-  achievements, era music + ambience + new sounds, the menu tour's Act III–V shots, governors, the Moon lander, rewilding,
-  a phone pass). Waiting for the user's full playthrough (Settings → Gameplay → Playtest notes; Data → Log), then the
-  retune and v1.0.0. The music was level-checked in headless Chrome but nobody has listened to it yet.
+- M5 (SPEC §21): steps 1–7 shipped in v0.7.0; v0.8.0 (SPEC §22) is the whole-game audit and its fixes (finales that can
+  be lost, fewer cards, the first hour, phones, speed). Waiting for the user's full playthrough, then the retune and
+  v1.0.0. The music was level-checked in headless Chrome but nobody has listened to it yet. Known numbers to watch in
+  the retune: Act I's long wait for Bit-2 (~415 days with nothing to research), Act II now 3.8–5 years (the bot stopped
+  falling into the export trap), Act IV's bot reaches its Heat Wall on the stage-3 limit rather than the full checklist.
 - Act V (v0.6.0): Android apps older than 0.6.0 can't save the end card (they suggest updating); Act V screens checked in
   headless desktop and phone emulation only.
   The 0.6.0 APK's `saveImage` bridge compiled (local debug build) but hasn't been tried on the emulator or a phone yet.

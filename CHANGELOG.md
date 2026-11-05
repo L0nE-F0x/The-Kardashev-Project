@@ -1,5 +1,77 @@
 # Changelog
 
+## 0.8.0 — Stakes & Polish (2026-11-06)
+A deep pass through the whole campaign before the big playthrough: more fun, clearer, steadier, without new systems. Every finale can now be lost, and every act asks fewer, better questions.
+
+**Your first hour**
+- Bit's tutorial is no longer interrupted by event cards, keeps toasts out of the way of what it points at, adds a battery step (solar alone leaves the hall dark at night) and says why a full hall matters.
+- Chip orders default to filling the hall, with the free rack space shown — a half-empty first hall used to stretch the Garage to five years or more.
+- Goals show progress: "Data Center 31% built · 8 mo to go", "$1.2M / $5M a month", "Bit-2: 45% trained · ~6 mo at today's compute".
+- Training runs have beats: a quarter, half and three quarters trained, in Bit's voice. A new model gets a proper toast.
+- Penny warns when cash covers less than about six months; build cards show running costs (a research lab is $3.5M a month); the Compute panel shows the next model's ETA before you start it.
+- The Research panel only counts what's open to you, shows later techs as locked with their act, and says when there's nothing left to research.
+
+**Fewer, better cards**
+- No random cards while a finale is running (the Crunch, the Threshold, the Heat Wall, Solar Maximum).
+- Once you're the Steward, company cards stop when your company is in the blind trust, sold or a public utility: the trustee (or its new owners) answers them, in the news.
+- Act V draws its own cards, half as often; earlier acts' cards stay in their acts.
+- No more cards that charge you for nothing (helium, transformers, export controls), droughts and storms only where you've built, the highlighted choice is always one you can take, and a card with nothing left to choose has a Continue button.
+
+**The Scale-Up (Act II)**
+- The Crunch begins once any four of the six IPO goals are met (or by mid-2034), and its tracker explains each front: hover to see what's pushing it and what's holding it back. Your choices matter more; the blockade bites through chips stuck at sea.
+- Stuck in phase 1? With Bit-3 trained, Penny finds a smaller Series B after about two and a half years.
+- Contract offers show how much you could deliver; export rules are flagged on the site before you build; sovereign deals live on the Blocs screen; board reviews count growth in volume and routine ones are news.
+- Fixes: the heat dome no longer hits one region twice, sovereign discounts no longer double up, HBM deals cover what they say, treaties can't be pumped for goodwill.
+
+**The Charter (Act III)**
+- The renewal vote judges your decade: the Mandate goals you met, your Legitimacy, how the Threshold went, and whether your own company won the contracts. Sol's count shows every bloc, the ones on the fence and what each outcome means for Act IV; your closing speech can swing a close vote. The Overview shows how the Council would vote today.
+- The Threshold builds over its 120 days, and Mandate goals you never met make their front harder.
+- Legitimacy falls if the Charter builds nothing for a year or sits on its money, and its tooltip shows what moves it each month.
+- Each bid shows what it adds to the monthly payments, with a warning before an award the treasury can't carry; tenders stay open a month after the last bid and you're told when the bids are in.
+- Far fewer "a contractor wants more money" cards; Bit's co-pilot stops duplicating contracts and pauses and resumes on its own; a bloc that walks out comes back when it gets what it asked for.
+- Phase 3 opens as soon as the Build-Out is done, and the Charter panel says what opens the next phase and by when. Spaceports can be built again in Act IV.
+
+**Planetary (Act IV)**
+- Between plans, the planner keeps building by your priorities (Autopilot, on by default; switch it off on Planet → Overview).
+- Planet → Overview shows what opens the next plan, with checkmarks and the date it opens anyway. The Fusion Age no longer waits six years for a target it can't reach: Act IV takes about 17–20 years instead of 21–26.
+- The planner pays its way: it budgets what it still owes, keeps your reserve, and builds smaller when money is short. A time jump stops early, with its report, if the treasury runs dry, Legitimacy crashes or a bloc walks out.
+- The jump report leads with what mattered (fusion pilots, losses, link faults) and shows the treasury; Bit's diary names the pilot results and explains where Legitimacy went.
+- The plan screen has "Not yet — let me look first"; Orbit & the Moon can't be picked before stage 3; links, fusion pilots, air capture and water work can be posted during the Mandate.
+- The Heat Wall pushes back: its fronts start from the state of your world and rise faster, your choices matter, and a neglected front can be lost.
+- Fixes: the tritium shortage can happen, cards that table a resolution are greyed out when it can't be tabled, the World view shows Act IV's target and when growth is capped, and the Goals panel has Act IV's stages.
+
+**Type I (Act V) and the ending**
+- Fixed a lock-up when Kip's or Iris's moment came before the longevity treatments were ready.
+- The last climb always reaches Kardashev 1.0000 — everyone pushes harder each year — and the shipyards pause for the storm, so Type I always comes after it.
+- Solar Maximum is a real test: preparation softens the storm but can't stop it, and a loose strain, minds with no say, low Legitimacy or any Type I checklist item still open push their front. The checklist shows which front each item protects.
+- The growth dial shows a forecast Type I year and what each setting risks; every drifting strain gets its card, and the Foundries tab has Halt & verify.
+- Going over the Thermal Line no longer sticks; the third era runs up to 10 years and stops by itself at K 0.99; story cards held during an era jump arrive one at a time and say how things are now.
+- The ending: Bit's diary of the last climb on the Type I card, the right names and Type II's true scale in the epilogues, the original cast's faces in the credits, your choices in words in the campaign stats, and Bit's final form plus a line about your run on the end card.
+- Late Act IV and Act V run three to four times faster.
+
+**Phones and small screens**
+- The button bar fits every act (it ran off the screen from Act II on phones and in Act V on laptops), and scrolls with a fade when it must.
+- Taps that drift a little still count as taps, and markers are easier to hit with a finger.
+- Event cards and panels use the whole screen; buttons Bit points at scroll into view.
+- Back (Android) and Escape close menus, dialogs and reports first.
+
+**Smoother everywhere**
+- No more slowly growing memory when you hop between the map and close-ups in Acts IV–V (on phones it could end with the app reloading).
+- At most 60 frames a second (30 with Battery saver or while the game sits paused): kinder to batteries, and time-lapses take the same time on every screen.
+- Leaving a close-up is quicker; the detailed world map is prepared in the background once you're playing, not while you're in the menu; the solar-system view, the Type I ending and the orbit view are much lighter, with the same look.
+- Dragging the map with a finger no longer jitters, taps land exactly on markers, a cancelled touch isn't a tap, and trackpads no longer shoot through the solar system to the map in one swipe.
+- The Sahara close-up works on phones that can't take very wide images; megaprojects show over the Act IV–V ground tints; the globe's night side has the right colours in every era.
+
+**Time and coming back**
+- The clock starts again by itself after a report, a confirm or a card.
+- Time away only counts when the game was running and nothing was waiting for you, and not at all in Acts IV–V (the year you reach Type I is your score). Research keeps going while you're away.
+- The away report covers the Charter and ends with your next goal.
+- Skipping a jump or an era no longer freezes the page.
+
+**Fixes**
+- The Hard rescue comes first on the bankruptcy card; emergency cuts cost research; investor terms hold the safety cut for six months.
+- A zombie chip order after the Hsinchu quake; two Field Guide entries that couldn't be opened; saves that silently failed in private mode now warn; sounds no longer burst after the tab was hidden; mouse moves over the map no longer redraw the whole interface.
+
 ## 0.7.0 — Sandbox & Soundtrack (2026-11-05)
 - Sandbox mode: New Company → Sandbox. The campaign's world with switches you can flip any time from the 🧪 badge: money that never runs out, research four times faster (or everything known), building overnight, and sliders for bloc politics, climate sensitivity, crises and chip prices. No records or unlocks.
 - 37 achievements, from training Bit-1 to reaching Type I before 2090, with a few secrets around campus. Main menu → Achievements.

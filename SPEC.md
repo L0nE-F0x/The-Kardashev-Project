@@ -1735,3 +1735,68 @@ screens), then your Xiaomi.
 - **Not done / needs you:** your playthrough and the retune from it; the Windows/macOS installers on real machines; the
   theme song MP3. Nobody has listened to the new music yet (headless only).
 
+
+## 22. v0.8.0 "Stakes & Polish": the whole-game audit (built 2026-11-06)
+
+Asked for before the owner's first full playthrough: "one last big push" for fun, playability and the things that keep
+people coming back, plus a general audit (bugs, performance), **without bloat**. Done as seven read-only audits (Acts
+I–V, the shell, rendering), each measured with the bots and probe scripts, then fix passes per act, merged and re-tested.
+No new systems; the numbers retune still waits for the playtest log.
+
+### What the audits found (the patterns)
+- **Finales that couldn't be lost:** the Crunch, the Threshold and the renewal vote (88–0 even for a Steward who built
+  nothing), the Heat Wall and Solar Maximum all sat at low pressure whatever the player did.
+- **Card noise:** Act III ~150 cards (a third were company cards while the company sat in the blind trust), Act IV up
+  to 215 (two thirds Act I–III leftovers), Act V's pool mostly earlier acts' cards at absurd prices; paid choices that
+  bought nothing were highlighted first.
+- **Dead waits:** Act I after the tutorial (and a natural 2,000-chip first order that stretched the Garage past five
+  years), Act II's middle (the IPO checklist was never completed by any bot), Act III's phase 2 (always the 900-day
+  timer), Act IV's stage 2 (always its 6-year limit), Act V's stage 3.
+- **Bugs:** an Act V soft-lock (a cast card with one disabled choice), a "Type I" declared at K 0.95 on slow runs,
+  spaceports blocked by the Act III launch guard, the Act IV planner committing 3× the dues inside a jump, the heat dome
+  hitting one region twice, sovereign discounts doubling, HBM deals counted per supplier, a zombie chip order, Charter
+  instalments paid past a project's price, a map texture leak on every scene switch (phones), the clock staying paused
+  after reports and confirms, offline progress ignoring the pause (and costing Acts IV–V their Type I year).
+- **Phones:** the dock ran off the screen from Act II (Settings, the System panel unreachable), taps turned into drags,
+  event cards hid their choices below the fold, tutorial targets sat below the fold of panels.
+
+### What changed (as built)
+- **Event pool rules** (`sim/events.ts`): no random cards during finales or the Act I tutorial; company cards an explicit
+  list, answered by the trustee / new owners once you're not running the company; Act V draws its own cards (+ a short
+  list), half as often; `actOnly` on leftovers; "Noted" instead of paid choices that buy nothing; a Continue button
+  when nothing can be chosen.
+- **Act I:** the order fills the hall; a battery step; goal progress bars (`progress` on objectives) and training ETAs;
+  training beats at 25/50/75%; Penny's runway warning; running costs on build cards; honest texts.
+- **Act II:** the Crunch at any 4 of the 6 IPO goals (mid-2034 fallback) with `crunchRise` reasons per front; a smaller
+  Series B after a long phase 1; contract deliverability, export-rule warnings, sovereign deals on the Blocs screen,
+  board reviews in volume terms; the treaty pump closed.
+- **Act III:** the renewal reads the decade (`renewalParts`: Mandate goals, Legitimacy, fronts, self-dealing; per-bloc
+  tally and what each outcome means for Act IV); Legitimacy drains when nothing is delivered or money sits idle; the
+  Threshold builds and unmet goals feed their fronts; commitments shown on bids; overrun cards only when big.
+- **Act IV:** an autopilot between jumps (on by default); reachable stage gates with a "Next plan" box; the planner
+  budgets what it still owes and a jump stops early on trouble; the jump report leads with outcomes and the treasury;
+  the Heat Wall starts from the world's state.
+- **Act V:** no soft-lock; the last climb always reaches 1.0000; Solar Maximum's rise has a floor, open checklist
+  items feed their fronts; the dial has a price and a Type I forecast; the Thermal Line can't trap; ~3–4× faster ticks.
+- **Shell & phones:** auto-resume, offline only in Acts I–III and only when running, Escape/back close things, skips in
+  time slices, the dock fits and scrolls, touch slop and tap radius, two-column event cards, full-width panels.
+- **Rendering:** no texture leak, scene switches without a wasted rebuild, 60/30 fps pacing, a shared terrain, lighter
+  orbit and solar-system views, the Sahara strip under 4096 px.
+
+### Numbers after (balance report, seeds 21 and 7)
+| Act | Years (R / S / H) | Bot cards per act |
+|---|---|---|
+| I | 1.9 / 1.9 / 2.5 (Hard: 8 of 24 plans) | 10–19 |
+| II | 4.0 / 4.0 / 5.0 | 36–67 |
+| III | 8.3 / 8.0 / 8.3 | 81–98 |
+| IV | 17.0 / 17.0 / 17.0 | 81–115 |
+| V | 27.2 / 27.1 / 27.0 | 50–62 |
+
+### Calls I made (change any)
+- Offline catch-up is off in Acts IV–V (the years move in jumps there and the Type I year is the score).
+- A jump stops early for a walkout, as well as for money or Legitimacy trouble.
+- Act IV's autopilot is on by default (a hands-off player's plan should build).
+- The Hard bankruptcy card offers the rescue first (the autopilot/default choice), so a Hard run that runs dry usually
+  continues on Standard.
+- Act II is now ~1.5 years shorter for the bot (it no longer strands halls behind export rules): watch it in the retune.
+- Frame pacing at 60 fps (30 with Battery saver or when calm), and the menu tour prepares the detailed map in idle time.
