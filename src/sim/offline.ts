@@ -1,5 +1,7 @@
 import type { GameState, NewsItem } from './types';
 import { tick } from './tick';
+import { researchable, setResearch } from './actions';
+import { TECH_BY_ID } from '../content/techs';
 import type { SimContext } from './supply';
 
 /** Real hours away → game days. Active play runs ~1 day/second; idle runs 1 month per hour. */
@@ -17,6 +19,9 @@ export interface Snapshot {
   installed: number;
   online: number;
   revenueMonth: number;
+  /** Act III: the Charter's treasury and Legitimacy. */
+  treasury?: number;
+  legitimacy?: number;
 }
 
 export interface OfflineReport {
@@ -38,6 +43,8 @@ export function snapshot(s: GameState): Snapshot {
     installed: s.stats.installedAccel,
     online: s.facilities.filter((f) => f.status === 'online').length,
     revenueMonth: s.stats.revenueMonth,
+    treasury: s.charter?.budget,
+    legitimacy: s.charter?.legitimacy,
   };
 }
 
@@ -45,6 +52,17 @@ export function snapshot(s: GameState): Snapshot {
  * Catch the world up after time away. Production, construction and deliveries keep going;
  * no new crises fire while you're gone (they wait for you).
  */
+/**
+ * Can the world move on while you're away? Not past a decision (a card, a plan, a jump, the ending), not in a game
+ * that's over, and not in Acts IV–V, where the years move in plans and jumps and the year you reach Type I is your score.
+ */
+export function offlineAllowed(s: GameState): boolean {
+  if (s.meta.gameOver || s.events.active || s.events.queue.length) return false;
+  if (s.planet || s.system) return false;
+  if (s.flags.endingStart && !s.flags.endingShown) return false;
+  return true;
+}
+
 export function simulateOffline(s: GameState, ctx: SimContext, awayMs: number, monthsPerHour = 1): OfflineReport | null {
   const hours = awayMs / 3_600_000;
   if (hours * 60 < OFFLINE_MIN_MINUTES) return null;
@@ -53,7 +71,13 @@ export function simulateOffline(s: GameState, ctx: SimContext, awayMs: number, m
   const before = snapshot(s);
   s.flags.offline = true;
   try {
-    for (let i = 0; i < days; i++) tick(s, ctx);
+    for (let i = 0; i < days; i++) {
+      if (!s.research.current) {
+        const next = researchable(s).sort((a, b) => TECH_BY_ID[a].cost - TECH_BY_ID[b].cost)[0];
+        if (next) setResearch(s, next);
+      }
+      tick(s, ctx);
+    }
   } finally {
     s.flags.offline = false;
   }

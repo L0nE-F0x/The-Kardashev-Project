@@ -954,6 +954,8 @@ export interface Stats {
 
 /** How this company was set up, plus bookkeeping that isn't part of the simulation itself. */
 export interface GameMeta {
+  /** The clock was stopped when the game last saved (paused, or a decision waiting): no offline catch-up. */
+  pausedAtSave?: boolean;
   difficulty: Difficulty;
   founder: FounderId;
   eventRate: EventRate;

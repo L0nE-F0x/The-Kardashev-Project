@@ -52,6 +52,9 @@ export function Toasts() {
 /** Hover card for things on the map. */
 export function MapTooltip() {
   const game = useGame();
+  // the hover card has its own subscription (setHover doesn't re-render the whole HUD)
+  const [, setV] = useState(0);
+  useEffect(() => game.subscribeHover(() => setV((v) => v + 1)), [game]);
   const h = game.hover;
   const s = game.state;
   if (!h || !s || h.clientX < 0 || game.mode === 'title') return null;
@@ -133,7 +136,9 @@ export function TipLayer() {
       window.clearTimeout(timer.current);
       if (text) timer.current = window.setTimeout(() => setTip({ text, x: e.clientX, y: e.clientY - 40 }), 450);
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
+      // a long-press tip lingers briefly after the finger lifts; a mouse click leaves the hover tip alone
+      if (e.pointerType !== 'touch') return;
       window.clearTimeout(timer.current);
       window.setTimeout(() => setTip(null), 1500);
     };

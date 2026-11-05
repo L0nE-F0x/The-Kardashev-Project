@@ -193,7 +193,7 @@ function Audio() {
   return (
     <>
       <Slider label="Master volume" value={st.master} onChange={(v) => game.updateSettings({ master: v })} />
-      <Slider label="Music" hint="Theme on the menu, quiet ambience in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
+      <Slider label="Music" hint="The theme on the menu, a chiptune for each era in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
       <Slider label="Sound effects" value={st.sfx} onChange={(v) => game.updateSettings({ sfx: v })} />
       <Toggle label="Mute in the background" hint="Silence when you switch tabs or apps." value={st.muteInBackground} onChange={(v) => game.updateSettings({ muteInBackground: v })} />
     </>
@@ -242,6 +242,9 @@ const KEYS: [string, string][] = [
   ['I', 'Fiber tool (Act II)'],
   ['T · E · P', 'Team · Deals · Blocs (Act II)'],
   ['H · U', 'The Charter · The Council (Act III)'],
+  ['Y · X', 'The Planet (Act IV) · The System (Act V)'],
+  ['V', 'Switch view: map, orbit, solar system'],
+  ['J', 'Playtest note (when turned on in Gameplay)'],
   ['W A S D / arrows', 'Pan the map'],
   ['+ / −', 'Zoom the map'],
   ['M · Esc', 'Back to the map / close'],

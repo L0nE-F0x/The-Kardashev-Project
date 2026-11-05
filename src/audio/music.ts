@@ -345,6 +345,12 @@ class Sequencer {
     const ctx = audioCtx();
     if (!ctx || !this.out) return;
     const sixteenth = 60 / this.song.bpm / 4;
+    // a throttled background timer fell behind: skip ahead rather than play every missed note at once
+    if (this.nextTime < ctx.currentTime - 0.1) {
+      const missed = Math.ceil((ctx.currentTime - this.nextTime) / sixteenth);
+      this.nextTime += missed * sixteenth;
+      this.step += missed;
+    }
     while (this.nextTime < ctx.currentTime + 0.25) {
       this.playStep(this.step, this.nextTime, sixteenth);
       this.nextTime += sixteenth;

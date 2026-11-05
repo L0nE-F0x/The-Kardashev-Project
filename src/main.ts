@@ -49,8 +49,22 @@ async function boot() {
 
 /** Escape and the Android back gesture: close the topmost thing. False when nothing was open. */
 function back(game: Game): boolean {
-  if (game.mode === 'title' || !game.state) return false;
-  if (game.tool) game.setTool(null);
+  // the menu: a sub-screen (Settings, Load, New company, the Field Guide…) goes back to the main menu
+  if (game.mode === 'title' || !game.state) {
+    if (game.menuScreen === 'main') return false;
+    game.openMenuScreen('main');
+    return true;
+  }
+  // the topmost overlay first: a dialog, a note, a report — and a card waits for its answer (back never answers it)
+  if (game.confirm) game.cancelConfirm();
+  else if (game.noteOpen) game.closeNote();
+  else if (game.awayReport) game.dismissAway();
+  else if (game.showActComplete) game.dismissActComplete();
+  else if (game.jumpReport) game.dismissJumpReport();
+  else if (game.eraReport) game.dismissEraReport();
+  else if (game.briefing) game.briefingSkip();
+  else if (game.state.events.active && game.blocked) return true;
+  else if (game.tool) game.setTool(null);
   else if (game.panel) game.openPanel(null);
   else if (game.ending) return true;
   else if (game.mode === 'diorama' || game.mode === 'orbit' || game.mode === 'system') game.enterMap();
@@ -65,7 +79,10 @@ function bindKeys(game: Game) {
     // typing in a text field (a name, a seed, a playtest note) never fires game shortcuts
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-    if (game.mode === 'title' || !game.state) return;
+    if (game.mode === 'title' || !game.state) {
+      if (e.key === 'Escape') back(game);
+      return;
+    }
     const scene = game.stage.getScene();
     const pan = (dx: number, dy: number) => (scene as MapScene)?.pan?.(dx, dy);
     switch (e.key) {

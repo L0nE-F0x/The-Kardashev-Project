@@ -23,7 +23,8 @@ describe('event cards', () => {
     queueEvent(s, 'bridge-loan');
     queueEvent(s, 'renewal');
     tickEvents(s);
-    expect(s.events.active?.id).toBe('renewal');
+    const shown = s.events.active as { id: string } | null;
+    expect(shown?.id).toBe('renewal');
     expect(s.news.some((n) => n.text.startsWith('🗂'))).toBe(true);
   });
 

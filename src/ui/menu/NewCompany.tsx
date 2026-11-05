@@ -129,7 +129,15 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             <button key={id} class={`btn pickcard ${difficulty === id ? 'active' : ''}`} onClick={() => setDifficulty(id)} aria-pressed={difficulty === id}>
               <span class="n">{d.name}</span>
               <span class="b">{d.blurb}</span>
-              <span class="b gold">{start === 1 ? `${fmtMoney(d.cash, 0)} seed` : start === 3 ? `${fmtMoney({ relaxed: 32e9, standard: 25e9, hard: 18e9 }[id] ?? 25e9, 0)} after the IPO` : `${fmtMoney({ relaxed: 2.6e9, standard: 2e9, hard: 1.5e9 }[id] ?? 2e9, 0)} after the Series A`}</span>
+              <span class="b gold">
+                {start === 1
+                  ? `${fmtMoney(d.cash, 0)} seed`
+                  : start === 2
+                    ? `${fmtMoney({ relaxed: 2.6e9, standard: 2e9, hard: 1.5e9 }[id] ?? 2e9, 0)} after the Series A`
+                    : start === 3
+                      ? `${fmtMoney({ relaxed: 32e9, standard: 25e9, hard: 18e9 }[id] ?? 25e9, 0)} after the IPO`
+                      : 'a listed giant and the Charter’s treasury'}
+              </span>
             </button>
           );
         })}
@@ -190,7 +198,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
         <span class="small muted">
           {sb ? '🧪 Sandbox · ' : ''}
           {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : start === 5 ? 'Act V · ' : ''}
-          {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : start === 3 ? 'public, with Charter Standing 2' : 'Series A in the bank'}
+          {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : start === 2 ? 'Series A in the bank' : start === 3 ? 'public, with Charter Standing 2' : start === 4 ? 'a renewed Planetary Charter' : 'a hundred terawatts and the Heat Wall behind you'}
         </span>
         <button class="btn primary big" onClick={found} disabled={game.slotsFull()} data-tip={game.slotsFull() ? 'All 5 slots are in use — delete a company first.' : undefined}>
           <Icon name="play" size="sm" /> {sb ? 'Open the sandbox' : 'Found the company'}

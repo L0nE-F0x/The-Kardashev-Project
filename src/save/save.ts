@@ -1,6 +1,7 @@
 import type { GameState } from '../sim/types';
 import { ensureAct2State, SAVE_VERSION } from '../sim/state';
 import { dateOf } from '../sim/core';
+import { EVENT_BY_ID } from '../content/events';
 import { saveTextFile } from '../platform/platform';
 
 /**
@@ -62,6 +63,13 @@ export function migrate(raw: GameState): GameState | null {
     createdAt: raw.savedAt ?? Date.now(),
   };
   ensureAct2State(raw);
+  // a card this version doesn't know (renamed or removed) would block the clock forever: let it go
+  const known = (e: { id: string } | null | undefined) => !!e && !!EVENT_BY_ID[e.id];
+  if (raw.events) {
+    if (raw.events.active && !known(raw.events.active)) raw.events.active = null;
+    raw.events.queue = (raw.events.queue ?? []).filter(known);
+    raw.events.scheduled = (raw.events.scheduled ?? []).filter(known);
+  }
   raw.version = SAVE_VERSION;
   return raw;
 }

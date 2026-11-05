@@ -23,7 +23,14 @@ import { SandboxControls } from './menu/SandboxControls';
 
 function Hud() {
   const game = useGame();
-  if (game.mode === 'title' || !game.state) return <MainMenu />;
+  // the menu shows toasts too ("That save could not be loaded", a full slot list on import)
+  if (game.mode === 'title' || !game.state)
+    return (
+      <>
+        <MainMenu />
+        <Toasts />
+      </>
+    );
   // the Type I ending takes the whole screen
   if (game.ending) return <EndingOverlay />;
   const panel = game.panel;

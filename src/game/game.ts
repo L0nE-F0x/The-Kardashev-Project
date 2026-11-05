@@ -25,9 +25,10 @@ import type { AdvisorId, Job } from '../sim/types';
 import { refreshStats, tick } from '../sim/tick';
 import * as A from '../sim/actions';
 import { dismissEvent, resolveEvent } from '../sim/events';
-import { simulateOffline, type OfflineReport } from '../sim/offline';
+import { offlineAllowed, simulateOffline, type OfflineReport } from '../sim/offline';
 import { buildCost, landCost, linkCost, upgradeCost } from '../sim/model';
 import { OWN_CABLE_COST } from '../content/network';
+import { LOBBY, RULE_BY_ID } from '../content/politics';
 import { DEAL_BY_ID } from '../content/stack';
 import { siteDistanceKm } from '../content/sites';
 import { fmtMoney } from '../sim/core';
@@ -108,6 +109,8 @@ export class Game {
   speed: Speed = 1;
   /** Speed to restore when a blocking card closes. */
   private resumeSpeed: Speed = 1;
+  /** The clock was stopped by something on screen (not by the player): it starts again when that goes away. */
+  private autoPaused = false;
   selection: Selection = null;
   panel: PanelId = null;
   tool: Tool = null;
@@ -263,6 +266,7 @@ export class Game {
     this.awayReport = null;
     this.heldToasts = [];
     this.showActComplete = false;
+    this.resetScreen();
     // the garage is where Acts I–II start; a Steward starting at Act III–V begins on the world, not the garage
     this.selection = opts.act3 || opts.act4 || opts.act5 ? null : { kind: 'site', id: opts.homeSite };
     this.lastObjectiveSeen = undefined;
@@ -284,9 +288,10 @@ export class Game {
     }
     this.state = saved;
     this.slotId = id;
+    this.resetScreen();
     const away = saved.savedAt ? Date.now() - saved.savedAt : 0;
     this.awayReport = null;
-    if (this.settings.offline && away > 0 && !saved.meta.gameOver) {
+    if (this.settings.offline && away > 0 && !saved.meta.pausedAtSave && offlineAllowed(saved)) {
       const report = simulateOffline(saved, this.ctx, away, this.settings.offlineRate);
       if (report) this.awayReport = report;
     }
@@ -304,6 +309,7 @@ export class Game {
 
   /** Load a company from a save code or file into a free slot. */
   importCompany(s: GameState): boolean {
+    this.save();
     if (this.slotsFull()) {
       this.toast(`All ${MAX_SLOTS} company slots are in use — delete one first.`, 'bad');
       return false;
@@ -323,8 +329,22 @@ export class Game {
     this.notify();
   }
 
+  /** Overlays that belong to one company's screen (a briefing, a report, a note) don't follow you to the next. */
+  private resetScreen(): void {
+    this.briefing = null;
+    this.briefingResume = null;
+    this.eventOpen = false;
+    this.jumpReport = null;
+    this.eraReport = null;
+    this.noteOpen = false;
+    this.confirm = null;
+    this.autoPaused = false;
+    this.jumpFast = false;
+  }
+
   quitToMenu(): void {
     this.save();
+    this.resetScreen();
     this.state = null;
     this.slotId = null;
     this.mode = 'title';
@@ -486,9 +506,16 @@ export class Game {
 
   save(): void {
     if (!this.state || !this.slotId) return;
-    writeSlot(this.slotId, this.state);
+    // a game left paused (or waiting on a decision) stays put while you're away
+    this.state.meta.pausedAtSave = this.speed === 0 && this.mode !== 'title';
+    const ok = writeSlot(this.slotId, this.state);
     this.lastAutosave = performance.now();
+    if (!ok && !this.saveWarned) {
+      this.saveWarned = true;
+      this.toast('Couldn’t save: this browser is blocking storage (private mode?). Export your company from Settings → Data to keep it.', 'bad', 'penny');
+    }
   }
+  private saveWarned = false;
 
   private onVisibility(): void {
     if (document.visibilityState === 'hidden') {
@@ -498,11 +525,12 @@ export class Game {
       return;
     }
     resumeAudio();
-    if (this.hiddenAt && this.state && this.mode !== 'title' && this.settings.offline && !this.state.meta.gameOver) {
+    if (this.hiddenAt && this.state && this.mode !== 'title' && this.settings.offline && this.speed > 0 && offlineAllowed(this.state)) {
       const away = Date.now() - this.hiddenAt;
       const report = simulateOffline(this.state, this.ctx, away, this.settings.offlineRate);
       if (report) {
         refreshStats(this.state);
+        this.syncFeedback(this.state);
         this.awayReport = report;
         this.notify();
       }
@@ -555,21 +583,22 @@ export class Game {
       }
       // Act IV: a time jump runs a week per frame so the map can time-lapse (or all at once when skipped)
       if (s.planet?.jump) {
-        const rec = PL.jumpStep(s, this.ctx, this.jumpFast ? 100_000 : JUMP_DAYS_PER_FRAME);
+        const rec = this.stepBudgeted(() => PL.jumpStep(s, this.ctx, this.jumpFast ? 30 : JUMP_DAYS_PER_FRAME), () => !!s.planet?.jump);
         refreshStats(s);
         if (rec) {
           this.jumpReport = rec;
           this.jumpFast = false;
+          this.syncFeedback(s);
           sfx('fanfare');
           this.save();
         }
-        this.notify();
+        if (rec || this.frameCount % 6 === 0) this.notify();
       }
       // Act V: an era (or the last climb) runs a week per frame while the views time-lapse
       if (s.system?.jump?.last && this.mode === 'map' && this.hasSystemView) this.enterSystem();
       if (s.system?.jump) {
         const last = !!s.system.jump.last;
-        const rec = ERA.eraStep(s, this.ctx, this.jumpFast ? 100_000 : last ? JUMP_DAYS_PER_FRAME * 2 : JUMP_DAYS_PER_FRAME);
+        const rec = this.stepBudgeted(() => ERA.eraStep(s, this.ctx, this.jumpFast ? 30 : last ? JUMP_DAYS_PER_FRAME * 2 : JUMP_DAYS_PER_FRAME), () => !!s.system?.jump);
         refreshStats(s);
         if (rec) {
           this.eraReport = rec.last ? null : rec;
@@ -579,10 +608,11 @@ export class Game {
             s.events.last[s.events.active.id] = s.day;
           }
           this.jumpFast = false;
+          this.syncFeedback(s);
           sfx('fanfare');
           this.save();
         }
-        this.notify();
+        if (rec || this.frameCount % 6 === 0) this.notify();
       }
       if (s.flags.endingStart && !s.flags.endingShown && !this.ending) this.startEnding();
       this.tickEnding(dt);
@@ -590,8 +620,17 @@ export class Game {
       if (blocked && this.speed !== 0) {
         this.resumeSpeed = this.speed;
         this.speed = 0;
+        this.autoPaused = true;
         if (s.events.active) sfx(EVENT_BY_ID[s.events.active.id]?.big ? 'decision' : 'alert');
         this.notify();
+      } else if (!blocked && this.autoPaused) {
+        // whatever stopped the clock (a report, a confirm, a card) is gone: play on, as the player had it
+        this.autoPaused = false;
+        const hold = s.meta.tutorialStep >= 0 && s.meta.tutorialStep <= PLAY_STEP;
+        if (this.speed === 0 && !hold && !s.meta.gameOver) {
+          this.speed = this.resumeSpeed || 1;
+          this.notify();
+        }
       }
       if (!blocked && this.speed > 0) {
         this.acc += Math.min(dt, 0.25) * this.speed;
@@ -614,6 +653,25 @@ export class Game {
     this.updateEra();
     // battery saver: draw every other frame (~30 fps)
     if (!this.settings.batterySaver || this.frameCount % 2 === 0) this.stage.frame(this.settings.batterySaver ? dt * 2 : dt, now);
+  }
+
+  /**
+   * One frame of a jump or era: a single step normally; when skipping, as many month-long steps as fit in ~14 ms
+   * (the rest follows next frame) so the page never freezes.
+   */
+  private stepBudgeted<T>(step: () => T | null, running: () => boolean): T | null {
+    if (!this.jumpFast) return step();
+    const t0 = performance.now();
+    let rec: T | null = null;
+    do rec = step();
+    while (!rec && running() && performance.now() - t0 < 14);
+    return rec;
+  }
+
+  /** After time moved without the frame loop (away, a jump): don't replay every chime and toast at once. */
+  private syncFeedback(s: GameState): void {
+    this.lastNewsSeen = s.news[0]?.day ?? this.lastNewsSeen;
+    this.lastObjectiveSeen = s.flags.lastObjective;
   }
 
   /** Fraction of the current day elapsed — used to interpolate moving things. */
@@ -818,6 +876,7 @@ export class Game {
   // ── UI state ──────────────────────────────────────────────────────────────────────────────
   setSpeed(speed: Speed): void {
     if (this.blocked && speed > 0) return;
+    this.autoPaused = false;
     this.speed = speed;
     if (speed > 0) this.resumeSpeed = speed;
     sfx('click');
@@ -850,7 +909,14 @@ export class Game {
     const same = JSON.stringify(h) === JSON.stringify(this.hover);
     if (same) return;
     this.hover = h;
-    this.notify();
+    // only the hover card listens: the rest of the HUD doesn't re-render on every mouse move
+    for (const fn of this.hoverListeners) fn();
+  }
+
+  private hoverListeners = new Set<() => void>();
+  subscribeHover(fn: () => void): () => void {
+    this.hoverListeners.add(fn);
+    return () => this.hoverListeners.delete(fn);
   }
 
   setTool(tool: Tool): void {
@@ -935,12 +1001,13 @@ export class Game {
 
   // ── actions (wrap the sim, refresh, give feedback) ─────────────────────────────────────────
   /** Run an action, asking first when it costs more than the player's confirm threshold. */
-  private guarded(cost: number, title: string, run: () => void): void {
+  private guarded(cost: number, title: string, run: () => void, purse: 'company' | 'charter' = 'company'): void {
     const limit = this.settings.confirmSpend;
     if (limit > 0 && cost >= limit) {
+      const have = purse === 'charter' ? (this.state?.charter?.budget ?? 0) : (this.state?.finance.cash ?? 0);
       this.confirm = {
         title,
-        detail: `This costs ${fmtMoney(cost)}. You have ${fmtMoney(this.state?.finance.cash ?? 0)}.`,
+        detail: `This costs ${fmtMoney(cost)}. ${purse === 'charter' ? 'The Charter’s treasury holds' : 'You have'} ${fmtMoney(have)}.`,
         onYes: () => {
           this.confirm = null;
           run();
@@ -1057,14 +1124,14 @@ export class Game {
     this.guarded(A.stakePrice(s, mineId), 'Buy a 10% stake?', () => void this.after(A.buyStake(s, mineId), 'cash'));
   }
 
-  lobby(region: Rid) {
-    if (this.locked()) return this.lockedResult();
-    return this.after(A.lobby(this.state!, region), 'cash');
+  lobby(region: Rid): void {
+    if (this.locked()) return;
+    this.guarded(LOBBY.cost, 'Lobby here?', () => void this.after(A.lobby(this.state!, region), 'cash'));
   }
 
-  applyLicence(rule: string, region: Rid) {
-    if (this.locked()) return this.lockedResult();
-    return this.after(A.applyLicence(this.state!, rule, region));
+  applyLicence(rule: string, region: Rid): void {
+    if (this.locked()) return;
+    this.guarded(RULE_BY_ID[rule]?.licenceCost ?? 0, 'Apply for this licence?', () => void this.after(A.applyLicence(this.state!, rule, region)));
   }
 
   signTreaty(id: string) {
@@ -1383,7 +1450,7 @@ export class Game {
       this.notify();
       return;
     }
-    this.guarded(b.price * 0.2, 'Award this contract?', run);
+    this.guarded(b.price * 0.2, 'Award this contract?', run, 'charter');
   }
 
   cancelProject(id: string): void {
@@ -1401,7 +1468,7 @@ export class Game {
 
   expedite(id: string): void {
     const p = this.state!.charter?.projects.find((x) => x.id === id);
-    this.guarded(p ? CH.expediteCost(p) : 0, 'Pay for overtime crews?', () => void this.after(CH.expediteProject(this.state!, id), 'cash'));
+    this.guarded(p ? CH.expediteCost(p) : 0, 'Pay for overtime crews?', () => void this.after(CH.expediteProject(this.state!, id), 'cash'), 'charter');
   }
 
   claimDamages(id: string) {
@@ -1448,7 +1515,7 @@ export class Game {
   }
 
   favourBloc(r: Rid): void {
-    this.guarded(CO.favourCost(this.state!, r), 'Spend treasury money on a favour?', () => void this.after(CO.favourBloc(this.state!, r), 'cash'));
+    this.guarded(CO.favourCost(this.state!, r), 'Spend treasury money on a favour?', () => void this.after(CO.favourBloc(this.state!, r), 'cash'), 'charter');
   }
 
   requestOwnLicence(gen: number, fast: boolean) {
@@ -1487,7 +1554,10 @@ export class Game {
 
   /** Unlock an achievement the game notices on screen (a night launch, a world tour…). */
   achieve(id: string): void {
-    if (!this.state || this.mode === 'title' || !ACHIEVEMENT_BY_ID[id] || achievements().got[id]) return;
+    const a = ACHIEVEMENT_BY_ID[id];
+    if (!this.state || this.mode === 'title' || !a || achievements().got[id]) return;
+    // campus finds are campaign achievements too: a sandbox only collects its own
+    if (!!a.sandbox !== !!this.state.meta.sandbox) return;
     this.unlockAchievement(id);
   }
 
@@ -1586,6 +1656,7 @@ export class Game {
       this.eventOpen = false;
       const holdForTutorial = s.meta.tutorialStep >= 0 && s.meta.tutorialStep <= PLAY_STEP;
       this.speed = s.meta.gameOver || holdForTutorial ? 0 : this.resumeSpeed || 1;
+      this.checkBriefings();
     }
     this.notify();
   }
@@ -1602,6 +1673,7 @@ export class Game {
         this.eventOpen = false;
         const holdForTutorial = s.meta.tutorialStep >= 0 && s.meta.tutorialStep <= PLAY_STEP;
         this.speed = s.meta.gameOver || holdForTutorial ? 0 : this.resumeSpeed || 1;
+        this.checkBriefings();
       }
       this.notify();
     } else sfx('error');

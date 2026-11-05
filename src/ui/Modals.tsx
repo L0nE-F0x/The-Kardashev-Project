@@ -3,6 +3,7 @@ import { EVENT_BY_ID } from '../content/events';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, tierOf } from '../sim/model';
 import { Act4CompleteModal } from './panels/Act4Panels';
+import { visibleObjectives } from '../content/objectives';
 
 export function EventModal() {
   const game = useGame();
@@ -66,6 +67,8 @@ export function AwayModal() {
   if (!r) return null;
   const { before, after } = r;
   const months = r.days / 30.4;
+  // coming back should point somewhere: the first goal on the card
+  const next = game.state ? visibleObjectives(game.state)[0] : undefined;
   const d = (label: string, v: string, cls = '') => (
     <div class="delta">
       <div class="label">{label}</div>
@@ -94,9 +97,13 @@ export function AwayModal() {
           </div>
           <div class="deltas">
             {d('Cash', `${after.cash - before.cash >= 0 ? '+' : ''}${fmtMoney(after.cash - before.cash)}`, after.cash >= before.cash ? 'good' : 'bad')}
-            {d('Kardashev', `+${(after.K - before.K).toFixed(5)}`, 'cyan')}
-            {d('Revenue', `${fmtMoney(after.revenueMonth)}/mo`)}
-            {d('Chips installed', `${after.installed.toLocaleString()}`)}
+            {d('Kardashev', `${after.K >= before.K ? '+' : '−'}${Math.abs(after.K - before.K).toFixed(5)}`, 'cyan')}
+            {after.treasury !== undefined && before.treasury !== undefined
+              ? d('Charter treasury', `${after.treasury - before.treasury >= 0 ? '+' : ''}${fmtMoney(after.treasury - before.treasury)}`, after.treasury >= before.treasury ? 'good' : 'bad')
+              : d('Revenue', `${fmtMoney(after.revenueMonth)}/mo`)}
+            {after.legitimacy !== undefined && before.legitimacy !== undefined
+              ? d('Legitimacy', `${Math.round(after.legitimacy)} (${after.legitimacy - before.legitimacy >= 0 ? '+' : ''}${Math.round(after.legitimacy - before.legitimacy)})`, after.legitimacy >= before.legitimacy ? 'good' : 'bad')
+              : d('Chips installed', `${after.installed.toLocaleString()}`)}
             {d('Models', `${after.models}${after.models > before.models ? ' (new!)' : ''}`)}
             {d('Techs', `${after.techs}${after.techs > before.techs ? ` (+${after.techs - before.techs})` : ''}`)}
           </div>
@@ -107,6 +114,11 @@ export function AwayModal() {
                   {n.text}
                 </div>
               ))}
+            </div>
+          )}
+          {next && (
+            <div class="section small">
+              <b>Next up:</b> {next.title}
             </div>
           )}
           <div class="choices">

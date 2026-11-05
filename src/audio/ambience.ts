@@ -83,7 +83,8 @@ function drone(ctx: AudioContext, out: AudioNode, freq: number, vol: number, wob
 /** Schedule little sounds now and then (birds, crickets, gulls, suit radio), every `gap` seconds or so. */
 function every(ctx: AudioContext, out: AudioNode, gap: number, play: (t: number) => void, timers: number[]) {
   const loop = () => {
-    play(ctx.currentTime + 0.05);
+    // while the context is suspended (tab hidden), its clock is frozen: queued chirps would all fire at once on return
+    if (ctx.state === 'running') play(ctx.currentTime + 0.05);
     timers.push(window.setTimeout(loop, (gap * (0.5 + Math.random())) * 1000));
   };
   timers.push(window.setTimeout(loop, gap * Math.random() * 1000));
