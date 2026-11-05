@@ -264,14 +264,17 @@ describe('system scene', () => {
     expect(notes).toBeGreaterThan(0);
     expect(scene.locate('l5')).toBeTruthy();
     expect(scene.locate('moon')).toBeTruthy();
-    // zoom out to the belt and back in; one more notch in opens the orbit view
-    for (let i = 0; i < 12; i++) scene.wheel(P(320, 180), 1);
+    // zoom out to the belt and back in (a notch is ~100; a trackpad's small deltas add up to steps)
+    for (let i = 0; i < 12; i++) scene.wheel(P(320, 180), 100);
     for (let i = 0; i < 90; i++) scene.update(1 / 60, 3000 + i * 16);
     expect(sc.view).toBeGreaterThan(3);
-    for (let i = 0; i < 12; i++) scene.wheel(P(320, 180), -1);
+    for (let i = 0; i < 12; i++) scene.wheel(P(320, 180), -100);
     for (let i = 0; i < 90; i++) scene.update(1 / 60, 4500 + i * 16);
     expect(sc.view).toBeLessThan(1.8);
-    scene.wheel(P(320, 180), -1);
+    // the gesture that zoomed in stops at the edge; a new one (after a pause) opens the orbit view
+    expect(calls).not.toContain('orbit');
+    await new Promise((r) => setTimeout(r, 300));
+    scene.wheel(P(320, 180), -100);
     expect(calls).toContain('orbit');
     // pinch
     scene.pointerDown(P(300, 180, 1));

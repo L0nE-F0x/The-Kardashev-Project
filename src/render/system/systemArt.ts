@@ -246,31 +246,91 @@ export interface StaticOpts {
  * little brighter: the swarm's track), the asteroid belt as a thin dithered haze between 2.1 and
  * 3.3 AU with its Kirkwood gaps, and an optional highlighted orbit.
  */
-export function paintSystemStatic(pc: PixelCanvas, L: SysLayout, cam: SysCam, o: StaticOpts = {}): void {
-  pc.data.fill(0);
-  // the belt's haze
+/** The belt's haze last worked out: its box in the picture and a colour (or 0) per pixel. */
+let hazeMemo: { key: string; x0: number; y0: number; w: number; h: number; px: Uint8Array } | null = null;
+
+/**
+ * The asteroid belt's haze, a thin dithered ring between 2.1 and 3.3 AU with its Kirkwood gaps. With
+ * the camera on the Sun (always, but for the ending) it's the same ring whichever way the view is
+ * turned, so turning the view reuses it: a drag only redraws the orbits' dots.
+ */
+function beltHaze(L: SysLayout, cam: SysCam, w: number, h: number): typeof hazeMemo {
+  if (cam.scale >= 2000) return null;
   const outer = 3.3 * cam.scale;
   const ox = Math.ceil(outer + 2);
   const oy = Math.ceil(outer * cam.tilt + 2);
   const [scx, scy] = makeProj(L, cam)(0, 0);
   const x0 = Math.max(0, Math.floor(scx - ox));
-  const x1 = Math.min(pc.w, Math.ceil(scx + ox));
+  const x1 = Math.min(w, Math.ceil(scx + ox));
   const y0 = Math.max(0, Math.floor(scy - oy));
-  const y1 = Math.min(pc.h, Math.ceil(scy + oy));
-  if (cam.scale < 2000) {
-    for (let y = y0; y < y1; y++) {
-      for (let x = x0; x < x1; x++) {
-        const [wx, wy] = unproject(L, cam, x + 0.5, y + 0.5);
-        const r = Math.hypot(wx, wy);
+  const y1 = Math.min(h, Math.ceil(scy + oy));
+  const centred = cam.x === 0 && cam.y === 0;
+  const key = `${L.cx},${L.cy}|${w}x${h}|${cam.scale}|${cam.tilt}|${cam.x},${cam.y}|${centred ? 0 : cam.rot}`;
+  if (hazeMemo?.key === key) return hazeMemo;
+  const bw = Math.max(0, x1 - x0);
+  const bh = Math.max(0, y1 - y0);
+  const px = hazeMemo && hazeMemo.px.length === bw * bh ? hazeMemo.px.fill(0) : new Uint8Array(bw * bh);
+  const c = Math.cos(cam.rot);
+  const s = Math.sin(cam.rot);
+  const kt = cam.scale * cam.tilt;
+  // each row only crosses the ring in one or two spans: r² = (rx + p)² + m along a row, so solve for
+  // the spans (padded; the test below still decides every pixel) instead of visiting the whole box
+  const RO = 3.32 * 3.32;
+  const RI = 2.08 * 2.08;
+  const toX = (rx: number) => rx * cam.scale + L.cx - 0.5;
+  for (let y = y0; y < y1; y++) {
+    const ry = -(y + 0.5 - L.cy) / kt;
+    const A = cam.x + ry * s;
+    const B = cam.y + ry * c;
+    const p = A * c - B * s;
+    const m = A * A + B * B - p * p;
+    if (m > RO + 0.05) continue;
+    const ho = Math.sqrt(Math.max(0, RO - m));
+    const hi = m < RI ? Math.sqrt(RI - m) : 0;
+    const spans: [number, number][] =
+      hi > 0.05
+        ? [
+            [toX(-p - ho), toX(-p - hi)],
+            [toX(-p + hi), toX(-p + ho)],
+          ]
+        : [[toX(-p - ho), toX(-p + ho)]];
+    for (const [sa, sb] of spans) {
+      const xa = Math.max(x0, Math.floor(sa) - 2);
+      const xb = Math.min(x1, Math.ceil(sb) + 3);
+      for (let x = xa; x < xb; x++) {
+        const rx = (x + 0.5 - L.cx) / cam.scale;
+        let r: number;
+        let back: boolean;
+        if (centred) {
+          // a ring round the Sun: no turn needed; the far half is the one above the Sun's row
+          r = Math.hypot(rx, ry);
+          back = ry > 0;
+        } else {
+          const wx = cam.x + rx * c + ry * s;
+          const wy = cam.y - rx * s + ry * c;
+          r = Math.hypot(wx, wy);
+          back = wx * s + wy * c > 0;
+        }
         if (r < 2.08 || r > 3.32) continue;
         if (Math.abs(r - 2.5) < 0.025 || Math.abs(r - 2.82) < 0.015 || Math.abs(r - 2.95) < 0.012) continue;
-        const k = Math.exp(-(((r - 2.72) / 0.42) ** 2));
         const b = bayer(x, y);
-        if (b < k * 3.2) pc.set(x, y, wx * Math.sin(cam.rot) + wy * Math.cos(cam.rot) > 0 ? C.night2 : C.night3);
-        else if (hash2(x, y, 907) < k * 0.02) pc.set(x, y, C.ink4);
+        // haze shows only on the four lowest Bayer levels and a faint star on 2% of pixels at most: skip the exp elsewhere
+        if (b >= 4 && hash2(x, y, 907) >= 0.02) continue;
+        const k = Math.exp(-(((r - 2.72) / 0.42) ** 2));
+        const i = (y - y0) * bw + (x - x0);
+        if (b < k * 3.2) px[i] = back ? C.night2 : C.night3;
+        else if (hash2(x, y, 907) < k * 0.02) px[i] = C.ink4;
       }
     }
   }
+  return (hazeMemo = { key, x0, y0, w: bw, h: bh, px });
+}
+
+export function paintSystemStatic(pc: PixelCanvas, L: SysLayout, cam: SysCam, o: StaticOpts = {}): void {
+  pc.data.fill(0);
+  // the belt's haze
+  const hz = beltHaze(L, cam, pc.w, pc.h);
+  if (hz) for (let j = 0; j < hz.h; j++) pc.data.set(hz.px.subarray(j * hz.w, (j + 1) * hz.w), (hz.y0 + j) * pc.w + hz.x0);
   const dots = (a: number, front: number, back: number, every: number) =>
     walkOrbit(L, cam, a, (x, y, i, d) => {
       if (i % every === 0) pc.set(x, y, d > 0 ? back : front);
@@ -516,6 +576,22 @@ export interface NearPaint {
   terrain?: { pc: PixelCanvas; res: number } | null;
   /** Paint the lens's round frame, backdrop and name tab around a radius. */
   lens?: number | null;
+  /** Where the canvas sits in the picture (the ending's box round the Earth): the same pixels, painted at (x - ox, y - oy). Not with `lens`. */
+  origin?: [number, number];
+}
+
+/**
+ * The box (in the picture, clamped to it) that paintNear draws in without a lens: the Moon's
+ * orbit and the Earth with its air. The ending repaints only this, not the whole screen.
+ */
+export function nearBox(g: Near, L: { w: number; h: number }): { x: number; y: number; w: number; h: number } {
+  const rx = Math.max(g.R >= 4 ? g.R : 0, g.er) + 4;
+  const ry = Math.max(g.R >= 4 ? g.R * g.tilt : 0, g.er) + 4;
+  const x0 = Math.max(0, Math.floor(g.x - rx));
+  const y0 = Math.max(0, Math.floor(g.y - ry));
+  const x1 = Math.min(L.w, Math.ceil(g.x + rx) + 1);
+  const y1 = Math.min(L.h, Math.ceil(g.y + ry) + 1);
+  return { x: x0, y: y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
 }
 
 /** Subsolar point for a view from above at the given tilt, with the sun at screen angle `phi`. */
@@ -540,6 +616,8 @@ const SEA = new Set<number>([C.sea0, C.sea1, C.sea2, C.sea3, C.sea4, C.sea5, C.s
  */
 export function paintNear(pc: PixelCanvas, g: Near, o: NearPaint = {}): void {
   const lr = o.lens ?? null;
+  const [ox, oy] = o.origin ?? [0, 0];
+  const set = (x: number, y: number, c: number) => pc.set(x - ox, y - oy, c);
   if (lr !== null) {
     for (let y = 0; y < pc.h; y++) {
       for (let x = 0; x < pc.w; x++) {
@@ -565,14 +643,14 @@ export function paintNear(pc: PixelCanvas, g: Near, o: NearPaint = {}): void {
       i++;
       if (d > 0 !== back || i % 3) continue;
       if (lr !== null && Math.hypot(x + 0.5 - g.x, y + 0.5 - g.y) > lr - 2) continue;
-      pc.set(x, y, back ? C.ink3 : C.ink5);
+      set(x, y, back ? C.ink3 : C.ink5);
     }
   };
   if (g.R >= 4) orbit(true);
   const sun = nearSun(g);
   const lat0 = Math.asin(Math.max(0.2, Math.min(0.95, g.tilt))) / RAD;
   if (o.terrain && g.er >= 3) {
-    const go = { terrain: o.terrain.pc, res: o.terrain.res, lon0: g.spin, lat0, cx: g.x, cy: g.y, r: g.er, sun, lights: g.er >= 18, atmosphere: true, smooth: g.er < 60 };
+    const go = { terrain: o.terrain.pc, res: o.terrain.res, lon0: g.spin, lat0, cx: g.x, cy: g.y, r: g.er, sun, lights: g.er >= 18, atmosphere: true, smooth: g.er < 60, ox, oy };
     drawGlobe(pc, go);
     if (g.er < 18) {
       // a small Earth: a sparse scatter of lights on the night side's land, not a blaze
@@ -589,7 +667,7 @@ export function paintNear(pc: PixelCanvas, g: Near, o: NearPaint = {}): void {
           const ty = Math.max(0, Math.min(H - 1, Math.floor((90 - p.lat) / o.terrain.res)));
           const tc = o.terrain.pc.data[ty * W + tx];
           if (!tc || SEA.has(tc)) continue;
-          pc.set(x, y, hash2(x, y, 978) < 0.3 ? C.yel1 : C.org2);
+          set(x, y, hash2(x, y, 978) < 0.3 ? C.yel1 : C.org2);
         }
       }
     }
@@ -609,7 +687,7 @@ export function paintNear(pc: PixelCanvas, g: Near, o: NearPaint = {}): void {
         let c = cloud ? C.ice2 : land ? C.grn5 : C.sea5;
         if (lit < -0.1) c = cloud ? C.ink3 : land ? C.grn0 : C.sea1;
         else if (lit < 0.12) c = bayer(x, y) < ((lit + 0.1) / 0.22) * 16 ? c : cloud ? C.ink4 : land ? C.grn1 : C.sea2;
-        pc.set(x, y, c);
+        set(x, y, c);
       }
     }
   }
