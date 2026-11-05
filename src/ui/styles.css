@@ -1819,3 +1819,63 @@ img.endcard {
   display: grid;
   gap: 6px;
 }
+
+/* achievements */
+.achievements {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.achievement {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  background: var(--panel-2);
+  border: 2px solid #0b0a12;
+}
+.achievement:not(.got) .n {
+  color: var(--muted);
+}
+.achievement .txt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.achievement .n {
+  font-weight: 700;
+}
+.achievement .d {
+  font-size: 13px;
+  color: var(--muted);
+}
+.achievement .d.gold {
+  color: var(--gold);
+}
+.badge {
+  position: relative;
+  flex: none;
+  width: calc(var(--px, 3px) * 24);
+  height: calc(var(--px, 3px) * 24);
+}
+.badge .medal {
+  width: 100%;
+  height: 100%;
+}
+.badge .glyph {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--px, 3px) * 3);
+  height: calc(var(--px, 3px) * 16);
+  display: grid;
+  place-items: center;
+}
+.badge.locked .glyph {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+.badge .glyph b {
+  color: var(--muted);
+  font-family: var(--font-pixel);
+}

@@ -8,6 +8,7 @@ import { NewCompany } from './NewCompany';
 import { SettingsBody } from './SettingsScreen';
 import { FieldGuideBody } from './FieldGuide';
 import { Credits, InstallHelp, WhatsNew } from './InfoScreens';
+import { AchievementsScreen } from './Achievements';
 import { importSave } from '../../save/save';
 import { canPromptInstall, isAndroid, isDesktopApp, isIOS, isPhone, isStandalone, promptInstall, quitApp } from '../../platform/platform';
 
@@ -99,6 +100,7 @@ export function MainMenu() {
           game.openMenuScreen('new');
         })}
         {item('research', 'Field Guide', () => game.openMenuScreen('guide'), game.guideBadge() > 0)}
+        {item('goals', 'Achievements', () => game.openMenuScreen('achievements'))}
         {item('settings', 'Settings', () => game.openMenuScreen('settings'))}
         {item('news', 'What’s new', () => {
           game.updateSettings({ lastSeenVersion: APP_VERSION });
@@ -139,6 +141,7 @@ export function MainMenu() {
       )}
       {screen === 'whatsnew' && <WhatsNew />}
       {screen === 'credits' && <Credits />}
+      {screen === 'achievements' && <AchievementsScreen />}
       {screen === 'install' && <InstallHelp />}
     </div>
   );

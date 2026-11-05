@@ -1511,6 +1511,8 @@ export class DioramaScene implements Scene {
     // the burn floods the pad (and the cloud) with orange light; it fades as the rocket climbs
     const fl = r.flash;
     const lit = pose.phase === 'ignite' ? pose.burn : pose.phase === 'flight' ? Math.max(0, 1 + (pose.dy + 30) / 160) : 0;
+    // a liftoff watched in the dark (an achievement); only when it's on screen
+    if (pose.phase === 'flight' && this.darkness > 0.6 && p.x + p.w > this.camX && p.x < this.camX + this.vw) this.game.achieve?.('night-launch');
     fl.visible = lit > 0.02;
     fl.alpha = lit * (0.75 + Math.sin(this.time * 31) * 0.12);
     fl.position.set(padX - Math.floor(fl.width / 2), padY - Math.floor(fl.height * 0.62));
@@ -1699,6 +1701,7 @@ export class DioramaScene implements Scene {
     const who = this.life.namedAt(this.camX + p.x, p.y);
     const met = who ? this.life.greet(who) : null;
     if (met) {
+      this.game.metOnCampus?.(met.id);
       const lines = campusLines(met.id, this.game.view?.act ?? 1);
       const k = LINE_INDEX.get(met.id) ?? Math.floor(hash2(met.id.length, 5, 3) * lines.length);
       LINE_INDEX.set(met.id, k + 1);

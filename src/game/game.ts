@@ -45,6 +45,8 @@ import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
 import type { TourDirector } from './tour';
+import { ACHIEVEMENT_BY_ID, TEAM_TO_MEET, earned } from '../content/achievements';
+import { achievements, saveAchievements } from '../save/achievements';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
 export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | null;
@@ -54,7 +56,7 @@ export type SystemTab = 'overview' | 'thermal' | 'foundries' | 'asteroids' | 'sw
 export type EndingStep = 'cinematic' | 'epilogue' | 'credits' | 'stats' | 'card';
 export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
 export type Mode = 'title' | 'map' | 'diorama' | 'orbit' | 'system';
-export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install';
+export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install' | 'achievements';
 export type Hover =
   | { kind: 'site'; id: string; clientX: number; clientY: number }
   | { kind: 'region'; id: RegionId; clientX: number; clientY: number }
@@ -404,6 +406,13 @@ export class Game {
   enterDiorama(siteId: string): void {
     this.mode = 'diorama';
     this.dioramaSite = siteId;
+    // ten different places seen up close: a world tour
+    const st = achievements();
+    if (this.state && !st.places.includes(siteId)) {
+      st.places.push(siteId);
+      saveAchievements();
+      if (st.places.length >= 10) this.achieve('world-tour');
+    }
     this.hover = null;
     // dioramas are close-ups: twice the pixel size of the world map
     this.stage.setZoomBoost(this.settings.zoom * 2);
@@ -504,6 +513,11 @@ export class Game {
     } else if (s) {
       s.meta.playtime += dt;
       this.logPlay(s, dt);
+      this.achTimer += dt;
+      if (this.achTimer >= 1) {
+        this.achTimer = 0;
+        for (const a of earned(s, achievements().got)) this.unlockAchievement(a.id);
+      }
       // Act IV: a time jump runs a week per frame so the map can time-lapse (or all at once when skipped)
       if (s.planet?.jump) {
         const rec = PL.jumpStep(s, this.ctx, this.jumpFast ? 100_000 : JUMP_DAYS_PER_FRAME);
@@ -1393,6 +1407,35 @@ export class Game {
     }
     this.notify();
     return r;
+  }
+
+  // ── achievements ──────────────────────────────────────────────────────────────────────────
+  private achTimer = 0;
+
+  /** Unlock an achievement the game notices on screen (a night launch, a world tour…). */
+  achieve(id: string): void {
+    if (!this.state || this.mode === 'title' || !ACHIEVEMENT_BY_ID[id] || achievements().got[id]) return;
+    this.unlockAchievement(id);
+  }
+
+  private unlockAchievement(id: string): void {
+    const a = ACHIEVEMENT_BY_ID[id];
+    const st = achievements();
+    if (!a || st.got[id]) return;
+    st.got[id] = Date.now();
+    saveAchievements();
+    this.toast(`🏆 ${a.name} — ${a.desc}`, 'good');
+    sfx('fanfare');
+  }
+
+  /** You said hello to an advisor (or Bit) on campus. */
+  metOnCampus(id: string): void {
+    const st = achievements();
+    if (!st.met.includes(id)) {
+      st.met.push(id);
+      saveAchievements();
+    }
+    if (TEAM_TO_MEET.every((x) => st.met.includes(x))) this.achieve('meet-the-team');
   }
 
   // ── playtest log ──────────────────────────────────────────────────────────────────────────
