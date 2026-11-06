@@ -1809,3 +1809,37 @@ work" there (the Update click itself crashed it). Fix: `bundleMediaFramework` pl
 Verified on the dev machine, which then updated itself 0.8.0 → 0.8.1 in the game (the first real Linux in-app update).
 Older AppImages on those distros need one manual download. The update check stays as it is (about 6 s after launch,
 then every 6 hours): the user is happy with that.
+
+## 23. v0.9 "Easy Start": UI polish and teaching the game (built 2026-11-06, on branch `ui-polish`)
+
+The user's notes after playing through Act I (their save: day 764 after ~23 real minutes, **the whole act at 1×**,
+never fast-forwarded): the UI wants "a slight tad of modernization without breaking too far away from the aesthetic";
+they need "more of an explanation of what's going on — what your typical game day looks like"; there are almost too
+many options (good for the genre, but it has to be unwrapped); the tutorial is too sparse — it walks one basic loop.
+Built while they napped (calls listed below):
+
+- **Modern HUD layer** (`src/ui/modern.css`): softer frame surfaces (a gentle gradient, a thin lit top edge instead of
+  the chunky bevel), panel and modal heads as a lighter strip with a cyan accent rule (gold on event cards), section
+  labels with a hairline to the edge, smooth slide/scale-in instead of 4-step animations, buttons with a light bevel,
+  hover brightening and a gold focus ring, an accent edge on card buttons (build, tech, choices; gold on the default
+  choice), a teal active speed, a gold marker on the open dock button and a gently pulsing badge, a gold edge on the goal
+  card, toasts with an accent bar and readable text, tabular numbers, thin scrollbars, a glowing tutorial spotlight.
+  Pixel corners, pixel icons, Silkscreen titles and the world stay as they were. No backdrop blur (the map redraws
+  every frame; phones would pay). **Settings → Display → Interface look → Classic** brings back the old look.
+- **How to Play** (new; menu, the dock's ? button, `?`/F1): Start here (the five acts, "you are here"), The core loop
+  (a six-node ring + research/safety), **A typical day** (a six-step routine + "the shape of" the current act as a
+  timeline), Reading the screen, The panels (every dock button: what it's for and when to open it, by act), Time & speed,
+  Power 101, Chips & compute, Models/money/safety, one page per act reached (Acts II–V), Tips & common mistakes,
+  Controls. Later acts' pages appear when you get there. Phones: topics become a scrolling chip row.
+- **Bit's tutorial: 16 → 20 steps** — the loop in one breath (after hello), what the top-bar colours mean, why rent,
+  what the four compute sliders are, why sites differ, then after the first order: **speed up** (waits for ▶▶▶ or
+  Later), the dock, a typical day (on the goal card) and How to play. Each act's opening briefing now points at its
+  handbook page.
+- **Advisor tips** (`src/game/tips.ts`): one-off, never stop the clock, go away once fixed, a one-click fix and a
+  "Learn more" into the handbook: Bit on a slow clock (40 days at 1× with 2+ months of waiting ahead), Iris on an
+  idle lab / a negative margin, Mira on a half-empty hall with nothing coming, Juno on a brownout, Penny on rentals
+  left running and a short runway, Bit on the first campus. Settings → Gameplay → Advisor tips.
+
+Calls the user may want to change: the layer is on by default (Classic is one click away); tips are on by default and
+fire once per company; the tutorial's speed-up step can be skipped with "Later"; no version bump or CHANGELOG entry yet
+(that comes with "ship it").

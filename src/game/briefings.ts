@@ -32,7 +32,7 @@ export const BRIEFINGS: Briefing[] = [
     title: 'Gigawatts',
     when: (s) => s.act === 2 && s.phase >= 1 && !s.events.active,
     steps: [
-      { text: () => 'Act II, finally! Everything we own can get bigger now: data halls go from 10 to 50 MW, and later 200 MW. Power plants grow too.', mood: 'excited' },
+      { text: () => 'Act II, finally! Everything we own can get bigger now: data halls go from 10 to 50 MW, and later 200 MW. Power plants grow too. How to play (the ? button) has a page on Act II whenever you want the big picture.', mood: 'excited' },
       {
         text: () => 'Select a site and press the expand arrow next to a facility. It keeps running while the crews work.',
         enter: (g) => {
@@ -133,7 +133,7 @@ export const BRIEFINGS: Briefing[] = [
     title: 'The Kardashev Project',
     when: (s) => s.act === 3 && !!s.charter && since3(s, 2),
     steps: [
-      { text: () => 'Welcome to Geneva, Steward. The Charter has its own treasury — the blocs pay dues into it every month — and it’s completely separate from our company’s cash.', target: () => 'charter-stat', mood: 'excited' },
+      { text: () => 'Welcome to Geneva, Steward. The Charter has its own treasury — the blocs pay dues into it every month — and it’s completely separate from our company’s cash. How to play (?) has a page on how the Charter works.', target: () => 'charter-stat', mood: 'excited' },
       { text: () => 'Legitimacy is the blocs’ confidence in you; political capital is what you spend in the Council. Deliver projects, spread them fairly, and keep your hands off our own company’s bids.', enter: (g) => g.openCharter('overview'), target: () => 'legitimacy' },
     ],
   },
@@ -232,7 +232,7 @@ export const BRIEFINGS: Briefing[] = [
     title: 'The planet',
     when: (s) => s.act === 4 && !!s.planet && !!s.planet.company && !s.planet.jump,
     steps: [
-      { text: () => 'Act IV! The twelve blocs are provinces of one system now, and the Planet panel (Y) is where you run it: provinces, the supergrid, fusion, space and the climate.', target: () => 'dock-planet', mood: 'excited' },
+      { text: () => 'Act IV! The twelve blocs are provinces of one system now, and the Planet panel (Y) is where you run it: provinces, the supergrid, fusion, space and the climate. How to play (?) sums up the act.', target: () => 'dock-planet', mood: 'excited' },
       { text: () => 'The checklist on the Overview is the whole act: Kardashev 0.80, one grid, fusion, orbit, the Moon, thriving provinces, warming under 2 °C and AIs we can trust. When it all holds at once, the finale begins.', enter: (g) => g.openPlanet('overview'), target: () => 'planet-checklist' },
       { text: () => '“Next” shows what opens the next five-year plan, and the date it opens anyway. Between the jumps the planner keeps working the plan’s priorities on autopilot; switch it off here if you’d rather post and award every contract yourself.', target: () => 'planet-autopilot' },
     ],
@@ -310,7 +310,7 @@ export const BRIEFINGS: Briefing[] = [
     title: 'The System',
     when: (s) => s.act === 5 && !!s.system?.thermalLine && !!s.system.ownership && !s.system.jump,
     steps: [
-      { text: () => 'Act V! The System panel (X) is where the last climb happens: the Thermal Line, foundries, asteroids, the swarm, the minds and the people.', target: () => 'dock-system', mood: 'excited' },
+      { text: () => 'Act V! The System panel (X) is where the last climb happens: the Thermal Line, foundries, asteroids, the swarm, the minds and the people. How to play (?) sums up the act.', target: () => 'dock-system', mood: 'excited' },
       { text: () => 'Earth can only shed so much heat, so almost all of Type I has to be caught and used in space. The checklist on the Overview is the act; when it all holds, the Sun throws its worst at us — and anything still open makes its front of the storm harder. Then the last climb.', enter: (g) => g.openSystem('overview'), target: () => 'system-checklist' },
       { text: () => 'If you’d rather steer than drive, switch on Autopilot: the planner keeps posting and awarding contracts between eras. The big decisions stay yours.', target: () => 'system-autopilot' },
     ],

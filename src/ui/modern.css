@@ -340,3 +340,9 @@ html:not(.ui-classic) input[type='range']:hover::-webkit-slider-thumb {
 :where(html:not(.ui-classic)) ::-webkit-scrollbar-thumb:hover {
   background-color: var(--muted);
 }
+
+/* toasts keep body-coloured text: the accent bar and tint carry good/bad */
+:where(html:not(.ui-classic)) .toast.good,
+:where(html:not(.ui-classic)) .toast.bad {
+  color: var(--text);
+}

@@ -140,7 +140,10 @@ src/
                   (0–3: greying, elder, renewed) and Bit gens 10 (co-steward) and 11 (a free mind)
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
-    tutorial.ts   Bit's guided steps: text, target (`data-tut` attribute or `site:<id>`), done(g) check
+    tutorial.ts   Bit's guided steps (20 since v0.9: the loop, the dock, a typical day, How to play): text, target (`data-tut`
+                  attribute or `site:<id>`), done(g) check
+    tips.ts       advisor tips: one-off nudges after the tutorial (slow clock, idle lab, empty hall, brownout, rentals, margin,
+                  runway, the first campus) when a condition holds N game days; `meta.tipsSeen`; never stop the clock
     briefings.ts  Act II (`b-*`), Act III (`c-*`), Act IV (`d-*`) and Act V (`e-*`) unlock briefings: the owning advisor's 1–3 step
                   spotlight, shown once (each act's briefings only fire in that act)
     showcase.ts   the fake "day 900" world the menu tour flies over
@@ -156,8 +159,12 @@ src/
     panels/Act5Panels.tsx  the System panel (overview · Earth · foundries · asteroids · swarm · minds · people), the era
                            plan, the era overlay and report, the Solar Maximum tracker, the Type I ending (cinematic,
                            epilogues, credits, stats, end card); game.ending drives it
-    base.css      fonts, palette vars, frames, buttons — shared by the game and the website
-    menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens
+    base.css      fonts, palette vars, frames, buttons — shared by the game and the website (`.frame` reads --frame-bg/-edge/-shadow)
+    modern.css    the modern HUD layer (v0.9): softer frames, accent rules, hairlines, motion; every rule is scoped
+                  `:where(html:not(.ui-classic))` (zero specificity, so variant rules still win); Settings → Display →
+                  Interface look → Classic adds `html.ui-classic` and turns it off
+    menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens,
+                  HowToPlay (the handbook: content/howToPlay.ts; menu item, dock ? button, ? / F1, `game.openHowTo(topic)`)
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
   landing/    website script + css (the 2026 redesign: the hero's logo and spinning globe, then glass panels on the starfield:
               sticky nav, a bento of pillars, one row per act, a screenshot gallery with a lightbox, the K-scale bar, install +
@@ -216,6 +223,10 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   `EventDef`s with `weight`/`setup`/`choices[].apply` — keep choices to real trade-offs, give 2 advisor lines, and
   price crises with `cc(s, n)` so difficulty scales them.
 - **Tutorial targets:** UI elements Bit (and the Act II briefings) point at carry `data-tut="..."`; keep them when refactoring panels.
+- **Teaching the game (v0.9):** three layers. Bit's tutorial (first 10 minutes), How to Play (`content/howToPlay.ts`: topics
+  by act, the core loop, a typical day + each act's rhythm, every panel, tips; text with `- ` bullets, `1. ` steps, `> ` tips,
+  `**bold**`, `[Key]`) and advisor tips (`game/tips.ts`). A new panel gets a row in `PANEL_GUIDE`; a new act a topic and an
+  `ACT_RHYTHM` entry. Keep tips one-off and fixable with one click.
 - **Act gating:** Act II content carries `act: 2` and/or `phase: n` (facilities, techs, events, objectives, sites, jobs,
   deals). Gate new behaviour on `s.act >= 2`. M5's balance pass retuned Act I on purpose (first hall 10 months,
   Standard $450M / Hard $380M seed): the Act I bot finishes on day 686 (v0.8.0); later changes should still be deliberate.
