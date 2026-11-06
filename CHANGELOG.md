@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.0 — Easy Start (2026-11-06)
+A friendlier way in: a cleaner, more modern interface around the same pixel world, a handbook that explains what a normal day in the game looks like, a fuller tutorial and advisors who speak up when something is stuck.
+
+**A more modern look**
+- Softer panels, title strips with a thin accent line, section labels with a hairline, smooth slide-in motion and buttons that light up on hover. The world, the pixel icons, the pixel corners and the pixel titles stay as they were.
+- The open dock button gets a gold marker, badges pulse gently, the current speed shows in teal, toasts carry a coloured edge with readable text and numbers line up neatly.
+- Prefer the original chunky frames? Settings → Display → Interface look → Classic.
+
+**How to Play**
+- A new handbook: from the main menu, the ? button on the dock, or the ? / F1 keys.
+- The five acts and where you are, the core loop as a diagram, **a typical day** (a six-step routine plus a timeline of your current act), what every part of the screen and every dock button is for, time and speed, power, chips, models and safety, the common mistakes and the controls.
+- Each later act adds its own page when you reach it, and its opening briefing points you there.
+
+**A fuller tutorial**
+- Bit now explains why each step matters: the whole loop in one breath, what red numbers mean, what the four compute sliders do, why sites differ.
+- Four new steps after your first chip order: speed up, the dock, a typical day and where to find How to Play.
+
+**Advisor tips**
+- Once per company, and only when something is stuck: a slow clock during a long build, an idle lab, a half-empty hall, a brownout, rentals left running, a negative safety margin, a short cash runway, your first campus.
+- They never stop the clock, go away once you fix the problem, and come with a one-click fix and a "Learn more" link. Settings → Gameplay → Advisor tips turns them off.
+
 ## 0.8.1 — Linux sound fix (2026-11-06)
 - The Linux AppImage no longer closes the game the moment you click or press a key on Arch, Fedora and other non-Ubuntu systems. The AppImage now carries the sound libraries the game needs instead of looking for Ubuntu's.
 - On those systems, version 0.8.0 and older can't update themselves to this one (pressing Update starts the game's sound, which brought the crash): download the new AppImage once from the website and replace the old file. Later updates come to you as before.

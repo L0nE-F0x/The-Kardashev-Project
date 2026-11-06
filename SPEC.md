@@ -1810,7 +1810,7 @@ Verified on the dev machine, which then updated itself 0.8.0 → 0.8.1 in the ga
 Older AppImages on those distros need one manual download. The update check stays as it is (about 6 s after launch,
 then every 6 hours): the user is happy with that.
 
-## 23. v0.9 "Easy Start": UI polish and teaching the game (built 2026-11-06, on branch `ui-polish`)
+## 23. v0.9.0 "Easy Start": UI polish and teaching the game (shipped 2026-11-06)
 
 The user's notes after playing through Act I (their save: day 764 after ~23 real minutes, **the whole act at 1×**,
 never fast-forwarded): the UI wants "a slight tad of modernization without breaking too far away from the aesthetic";
@@ -1840,6 +1840,5 @@ Built while they napped (calls listed below):
   idle lab / a negative margin, Mira on a half-empty hall with nothing coming, Juno on a brownout, Penny on rentals
   left running and a short runway, Bit on the first campus. Settings → Gameplay → Advisor tips.
 
-Calls the user may want to change: the layer is on by default (Classic is one click away); tips are on by default and
-fire once per company; the tutorial's speed-up step can be skipped with "Later"; no version bump or CHANGELOG entry yet
-(that comes with "ship it").
+The user's calls on shipping: the modern look and the tips stay **on by default**; **no backdrop blur** (phones must
+stay fast). The tutorial's speed-up step can be skipped with "Later".
