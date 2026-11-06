@@ -359,8 +359,12 @@ retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI tha
 - Act IV (v0.5.0): screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
 - AppImages up to 0.8.0 crash on non-Ubuntu distros at the first click (no GStreamer plugins), so they can't update
-  themselves: those users reinstall 0.8.1 by hand. The dev machine runs 0.8.0 with a stopgap (Ubuntu plugins in
-  ~/Applications/kardashev-gst, env vars in the launcher), which makes it the first real test of 0.8.0 → 0.8.1.
+  themselves: those users reinstall 0.8.1 by hand. The dev machine (Omarchy) updated 0.8.0 → 0.8.1 in the game on
+  2026-11-06 (with a temporary plugin stopgap, since removed): the first real Linux in-app update from a CI release.
+  The app checks ~6 s after launch, then every 6 h, so a launch in the first minute after publishing can miss a release
+  (GitHub's latest/download lags); checking again on window focus would help. `check()` errors are swallowed in
+  platform.ts. To debug the desktop page: `WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9339` + the WebKit inspector protocol
+  over ws://127.0.0.1:9339/socket/1/1/WebPage (Target.sendMessageToTarget → Runtime.evaluate, Page.snapshotRect).
 - In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
   refused; the Android app in the emulator) and on the user's real Xiaomi phone, which updated itself to v0.5.1. Not yet
   on Windows or macOS. CI also signs the .deb (latest.json has linux-x86_64-deb), untested.
