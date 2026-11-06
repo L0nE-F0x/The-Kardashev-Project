@@ -42,6 +42,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev patchelf file
+          # The AppImage carries Ubuntu's GStreamer core, which only looks for plugins in Ubuntu's own folders:
+          # on Arch, Fedora and friends it finds none and WebKit aborts the page when the game's audio starts
+          # (v0.8.0 and older). bundleMediaFramework (tauri.conf.json) copies these plugins into the AppImage.
+          sudo apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-pulseaudio gstreamer1.0-alsa
 
       - uses: actions/setup-node@v7
         with:

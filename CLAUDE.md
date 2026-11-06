@@ -1,7 +1,7 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.8.0 "Stakes & Polish"** (a whole-game audit for fun, bugs and speed: SPEC §22) on top of v0.7.0 "Sandbox &
+Current build: **v0.8.1** (the Linux AppImage sound fix) on top of v0.8.0 "Stakes & Polish" (a whole-game audit for fun, bugs and speed: SPEC §22) and v0.7.0 "Sandbox &
 Soundtrack" (M5 steps 1–7) and v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
 Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
 desktop builds). v0.6.1 "Signs of Life" redrew the diorama people (people.ts, life.ts), lighting and depth, decluttered the world map
@@ -170,7 +170,9 @@ src/
               stings), music.ts (menu theme MP3 or chiptune fallback; a chiptune track per era in sections, following the
               palette), ambience.ts (a sound bed per place: map, campus, night, rain, coast, lake, Moon, space, habitat)
 src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the game bundled; capabilities = close, fullscreen,
-              updater, restart, opener scoped to the ApexForge page). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
+              updater, restart, opener scoped to the ApexForge page). The AppImage bundles GStreamer plugins
+              (`bundleMediaFramework`, plugin packages installed in CI): without them Ubuntu's bundled GStreamer finds
+              none on Arch/Fedora and WebKit aborts the page when the game's audio starts (≤ 0.8.0). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
               only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater)
 android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
               /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more
@@ -356,6 +358,9 @@ retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI tha
   ./gradlew assembleDebug --offline` (in `android/`).
 - Act IV (v0.5.0): screens checked in headless desktop and phone emulation only.
 - Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
+- AppImages up to 0.8.0 crash on non-Ubuntu distros at the first click (no GStreamer plugins), so they can't update
+  themselves: those users reinstall 0.8.1 by hand. The dev machine runs 0.8.0 with a stopgap (Ubuntu plugins in
+  ~/Applications/kardashev-gst, env vars in the launcher), which makes it the first real test of 0.8.0 → 0.8.1.
 - In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
   refused; the Android app in the emulator) and on the user's real Xiaomi phone, which updated itself to v0.5.1. Not yet
   on Windows or macOS. CI also signs the .deb (latest.json has linux-x86_64-deb), untested.

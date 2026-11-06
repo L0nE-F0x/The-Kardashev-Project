@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.1 — Linux sound fix (2026-11-06)
+- The Linux AppImage no longer closes the game the moment you click or press a key on Arch, Fedora and other non-Ubuntu systems. The AppImage now carries the sound libraries the game needs instead of looking for Ubuntu's.
+- On those systems, version 0.8.0 and older can't update themselves to this one (pressing Update starts the game's sound, which brought the crash): download the new AppImage once from the website and replace the old file. Later updates come to you as before.
+- Windows, macOS, the .deb, Android and the browser game are unchanged.
+
 ## 0.8.0 — Stakes & Polish (2026-11-06)
 A deep pass through the whole campaign before the big playthrough: more fun, clearer, steadier, without new systems. Every finale can now be lost, and every act asks fewer, better questions.
 
