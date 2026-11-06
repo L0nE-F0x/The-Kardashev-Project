@@ -1,5 +1,5 @@
 import type { AdvisorId, GameState } from '../sim/types';
-import { algoEff, capabilityOf, currentCapability, facilityMW, frontier } from '../sim/model';
+import { algoEff, capabilityOf, currentCapability, facilityIT, facilityMW, frontier } from '../sim/model';
 import { fmtDays, fmtMoney } from '../sim/core';
 import { FACILITIES, FIRM, GENERATORS } from './facilities';
 import { megaStage } from './charter';
@@ -25,6 +25,8 @@ export interface ObjectiveDef {
   act?: number;
   /** Act II phase it appears in (Act III: the Charter's phase; Act IV: the planet's stage). */
   phase?: number;
+  /** Optional: listed apart from the act's goals (the goal card shows one under them). */
+  side?: boolean;
   /** A condition that must hold, not a milestone: never ticked off, always shown live (Act IV checklist). */
   live?: boolean;
   /** How far along a numeric goal is: the goal card and the Goals panel draw it as a bar with the numbers. */
@@ -52,6 +54,27 @@ const mw = (now: number, of: number) => prog(now, of, of >= 1000 ? `${(now / 100
 /** A Kardashev goal, in the power it takes (K is a log scale, power is what grows). */
 const kGoal = (k: number) => (s: GameState) => prog(s.stats.worldTW, 10 ** (k * 10 + 6) / 1e12, `K ${s.stats.K.toFixed(4)} / ${k.toFixed(2)}`);
 const hallChips = (f: { racks?: { qty: number }[] }) => (f.racks ?? []).reduce((a, r) => a + r.qty, 0);
+
+/** The fullest online hall: installed IT load / hall size. */
+const hallFill = (s: GameState) => {
+  let best = 0;
+  for (const f of s.facilities) {
+    if (f.type !== 'datacenter' || f.status !== 'online') continue;
+    const cap = facilityIT(f) * 1000;
+    if (cap > 0) best = Math.max(best, (f.racks ?? []).reduce((a, b) => a + b.qty * b.kw, 0) / cap);
+  }
+  return best;
+};
+/** Share of the load served by your own clean plants and batteries (not gas, not the grid). */
+const cleanShare = (s: GameState) => {
+  let load = 0;
+  let clean = 0;
+  for (const p of Object.values(s.stats.sitePower ?? {})) {
+    load += p.load;
+    clean += Math.max(0, p.served - p.gasUsed - p.gridUsed);
+  }
+  return load >= 5 ? clean / load : 0;
+};
 
 const dcOnlineWithChips = (s: GameState) =>
   s.facilities.some((f) => f.type === 'datacenter' && f.status === 'online' && (f.racks ?? []).reduce((a, r) => a + r.qty, 0) >= 1000);
@@ -82,6 +105,12 @@ export const OBJECTIVES: ObjectiveDef[] = [
   { id: 'revenue', progress: (s) => monthly(s.stats.revenueMonth, 5e6), title: 'Reach $5M/month revenue', hint: 'Inference revenue grows with model quality and how much compute you serve with.', advisor: 'penny', done: (s) => s.stats.revenueMonth >= 5e6, after: ['train1'], goal: true },
   { id: 'margin', title: 'Keep the safety margin ≥ −0.25', hint: 'Investors will check. Safety research raises your alignment level.', advisor: 'iris', done: (s) => s.models.length >= 2 && s.stats.margin >= -0.25, after: ['train2'], goal: true },
   { id: 'seriesA', title: 'Raise your Series A', hint: 'With the goals above met, Penny will bring you term sheets.', advisor: 'penny', done: (s) => !!s.flags.act1Complete, after: ['online', 'train2', 'revenue', 'margin'], goal: true },
+  // Act I side goals: optional things worth doing while the first hall and Bit-2 come along (the long wait)
+  { id: 'side-site2', side: true, title: 'Break ground at a second site', hint: 'A second hall roughly halves the next model’s training time. Pick different weather: a windy site balances a sunny one.', advisor: 'juno', after: ['dc'], reward: { rp: 15, text: '+15 research' }, done: (s) => new Set(s.facilities.filter((f) => f.type === 'datacenter').map((f) => f.siteId)).size >= 2 },
+  { id: 'side-lab', side: true, title: 'Open a research lab', hint: 'A lab adds research every day: more projects finished before Bit-2 is ready.', advisor: 'iris', after: ['dc'], reward: { rp: 10, text: '+10 research' }, done: (s) => s.facilities.some((f) => f.type === 'lab') },
+  { id: 'side-wind', side: true, title: 'Build a wind farm', hint: 'Wind blows at night too, so a hall on wind needs fewer batteries than one on solar.', advisor: 'juno', after: ['dc'], reward: { rp: 10, text: '+10 research' }, done: (s) => s.facilities.some((f) => f.type === 'wind') },
+  { id: 'side-full', side: true, progress: (s) => prog(hallFill(s), 0.9, `fullest hall ${Math.round(hallFill(s) * 100)}% / 90%`), title: 'Fill a data hall to 90%', hint: 'Training speed is total compute. Order enough chips to fill the racks.', advisor: 'mira', after: ['online'], reward: { rp: 15, text: '+15 research' }, done: (s) => hallFill(s) >= 0.9 },
+  { id: 'side-clean', side: true, progress: (s) => prog(cleanShare(s), 0.95, `${Math.round(cleanShare(s) * 100)}% / 95% of the load on your own clean power`), title: 'Run on your own clean power', hint: 'Solar, wind and batteries that you own cover 95% of the load, day and night — no gas, little grid.', advisor: 'iris', after: ['online'], reward: { rp: 15, text: '+15 research' }, done: (s) => cleanShare(s) >= 0.95 },
 ];
 
 // ════════════════════════════════════ ACT II ════════════════════════════════════════════
@@ -240,8 +269,25 @@ export function actObjectives(s: GameState): ObjectiveDef[] {
   return OBJECTIVES.filter((o) => (o.act ?? 1) === act && (act === 1 || (o.phase ?? 1) <= phase));
 }
 
+/** Open, unlocked goals that count (side goals and a pinned goal are handled by the callers). */
+function openObjectives(s: GameState): ObjectiveDef[] {
+  return actObjectives(s).filter((o) => !s.objectives.done.includes(o.id) && !(o.live && o.done(s)) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
+}
+
+/** The act's open side goals. */
+export function openSideGoals(s: GameState): ObjectiveDef[] {
+  return openObjectives(s).filter((o) => o.side);
+}
+
+/** The goal card's list: a pinned goal first (Goals panel → 📌), then the act's open goals in order. */
+export function cardObjectives(s: GameState): ObjectiveDef[] {
+  const list = visibleObjectives(s);
+  const pin = s.meta.pinnedGoal ? openObjectives(s).find((o) => o.id === s.meta.pinnedGoal) : undefined;
+  return pin ? [pin, ...list.filter((o) => o.id !== pin.id)] : list;
+}
+
 export function visibleObjectives(s: GameState): ObjectiveDef[] {
-  const open = actObjectives(s).filter((o) => !s.objectives.done.includes(o.id) && !(o.live && o.done(s)) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
+  const open = actObjectives(s).filter((o) => !o.side && !s.objectives.done.includes(o.id) && !(o.live && o.done(s)) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
   const act = s.act ?? 1;
   if (act !== 2 && act !== 3) return open;
   // Acts II–III: the phase's headline goals (the checklist that moves the story) before leftovers from earlier phases

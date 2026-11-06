@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { Bar, Icon, Portrait, useGame } from './components';
-import { visibleObjectives, type ObjectiveProgress } from '../content/objectives';
+import { cardObjectives, openSideGoals, type ObjectiveProgress } from '../content/objectives';
 import { upcoming, type UpcomingItem } from '../sim/upcoming';
 import { fmtDays } from '../sim/core';
 import { FAC_ICON } from './Inspector';
@@ -26,9 +26,11 @@ export function Objectives() {
   if (!game.settings.goalTracker) return null;
   // on phones the inspector and panels share the screen with this card — get out of the way
   if (window.innerWidth <= 820 && (game.selection || game.panel)) return null;
-  const list = visibleObjectives(s).slice(0, 3);
+  const list = cardObjectives(s).slice(0, 3);
+  // one optional goal under the main ones (Act I's side goals for the long wait)
+  const side = list.some((o) => o.side) ? undefined : openSideGoals(s)[0];
   const soon = upcoming(s).slice(0, 4);
-  if (!list.length && !soon.length) return null;
+  if (!list.length && !soon.length && !side) return null;
   return (
     <div class="objectives frame interactive" data-tut="objectives">
       <div class="row between">
@@ -46,12 +48,28 @@ export function Objectives() {
             <div class="objective" key={o.id} data-tip={p ? o.hint : undefined}>
               <Portrait id={o.advisor} size={32} />
               <div class="grow">
-                <div class="t">{o.title}</div>
+                <div class="t">
+                  {s.meta.pinnedGoal === o.id && <span class="pinmark" data-tip="Pinned in Goals">📌 </span>}
+                  {o.side && <span class="label cyan">Side · </span>}
+                  {o.title}
+                </div>
                 {p ? <ObjectiveBar p={p} /> : <div class="h">{o.hint}</div>}
               </div>
             </div>
           );
         })}
+      {open && side && (
+        <div class="objective side" data-tip={side.hint}>
+          <Portrait id={side.advisor} size={24} />
+          <div class="grow">
+            <div class="t">
+              <span class="label cyan">Side goal · </span>
+              {side.title}
+            </div>
+            <div class="h">{side.reward ? `${side.reward.text} · ` : ''}optional — see Goals</div>
+          </div>
+        </div>
+      )}
       {open && <ComingUp game={game} items={soon} />}
     </div>
   );

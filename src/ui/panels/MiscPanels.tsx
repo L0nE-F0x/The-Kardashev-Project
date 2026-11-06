@@ -42,7 +42,7 @@ export function GoalsPanel() {
       <p class="small muted" style={{ marginTop: 0 }}>
         Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Act II makes you a hyperscaler and Act III the steward of the Kardashev Project; Act IV runs the planet, and Act V climbs to Type I.
       </p>
-      {OBJECTIVES.filter((o) => (o.act ?? 1) === 1).map((o) => {
+      {OBJECTIVES.filter((o) => (o.act ?? 1) === 1 && !o.side).map((o) => {
         const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
         const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
         return (
@@ -51,6 +51,7 @@ export function GoalsPanel() {
             <div class="grow">
               <div class="t">
                 {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                {!done && unlocked && !o.live && <PinButton id={o.id} />}
               </div>
               <div class="h">{o.hint}</div>
                     {!done && <GoalProgress o={o} s={s} />}
@@ -58,7 +59,59 @@ export function GoalsPanel() {
           </div>
         );
       })}
+      <SideGoals />
     </Panel>
+  );
+}
+
+/** Optional goals for the act (Act I has five for the long wait), with their rewards. */
+function SideGoals() {
+  const game = useGame();
+  const s = game.state!;
+  const list = OBJECTIVES.filter((o) => o.side && (o.act ?? 1) === (s.act ?? 1));
+  if (!list.length) return null;
+  return (
+    <div class="section">
+      <h4>Side goals · optional</h4>
+      {list.map((o) => {
+        const done = s.objectives.done.includes(o.id);
+        const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
+        return (
+          <div class="objective" key={o.id} style={{ opacity: unlocked || done ? 1 : 0.45 }}>
+            <Portrait id={o.advisor} size={32} />
+            <div class="grow">
+              <div class="t">
+                {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.reward && <span class="label cyan">· {o.reward.text}</span>}
+                {!done && unlocked && <PinButton id={o.id} />}
+              </div>
+              <div class="h">{o.hint}</div>
+              {!done && <GoalProgress o={o} s={s} />}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Pin a goal to the top of the goal card (one at a time). */
+export function PinButton({ id }: { id: string }) {
+  const game = useGame();
+  const s = game.state!;
+  const on = s.meta.pinnedGoal === id;
+  return (
+    <button
+      class={`btn ghost small pin ${on ? 'on' : ''}`}
+      onClick={() => {
+        s.meta.pinnedGoal = on ? undefined : id;
+        game.notify();
+      }}
+      data-tip={on ? 'Unpin from the goal card' : 'Pin to the top of the goal card'}
+      aria-label={on ? 'Unpin goal' : 'Pin goal'}
+      aria-pressed={on}
+    >
+      📌
+    </button>
   );
 }
 
@@ -88,6 +141,7 @@ function Act2Goals() {
                   <div class="grow">
                     <div class="t">
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
                     <div class="h">{o.hint}</div>
                     {!done && <GoalProgress o={o} s={s} />}
@@ -132,6 +186,7 @@ function Act4Goals() {
                   <div class="grow">
                     <div class="t">
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
                     <div class="h">{o.hint}</div>
                     {!done && <GoalProgress o={o} s={s} />}
@@ -174,6 +229,7 @@ function Act5Goals() {
                   <div class="grow">
                     <div class="t">
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
                     <div class="h">{o.hint}</div>
                     {!done && <GoalProgress o={o} s={s} />}
@@ -219,6 +275,7 @@ function Act3Goals() {
                   <div class="grow">
                     <div class="t">
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
+                {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
                     <div class="h">{o.hint}</div>
                     {!done && <GoalProgress o={o} s={s} />}

@@ -2446,3 +2446,25 @@ kbd {
     opacity: 0.45;
   }
 }
+.objective.side .t {
+  font-size: 13px;
+}
+.objective.side img.portrait {
+  width: 24px;
+  height: 24px;
+}
+.btn.pin {
+  padding: 0 4px;
+  margin-left: 4px;
+  font-size: 12px;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+.btn.pin.on,
+.btn.pin:hover {
+  filter: none;
+  opacity: 1;
+}
+.pinmark {
+  font-size: 11px;
+}

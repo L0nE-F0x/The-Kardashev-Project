@@ -988,6 +988,8 @@ export interface GameMeta {
   briefings?: string[];
   /** Advisor tips already shown (game/tips.ts; the sim never reads it). */
   tipsSeen?: string[];
+  /** The goal pinned to the top of the goal card (the sim never reads it). */
+  pinnedGoal?: string;
   /** Started from the "Start at Act II" preset. */
   act2Start?: boolean;
   /** Started from the "Start at Act III" preset. */
