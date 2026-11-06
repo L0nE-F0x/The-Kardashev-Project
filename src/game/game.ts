@@ -350,6 +350,7 @@ export class Game {
     this.tipStreak.clear();
     this.tipDay = -1;
     this.howtoTopic = null;
+    this.skip = null;
   }
 
   quitToMenu(): void {
@@ -627,6 +628,7 @@ export class Game {
       }
       if (s.flags.endingStart && !s.flags.endingShown && !this.ending) this.startEnding();
       this.tickEnding(dt);
+      if (this.skip) this.skipFrame(s);
       const blocked = this.blocked;
       if (blocked && this.speed !== 0) {
         this.resumeSpeed = this.speed;
@@ -897,6 +899,11 @@ export class Game {
 
   // ── UI state ──────────────────────────────────────────────────────────────────────────────
   setSpeed(speed: Speed): void {
+    // any speed button (or Space) ends a skip-ahead
+    if (this.skip) {
+      this.skip = null;
+      this.acc = 0;
+    }
     if (this.blocked && speed > 0) return;
     this.autoPaused = false;
     this.speed = speed;
@@ -906,6 +913,7 @@ export class Game {
   }
 
   togglePause(): void {
+    if (this.skip) return this.setSpeed(0);
     this.setSpeed(this.speed === 0 ? this.resumeSpeed || 1 : 0);
   }
 
@@ -919,6 +927,47 @@ export class Game {
     this.panel = this.panel === panel ? null : panel;
     sfx('click');
     this.notify();
+  }
+
+  /** Skip-ahead (Acts I–III, the goal card's ⏭): days run as fast as the frame budget allows until `until`. */
+  skip: { until: number; label: string; resume: Speed } | null = null;
+
+  /** Run the clock flat out until a game day (a card, a block or the tutorial stops it sooner). */
+  skipTo(day: number, label: string): void {
+    const s = this.state;
+    if (!s || this.skip || day <= s.day || (s.act ?? 1) >= 4 || s.meta.tutorialStep >= 0 || this.blocked || s.meta.gameOver) return;
+    this.skip = { until: day, label, resume: this.speed || this.resumeSpeed || 1 };
+    this.speed = 0;
+    this.autoPaused = false;
+    sfx('click');
+    this.notify();
+  }
+
+  /** Stop skipping; play on at the speed the player had. */
+  stopSkip(): void {
+    if (!this.skip) return;
+    this.speed = this.skip.resume;
+    this.skip = null;
+    this.acc = 0;
+    this.save();
+    this.notify();
+  }
+
+  private skipFrame(s: GameState): void {
+    const sk = this.skip!;
+    if (this.blocked || s.meta.gameOver) return this.stopSkip();
+    const t0 = performance.now();
+    let n = 0;
+    while (s.day < sk.until && performance.now() - t0 < 12) {
+      tick(s, this.ctx);
+      n++;
+      if (s.events.active || s.meta.gameOver) break;
+    }
+    if (n) this.afterTick();
+    if (s.day >= sk.until || s.events.active || s.meta.gameOver) {
+      if (s.day >= sk.until) sfx('objective');
+      this.stopSkip();
+    } else if (this.frameCount % 4 === 0) this.notify();
   }
 
   /** The advisor tip on screen (see tips.ts). */

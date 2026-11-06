@@ -2,7 +2,7 @@ import { GameCtx, Panel, useGame } from './components';
 import type { Game } from '../game/game';
 import { TopBar } from './TopBar';
 import { Dock } from './Dock';
-import { Objectives } from './Objectives';
+import { Objectives, SkipBar } from './Objectives';
 import { Inspector } from './Inspector';
 import { ComputePanel } from './panels/ComputePanel';
 import { OrdersPanel } from './panels/OrdersPanel';
@@ -82,6 +82,7 @@ function Hud() {
       <DioramaBar />
       <LinkHint />
       <DecisionPill />
+      <SkipBar />
       <Ticker />
       <Toasts />
       <AdvisorTip />

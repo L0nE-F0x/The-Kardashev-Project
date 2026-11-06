@@ -2374,3 +2374,75 @@ kbd {
     font-size: 13px;
   }
 }
+
+/* ── coming up + skip-ahead (v0.9.1) ──────────────────────────────────────────── */
+.comingup {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.comingup > .row {
+  margin-bottom: 3px;
+}
+.comingup .up {
+  gap: 6px;
+  min-height: 22px;
+  font-size: 12.5px;
+}
+.comingup .ut {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.comingup .uw {
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.comingup .upskip {
+  padding: 0 4px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+.comingup .up:hover .upskip {
+  opacity: 1;
+}
+.btn.skipnext {
+  padding: 2px 7px 3px;
+  font-size: 12px;
+}
+.skipbar {
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 10px;
+  width: min(420px, calc(100vw - 24px));
+  z-index: 6;
+  zoom: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
+  border-color: var(--cyan) !important;
+}
+.skipbar .grow {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.skipbar .st {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.skipicon {
+  font-size: 20px;
+  color: var(--cyan);
+  animation: skipPulse 0.8s ease-in-out infinite;
+}
+@keyframes skipPulse {
+  50% {
+    opacity: 0.45;
+  }
+}
