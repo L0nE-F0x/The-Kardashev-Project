@@ -148,6 +148,9 @@ function bindKeys(game: Game) {
       case 'f':
         game.openPanel('finance');
         break;
+      case 'k':
+        game.openPanel('stats');
+        break;
       case 'g':
         game.openPanel('goals');
         break;

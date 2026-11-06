@@ -182,6 +182,28 @@ export interface Ledger {
   other: number;
 }
 
+/** One month on the Stats panel's charts (missing values are NaN, saved as null). */
+export interface ChartPoint {
+  d: number;
+  cash: number;
+  rev: number;
+  cost: number;
+  /** Compute, exaFLOP/s. */
+  ef: number;
+  /** Power served / needed, MW. */
+  mw: number;
+  load: number;
+  k: number;
+  cap: number;
+  frontier: number;
+  margin: number;
+  chips: number;
+  /** Act III+: the Charter treasury. */
+  charter?: number;
+  /** Act IV+: warming, °C. */
+  warm?: number;
+}
+
 export interface MonthRecord extends Ledger {
   label: string;
   cashEnd: number;
@@ -990,6 +1012,8 @@ export interface GameMeta {
   tipsSeen?: string[];
   /** The goal pinned to the top of the goal card (the sim never reads it). */
   pinnedGoal?: string;
+  /** The Stats panel's monthly history (game/chart.ts; the sim never reads it). */
+  chart?: ChartPoint[];
   /** Started from the "Start at Act II" preset. */
   act2Start?: boolean;
   /** Started from the "Start at Act III" preset. */

@@ -8,6 +8,7 @@ import { ComputePanel } from './panels/ComputePanel';
 import { OrdersPanel } from './panels/OrdersPanel';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { FinancePanel } from './panels/FinancePanel';
+import { StatsPanel } from './panels/StatsPanel';
 import { GoalsPanel, NewsPanel } from './panels/MiscPanels';
 import { BlocsPanel, CrunchTracker, DealsPanel, TeamPanel } from './panels/Act2Panels';
 import { CharterPanel, CouncilPanel, ThresholdTracker } from './panels/Act3Panels';
@@ -49,6 +50,7 @@ function Hud() {
       {panel === 'orders' && <OrdersPanel />}
       {panel === 'research' && <ResearchPanel />}
       {panel === 'finance' && <FinancePanel />}
+      {panel === 'stats' && <StatsPanel />}
       {panel === 'news' && <NewsPanel />}
       {panel === 'goals' && <GoalsPanel />}
       {panel === 'team' && <TeamPanel />}

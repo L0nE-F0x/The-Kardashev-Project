@@ -37,6 +37,7 @@ export function Dock() {
     ['orders', 'orders', 'Chip orders & shipping (O)', s.shipments.length || undefined],
     ['research', 'research', 'Research (R)', s.research.current || !researchable(s).length ? undefined : 1],
     ['finance', 'finance', 'Finance (F)'],
+    ['stats', 'chart', 'Stats: charts of your whole run (K)'],
     ...(s.act >= 2
       ? ([
           ['team', 'team', 'Team · advisor jobs (T)', s.jobs && Object.values(s.jobs).some((j) => j?.on) ? undefined : 1],

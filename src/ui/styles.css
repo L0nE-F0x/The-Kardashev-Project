@@ -2468,3 +2468,71 @@ kbd {
 .pinmark {
   font-size: 11px;
 }
+
+/* ── stats panel (v0.9.1) ─────────────────────────────────────────────────────── */
+.charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.chart {
+  padding: 8px 10px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.chart-vals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.chart-vals .cv {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.chart-vals .cv i {
+  width: 10px;
+  height: 3px;
+  display: inline-block;
+}
+.chart-svg {
+  width: 100%;
+  height: 96px;
+  display: block;
+  background: var(--c-ink1, #16141f);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+.chart-svg .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.6;
+}
+.chart-svg .zero {
+  stroke: var(--bad);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.7;
+}
+.chart-svg .cross {
+  stroke: var(--text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.5;
+}
+.chart-foot {
+  font-size: 11px;
+}
+.chart-empty {
+  height: 96px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}

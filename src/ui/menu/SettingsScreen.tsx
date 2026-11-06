@@ -248,7 +248,7 @@ export const KEYS: [string, string][] = [
   ['? · F1', 'How to play'],
   ['Space', 'Pause / resume'],
   ['1 – 4', 'Game speed'],
-  ['C · O · R · F', 'Compute · Orders · Research · Finance'],
+  ['C · O · R · F · K', 'Compute · Orders · Research · Finance · Stats'],
   ['G · N · B', 'Goals · News · Field Guide'],
   ['L', 'Power-line tool'],
   ['I', 'Fiber tool (Act II)'],

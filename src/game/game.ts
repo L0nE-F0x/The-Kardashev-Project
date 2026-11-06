@@ -48,6 +48,7 @@ import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
 import { checkTips, type ActiveTip } from './tips';
+import { sampleChart } from './chart';
 import type { TourDirector } from './tour';
 import { ACHIEVEMENT_BY_ID, TEAM_TO_MEET, earned } from '../content/achievements';
 import { achievements, saveAchievements } from '../save/achievements';
@@ -55,7 +56,7 @@ import { segmentsLit } from '../sim/systemView';
 import { EVENT_BY_ID } from '../content/events';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | 'howto' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | 'howto' | 'stats' | null;
 export type PlanetTab = 'overview' | 'provinces' | 'grid' | 'fusion' | 'space' | 'climate';
 export type SystemTab = 'overview' | 'thermal' | 'foundries' | 'asteroids' | 'swarm' | 'minds' | 'people';
 /** The Type I ending, step by step. */
@@ -302,6 +303,7 @@ export class Game {
       if (report) this.awayReport = report;
     }
     refreshStats(saved);
+    sampleChart(saved);
     this.lastObjectiveSeen = saved.flags.lastObjective;
     this.lastNewsSeen = saved.news[0]?.day ?? 0;
     this.selection = null;
@@ -597,6 +599,7 @@ export class Game {
       if (s.planet?.jump && (steps || this.jumpFast)) {
         const rec = this.stepBudgeted(() => PL.jumpStep(s, this.ctx, this.jumpFast ? 30 : JUMP_DAYS_PER_FRAME * steps), () => !!s.planet?.jump);
         refreshStats(s);
+        sampleChart(s);
         if (rec) {
           this.jumpReport = rec;
           this.jumpFast = false;
@@ -612,6 +615,7 @@ export class Game {
         const last = !!s.system.jump.last;
         const rec = this.stepBudgeted(() => ERA.eraStep(s, this.ctx, this.jumpFast ? 30 : (last ? JUMP_DAYS_PER_FRAME * 2 : JUMP_DAYS_PER_FRAME) * steps), () => !!s.system?.jump);
         refreshStats(s);
+        sampleChart(s);
         if (rec) {
           this.eraReport = rec.last ? null : rec;
           // the last climb ends on the number itself: show the Type I card at once
@@ -676,8 +680,10 @@ export class Game {
     if (!this.jumpFast) return step();
     const t0 = performance.now();
     let rec: T | null = null;
-    do rec = step();
-    while (!rec && running() && performance.now() - t0 < 14);
+    do {
+      rec = step();
+      if (this.state) sampleChart(this.state);
+    } while (!rec && running() && performance.now() - t0 < 14);
     return rec;
   }
 
@@ -694,6 +700,7 @@ export class Game {
 
   private afterTick(): void {
     const s = this.state!;
+    sampleChart(s);
     this.updateTips(s);
     if (s.flags.lastObjective !== this.lastObjectiveSeen) {
       this.lastObjectiveSeen = s.flags.lastObjective;
@@ -960,6 +967,7 @@ export class Game {
     let n = 0;
     while (s.day < sk.until && performance.now() - t0 < 12) {
       tick(s, this.ctx);
+      sampleChart(s);
       n++;
       if (s.events.active || s.meta.gameOver) break;
     }
