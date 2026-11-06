@@ -1843,7 +1843,7 @@ Built while they napped (calls listed below):
 The user's calls on shipping: the modern look and the tips stay **on by default**; **no backdrop blur** (phones must
 stay fast). The tutorial's speed-up step can be skipped with "Later".
 
-## 24. v0.9.1 ideas round: skip-ahead, side goals, Stats, campus moments (built 2026-11-06, branch `more-ease`)
+## 24. v0.9.1 "Skip Ahead": skip-ahead, side goals, Stats, campus moments (shipped 2026-11-06)
 
 Ideas I proposed after v0.9.0 from the user's Act I save (hall online day 406, Bit-2 day 762 — a year of waiting; the
 lab idle; 500 Cumulus chips still rented into Act II). The user picked all but the Steam prep (controller support,

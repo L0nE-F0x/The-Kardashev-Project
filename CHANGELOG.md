@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.1 — Skip Ahead (2026-11-06)
+Less waiting, more seeing: skip straight to what you're waiting for, things to do during the long first year, charts of your whole run and a look at what you've built.
+
+**Coming up and Skip to next**
+- Under the goal card: everything you're waiting for and how long it takes — buildings, upgrades, chips on their way, grid connections, the training run, research, and in Act III Charter projects, bids and the next Council session.
+- **⏭ Skip to next** runs the clock flat out until the first of them lands; the small ⏭ on each line skips further ahead. Any event card or speed button stops a skip, and a bar at the top shows where you're headed, with a Stop button.
+
+**The long wait in Act I**
+- Five optional side goals that pay research: a second site, a research lab, a wind farm, stop renting cloud chips and run on your own clean power. One shows under the goal card; Goals lists them all.
+- Four new Act I research projects: Data Curation, Prefab Electrical Skids, Weather-Aware Dispatch and Red-Team Bounties.
+- Bit suggests what to do while the next model trains; Penny reminds you about rented chips once more in Act II.
+
+**Stats**
+- A new Stats panel (dock, or K): cash, revenue against costs, compute, power, chips, your models against the frontier, the safety margin and the Kardashev scale, plus the Charter treasury and warming later on. Hover to read any month; this act, five years or the whole run.
+- Saves from before this version show their cash and revenue history right away; the other charts fill in as you play.
+
+**Little things**
+- When a hall, a lab, a big power plant, a fab or a megaproject stage finishes, an advisor offers to take you there for a look.
+- Pin a goal (📌 in Goals) to keep it at the top of the goal card.
+- News has a Messages tab with every advisor pop-up this session; the ones that flew by while you fast-forwarded are marked, and the News button counts them.
+
 ## 0.9.0 — Easy Start (2026-11-06)
 A friendlier way in: a cleaner, more modern interface around the same pixel world, a handbook that explains what a normal day in the game looks like, a fuller tutorial and advisors who speak up when something is stuck.
 
