@@ -15,7 +15,6 @@ import { dateOf, fmtDate } from '../../sim/core';
 
 export function NewsPanel() {
   const game = useGame();
-  const s = game.state!;
   const [tab, setTab] = useState<'news' | 'messages'>(game.missedMessages ? 'messages' : 'news');
   if (tab === 'messages') game.markMessagesSeen();
   const missed = game.missedMessages;
