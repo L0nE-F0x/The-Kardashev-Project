@@ -175,3 +175,42 @@ export function BriefingOverlay() {
     </div>
   );
 }
+
+/** An advisor's one-off tip (game/tips.ts): a small card above the ticker. It never stops the clock. */
+export function AdvisorTip() {
+  const game = useGame();
+  const t = game.tip;
+  const s = game.state;
+  if (!t || !s || s.meta.tutorialStep >= 0 || game.briefing || s.events.active || game.ending || (game.mode !== 'map' && game.mode !== 'diorama')) return null;
+  const name = ADVISORS[t.advisor]?.name.replace(/^Dr\.\s*/, '').split(' ')[0] ?? 'Bit';
+  return (
+    <div class="advisor-tip frame interactive" role="status" aria-live="polite">
+      <Portrait id={t.advisor} mood="neutral" size={40} />
+      <div class="grow">
+        <div class="label">{name} · tip</div>
+        <div class="tip-text">{t.text}</div>
+        <div class="row wrap tip-actions">
+          {t.action && (
+            <button class="btn small primary" onClick={() => game.tipAction()}>
+              {t.action.label}
+            </button>
+          )}
+          {t.learn && (
+            <button
+              class="btn small"
+              onClick={() => {
+                game.openHowTo(t.learn);
+                game.dismissTip();
+              }}
+            >
+              Learn more
+            </button>
+          )}
+          <button class="btn small ghost" onClick={() => game.dismissTip()}>
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

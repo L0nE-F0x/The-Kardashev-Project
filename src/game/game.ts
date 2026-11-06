@@ -47,6 +47,7 @@ import type { AppUpdate, AppUpdateStatus } from '../platform/platform';
 import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
+import { checkTips, type ActiveTip } from './tips';
 import type { TourDirector } from './tour';
 import { ACHIEVEMENT_BY_ID, TEAM_TO_MEET, earned } from '../content/achievements';
 import { achievements, saveAchievements } from '../save/achievements';
@@ -54,14 +55,14 @@ import { segmentsLit } from '../sim/systemView';
 import { EVENT_BY_ID } from '../content/events';
 
 export type Selection = { kind: 'site'; id: string } | { kind: 'region'; id: RegionId } | null;
-export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | null;
+export type PanelId = 'compute' | 'orders' | 'research' | 'finance' | 'news' | 'settings' | 'goals' | 'guide' | 'team' | 'deals' | 'blocs' | 'charter' | 'council' | 'planet' | 'system' | 'sandbox' | 'howto' | null;
 export type PlanetTab = 'overview' | 'provinces' | 'grid' | 'fusion' | 'space' | 'climate';
 export type SystemTab = 'overview' | 'thermal' | 'foundries' | 'asteroids' | 'swarm' | 'minds' | 'people';
 /** The Type I ending, step by step. */
 export type EndingStep = 'cinematic' | 'epilogue' | 'credits' | 'stats' | 'card';
 export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
 export type Mode = 'title' | 'map' | 'diorama' | 'orbit' | 'system';
-export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install' | 'achievements';
+export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install' | 'achievements' | 'howto';
 export type Hover =
   | { kind: 'site'; id: string; clientX: number; clientY: number }
   | { kind: 'region'; id: RegionId; clientX: number; clientY: number }
@@ -345,6 +346,10 @@ export class Game {
     this.confirm = null;
     this.autoPaused = false;
     this.jumpFast = false;
+    this.tip = null;
+    this.tipStreak.clear();
+    this.tipDay = -1;
+    this.howtoTopic = null;
   }
 
   quitToMenu(): void {
@@ -687,6 +692,7 @@ export class Game {
 
   private afterTick(): void {
     const s = this.state!;
+    this.updateTips(s);
     if (s.flags.lastObjective !== this.lastObjectiveSeen) {
       this.lastObjectiveSeen = s.flags.lastObjective;
       const news = s.news.find((n) => n.text.startsWith('✅'));
@@ -913,6 +919,53 @@ export class Game {
     this.panel = this.panel === panel ? null : panel;
     sfx('click');
     this.notify();
+  }
+
+  /** The advisor tip on screen (see tips.ts). */
+  tip: ActiveTip | null = null;
+  private tipStreak = new Map<string, number>();
+  private tipDay = -1;
+
+  /** Has this device ever opened a campus view? (the campus tip) */
+  get visitedCampus(): boolean {
+    return achievements().places.length > 0;
+  }
+
+  dismissTip(): void {
+    this.tip = null;
+    this.notify();
+  }
+
+  /** Run the tip's one-click fix, then put it away. */
+  tipAction(): void {
+    const t = this.tip;
+    this.tip = null;
+    t?.action?.run(this);
+    this.notify();
+  }
+
+  private updateTips(s: GameState): void {
+    const days = this.tipDay < 0 ? 0 : Math.max(0, s.day - this.tipDay);
+    this.tipDay = s.day;
+    const r = checkTips(this, s, days, this.tipStreak);
+    if (r === undefined) return;
+    this.tip = r;
+    if (r) sfx('page');
+    this.notify();
+  }
+
+  /** How to Play: which topic to open at (a tip's "Learn more"). */
+  howtoTopic: string | null = null;
+
+  /** Open the handbook (in game: a panel; on the title screen: a window), optionally at a topic. */
+  openHowTo(topic?: string): void {
+    this.howtoTopic = topic ?? null;
+    if (this.mode === 'title' || !this.state) this.openMenuScreen('howto');
+    else if (topic) {
+      this.panel = 'howto';
+      sfx('click');
+      this.notify();
+    } else this.openPanel('howto');
   }
 
   openMenuScreen(screen: MenuScreen): void {

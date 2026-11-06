@@ -60,11 +60,11 @@ export function Dock() {
     ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
     ['news', 'news', 'News (N)'],
   ];
-  // the panels, the line tool, the fiber tool (Act II on) and Settings
-  const n = items.length + (s.act >= 2 ? 3 : 2);
+  // the panels, the line tool, the fiber tool (Act II on), How to play and Settings
+  const n = items.length + (s.act >= 2 ? 4 : 3);
   const { ref, more } = useScrollHint(n);
   return (
-    <div ref={ref} class={`dock frame ${n >= 15 ? 'many' : ''} ${more ? 'more' : ''}`} style={{ '--dock-n': n }}>
+    <div ref={ref} data-tut="dock" class={`dock frame ${n >= 15 ? 'many' : ''} ${more ? 'more' : ''}`} style={{ '--dock-n': n }}>
       {items.map(([id, icon, tip, badge]) => (
         <button key={id} class={`btn ${game.panel === id ? 'active' : ''}`} onClick={() => game.openPanel(id)} data-tip={tip} aria-label={tip} data-tut={`dock-${id}`}>
           <Icon name={icon} size="lg" />
@@ -80,6 +80,9 @@ export function Dock() {
           <Icon name="fiber" size="lg" />
         </button>
       )}
+      <button class={`btn ${game.panel === 'howto' ? 'active' : ''}`} onClick={() => game.openHowTo()} data-tip="How to play (?)" aria-label="How to play" data-tut="dock-howto">
+        <Icon name="help" size="lg" />
+      </button>
       <button class={`btn ${game.panel === 'settings' ? 'active' : ''}`} onClick={() => game.openPanel('settings')} data-tip="Settings & save" aria-label="Settings">
         <Icon name="settings" size="lg" />
       </button>

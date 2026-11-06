@@ -44,9 +44,15 @@ export const TUTORIAL: TutorialStep[] = [
     next: 'Show me',
   },
   {
+    id: 'loop',
+    mood: 'happy',
+    text: () => 'The whole game in one breath: money builds data halls and the power to run them → halls hold chips → chips are compute → compute trains models like me → better models earn more → more money. Research and safety make every turn of that loop better.',
+    next: 'Got it',
+  },
+  {
     id: 'hud',
     target: () => 'stats',
-    text: () => 'Up here: cash, power, compute, our model and the safety margin. Hover (or long-press) almost anything for the details.',
+    text: () => 'Up here: cash (and which way it’s heading each month), power served vs needed, compute, our best model and the safety margin. Red or orange means trouble. Hover (or long-press) any of it for the details.',
     next: 'Next',
   },
   {
@@ -67,7 +73,7 @@ export const TUTORIAL: TutorialStep[] = [
     enter: (g) => {
       if (g.panel !== 'compute') g.openPanel('compute');
     },
-    text: () => 'Rent 500 accelerators from Cumulus Cloud. Instant — but pricey, so we won’t rent forever.',
+    text: () => 'Compute is what trains models, and compute comes from chips. Rent 500 accelerators from Cumulus Cloud: instant, but pricey — a bridge until we have our own hall.',
     done: (g) => s(g).rental.units >= 500,
   },
   {
@@ -79,7 +85,7 @@ export const TUTORIAL: TutorialStep[] = [
   {
     id: 'play',
     target: () => 'speed',
-    text: () => 'Time is paused. Press play — at normal speed, one second is one day. ▶▶ goes faster.',
+    text: () => 'Time is paused. Press play — at 1× one second is one day. The ▶▶ buttons (or keys 1–4) go 2×, 4× and 8×; Space pauses.',
     done: (g) => g.speed > 0,
   },
   {
@@ -108,7 +114,7 @@ export const TUTORIAL: TutorialStep[] = [
       if (g.panel !== 'compute') g.openPanel('compute');
     },
     mood: 'neutral',
-    text: () => 'I’m live and earning a little! Before we grow, put some compute into safety research — Iris says at least 8%. Drag the Safety slider.',
+    text: () => 'I’m live and earning a little! These sliders split our compute: training (the next model), inference (customers = money), research and safety. Every model makes me more capable; safety keeps me checkable. Iris says at least 8% — drag the Safety slider.',
     done: (g) => s(g).alloc.safety >= 0.08,
   },
   {
@@ -130,7 +136,7 @@ export const TUTORIAL: TutorialStep[] = [
       const scene = g.stage.getScene() as { focusSite?: (id: string) => void } | null;
       if (site) scene?.focusSite?.(site.id);
     },
-    text: (g) => `Renting is expensive — we need our own data center. ${SITE_BY_ID[suggestedSite(g)]?.name} looks good: cheap land and sunshine. Click it on the map.`,
+    text: (g) => `Renting is expensive — we need our own data center. Every site is different: sun, wind, power prices, space. ${SITE_BY_ID[suggestedSite(g)]?.name} looks good: cheap land and sunshine. Click it on the map.`,
     done: (g) => g.selection?.kind === 'site' && SITE_BY_ID[g.selection.id]?.kind === 'build' && g.selection.id !== s(g).company.homeSite,
   },
   {
@@ -165,13 +171,37 @@ export const TUTORIAL: TutorialStep[] = [
     done: (g) => s(g).orders.length > 0 || s(g).shipments.length > 0,
   },
   {
-    id: 'done',
-    target: () => 'dock-guide',
+    id: 'speed-up',
+    target: () => 'speed',
     mood: 'excited',
     enter: (g) => {
       g.panel = null;
     },
-    text: () => 'That’s the loop! Building takes months, so speed time up (▶▶▶) — a card stops the clock whenever something needs you. The goal card leads to your Series A, and the Field Guide explains the real world behind it all.',
+    text: () => 'Now the waiting part: the hall takes the best part of a year. That’s the rhythm of this game — set things in motion, then let time run. Try ▶▶▶ now. I stop the clock myself whenever a card needs you.',
+    done: (g) => g.speed >= 4,
+    next: 'Later',
+  },
+  {
+    id: 'dock',
+    target: () => 'dock',
+    text: () => 'Each button on the left is a department: Compute, Orders, Research, Finance, then Goals, the Field Guide and News. A red badge means something in there is waiting for you. Hover (or long-press) a button for its name.',
+    next: 'Next',
+  },
+  {
+    id: 'day',
+    target: () => 'objectives',
+    mood: 'happy',
+    text: () => 'A normal day from here: read the goal card, glance at the top bar for red numbers, clear the red badges, queue the next thing before the last one finishes — research, chips, the next run — then speed up and answer the cards.',
+    next: 'Next',
+  },
+  {
+    id: 'done',
+    target: () => 'dock-howto',
+    mood: 'excited',
+    enter: (g) => {
+      g.panel = null;
+    },
+    text: () => 'That’s it! If you ever wonder what to do, How to play (this button, or the ? key) has the whole handbook — a typical day for every act, every panel, the common mistakes. The goal card leads to your Series A. Let’s build!',
     next: 'Let’s go!',
   },
 ];

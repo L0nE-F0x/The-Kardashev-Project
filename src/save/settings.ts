@@ -11,10 +11,14 @@ export interface Settings {
   /** Ask before spending at least this much (0 = never ask). */
   confirmSpend: number;
   goalTracker: boolean;
+  /** Advisor tips: one-off nudges when something is stuck (game/tips.ts). */
+  tips: boolean;
   // display
   /** Extra whole-number pixel zoom on top of the automatic scale. */
   zoom: number;
   uiScale: number;
+  /** Interface look: the modern HUD (v0.9) or the classic pixel frames. */
+  uiStyle: 'modern' | 'classic';
   weather: boolean;
   clouds: boolean;
   crt: boolean;
@@ -63,8 +67,10 @@ export function defaultSettings(): Settings {
     autosaveSec: 20,
     confirmSpend: 0,
     goalTracker: true,
+    tips: true,
     zoom: 1,
     uiScale: 1,
+    uiStyle: 'modern',
     weather: true,
     clouds: true,
     crt: false,
@@ -124,5 +130,6 @@ export function applyCssSettings(s: Settings): void {
   root.classList.toggle('cb-deutan', s.colorblind === 'deutan');
   root.classList.toggle('cb-tritan', s.colorblind === 'tritan');
   root.classList.toggle('crt', s.crt);
+  root.classList.toggle('ui-classic', s.uiStyle === 'classic');
   root.style.setProperty('--ui-zoom', String(s.uiScale));
 }

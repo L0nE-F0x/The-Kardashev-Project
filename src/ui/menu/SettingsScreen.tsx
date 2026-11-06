@@ -97,6 +97,7 @@ function Gameplay() {
         onChange={(v) => game.updateSettings({ confirmSpend: v })}
       />
       <Toggle label="Goal tracker" hint="The ‘Next up’ card with what to do next." value={st.goalTracker} onChange={(v) => game.updateSettings({ goalTracker: v })} />
+      <Toggle label="Advisor tips" hint="Your advisors speak up (once each) when something is stuck: an idle lab, an empty hall, a brownout, a slow clock." value={st.tips} onChange={(v) => game.updateSettings({ tips: v })} />
       {s && (
         <>
           <h4 class="section">This company</h4>
@@ -154,6 +155,16 @@ function Display() {
           [1.3, '130%'],
         ]}
         onChange={(v) => game.updateSettings({ uiScale: v })}
+      />
+      <Choice
+        label="Interface look"
+        hint="Modern: softer panels, accent lines and smooth motion. Classic: the original chunky pixel frames."
+        value={st.uiStyle}
+        options={[
+          ['modern', 'Modern'],
+          ['classic', 'Classic'],
+        ]}
+        onChange={(v) => game.updateSettings({ uiStyle: v })}
       />
       <Toggle label="Weather" hint="Rain, snow and dust storms in campus views." value={st.weather} onChange={(v) => game.updateSettings({ weather: v })} />
       <Toggle label="Clouds on the map" value={st.clouds} onChange={(v) => game.updateSettings({ clouds: v })} />
@@ -233,7 +244,8 @@ function Access() {
   );
 }
 
-const KEYS: [string, string][] = [
+export const KEYS: [string, string][] = [
+  ['? · F1', 'How to play'],
   ['Space', 'Pause / resume'],
   ['1 – 4', 'Game speed'],
   ['C · O · R · F', 'Compute · Orders · Research · Finance'],

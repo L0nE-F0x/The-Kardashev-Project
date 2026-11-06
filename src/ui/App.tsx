@@ -18,7 +18,8 @@ import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapToolti
 import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
 import { FieldGuideBody } from './menu/FieldGuide';
-import { BriefingOverlay, TutorialOverlay } from './Tutorial';
+import { HowToPlayBody } from './menu/HowToPlay';
+import { AdvisorTip, BriefingOverlay, TutorialOverlay } from './Tutorial';
 import { SandboxControls } from './menu/SandboxControls';
 
 function Hud() {
@@ -68,6 +69,11 @@ function Hud() {
           <SandboxControls value={game.state.meta.sandbox} onChange={(v) => game.setSandbox(v)} />
         </Panel>
       )}
+      {panel === 'howto' && (
+        <Panel title="How to play" icon="help" class="wide research" onClose={() => game.openPanel(null)}>
+          <HowToPlayBody initial={game.howtoTopic ?? undefined} key={game.howtoTopic ?? ''} />
+        </Panel>
+      )}
       {panel === 'guide' && (
         <Panel title="Field Guide" icon="research" class="wide research" onClose={() => game.openPanel(null)}>
           <FieldGuideBody />
@@ -78,6 +84,7 @@ function Hud() {
       <DecisionPill />
       <Ticker />
       <Toasts />
+      <AdvisorTip />
       <MapTooltip />
       <TutorialOverlay />
       <BriefingOverlay />

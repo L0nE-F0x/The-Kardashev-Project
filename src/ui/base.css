@@ -98,12 +98,10 @@ img.px.lg {
 
 /* ── pixel frames ─────────────────────────────────────────────────────────────── */
 .frame {
-  background: var(--panel);
-  border: 2px solid #0b0a12;
-  box-shadow:
-    inset 2px 2px 0 var(--line),
-    inset -2px -2px 0 var(--c-ink1, #16141f),
-    0 4px 0 rgb(0 0 0 / 0.35);
+  /* the game's modern layer (modern.css) sets these three; the website and the classic look use the defaults */
+  background: var(--frame-bg, var(--panel));
+  border: 2px solid var(--frame-edge, #0b0a12);
+  box-shadow: var(--frame-shadow, inset 2px 2px 0 var(--line), inset -2px -2px 0 var(--c-ink1, #16141f), 0 4px 0 rgb(0 0 0 / 0.35));
   clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
 }
 

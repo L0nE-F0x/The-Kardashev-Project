@@ -986,6 +986,8 @@ export interface GameMeta {
   gameOver?: boolean;
   /** Unlock briefings already shown (Act II). */
   briefings?: string[];
+  /** Advisor tips already shown (game/tips.ts; the sim never reads it). */
+  tipsSeen?: string[];
   /** Started from the "Start at Act II" preset. */
   act2Start?: boolean;
   /** Started from the "Start at Act III" preset. */

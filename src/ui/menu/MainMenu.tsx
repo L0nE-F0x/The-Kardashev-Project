@@ -7,6 +7,7 @@ import { APP_VERSION } from '../../content/changelog';
 import { NewCompany } from './NewCompany';
 import { SettingsBody } from './SettingsScreen';
 import { FieldGuideBody } from './FieldGuide';
+import { HowToPlayBody } from './HowToPlay';
 import { Credits, InstallHelp, WhatsNew } from './InfoScreens';
 import { AchievementsScreen } from './Achievements';
 import { importSave } from '../../save/save';
@@ -99,6 +100,7 @@ export function MainMenu() {
           setTutorialNew(true);
           game.openMenuScreen('new');
         })}
+        {item('help', 'How to play', () => game.openHowTo())}
         {item('guide', 'Field Guide', () => game.openMenuScreen('guide'), game.guideBadge() > 0)}
         {item('legit', 'Achievements', () => game.openMenuScreen('achievements'))}
         {item('settings', 'Settings', () => game.openMenuScreen('settings'))}
@@ -137,6 +139,11 @@ export function MainMenu() {
       {screen === 'guide' && (
         <Window title="Field Guide" icon="research" wide onClose={() => game.openMenuScreen('main')}>
           <FieldGuideBody />
+        </Window>
+      )}
+      {screen === 'howto' && (
+        <Window title="How to play" icon="help" wide onClose={() => game.openMenuScreen('main')}>
+          <HowToPlayBody initial={game.howtoTopic ?? undefined} />
         </Window>
       )}
       {screen === 'whatsnew' && <WhatsNew />}

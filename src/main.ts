@@ -1,5 +1,6 @@
 import { render, h } from 'preact';
 import './ui/styles.css';
+import './ui/modern.css';
 import mapUrl from './content/generated/worldmap.bin?url';
 import { PixelStage } from './render/stage';
 import { syncCssVars } from './render/palette';
@@ -110,6 +111,10 @@ function bindKeys(game: Game) {
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
     if (game.mode === 'title' || !game.state) {
       if (e.key === 'Escape') back(game);
+      else if (e.key === '?' || e.key === 'F1') {
+        e.preventDefault();
+        game.openHowTo();
+      }
       return;
     }
     const scene = game.stage.getScene();
@@ -190,6 +195,12 @@ function bindKeys(game: Game) {
         // a playtest note (when Settings → Gameplay → Playtest notes is on)
         e.preventDefault();
         game.openNote();
+        break;
+      case '?':
+      case 'F1':
+        e.preventDefault();
+        if (game.ending) break;
+        game.openHowTo();
         break;
       case 'Escape':
         back(game);
