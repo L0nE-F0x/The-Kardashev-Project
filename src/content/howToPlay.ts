@@ -55,9 +55,9 @@ export const PANEL_GUIDE: { icon: IconName; name: string; key: string; act: numb
   { icon: 'council', name: 'The Council', key: 'U', act: 3, what: 'Resolutions and votes. Sessions every 90 days; table up to three, whip the waverers.', when: 'Before each session (the button shows a badge).' },
   { icon: 'globe', name: 'The Planet', key: 'Y', act: 4, what: 'Provinces, the supergrid, fusion, space and the climate — and the act’s checklist.', when: 'Between jumps: set the five-year plan, check what holds the checklist back.' },
   { icon: 'swarm', name: 'The System', key: 'X', act: 5, what: 'The Thermal Line, foundries, asteroids, the swarm, the minds and the people.', when: 'Between eras: set the era plan and answer the big decisions.' },
-  { icon: 'goals', name: 'Goals', key: 'G', act: 1, what: 'Every goal of the act with progress bars and hints. The headline goals end the act.', when: 'When you wonder what the act wants from you.' },
+  { icon: 'goals', name: 'Goals', key: 'G', act: 1, what: 'Every goal of the act with progress bars and hints. The headline goals end the act; side goals are optional and pay research. 📌 pins one to the top of the goal card.', when: 'When you wonder what the act wants from you.' },
   { icon: 'guide', name: 'Field Guide', key: 'B', act: 1, what: 'The real world behind the game: energy, chips, scaling laws, safety. New entries unlock as you meet them.', when: 'When the dot appears, or when you’re curious.' },
-  { icon: 'news', name: 'News', key: 'N', act: 1, what: 'Everything that happened, newest first — the long version of the ticker at the bottom.', when: 'After a fast-forward, to see what you missed.' },
+  { icon: 'news', name: 'News', key: 'N', act: 1, what: 'Everything that happened, newest first, plus Messages: every advisor pop-up this session.', when: 'After a fast-forward or a skip — a badge counts the pop-ups you may have missed.' },
   { icon: 'link', name: 'Power line tool', key: 'L', act: 1, what: 'Draw a transmission line between two of your sites to pool their power.', when: 'When one site has spare power and another is short.' },
   { icon: 'fiber', name: 'Fiber tool', key: 'I', act: 2, what: 'Lay fiber between your sites so halls in one region can sell into another.', when: 'When you want a second market.' },
 ];
@@ -98,7 +98,7 @@ Your compute is split four ways in the Compute panel: **training** (the next mod
 2. **Scan the top bar.** Red or orange text is trouble: power short of what your sites need, cash falling, safety margin below zero. Hover any number for the breakdown.
 3. **Look for badges** on the dock buttons: a red number means something there is waiting for you (research idle, a run to start, an offer).
 4. **Queue the next thing before the last one finishes:** research, the next training run, chips for a hall that’s still being built, power for a hall you’re about to build.
-5. **Speed up.** Press [3] or [4] (or the ▶▶ buttons). The game stops the clock by itself when an event card needs you, so you won’t miss anything.
+5. **Speed up.** Press [3] or [4] (or the ▶▶ buttons), or press **⏭ Skip to next** under the goal card to jump straight to the next thing you’re waiting for. The game stops the clock by itself when an event card needs you, so you won’t miss anything.
 6. **Answer event cards** (the pop-ups with choices). Each one is a trade-off; the advisors’ lines hint at the angle. The highlighted choice is the safe default.
 
 > If nothing on screen needs you, ▶▶▶ is the right speed. Most of the waiting is concrete setting and chips at sea.`,
@@ -127,6 +127,7 @@ Almost everything has a tooltip: hover with a mouse, long-press on a phone.`,
     icon: 'ff',
     body: `At 1× one game day passes every second. [2] is twice as fast, [3] four times, [4] eight times. [Space] pauses.
 
+- **Coming up** (under the goal card) lists what you’re waiting for — builds, chips at sea, grid connections, the training run, research — with how long each takes. **⏭ Skip to next** runs the clock flat out until the first one lands; the small ⏭ on each line skips further. A card or any speed button stops a skip.
 - **Event cards stop the clock** while they’re on screen (Settings → Gameplay → Pause for decisions), then it carries on at your speed.
 - **Builds take months:** a data hall about ten, a solar farm about nine, a gas plant over two years. Start long things early and run the clock fast while they build.
 - **Slow down** when you’re juggling a finale (The Crunch and later ones) or want to watch a campus.
@@ -232,7 +233,7 @@ The checklist leads to **Solar Maximum**, then the last climb to Kardashev 1.000
     id: 'tips',
     title: 'Tips & common mistakes',
     icon: 'warn',
-    body: `- **Playing everything at 1×.** Most of Act I is waiting for builds. Use [3] or [4]; cards stop the clock for you.
+    body: `- **Playing everything at 1×.** Most of Act I is waiting for builds. Use [3] or [4], or ⏭ Skip to next under the goal card; cards stop the clock for you.
 - **A hall with no power.** Line up grid, solar + batteries or gas at the same site before the hall opens.
 - **Solar without batteries.** Your hall goes dark every night.
 - **A half-empty hall.** Order enough chips to fill it — training speed is total compute.
@@ -263,8 +264,9 @@ export const ACT_RHYTHM: { act: number; beats: [string, string][] }[] = [
     beats: [
       ['Day 1', 'Rent chips, start Bit-1, put a little compute on safety, pick a research project.'],
       ['First weeks', 'Pick a site with cheap power and space. Start a data hall and its power (grid, or solar + batteries). Order chips to fill it.'],
-      ['Months 1–10', 'Concrete is setting. Speed up; answer cards; keep research going; Bit-1 earns a little.'],
+      ['Months 1–10', 'Concrete is setting. Skip ahead (⏭) or speed up; answer cards; keep research going; Bit-1 earns a little.'],
       ['Hall online', 'Chips install, turn rentals down, start the big Bit-2 run. Revenue climbs.'],
+      ['The long run', 'Bit-2 trains for most of a year: a good time for the side goals — a second site, a lab, wind, a full hall, clean power.'],
       ['Year 2', 'Bit-2, $5M/month and a safe margin: Penny brings the Series A term sheets.'],
     ],
   },

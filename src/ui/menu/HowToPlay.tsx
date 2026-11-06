@@ -134,9 +134,9 @@ const SCREEN_PARTS: [string, string][] = [
   ['Top bar', 'Cash (and its monthly trend), power served vs needed, compute, your best model, the safety margin. Later acts add the Charter treasury, warming and the Thermal Line.'],
   ['Top right', 'The Kardashev meter — the score of the whole game.'],
   ['Left', 'The dock: one button per panel. A red badge means something there is waiting for you.'],
-  ['Next up', 'The goal card: the next few goals with progress bars. Hover one for a hint.'],
+  ['Next up', 'The goal card: the next few goals with progress bars (hover one for a hint), one optional side goal, and Coming up — what you’re waiting for, with ⏭ to skip ahead to it. Pin a goal to the top from the Goals panel (📌).'],
   ['Right', 'The inspector: whatever you clicked on the map — a site, a region, a ship.'],
-  ['Bottom', 'The news ticker. Click it for the full feed.'],
+  ['Bottom', 'The news ticker. Click it for the full feed; its Messages tab keeps every advisor pop-up, including the ones that flew by while you fast-forwarded.'],
 ];
 
 function Screen() {

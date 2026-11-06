@@ -60,7 +60,7 @@ export const TIPS: TipDef[] = [
     acts: [1, 2, 3],
     days: 40,
     when: (s, g) => g.speed === 1 && longestWait(s) > 60,
-    text: (s) => `Psst — nothing needs us for about ${Math.round(longestWait(s) / 30)} months. Press ▶▶▶ (top left) and they fly by. I stop the clock the moment a card needs you.`,
+    text: (s) => `Psst — nothing needs us for about ${Math.round(longestWait(s) / 30)} months. Press ▶▶▶ (top left), or ⏭ Skip to next under the goal card, and they fly by. I stop the clock the moment a card needs you.`,
     action: { label: 'Go faster', run: (g) => g.setSpeed(4) },
     learn: 'time',
   },
