@@ -28,13 +28,27 @@ export function upcoming(s: GameState): UpcomingItem[] {
     if (f.status === 'building' && !f.blocked) out.push({ key: `f:${f.id}`, icon: `fac:${f.type}`, text: `${FACILITIES[f.type].name} at ${name(f.siteId)}`, day: s.day + Math.max(1, Math.ceil(f.buildDays - f.progress)) });
     if (f.upgrade) out.push({ key: `u:${f.id}`, icon: 'upgrade', text: `${FACILITIES[f.type].name} upgrade at ${name(f.siteId)}`, day: s.day + Math.max(1, Math.ceil(f.upgrade.buildDays - f.upgrade.progress)) });
   }
-  // chips: the next ship to land at each site
-  const ships = new Map<string, { day: number; qty: number }>();
-  for (const x of s.shipments) {
-    const cur = ships.get(x.dest);
-    if (!cur || x.arriveDay < cur.day) ships.set(x.dest, { day: x.arriveDay, qty: x.batch.qty });
+  // chips: one line per site for everything ordered — at sea, or still being made (estimated from the order's pace so
+  // far plus the sailing time), landing with the last ship
+  const chips = new Map<string, { day: number; sea: number; making: number }>();
+  const add = (dest: string, day: number, sea: number, making: number) => {
+    const cur = chips.get(dest) ?? { day: 0, sea: 0, making: 0 };
+    chips.set(dest, { day: Math.max(cur.day, day), sea: cur.sea + sea, making: cur.making + making });
+  };
+  for (const x of s.shipments) add(x.dest, x.arriveDay, x.batch.qty, 0);
+  for (const o of s.orders) {
+    if (o.done) continue;
+    const left = Math.max(0, o.qty - o.shipped);
+    if (!left) continue;
+    const pace = o.shipped / Math.max(1, s.day - o.placedDay);
+    const legs = s.shipments.filter((x) => x.orderId === o.id);
+    const sail = legs.length ? Math.max(...legs.map((x) => x.arriveDay - x.departDay)) : 30;
+    add(o.dest, pace > 0 ? s.day + left / pace + sail : s.day + 60 + sail, 0, left);
   }
-  for (const [dest, v] of ships) out.push({ key: `s:${dest}`, icon: 'ship', text: `${v.qty.toLocaleString()} chips land at ${name(dest)}`, day: Math.max(s.day + 1, Math.ceil(v.day)) });
+  for (const [dest, v] of chips) {
+    const text = v.making > 0 ? `Chips for ${name(dest)}: ${v.making.toLocaleString()} being made${v.sea ? `, ${v.sea.toLocaleString()} at sea` : ''}` : `The last of ${v.sea.toLocaleString()} chips lands at ${name(dest)}`;
+    out.push({ key: `s:${dest}`, icon: 'ship', text, day: Math.max(s.day + 1, Math.ceil(v.day)) });
+  }
   for (const [id, site] of Object.entries(s.sites)) {
     const next = site.grid.pending.reduce<number | null>((a, p) => (a === null || p.readyDay < a ? p.readyDay : a), null);
     if (next !== null) out.push({ key: `g:${id}`, icon: 'grid', text: `Grid connection at ${name(id)}`, day: Math.max(s.day + 1, Math.ceil(next)) });

@@ -92,6 +92,8 @@ src/
                   / minds.ts / solarmax.ts / ending.ts (epilogue picks, campaign stats)   the Act V systems;
                   systemInit.ts, systemView.ts (read-only views for the solar-system view, orbit extras, map, dioramas,
                   portraits: castAge, bitForm, deskHolder), systemPreview.ts (a ready-made ~2084 world)
+    upcoming.ts   read-only "Coming up": builds, upgrades, chips (whole orders, estimated), grid, the run, research, Act III
+                  projects/bids/Council, soonest first; Acts IV–V return [] (they jump). `game.skipTo(day)` skips ahead
     network.ts    regional inference markets: private graph (fiber, leased/own cables), serve efficiency, contracts first
     stack.ts / politics.ts / capital.ts / rivals.ts / jobs.ts / finale.ts   (see SPEC §17)
   content/    data: regions, sites, facilities (with tiers), techs, companies, events (+ events2.ts for Act II), objectives,
@@ -144,7 +146,11 @@ src/
     tutorial.ts   Bit's guided steps (20 since v0.9: the loop, the dock, a typical day, How to play): text, target (`data-tut`
                   attribute or `site:<id>`), done(g) check
     tips.ts       advisor tips: one-off nudges after the tutorial (slow clock, idle lab, empty hall, brownout, rentals, margin,
-                  runway, the first campus) when a condition holds N game days; `meta.tipsSeen`; never stop the clock
+                  runway, the long Bit-2 wait) when a condition holds N game days; `meta.tipsSeen`; never stop the clock
+    moments.ts    campus moments: a "take a look" card (the tip card, `kind: 'moment'`) when a big build or a megaproject
+                  stage finishes; Acts I–III, one per 45 days, memo seeded from what exists so loads/skips don't replay
+    chart.ts      the Stats panel's history: `sampleChart` writes one point a month to `meta.chart` (after ticks, skips, jump
+                  and era steps, loads); old saves back-filled from the finance history
     briefings.ts  Act II (`b-*`), Act III (`c-*`), Act IV (`d-*`) and Act V (`e-*`) unlock briefings: the owning advisor's 1–3 step
                   spotlight, shown once (each act's briefings only fire in that act)
     showcase.ts   the fake "day 900" world the menu tour flies over
@@ -262,6 +268,8 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   Act V's pool is its `vstage` cards plus `ACT5_EXTRA`, rolled half as often; earlier acts' leftovers carry `actOnly`.
   A card must touch something the player owns (or say "Noted" and cost nothing); the highlighted choice is the first
   enabled one; a card with every choice disabled gets a Continue button (`dismissEvent`) — never strand the player.
+- **Skip-ahead (v0.9.1):** `game.skip` runs ticks in ~12 ms slices per frame until the target day; a card, a block,
+  game over or any speed button ends it and the player's speed comes back. Acts I–III only, never in the tutorial.
 - **Clock & time away:** anything that blocks the clock pauses it with `autoPaused` and it resumes by itself when the
   block goes away; `setSpeed` is the player's choice. Skips run in ~14 ms slices (`stepBudgeted`); jumps advance per
   1/60 s of real time. Offline catch-up only in Acts I–III, only if the clock was running (`meta.pausedAtSave`) and

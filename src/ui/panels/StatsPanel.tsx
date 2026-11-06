@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { Panel, useGame } from '../components';
 import type { ChartPoint } from '../../sim/types';
 import { fmtDate, fmtMoney, fmtMW } from '../../sim/core';
+import { warming } from '../../sim/climate';
 
 type Range = 'act' | '5y' | 'all';
 
@@ -167,7 +168,26 @@ export function StatsPanel() {
   const game = useGame();
   const s = game.state!;
   const [range, setRange] = useState<Range>('all');
-  const all = s.meta.chart ?? [];
+  // the saved monthly points, plus today's numbers so the charts end where the top bar is
+  const st = s.stats;
+  const now: ChartPoint = {
+    d: s.day,
+    cash: s.finance.cash,
+    rev: st.revenueMonth,
+    cost: st.costMonth,
+    ef: st.computeEF,
+    mw: st.powerServed,
+    load: st.powerLoad,
+    k: st.K,
+    cap: st.capability,
+    frontier: st.frontier,
+    margin: st.margin,
+    chips: st.installedAccel + st.rentedAccel,
+    ...(s.charter ? { charter: s.charter.budget } : {}),
+    ...(s.planet ? { warm: warming(s) } : {}),
+  };
+  const saved = s.meta.chart ?? [];
+  const all = saved.length && saved[saved.length - 1].d >= s.day ? saved : [...saved, now];
   const actStart = s.meta.log?.acts?.[s.act ?? 1]?.fromDay ?? 0;
   const from = range === 'all' ? -Infinity : range === '5y' ? s.day - 365 * 5 : actStart;
   const pts = all.filter((p) => p.d >= from);

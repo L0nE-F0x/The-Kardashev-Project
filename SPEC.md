@@ -1842,3 +1842,29 @@ Built while they napped (calls listed below):
 
 The user's calls on shipping: the modern look and the tips stay **on by default**; **no backdrop blur** (phones must
 stay fast). The tutorial's speed-up step can be skipped with "Later".
+
+## 24. v0.9.1 ideas round: skip-ahead, side goals, Stats, campus moments (built 2026-11-06, branch `more-ease`)
+
+Ideas I proposed after v0.9.0 from the user's Act I save (hall online day 406, Bit-2 day 762 — a year of waiting; the
+lab idle; 500 Cumulus chips still rented into Act II). The user picked all but the Steam prep (controller support,
+an Act I demo, a trailer mode, translations — a later session), and answered: skip = both a main button and one per
+line; Act I = side goals plus a few techs; Stats = its own dock button; campus moments = a pop-up, never a camera cut.
+
+- **Coming up + skip-ahead** (`sim/upcoming.ts`, the goal card): what you're waiting for with how long (builds,
+  upgrades, chips per site as one line for the whole order — its arrival estimated from the order's pace plus sailing
+  time, since weekly batches made "next" a one-week hop —, grid connections, the run, research, Act III projects, bids
+  and the Council session). **⏭ Skip to next** and a small ⏭ per line run the clock flat out until that day; a card or
+  any speed button stops it; a bar at the top shows where to, with Stop. Acts IV–V already jump.
+- **Act I side goals** (optional, `side: true`, shown one at a time under the goal card and in their own Goals section,
+  research rewards): a second site (+15), a research lab (+10), a wind farm (+10), stop renting cloud chips (+10), run
+  on your own clean power (+15). Four Act I techs: Data Curation, Prefab Electrical Skids, Weather-Aware Dispatch,
+  Red-Team Bounties. Bit's "while we wait" tip points at them. Act I bot: day 686 → 690.
+- **Pin a goal** (📌 in Goals): it leads the goal card (`meta.pinnedGoal`).
+- **Stats panel** (dock, K): cash, revenue vs costs, compute, power, chips, capability vs frontier, the safety margin,
+  K, and the Charter treasury / warming when they exist; one point a month on the save plus a live "now" point; log
+  scale when a line spans 50×; hover to read a month; This act / 5 years / All.
+- **Campus moments** (`game/moments.ts`): halls, labs, firm plants, fabs, packaging and megaproject stages offer a
+  "Take a look" card (the advisor tip card); the one-off campus tip is gone.
+- **Missed messages**: every toast this session is kept; News → Messages lists them, marking the ones that arrived
+  at ▶▶▶ or during a skip, and the News button counts those you haven't looked at. Penny repeats the rentals tip once
+  in Act II.

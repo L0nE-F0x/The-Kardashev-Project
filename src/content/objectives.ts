@@ -1,5 +1,5 @@
 import type { AdvisorId, GameState } from '../sim/types';
-import { algoEff, capabilityOf, currentCapability, facilityIT, facilityMW, frontier } from '../sim/model';
+import { algoEff, capabilityOf, currentCapability, facilityMW, frontier } from '../sim/model';
 import { fmtDays, fmtMoney } from '../sim/core';
 import { FACILITIES, FIRM, GENERATORS } from './facilities';
 import { megaStage } from './charter';
@@ -55,16 +55,6 @@ const mw = (now: number, of: number) => prog(now, of, of >= 1000 ? `${(now / 100
 const kGoal = (k: number) => (s: GameState) => prog(s.stats.worldTW, 10 ** (k * 10 + 6) / 1e12, `K ${s.stats.K.toFixed(4)} / ${k.toFixed(2)}`);
 const hallChips = (f: { racks?: { qty: number }[] }) => (f.racks ?? []).reduce((a, r) => a + r.qty, 0);
 
-/** The fullest online hall: installed IT load / hall size. */
-const hallFill = (s: GameState) => {
-  let best = 0;
-  for (const f of s.facilities) {
-    if (f.type !== 'datacenter' || f.status !== 'online') continue;
-    const cap = facilityIT(f) * 1000;
-    if (cap > 0) best = Math.max(best, (f.racks ?? []).reduce((a, b) => a + b.qty * b.kw, 0) / cap);
-  }
-  return best;
-};
 /** Share of the load served by your own clean plants and batteries (not gas, not the grid). */
 const cleanShare = (s: GameState) => {
   let load = 0;
@@ -109,7 +99,7 @@ export const OBJECTIVES: ObjectiveDef[] = [
   { id: 'side-site2', side: true, title: 'Break ground at a second site', hint: 'A second hall roughly halves the next model’s training time. Pick different weather: a windy site balances a sunny one.', advisor: 'juno', after: ['dc'], reward: { rp: 15, text: '+15 research' }, done: (s) => new Set(s.facilities.filter((f) => f.type === 'datacenter').map((f) => f.siteId)).size >= 2 },
   { id: 'side-lab', side: true, title: 'Open a research lab', hint: 'A lab adds research every day: more projects finished before Bit-2 is ready.', advisor: 'iris', after: ['dc'], reward: { rp: 10, text: '+10 research' }, done: (s) => s.facilities.some((f) => f.type === 'lab') },
   { id: 'side-wind', side: true, title: 'Build a wind farm', hint: 'Wind blows at night too, so a hall on wind needs fewer batteries than one on solar.', advisor: 'juno', after: ['dc'], reward: { rp: 10, text: '+10 research' }, done: (s) => s.facilities.some((f) => f.type === 'wind') },
-  { id: 'side-full', side: true, progress: (s) => prog(hallFill(s), 0.9, `fullest hall ${Math.round(hallFill(s) * 100)}% / 90%`), title: 'Fill a data hall to 90%', hint: 'Training speed is total compute. Order enough chips to fill the racks.', advisor: 'mira', after: ['online'], reward: { rp: 15, text: '+15 research' }, done: (s) => hallFill(s) >= 0.9 },
+  { id: 'side-rental', side: true, title: 'Stop renting cloud chips', hint: 'Once your own hall is running, turn the Cumulus rental down to zero in Compute. Rented chips cost far more than owned ones.', advisor: 'penny', after: ['online'], reward: { rp: 10, text: '+10 research' }, done: (s) => s.rental.units === 0 && s.stats.installedAccel > 0 },
   { id: 'side-clean', side: true, progress: (s) => prog(cleanShare(s), 0.95, `${Math.round(cleanShare(s) * 100)}% / 95% of the load on your own clean power`), title: 'Run on your own clean power', hint: 'Solar, wind and batteries that you own cover 95% of the load, day and night — no gas, little grid.', advisor: 'iris', after: ['online'], reward: { rp: 15, text: '+15 research' }, done: (s) => cleanShare(s) >= 0.95 },
 ];
 

@@ -59,7 +59,7 @@ export function Objectives() {
           );
         })}
       {open && side && (
-        <div class="objective side" data-tip={side.hint}>
+        <div class="objective sidegoal" data-tip={side.hint}>
           <Portrait id={side.advisor} size={24} />
           <div class="grow">
             <div class="t">

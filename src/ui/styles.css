@@ -2446,10 +2446,10 @@ kbd {
     opacity: 0.45;
   }
 }
-.objective.side .t {
+.objective.sidegoal .t {
   font-size: 13px;
 }
-.objective.side img.portrait {
+.objective.sidegoal img.portrait {
   width: 24px;
   height: 24px;
 }
@@ -2561,4 +2561,10 @@ kbd {
   width: 28px;
   height: 28px;
   flex: none;
+}
+@media (max-height: 520px) {
+  /* phones: the two soonest only, so toasts don't land on the list */
+  .comingup .up:nth-child(n + 4) {
+    display: none;
+  }
 }
