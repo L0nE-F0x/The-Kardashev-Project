@@ -1800,3 +1800,12 @@ No new systems; the numbers retune still waits for the playtest log.
   continues on Standard.
 - Act II is now ~1.5 years shorter for the bot (it no longer strands halls behind export rules): watch it in the retune.
 - Frame pacing at 60 fps (30 with Battery saver or when calm), and the menu tour prepares the detailed map in idle time.
+
+### v0.8.1 (2026-11-06): the Linux AppImage sound fix
+AppImages up to 0.8.0 crashed on non-Ubuntu distros (found on the dev machine, Omarchy/Arch) the moment the game's
+audio started on the first click or key press: the AppImage carried Ubuntu's GStreamer core but no plugins, and that
+core only looks in Ubuntu's plugin folders, so WebKit aborted the page. This was also why the in-app update "didn't
+work" there (the Update click itself crashed it). Fix: `bundleMediaFramework` plus the plugin packages on the CI runner.
+Verified on the dev machine, which then updated itself 0.8.0 → 0.8.1 in the game (the first real Linux in-app update).
+Older AppImages on those distros need one manual download. The update check stays as it is (about 6 s after launch,
+then every 6 hours): the user is happy with that.

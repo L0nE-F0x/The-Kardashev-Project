@@ -361,8 +361,8 @@ retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI tha
 - AppImages up to 0.8.0 crash on non-Ubuntu distros at the first click (no GStreamer plugins), so they can't update
   themselves: those users reinstall 0.8.1 by hand. The dev machine (Omarchy) updated 0.8.0 → 0.8.1 in the game on
   2026-11-06 (with a temporary plugin stopgap, since removed): the first real Linux in-app update from a CI release.
-  The app checks ~6 s after launch, then every 6 h, so a launch in the first minute after publishing can miss a release
-  (GitHub's latest/download lags); checking again on window focus would help. `check()` errors are swallowed in
+  The app checks ~6 s after launch, then every 6 h (the user is happy with that); a launch in the first minute after
+  publishing can miss a release (GitHub's latest/download lags), so relaunch to test. `check()` errors are swallowed in
   platform.ts. To debug the desktop page: `WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9339` + the WebKit inspector protocol
   over ws://127.0.0.1:9339/socket/1/1/WebPage (Target.sendMessageToTarget → Runtime.evaluate, Page.snapshotRect).
 - In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
