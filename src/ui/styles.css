@@ -2536,3 +2536,29 @@ kbd {
   place-items: center;
   text-align: center;
 }
+.msg {
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+.msg img.portrait {
+  width: 28px;
+  height: 28px;
+}
+.msg.bad .grow {
+  color: var(--warn);
+}
+.msg.good .grow {
+  color: var(--c-grn7, #a6c751);
+}
+.msgday {
+  min-width: 84px;
+  font-size: 12px;
+}
+.msgdot {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}

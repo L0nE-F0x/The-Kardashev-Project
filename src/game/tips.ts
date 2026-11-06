@@ -32,6 +32,9 @@ export interface ActiveTip {
   text: string;
   action?: TipDef['action'];
   learn?: string;
+  /** 'moment': a campus moment (moments.ts) rather than a tip; it expires on day `until`. */
+  kind?: 'tip' | 'moment';
+  until?: number;
 }
 
 const halls = (s: GameState) => s.facilities.filter((f) => f.type === 'datacenter' && f.status === 'online');
@@ -147,21 +150,6 @@ export const TIPS: TipDef[] = [
     text: (s) => `New act, old habit: we still rent ${s.rental.units.toLocaleString()} Cumulus chips. With our own halls running, turning the rental down in Compute is free money.`,
     action: { label: 'Open Compute', run: (g) => g.panel !== 'compute' && g.openPanel('compute') },
   },
-  {
-    id: 'campus',
-    advisor: 'bit',
-    acts: [1],
-    days: 3,
-    when: (s, g) => halls(s).length > 0 && !g.visitedCampus,
-    text: () => 'Our first hall is online! Select its site and press View to walk around the campus — the people there are ours.',
-    action: {
-      label: 'Take me there',
-      run: (g) => {
-        const f = g.state ? halls(g.state)[0] : null;
-        if (f) g.enterDiorama(f.siteId);
-      },
-    },
-  },
 ];
 
 const TIP_BY_ID = Object.fromEntries(TIPS.map((t) => [t.id, t]));
@@ -172,6 +160,7 @@ export function checkTips(g: Game, s: GameState, days: number, streak: Map<strin
   const cur = g.tip;
   // the current tip goes away once its problem is fixed
   if (cur) {
+    if (cur.until !== undefined && s.day > cur.until) return null;
     const def = TIP_BY_ID[cur.id];
     if (def && !def.when(s, g)) return null;
     return undefined;

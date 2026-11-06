@@ -49,6 +49,7 @@ import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
 import { checkTips, type ActiveTip } from './tips';
 import { sampleChart } from './chart';
+import { campusMoment, type MomentMemo } from './moments';
 import type { TourDirector } from './tour';
 import { ACHIEVEMENT_BY_ID, TEAM_TO_MEET, earned } from '../content/achievements';
 import { achievements, saveAchievements } from '../save/achievements';
@@ -351,6 +352,9 @@ export class Game {
     this.tip = null;
     this.tipStreak.clear();
     this.tipDay = -1;
+    this.momentMemo = null;
+    this.messages = [];
+    this.messagesSeen = 0;
     this.howtoTopic = null;
     this.skip = null;
   }
@@ -701,6 +705,7 @@ export class Game {
   private afterTick(): void {
     const s = this.state!;
     sampleChart(s);
+    this.updateMoments(s);
     this.updateTips(s);
     if (s.flags.lastObjective !== this.lastObjectiveSeen) {
       this.lastObjectiveSeen = s.flags.lastObjective;
@@ -978,15 +983,28 @@ export class Game {
     } else if (this.frameCount % 4 === 0) this.notify();
   }
 
+  /** Every toast this session (News → Messages); `fast` ones flew by during ▶▶▶ or a skip. */
+  messages: { id: number; text: string; kind: Toast['kind']; advisor?: string; day: number; fast: boolean }[] = [];
+  private messagesSeen = 0;
+
+  /** Toasts that flew by while fast-forwarding, not yet looked at. */
+  get missedMessages(): number {
+    return this.messages.filter((m) => m.fast && m.id > this.messagesSeen).length;
+  }
+
+  markMessagesSeen(): void {
+    const last = this.messages[this.messages.length - 1]?.id ?? 0;
+    if (last <= this.messagesSeen) return;
+    this.messagesSeen = last;
+    queueMicrotask(() => this.notify());
+  }
+
   /** The advisor tip on screen (see tips.ts). */
   tip: ActiveTip | null = null;
   private tipStreak = new Map<string, number>();
+  /** What was already built, so a finished one can offer a campus visit (moments.ts). */
+  private momentMemo: MomentMemo | null = null;
   private tipDay = -1;
-
-  /** Has this device ever opened a campus view? (the campus tip) */
-  get visitedCampus(): boolean {
-    return achievements().places.length > 0;
-  }
 
   dismissTip(): void {
     this.tip = null;
@@ -998,6 +1016,14 @@ export class Game {
     const t = this.tip;
     this.tip = null;
     t?.action?.run(this);
+    this.notify();
+  }
+
+  private updateMoments(s: GameState): void {
+    const m = campusMoment(s, (this.momentMemo ??= { built: new Map(), lastDay: -9999 }), this);
+    if (!m || this.tip || !this.settings.tips) return;
+    this.tip = m;
+    sfx('page');
     this.notify();
   }
 
@@ -1059,6 +1085,9 @@ export class Game {
       return;
     }
     const t: Toast = { id: ++this.toastId, text, kind, advisor, at: performance.now() };
+    if (this.state) {
+      this.messages = [...this.messages.slice(-59), { id: t.id, text, kind, advisor, day: this.state.day, fast: !!this.skip || this.speed >= 4 }];
+    }
     this.toasts = [...this.toasts.slice(-3), t];
     this.notify();
     setTimeout(() => {

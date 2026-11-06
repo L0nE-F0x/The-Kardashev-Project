@@ -187,7 +187,9 @@ export function AdvisorTip() {
     <div class="advisor-tip frame interactive" role="status" aria-live="polite">
       <Portrait id={t.advisor} mood="neutral" size={40} />
       <div class="grow">
-        <div class="label">{name} · tip</div>
+        <div class="label">
+          {name} · {t.kind === 'moment' ? 'on site' : 'tip'}
+        </div>
         <div class="tip-text">{t.text}</div>
         <div class="row wrap tip-actions">
           {t.action && (

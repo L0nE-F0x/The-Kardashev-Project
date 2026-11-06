@@ -97,7 +97,7 @@ function Gameplay() {
         onChange={(v) => game.updateSettings({ confirmSpend: v })}
       />
       <Toggle label="Goal tracker" hint="The ‘Next up’ card with what to do next." value={st.goalTracker} onChange={(v) => game.updateSettings({ goalTracker: v })} />
-      <Toggle label="Advisor tips" hint="Your advisors speak up (once each) when something is stuck: an idle lab, an empty hall, a brownout, a slow clock." value={st.tips} onChange={(v) => game.updateSettings({ tips: v })} />
+      <Toggle label="Advisor tips" hint="Your advisors speak up (once each) when something is stuck (an idle lab, an empty hall, a brownout, a slow clock), and offer a look when something big finishes." value={st.tips} onChange={(v) => game.updateSettings({ tips: v })} />
       {s && (
         <>
           <h4 class="section">This company</h4>

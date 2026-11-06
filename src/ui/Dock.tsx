@@ -59,7 +59,7 @@ export function Dock() {
       : []),
     ['goals', 'goals', 'Goals (G)'],
     ['guide', 'guide', 'Field Guide (B)', game.guideBadge() || undefined],
-    ['news', 'news', 'News (N)'],
+    ['news', 'news', game.missedMessages ? `News (N) · ${game.missedMessages} message${game.missedMessages > 1 ? 's' : ''} you may have missed` : 'News (N)', game.missedMessages || undefined],
   ];
   // the panels, the line tool, the fiber tool (Act II on), How to play and Settings
   const n = items.length + (s.act >= 2 ? 4 : 3);

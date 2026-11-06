@@ -1,7 +1,8 @@
+import { useState } from 'preact/hooks';
 import { Icon, Panel, Portrait, useGame } from '../components';
 import { OBJECTIVES, actObjectives, type ObjectiveDef } from '../../content/objectives';
 import { ObjectiveBar } from '../Objectives';
-import type { GameState } from '../../sim/types';
+import type { AdvisorId, GameState } from '../../sim/types';
 
 /** A numeric goal's bar, while it's open. */
 function GoalProgress({ o, s }: { o: ObjectiveDef; s: GameState }) {
@@ -15,8 +16,55 @@ import { dateOf, fmtDate } from '../../sim/core';
 export function NewsPanel() {
   const game = useGame();
   const s = game.state!;
+  const [tab, setTab] = useState<'news' | 'messages'>(game.missedMessages ? 'messages' : 'news');
+  if (tab === 'messages') game.markMessagesSeen();
+  const missed = game.missedMessages;
   return (
-    <Panel title="News" icon="news" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel
+      title="News"
+      icon="news"
+      class="wide"
+      onClose={() => game.openPanel(null)}
+      extra={
+        <div class="seg">
+          <button class={`btn small ${tab === 'news' ? 'active' : ''}`} onClick={() => setTab('news')}>
+            News
+          </button>
+          <button class={`btn small ${tab === 'messages' ? 'active' : ''}`} onClick={() => setTab('messages')}>
+            Messages{missed ? ` (${missed})` : ''}
+          </button>
+        </div>
+      }
+    >
+      {tab === 'messages' ? <Messages /> : <NewsList />}
+    </Panel>
+  );
+}
+
+/** Advisors' pop-ups this session, newest first — the ones that flew by while fast-forwarding are marked. */
+function Messages() {
+  const game = useGame();
+  const list = [...game.messages].reverse();
+  if (!list.length) return <div class="small muted">No messages yet this session. Advisors’ pop-ups land here, so nothing gets lost while you fast-forward.</div>;
+  return (
+    <>
+      {list.map((m) => (
+        <div key={m.id} class={`msg row ${m.kind}`}>
+          {m.advisor ? <Portrait id={m.advisor as AdvisorId} size={28} /> : <span class="msgdot" />}
+          <span class="muted msgday">{fmtDate(m.day)}</span>
+          <span class="grow">{m.text}</span>
+          {m.fast && <span class="label cyan" data-tip="Arrived while the clock was running fast">fast</span>}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function NewsList() {
+  const game = useGame();
+  const s = game.state!;
+  return (
+    <>
       {s.news.length === 0 && <div class="small muted">Quiet so far.</div>}
       {s.news.map((n, i) => (
         <div key={i} class="row small" style={{ alignItems: 'flex-start', marginBottom: '4px' }}>
@@ -26,7 +74,7 @@ export function NewsPanel() {
           <span class={n.kind === 'good' ? 'good' : n.kind === 'bad' ? 'warn' : ''}>{n.text}</span>
         </div>
       ))}
-    </Panel>
+    </>
   );
 }
 
