@@ -248,7 +248,7 @@ The checklist leads to **Solar Maximum**, then the last climb to Kardashev 1.000
     title: 'Controls',
     icon: 'settings',
     special: 'keys',
-    body: `Mouse: click to select, drag to pan, wheel to zoom (Settings → Controls can switch the wheel to pan). Touch: tap, drag and pinch; long-press for tooltips.`,
+    body: `Mouse: click to select, drag to pan, wheel to zoom (Settings → Controls can switch the wheel to pan). Touch: tap, drag and pinch; long-press for tooltips. On a phone the top bar's numbers scroll sideways in the later acts (a fade on the right means there's more), messages sit over the news line at the bottom (tap one to clear it; News → Messages keeps them all), and Settings → Display → Interface size makes the panels and text bigger or smaller.`,
   },
 ];
 

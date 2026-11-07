@@ -1,3 +1,4 @@
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { Icon, useGame } from './components';
 import { canFullscreen, enterFullscreen, isFullscreen, isPhone, isStandalone } from '../platform/platform';
 import { warming } from '../sim/climate';
@@ -28,6 +29,17 @@ export function TopBar() {
     [8, 'fff', 'Fastest (4)'],
   ];
   const marginCls = st.margin >= 0.25 ? 'good' : st.margin >= 0 ? '' : st.margin >= -0.5 ? 'warn' : 'bad';
+  // a phone can't show every stat of the later acts: they scroll sideways, and a fade on the right says there's more
+  const statsRef = useRef<HTMLDivElement>(null);
+  const markMore = () => {
+    const el = statsRef.current;
+    if (el) el.classList.toggle('more', el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  };
+  useLayoutEffect(markMore);
+  useEffect(() => {
+    window.addEventListener('resize', markMore);
+    return () => window.removeEventListener('resize', markMore);
+  }, []);
   return (
     <div class="topbar">
       <div class="speed frame" data-tut="speed">
@@ -52,7 +64,7 @@ export function TopBar() {
         <span class="label">{s.company.name}</span>
         <span class="d">{fmtDate(s.day)}</span>
       </div>
-      <div class="stats frame" data-tut="stats">
+      <div class="stats frame" data-tut="stats" ref={statsRef} onScroll={markMore}>
         <div class="stat" data-tip={`Cash on hand.\nRevenue ${fmtMoney(st.revenueMonth)}/mo · running costs ${fmtMoney(st.costMonth)}/mo.\nRound: ${s.finance.round === 'seed' ? 'Seed' : 'Series ' + s.finance.round}`}>
           <Icon name="cash" />
           <div class="col">

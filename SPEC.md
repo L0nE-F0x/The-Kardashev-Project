@@ -1868,3 +1868,52 @@ line; Act I = side goals plus a few techs; Stats = its own dock button; campus m
 - **Missed messages**: every toast this session is kept; News → Messages lists them, marking the ones that arrived
   at ▶▶▶ or during a skip, and the News button counts those you haven't looked at. Penny repeats the rentals tip once
   in Act II.
+
+## 25. v0.9.2 "Pocket Size": the phone pass (built 2026-11-07)
+
+The user's report from their phone (the Android app, landscape, ~777×377 CSS px, a punch-hole camera on the left):
+Bit's bubble ran off the bottom so the tutorial's Next button couldn't be tapped, and the main menu sat away from the
+edge with its foot cut off. Asked for "a deep mobile readiness pass" as the next version.
+
+Causes found (and confirmed in the emulator's real WebView with a simulated punch-hole cutout):
+- **Tutorial bubbles** were placed for a ~150 px tall bubble; the v0.9 steps are longer (step 2 is ~250 px on a phone).
+- **The Android app double-counted the cutout**: LauncherActivity pads its root view clear of the cutout, and the
+  WebView still reports the cutout as `env(safe-area-inset-*)`, so `#ui` moved in a second time (52 px on the AVD).
+- **`vh`/`vw` inside zoomed boxes**: CSS `zoom` multiplies px *and* viewport units but not %, so `max-height:
+  calc(100vh - 32px)` on a box with zoom 0.88 (phones) stopped 12% short, and at Interface size 125% ran 25% off the
+  bottom (menu column, panels, windows, modals, the dock's button size).
+- **The top bar** needed ~820 px on a phone; a phone has ~720.
+
+What changed:
+- `ui/Tutorial.tsx`: one `SpotBubble` for Bit's steps and the briefings. After every render it measures itself and
+  `placeBubble` (pure, exported) picks below / above / right / left of the target (right first for tall targets such
+  as the dock), the first that fits inside the safe area (`#ui`'s rect); if none fits, the clamped spot that covers
+  the least of the target. Max height = the safe area; the text scrolls (`.tut-main`), the buttons don't. Phones:
+  460 px wide, 14 px text, a 40 px portrait.
+- `styles.css :root`: `--safe-t/r/b/l` (env() by default, 0 under `html.native-insets`, which platform.ts sets in the
+  Android app) and `--z` (the HUD zoom). Zoomed boxes size in % of the screen; where a viewport unit is needed
+  (`--dock-b`, guide lists, How to Play pages) it's divided by `--z`. `.scrim` and `.ending` get one `minmax(0, 1fr)`
+  grid row so a modal's `max-height: 100%` is the screen.
+- **Main menu on short screens** (`max-height: 520px`): a 440 px two-column grid (logo, Continue and the footer span
+  both), vertically centred; no footer under 370 px tall, and a smaller logo and Continue button under 340 px (a phone
+  browser with its bars). Fits without scrolling at 377, 375, 360 and 300 px tall. The app banner shrinks to stay clear.
+- **Top bar on short screens**: tighter speed buttons, date (no min-width), stats (5 px padding, 15 px values), K
+  meter (48 px bar). The stats strip scrolls; `TopBar` marks it `.more` (a fade on the right) while there's more.
+- **Toasts on short screens**: over the news ticker at the bottom right, one line (ellipsis), 22 px portrait, the
+  newest two; a tap dismisses one anywhere (`game.dismissToast`). News → Messages has the full text.
+- **Plan modals** (Act IV five-year plan, Act V era plan) on short screens: the Begin / Not yet buttons are sticky at
+  the foot of the scrolling body.
+- **Diorama bar** on short screens: left, beside the dock (the inspector is on the right).
+- **Touch** (`pointer: coarse`): an invisible ::after margin (5 px × 3 px) around `.btn.small` and the speed buttons;
+  sliders 26 px tall with a 16×24 thumb.
+- What's New (game and website) renders `**bold**`.
+
+QA: a Playwright harness (scratchpad, not in the repo) screenshots the menu and its windows, all 20 tutorial steps,
+the HUD, every Act I panel, an event card, a campus, every Act II–V panel and tab, the plan modals and the ending at
+731×377, 777×377 (+46 px cutout), 640×360, 667×375, 863×300, 915×412 and 1200×540 (touch), and 1366×768 /
+1920×1080 / 1366×768 at 125% (desktop), and lints for controls outside the screen that no scroller can reach (none
+left). The emulator (AVD `kp`, the 0.5.2 debug APK, punch-hole cutout overlay) loaded the dev server through CDP
+(`Page.navigate` to http://10.0.2.2:5317/play/?app=android): `#ui` starts at 0, the menu at 7 px, step 2 fits.
+
+Calls I made: kept the 520 px breakpoint (a 1200×540 phone gets the desktop layout, which works); kept the 0.88 phone
+zoom; no native change in the APK (the web fix covers every installed app version).

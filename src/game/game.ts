@@ -1096,6 +1096,12 @@ export class Game {
     }, 6000);
   }
 
+  /** A tap on a toast clears it (phones: they sit over the news ticker). */
+  dismissToast(id: number): void {
+    this.toasts = this.toasts.filter((x) => x.id !== id);
+    this.notify();
+  }
+
   updateSettings(patch: Partial<Settings>): void {
     this.settings = { ...this.settings, ...patch };
     saveSettings(this.settings);

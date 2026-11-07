@@ -43,6 +43,14 @@ export function isAndroidApp(): boolean {
   }
 }
 
+// The Android app pads its WebView clear of the camera cutout itself, but the WebView still reports the cutout as
+// safe-area insets: without this the HUD would sit a cutout's width further in (styles.css, --safe-*).
+try {
+  if (isAndroidApp()) document.documentElement.classList.add('native-insets');
+} catch {
+  /* not a browser */
+}
+
 export function isStandalone(): boolean {
   if (isDesktopApp || isAndroidApp()) return true;
   try {

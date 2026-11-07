@@ -40,7 +40,7 @@ export function Toasts() {
   return (
     <div class="toasts">
       {game.toasts.map((t) => (
-        <div key={t.id} class={`toast frame ${t.kind}`}>
+        <div key={t.id} class={`toast frame ${t.kind}`} onClick={() => game.dismissToast(t.id)}>
           {t.advisor && <Portrait id={t.advisor as AdvisorId} mood={t.kind === 'bad' ? 'worried' : 'happy'} size={40} />}
           <span>{t.text}</span>
         </div>

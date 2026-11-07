@@ -25,13 +25,30 @@ body {
   display: block;
   image-rendering: pixelated;
 }
+:root {
+  /* a phone's camera cutout and rounded corners; the Android app already pads its page clear of the cutout
+     (LauncherActivity), so there they'd count twice: html.native-insets zeroes them */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  /* the HUD's zoom (Settings → UI size × the phone's automatic size). Inside a zoomed box, px and vh/vw are
+     multiplied by it but % isn't: size zoomed boxes in % of the screen, or divide viewport units by --z */
+  --z: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
+}
+html.native-insets {
+  --safe-t: 0px;
+  --safe-r: 0px;
+  --safe-b: 0px;
+  --safe-l: 0px;
+}
 #ui {
   position: fixed;
   /* keep the UI clear of a phone's camera cutout and rounded corners (the map runs underneath) */
-  top: env(safe-area-inset-top, 0px);
-  right: env(safe-area-inset-right, 0px);
-  bottom: env(safe-area-inset-bottom, 0px);
-  left: env(safe-area-inset-left, 0px);
+  top: var(--safe-t);
+  right: var(--safe-r);
+  bottom: var(--safe-b);
+  left: var(--safe-l);
   pointer-events: none;
   z-index: 2;
 }
@@ -151,7 +168,7 @@ body {
   gap: 4px;
   padding: 5px;
   /* every act adds panels: shrink the buttons to fit the screen (Dock.tsx sets --dock-n), scroll past that */
-  --dock-b: clamp(30px, calc((100vh - 128px) / var(--dock-n, 10) - 4px), 46px);
+  --dock-b: clamp(30px, calc((100dvh / var(--z) - 128px) / var(--dock-n, 10) - 4px), 46px);
   max-height: calc(100% - 108px);
   overflow-x: hidden;
   overflow-y: auto;
@@ -174,7 +191,7 @@ body {
 }
 @supports (width: round(down, 10.5px, 1px)) {
   .dock {
-    --dock-b: round(down, clamp(30px, calc((100vh - 128px) / var(--dock-n, 10) - 4px), 46px), 1px);
+    --dock-b: round(down, clamp(30px, calc((100dvh / var(--z) - 128px) / var(--dock-n, 10) - 4px), 46px), 1px);
   }
 }
 /* a long dock on a short screen: tighter, with the small icons (still a whole-number scale) */
@@ -305,11 +322,11 @@ img.portrait {
   left: 50%;
   top: 64px;
   transform: translateX(-50%);
-  width: min(720px, calc(100vw - 420px));
-  max-height: calc(100vh - 120px);
+  width: min(720px, calc(100% - 420px));
+  max-height: calc(100% - 120px);
 }
 .panel.wide.research {
-  width: min(900px, calc(100vw - 90px));
+  width: min(900px, calc(100% - 90px));
 }
 .row {
   display: flex;
@@ -501,6 +518,31 @@ input[type='range']::-moz-range-thumb {
   border-radius: 0;
   cursor: pointer;
 }
+/* touch screens: bigger hit areas for the small controls without moving anything (an invisible margin around
+   each small button), and a taller slider with a bigger thumb */
+@media (pointer: coarse) {
+  :where(#ui .btn.small, #ui .speed .btn) {
+    position: relative;
+  }
+  #ui .btn.small::after,
+  #ui .speed .btn::after {
+    content: '';
+    position: absolute;
+    inset: -5px -3px;
+  }
+  input[type='range'] {
+    height: 26px;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    width: 16px;
+    height: 24px;
+    margin-top: -9px;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 14px;
+    height: 22px;
+  }
+}
 input[type='text'],
 textarea,
 select {
@@ -624,6 +666,42 @@ select:focus {
 .toast.bad {
   background: var(--c-red1, #64172a);
 }
+.toasts .toast {
+  pointer-events: auto;
+  cursor: pointer;
+}
+/* phones on their side: one line each, the newest two only, over the news ticker at the foot (so they don't land
+   on an open panel); tap one to dismiss it. News → Messages keeps them all. */
+@media (max-height: 520px) {
+  .toasts {
+    right: 6px;
+    bottom: 3px;
+    gap: 3px;
+    max-width: calc(100% - 60px);
+  }
+  .toast {
+    max-width: 480px;
+    min-height: 28px;
+    padding: 2px 9px 2px 3px;
+    gap: 6px;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+  .toast > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .toast img.portrait {
+    width: 22px;
+    height: 22px;
+    border-width: 1px;
+  }
+  .toasts .toast:nth-last-child(n + 3) {
+    display: none;
+  }
+}
 .toast.good {
   background: var(--c-grn1, #163628);
 }
@@ -640,13 +718,16 @@ select:focus {
   inset: 0;
   background: rgb(5 5 12 / 0.55);
   display: grid;
+  /* one row the scrim's height, so a modal's max-height: 100% is the screen (minus the padding) at any UI size */
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   pointer-events: auto;
   padding: 12px;
 }
 .modal {
   width: min(600px, 100%);
-  max-height: calc(100vh - 24px);
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   animation: modalIn 0.22s steps(4);
@@ -941,7 +1022,7 @@ select:focus {
     right: 4px;
     width: auto;
     bottom: 92px;
-    max-height: 52vh;
+    max-height: 52%;
   }
   .panel.wide,
   .panel.wide.research {
@@ -951,12 +1032,12 @@ select:focus {
     transform: none;
     top: auto;
     bottom: 92px;
-    max-height: 62vh;
+    max-height: 62%;
   }
   .objectives {
     left: 4px;
     top: 96px;
-    width: min(290px, calc(100vw - 8px));
+    width: min(290px, calc(100% - 8px));
   }
   .toasts {
     right: 4px;
@@ -975,7 +1056,7 @@ select:focus {
   }
   .dioramabar {
     bottom: 128px;
-    max-width: calc(100vw - 8px);
+    max-width: calc(100% - 8px);
   }
   .deltas {
     grid-template-columns: repeat(2, 1fr);
@@ -1078,7 +1159,7 @@ html.crt #game::after {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  max-height: calc(100vh - 32px);
+  max-height: calc(100% - 32px);
   overflow-y: auto;
   background: rgb(34 30 46 / 0.92);
 }
@@ -1132,7 +1213,7 @@ html.crt #game::after {
   position: absolute;
   top: 10px;
   right: 10px;
-  width: min(340px, calc(100vw - 300px));
+  width: min(340px, calc(100% - 300px));
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1345,7 +1426,7 @@ kbd {
 }
 .guide-list {
   overflow-y: auto;
-  max-height: 64vh;
+  max-height: calc(64dvh / var(--z));
   padding-right: 4px;
 }
 .guide-list h4 {
@@ -1431,14 +1512,52 @@ ol.steps li {
   inset: 0;
   background: rgb(5 5 12 / 0.35);
 }
+/* placed by Tutorial.tsx (placeBubble) after measuring: never off screen; a long text scrolls, the buttons stay */
 .tut-bubble {
   position: fixed;
+  left: 8px;
+  top: 8px;
+  width: min(360px, calc(100vw - 16px));
   padding: 10px;
   z-index: 21;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.tut-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+.tut-buttons {
+  flex: none;
+  margin-top: 8px;
 }
 .tut-text {
   font-size: 15px;
   margin-top: 2px;
+}
+/* phones on their side: wider and tighter, so a long step takes fewer lines */
+@media (max-height: 520px) {
+  .tut-bubble {
+    width: min(460px, calc(100vw - 16px));
+    padding: 8px 10px;
+  }
+  .tut-main {
+    gap: 8px;
+  }
+  .tut-text {
+    font-size: 14px;
+    line-height: 1.32;
+  }
+  .tut-buttons {
+    margin-top: 6px;
+  }
 }
 
 /* overlays */
@@ -1511,23 +1630,46 @@ ol.steps li {
   }
 }
 
-/* phones in landscape: compact menu */
+/* phones in landscape: the menu in two columns, so every item is on screen without scrolling */
 @media (max-height: 520px) {
   .menu-col {
     left: 8px;
-    top: 8px;
-    transform: none;
-    width: 270px;
-    max-height: calc(100vh - 16px);
+    width: 440px;
+    max-height: calc(100% - 12px);
     padding: 10px;
-    gap: 3px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px 6px;
+    align-content: start;
+  }
+  .menu-col > .menu-logo,
+  .menu-col > .continue,
+  .menu-col > .menu-foot {
+    grid-column: 1 / -1;
   }
   .menu-logo {
-    margin-bottom: 4px;
+    width: min(100%, 250px);
+    justify-self: center;
+    margin: 0 0 4px;
+  }
+  .btn.continue {
+    margin-bottom: 2px;
   }
   .btn.menuitem {
+    min-height: 32px;
     padding: 4px 8px;
     font-size: 14px;
+  }
+  .btn.menuitem .grow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .menu-foot {
+    margin-top: 4px;
+  }
+  .appbanner {
+    width: min(340px, calc(100% - 460px));
+    min-width: 190px;
   }
   .cardgrid.four,
   .cardgrid.five {
@@ -1547,10 +1689,25 @@ ol.steps li {
     grid-template-columns: 1fr;
   }
   .guide-list {
-    max-height: 28vh;
+    max-height: calc(28dvh / var(--z));
   }
   .setting.slider input {
     width: 110px;
+  }
+}
+
+/* the shortest phones (and a phone browser with its bars showing): no footer, then a smaller logo too */
+@media (max-height: 370px) {
+  .menu-foot {
+    display: none;
+  }
+}
+@media (max-height: 340px) {
+  .menu-logo {
+    width: min(100%, 190px);
+  }
+  .btn.continue {
+    padding: 6px 10px;
   }
 }
 
@@ -1560,13 +1717,51 @@ ol.steps li {
   .topbar .date .label {
     display: none;
   }
+  /* the whole top bar fits a ~720 px phone: tighter speed buttons, date, stats and K meter */
+  .topbar {
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    gap: 4px;
+  }
+  .speed {
+    padding: 2px 3px;
+    gap: 1px;
+  }
+  .speed .btn {
+    padding: 3px 3px;
+  }
+  .date {
+    min-width: 0;
+    padding: 2px 7px;
+  }
   .stats {
     overflow-x: auto;
     scrollbar-width: none;
   }
+  .stats::-webkit-scrollbar {
+    display: none;
+  }
+  .stats.more {
+    mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+  }
   .stat {
-    padding: 2px 8px;
+    padding: 2px 5px;
+    gap: 4px;
     flex: none;
+  }
+  .stat .v {
+    font-size: 15px;
+  }
+  .kmeter {
+    padding: 2px 7px;
+    gap: 5px;
+  }
+  .kmeter .kv {
+    font-size: 15px;
+  }
+  .kbar {
+    width: 48px;
   }
   .dock {
     top: 50px;
@@ -1603,7 +1798,7 @@ ol.steps li {
   }
   .panel.wide {
     top: 50px;
-    max-height: calc(100vh - 92px);
+    max-height: calc(100% - 92px);
   }
   /* no room for a panel and the inspector side by side: the panel takes the width, the inspector waits */
   .side.under-panel {
@@ -1619,6 +1814,16 @@ ol.steps li {
   .ticker {
     height: 26px;
   }
+  /* the campus bar sits left, beside the dock, clear of the inspector on the right */
+  .dioramabar {
+    left: 52px;
+    transform: none;
+    bottom: 40px;
+    max-width: calc(100% - 60px);
+  }
+  .dioramabar > span > .muted {
+    display: none;
+  }
 }
 
 /* ── Act II: the Crunch tracker ─────────────────────────────────────────────────────────── */
@@ -1627,7 +1832,7 @@ ol.steps li {
   left: 50%;
   transform: translateX(-50%);
   top: 104px;
-  width: min(360px, calc(100vw - 32px));
+  width: min(360px, calc(100% - 32px));
   zoom: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
   padding: 8px 10px;
   z-index: 6;
@@ -1757,7 +1962,7 @@ ol.steps li {
   left: 50%;
   bottom: 52px;
   transform: translateX(-50%);
-  width: min(420px, calc(100vw - 32px));
+  width: min(420px, calc(100% - 32px));
   padding: 8px 12px;
   display: flex;
   flex-direction: column;
@@ -1789,6 +1994,19 @@ ol.steps li {
   .planmodal .body > p {
     margin-bottom: 4px;
   }
+  /* the Begin / Not yet buttons stay at the foot while the plan scrolls */
+  .planmodal .choices {
+    position: sticky;
+    bottom: -12px;
+    margin: 6px -12px -12px;
+    padding: 6px 12px 12px;
+    background: var(--panel);
+    box-shadow: 0 -8px 10px -6px rgb(5 5 12 / 0.7);
+    z-index: 1;
+  }
+  .planmodal .choice .d {
+    display: none;
+  }
 }
 
 /* ── Act V: big decisions and the Type I ending ──────────────────────────────────────────── */
@@ -1809,6 +2027,8 @@ ol.steps li {
   position: absolute;
   inset: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   padding: 12px;
   pointer-events: auto;
@@ -1856,6 +2076,7 @@ ol.steps li {
   font-size: 16px;
 }
 .credits-roll {
+  grid-template-rows: none;
   overflow: hidden;
   place-items: start center;
   background: rgb(5 5 12 / 0.7);
@@ -2002,7 +2223,7 @@ kbd {
   vertical-align: 1px;
 }
 .howto .ht-page {
-  max-height: 64vh;
+  max-height: calc(64dvh / var(--z));
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-width: thin;
@@ -2328,7 +2549,7 @@ kbd {
   position: absolute;
   left: 66px;
   bottom: 46px;
-  width: min(380px, calc(100vw - 80px));
+  width: min(380px, calc(100% - 80px));
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -2367,7 +2588,7 @@ kbd {
   .advisor-tip {
     left: 58px;
     bottom: 40px;
-    width: min(340px, calc(100vw - 420px));
+    width: min(340px, calc(100% - 420px));
     min-width: 240px;
   }
   .tip-text {
@@ -2420,7 +2641,7 @@ kbd {
   gap: 10px;
   align-items: center;
   padding: 6px 10px;
-  width: min(420px, calc(100vw - 24px));
+  width: min(420px, calc(100% - 24px));
   z-index: 6;
   zoom: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
   border-color: var(--cyan) !important;

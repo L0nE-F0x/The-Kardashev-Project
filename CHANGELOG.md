@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.2 — Pocket Size (2026-11-07)
+A pass over the whole game on phones held sideways: everything fits on the screen, nothing you need to tap hides off the edge, and the Android app stops wasting the space beside the camera.
+
+**The tutorial on a phone**
+- Bit's speech bubble measures itself and takes the first spot that fits whole: below, above or beside what it points at. A long step scrolls inside the bubble, and its Next button is always on screen (on a short phone five of the twenty steps used to push it off the bottom). Act II–V briefings work the same way.
+- On a phone the bubble is wider and its text a little tighter, so a long step takes fewer lines.
+
+**The main menu**
+- On a phone the menu is two columns, centred on the left edge: every item is on screen without scrolling, the Continue button on top.
+- The Android app no longer leaves an empty strip between the camera and the menu: the app already keeps clear of the camera cutout, and the page used to add the same gap again (the whole game sat that much further in).
+
+**The game screen**
+- The top bar fits a phone: tighter speed buttons, date, stats and Kardashev meter, so money, power, compute, your model and the safety margin all show. In later acts, when there are more numbers than room, they scroll sideways and a fade on the right says there's more.
+- Messages (toasts) sit over the news line at the bottom instead of on top of an open panel: one line each, the newest two, and a tap clears one. News → Messages keeps them all.
+- The five-year and era plans keep their Begin button pinned at the bottom while the plan scrolls.
+- On a campus, the bar with World map and Time-lapse moves beside the dock, out from under the inspector.
+- Bigger tap areas for small buttons and the speed controls, and taller sliders with bigger handles, on touch screens (nothing moves, the buttons just catch a near miss).
+
+**Every screen size**
+- Panels, windows and cards now size themselves to the screen correctly at any Interface size: at 125% or more they used to run off the bottom of the window, and on phones they stopped short of it.
+- What's New shows bold text as bold.
+
 ## 0.9.1 — Skip Ahead (2026-11-06)
 Less waiting, more seeing: skip straight to what you're waiting for, things to do during the long first year, charts of your whole run and a look at what you've built.
 

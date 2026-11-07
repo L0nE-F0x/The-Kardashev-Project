@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
 import { Portrait, useGame } from './components';
 import { TUTORIAL } from '../game/tutorial';
 import { BRIEFINGS } from '../game/briefings';
 import { ADVISORS } from '../content/advisors';
-
-interface Box {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  round: boolean;
-}
+import type { AdvisorId } from '../sim/types';
+import type { Mood } from '../content/events';
+import { placeBubble, type Area, type Box } from './placeBubble';
 
 /** Find the step's target on screen: a [data-tut] element or a map marker. */
 function locateTarget(target: string | null | undefined, game: ReturnType<typeof useGame>): Box | null {
@@ -40,22 +36,23 @@ function revealTarget(target: string | null | undefined): boolean {
   return true;
 }
 
-/** Bit's walkthrough: a spotlight on the real UI and a speech bubble with what to do. */
-export function TutorialOverlay() {
-  const game = useGame();
-  const s = game.state;
-  const [box, setBox] = useState<Box | null>(null);
-  const stepIndex = s?.meta.tutorialStep ?? -1;
-  const step = stepIndex >= 0 ? TUTORIAL[stepIndex] : null;
-  const hidden = !s || !step || !!s.events.active || !!game.awayReport || game.showActComplete || game.mode !== 'map' || !!game.confirm;
+/** The safe part of the screen (clear of a phone's camera cutout), with a small margin. */
+function safeArea(): Area {
+  const r = document.getElementById('ui')?.getBoundingClientRect();
+  const m = 6;
+  return r && r.width > 0 ? { left: r.left + m, top: r.top + m, right: r.right - m, bottom: r.bottom - m } : { left: m, top: m, right: window.innerWidth - m, bottom: window.innerHeight - m };
+}
 
-  // follow the target every frame (panels open, the map pans)
+/** A step's target, followed every frame (panels open, the map pans), brought on screen once per target. */
+function useTarget(hidden: boolean, target: (() => string | null) | null, key: unknown): Box | null {
+  const game = useGame();
+  const [box, setBox] = useState<Box | null>(null);
   useEffect(() => {
-    if (hidden || !step) return;
+    if (hidden) return;
     let raf = 0;
     let revealed: string | null = null;
     const loop = () => {
-      const t = step.target?.(game) ?? null;
+      const t = target?.() ?? null;
       if (t && t !== revealed && revealTarget(t)) revealed = t;
       const b = locateTarget(t, game);
       setBox((prev) => (prev && b && prev.x === b.x && prev.y === b.y && prev.w === b.w && prev.h === b.h ? prev : b));
@@ -63,39 +60,72 @@ export function TutorialOverlay() {
     };
     loop();
     return () => cancelAnimationFrame(raf);
-  }, [hidden, stepIndex]);
+  }, [hidden, key]);
+  return hidden ? null : box;
+}
 
-  if (hidden || !step) return null;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const bubbleW = Math.min(360, vw - 16);
-  let bx = (vw - bubbleW) / 2;
-  let by = vh * 0.62;
-  if (box) {
-    bx = Math.max(8, Math.min(vw - bubbleW - 8, box.x + box.w / 2 - bubbleW / 2));
-    const below = box.y + box.h + 12;
-    by = below + 150 < vh ? below : Math.max(8, box.y - 160);
-    // keep clear of the left dock and the inspector when pointing at them
-    if (box.x < 80 && box.w < 80) {
-      bx = box.x + box.w + 12;
-      by = Math.max(8, Math.min(vh - 170, box.y - 10));
-    }
-  }
+/**
+ * The spotlight and the speech bubble. The bubble measures itself after every render and takes the first spot that
+ * fits (placeBubble); a long text on a short screen scrolls inside it, and its buttons always stay on screen.
+ */
+function SpotBubble({ box, advisor, mood, label, text, buttons }: { box: Box | null; advisor: AdvisorId; mood: Mood; label: ComponentChildren; text: ComponentChildren; buttons: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const onResize = () => setTick((t) => t + 1);
+    window.addEventListener('resize', onResize);
+    window.visualViewport?.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.visualViewport?.removeEventListener('resize', onResize);
+    };
+  }, []);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const a = safeArea();
+    el.style.maxHeight = `${Math.max(120, a.bottom - a.top)}px`;
+    const p = placeBubble(box, el.offsetWidth, el.offsetHeight, a);
+    el.style.left = `${Math.round(p.left)}px`;
+    el.style.top = `${Math.round(p.top)}px`;
+  });
+  const compact = window.innerHeight <= 520;
   return (
     <div class="tutorial" aria-live="polite">
       {box && <div class={`spot ${box.round ? 'round' : ''}`} style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }} />}
       {!box && <div class="spot-dim" />}
-      <div class="tut-bubble frame interactive" style={{ left: `${bx}px`, top: `${by}px`, width: `${bubbleW}px` }}>
-        <div class="row" style={{ alignItems: 'flex-start', gap: '10px' }}>
-          <Portrait id="bit" mood={step.mood ?? 'happy'} size={48} />
+      <div class="tut-bubble frame interactive" ref={ref}>
+        <div class="tut-main">
+          <Portrait id={advisor} mood={mood} size={compact ? 40 : 48} />
           <div class="grow">
-            <div class="label">
-              Bit · {stepIndex + 1}/{TUTORIAL.length}
-            </div>
-            <div class="tut-text">{step.text(game)}</div>
+            <div class="label">{label}</div>
+            <div class="tut-text">{text}</div>
           </div>
         </div>
-        <div class="row between" style={{ marginTop: '8px' }}>
+        <div class="row between tut-buttons">{buttons}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Bit's walkthrough: a spotlight on the real UI and a speech bubble with what to do. */
+export function TutorialOverlay() {
+  const game = useGame();
+  const s = game.state;
+  const stepIndex = s?.meta.tutorialStep ?? -1;
+  const step = stepIndex >= 0 ? TUTORIAL[stepIndex] : null;
+  const hidden = !s || !step || !!s.events.active || !!game.awayReport || game.showActComplete || game.mode !== 'map' || !!game.confirm;
+  const box = useTarget(hidden, step?.target ? () => step.target!(game) ?? null : null, stepIndex);
+  if (hidden || !step) return null;
+  return (
+    <SpotBubble
+      box={box}
+      advisor="bit"
+      mood={step.mood ?? 'happy'}
+      label={`Bit · ${stepIndex + 1}/${TUTORIAL.length}`}
+      text={step.text(game)}
+      buttons={
+        <>
           <button class="btn ghost small" onClick={() => game.tutorialSkip()}>
             Skip tutorial
           </button>
@@ -104,75 +134,41 @@ export function TutorialOverlay() {
               {step.next}
             </button>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }
 
-/** Act II unlock briefings: the same spotlight, with the advisor who owns the system. */
+/** Act II–V unlock briefings: the same spotlight, with the advisor who owns the system. */
 export function BriefingOverlay() {
   const game = useGame();
   const s = game.state;
-  const [box, setBox] = useState<Box | null>(null);
   const b = game.briefing;
   const def = b ? BRIEFINGS.find((x) => x.id === b.id) : null;
   const step = def && b ? def.steps[b.step] : null;
   const hidden = !s || !step || !!s.events.active || game.showActComplete || game.mode !== 'map' || !!game.confirm;
-  useEffect(() => {
-    if (hidden || !step) return;
-    let raf = 0;
-    let revealed: string | null = null;
-    const loop = () => {
-      const t = step.target?.(game) ?? null;
-      if (t && t !== revealed && revealTarget(t)) revealed = t;
-      const nb = locateTarget(t, game);
-      setBox((prev) => (prev && nb && prev.x === nb.x && prev.y === nb.y && prev.w === nb.w && prev.h === nb.h ? prev : nb));
-      raf = requestAnimationFrame(loop);
-    };
-    loop();
-    return () => cancelAnimationFrame(raf);
-  }, [hidden, b?.id, b?.step]);
+  const box = useTarget(hidden, step?.target ? () => step.target!(game) ?? null : null, `${b?.id}:${b?.step}`);
   if (hidden || !step || !def || !b) return null;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const bubbleW = Math.min(360, vw - 16);
-  let bx = (vw - bubbleW) / 2;
-  let by = vh * 0.6;
-  if (box) {
-    bx = Math.max(8, Math.min(vw - bubbleW - 8, box.x + box.w / 2 - bubbleW / 2));
-    const below = box.y + box.h + 12;
-    by = below + 150 < vh ? below : Math.max(8, box.y - 170);
-    if (box.x < 80 && box.w < 80) {
-      bx = box.x + box.w + 12;
-      by = Math.max(8, Math.min(vh - 180, box.y - 10));
-    }
-  }
   const last = b.step + 1 >= def.steps.length;
   return (
-    <div class="tutorial" aria-live="polite">
-      {box && <div class={`spot ${box.round ? 'round' : ''}`} style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px` }} />}
-      {!box && <div class="spot-dim" />}
-      <div class="tut-bubble frame interactive" style={{ left: `${bx}px`, top: `${by}px`, width: `${bubbleW}px` }}>
-        <div class="row" style={{ alignItems: 'flex-start', gap: '10px' }}>
-          <Portrait id={def.advisor} mood={step.mood ?? 'happy'} size={48} />
-          <div class="grow">
-            <div class="label">
-              {ADVISORS[def.advisor].name.replace(/^Dr\.\s*/, '').split(' ')[0]} · {def.title} {def.steps.length > 1 ? `${b.step + 1}/${def.steps.length}` : ''}
-            </div>
-            <div class="tut-text">{step.text(game)}</div>
-          </div>
-        </div>
-        <div class="row between" style={{ marginTop: '8px' }}>
+    <SpotBubble
+      box={box}
+      advisor={def.advisor}
+      mood={step.mood ?? 'happy'}
+      label={`${ADVISORS[def.advisor].name.replace(/^Dr\.\s*/, '').split(' ')[0]} · ${def.title} ${def.steps.length > 1 ? `${b.step + 1}/${def.steps.length}` : ''}`}
+      text={step.text(game)}
+      buttons={
+        <>
           <button class="btn ghost small" onClick={() => game.briefingSkip()}>
             Skip
           </button>
           <button class="btn small primary" onClick={() => game.briefingNext()}>
             {last ? 'Got it' : 'Next'}
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }
 

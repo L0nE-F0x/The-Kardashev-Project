@@ -76,7 +76,7 @@ void spinGlobe();
   if (box) {
     const head = (r: (typeof RELEASES)[number]) =>
       `<div class="release-head"><span class="ver">v${escapeHtml(r.version)}</span><h3>${escapeHtml(r.title)}</h3>${r.date ? `<span class="date">${escapeHtml(r.date)}</span>` : ''}</div>`;
-    const list = (items: string[]) => `<ul>${items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+    const list = (items: string[]) => `<ul>${items.map((i) => `<li>${escapeHtml(i).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')}</li>`).join('')}</ul>`;
     const [latest, ...older] = RELEASES;
     const SHOW = 6;
     const latestHtml = latest

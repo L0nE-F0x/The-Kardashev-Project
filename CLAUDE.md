@@ -1,7 +1,9 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.9.1 "Skip Ahead"** (Coming up + skip-ahead, Act I side goals, Stats, campus moments: SPEC §24) on top of
+Current build: **v0.9.2 "Pocket Size"** (the phone pass: tutorial bubbles that fit, a two-column phone menu, no double
+cutout gap in the Android app, a top bar that fits, toasts over the ticker: SPEC §25) on top of v0.9.1 "Skip Ahead"
+(Coming up + skip-ahead, Act I side goals, Stats, campus moments: SPEC §24) and
 v0.9.0 "Easy Start" (the modern HUD layer, How to Play, a 20-step tutorial, advisor tips: SPEC §23), v0.8.1 (the Linux AppImage sound fix) and v0.8.0 "Stakes & Polish" (a whole-game audit for fun, bugs and speed: SPEC §22) and v0.7.0 "Sandbox &
 Soundtrack" (M5 steps 1–7) and v0.6 "Type I" (M4.5): the whole v1 campaign is playable end to end — Acts I (The Garage), II (The
 Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
@@ -200,7 +202,10 @@ android/      the Android app: one WebView activity (LauncherActivity.java, no l
               emulator's host) for testing. Version comes from package.json; web changes need no new APK.
               public/.well-known/assetlinks.json is left over from the TWA (unused, harmless).
               QA: the debug APK enables WebView debugging, so `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`
-              + raw CDP (Playwright can't attach to a WebView) drives the page in the emulator (AVD `kp`, Android 15).
+              + raw CDP (Playwright can't attach to a WebView) drives the page in the emulator (AVD `kp`, Android 15;
+              `ANDROID_AVD_HOME=~/.config/.android/avd`). CDP `Page.navigate` to http://10.0.2.2:5317/play/?app=android runs the
+              dev server inside the app; `adb shell cmd overlay enable com.android.internal.display.cutout.emulation.hole`
+              simulates a punch-hole camera.
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
 .github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + the Android APK on a draft GitHub release
@@ -224,7 +229,10 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   (the pre-0.4.2 Pixelify + Silkscreen look) or `html.font-system`. In-world text (map labels, logo) is PixelCanvas art.
 - **Phones:** landscape only. Short screens (`max-height: 520px`) get the compact rules; `(max-width: 820px) and
   (min-height: 521px)` is for narrow *tall* windows. Short coarse-pointer screens get `--ui-auto: 0.88` on top of the
-  player's UI size. `#ui` is inset by the safe areas (camera cutouts). Phone QA: headless Chrome with phone emulation
+  player's UI size. `#ui` is inset by the safe areas (`--safe-*`; zero in the Android app, `html.native-insets`, whose
+  root view already pads around the cutout). **Zoomed HUD boxes** (the `zoom: …--ui-zoom…` list in styles.css): size
+  them in % of the screen, never `vh`/`vw` (zoom multiplies those; divide by `--z` if you must). Spotlight bubbles go
+  through `SpotBubble`/`placeBubble` (Tutorial.tsx), which measure and keep them on screen. Phone QA: headless Chrome with phone emulation
   (Pixel-class 915×412 and 780×360 at DPR 2.6–3, plus ~863×300 for a browser tab with its address bar).
 - **Content first:** new facilities/techs/events/sites/objectives are data in `src/content/`. Events are
   `EventDef`s with `weight`/`setup`/`choices[].apply` — keep choices to real trade-offs, give 2 advisor lines, and

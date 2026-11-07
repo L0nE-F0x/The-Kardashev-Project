@@ -2,6 +2,11 @@ import { BuiltBy, Icon, Portrait, Window, useGame } from '../components';
 import { RELEASES } from '../../content/changelog';
 import { ANDROID_APK_URL, canPromptInstall, installHelp, isDesktopApp, promptInstall } from '../../platform/platform';
 
+/** A changelog line's **bold** runs (the rest is plain text). */
+function boldSpans(text: string) {
+  return text.split(/\*\*(.+?)\*\*/).map((part, i) => (i % 2 ? <b key={i}>{part}</b> : part));
+}
+
 export function WhatsNew() {
   const game = useGame();
   return (
@@ -14,7 +19,7 @@ export function WhatsNew() {
           {r.date && <div class="small muted">{r.date}</div>}
           <ul>
             {r.items.map((it, i) => (
-              <li key={i}>{it}</li>
+              <li key={i}>{boldSpans(it)}</li>
             ))}
           </ul>
         </section>
