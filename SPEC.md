@@ -1917,3 +1917,92 @@ left). The emulator (AVD `kp`, the 0.5.2 debug APK, punch-hole cutout overlay) l
 
 Calls I made: kept the 520 px breakpoint (a 1200×540 phone gets the desktop layout, which works); kept the 0.88 phone
 zoom; no native change in the APK (the web fix covers every installed app version).
+
+## 26. v0.9.3 candidate: the dock icons (built 2026-11-08, branch `dock-icons`, not shipped)
+
+The user's ask (screenshot of the Act II dock on their 2560×1440 monitor at 1.25× scaling): the sidebar icons are "a
+little bit too low quality … too old-fashioned and retro"; make them more recognizable and keep the pixel look.
+
+Why they looked rough: 9×9 art has too few pixels for a silhouette (orders was a brown square, deals two arrows, blocs
+and goals both flags), and at 1.25× an `<img>` of 27 CSS px is 33.75 device px, so art pixels came out 3 and 4 device
+pixels wide in turn.
+
+What changed:
+- `ui/dockIcons.ts`: 19 icons on a 13×13 grid plus an automatic 4-neighbour outline (`ink0`) = 15×15, light from the
+  top left, one colour family each: compute (a chip), orders (a taped parcel), research (a flask), finance (a $
+  coin), stats (rising bars), team (three people), deals (a handshake), blocs (two flags), goals (a target and arrow),
+  Field Guide (an open book), news (a front page), the Charter (Earth in a sunburst), the Council (a marble hall),
+  the Planet (the Earth), the System (the Sun and its swarm), the line tool (a pylon), fiber (light out of a cable),
+  How to play (a ? bubble), Settings (a gear). Hand-drawn grids, `disc()` for round things, `bevel()` (shading from a
+  mask) for the gear and the pylon. `tests/dock-icons.test.ts` checks size and outline; with PREVIEW_DIR it writes a
+  contact sheet (`DOCK_ZOOM=name,name` adds a 10× zoom sheet for pixel work).
+- `ui/DockIcon.tsx`: draws one on a canvas that fills its box, sized in device pixels (Chrome's
+  device-pixel-content-box when it agrees with our estimate, else CSS size × devicePixelRatio × every ancestor's CSS
+  zoom), at the largest whole-number scale that leaves ~10% room (2× when only a tight fit allows it). 1.25× desktop:
+  3 device px per art pixel; 1×: 2; phones at 2.6×: 4. The dock and How to Play's panel list use it; Settings →
+  Display → Interface look → Classic keeps the 9×9 icons.
+- Bug found on the way: the achievements medal (v0.7.0) had a global `.badge` rule (72 px wide) that stretched the
+  dock's red "1" badges into bars across the button (visible in the user's screenshot). Renamed to `.ach-badge`.
+- No hover slide on dock buttons in the modern look (2 CSS px is 2.5 device px at 1.25× and blurred the canvas).
+- Desktop updates (`platform.ts#downloadWithRetry`): the user's 0.9.2 update took ~30 minutes. Measured on their
+  machine while it ran: the app's one GitHub connection was crawling at ~50–60 KB/s with its receive queue empty and
+  a 1.7 MB window (GitHub sending slowly, not the app reading slowly), while curl fetched the same 93 MB AppImage in
+  3 s (31 MB/s) from the same server IP. Now each try has a time limit (90 s, 4 min, then none) and starts over on a
+  fresh connection (Tauri's `download` builds a new client per call); `install()` runs once after a good download; a
+  signature failure isn't retried. The toast says "· reconnected" on a second try. `tests/update-retry.test.ts`.
+
+Calls I made: 15×15 (odd, so round icons have a centre pixel; fits 3× at 1.25× in a 44 px button); goals became a
+target (it was a second flag next to blocs); the 9×9 icons stay everywhere else (top bar, panels, text); not yet
+tried on the AppImage (WebKitGTK has no device-pixel box, so it takes the estimate path) or a real phone.
+
+Next for this style, if the user likes it: the top bar's stat icons, panel headers and the build buttons.
+
+## 27. Proposal: taking it to Steam (2026-11-08, NOT agreed — for the user to pick from)
+
+The user's brief: v1.0 is when marketing starts; the goal is Steam and real sales; "what can we do to push this to the
+next level?" Ten ideas, most leverage first. Effort: S = a session, M = a milestone, L = several.
+
+1. **Decide the web ↔ Steam split before anyone knows the game (S).** Today the whole campaign is free on the web, the
+   PWA and the Android app. A free full game next to a paid Steam one undercuts it, and taking it away after launch
+   reads as a bait-and-switch. Proposal: when the Steam page goes up, the web/Android build becomes the demo (Act I,
+   maybe the start of Act II) with its save carrying into the full game; the full campaign is on Steam (and maybe
+   itch.io). Nobody plays it yet, so now is the free moment to decide.
+2. **Steam page at v1.0, launch later: wishlists first (S).** Steam Direct fee ($100), a Coming Soon page with capsule
+   art, a trailer, screenshots and tags (Management, Simulation, Strategy, Pixel Graphics, Economy, Sandbox, Sci-fi),
+   then months of wishlists, the demo in a Steam Next Fest (three a year), and launch after. Wishlists at launch
+   decide Steam's own promotion. Positioning line: "Plague Inc. meets Game Dev Tycoon, about the race from a garage AI
+   lab to a Type I civilisation."
+3. **A store kit and a trailer mode, rendered by the game itself (M).** `npm run gen:steam` (next to gen:assets) for
+   every capsule size (header 920×430, small 462×174, main 1232×706, vertical 748×896, library 600×900 + hero
+   3840×1240 + logo) with key art made for it: the climb from the garage at the bottom to the swarm at the top. A
+   trailer mode: HUD off, scripted camera glides and time-lapses (TourDirector already does most of it), whole-number
+   scaling at 1080p/4K. And the real theme song: trailers live on music.
+4. **The model leaderboard, "the Arena" (M).** A monthly ranking of every model in the world (yours, the rival labs',
+   the startups') with benchmark scores, a #1 spot to fight for and headlines when someone overtakes. Gives Acts I–II a
+   score to chase and the rivals a face; it's the most on-theme mechanic for an AI audience. The rivals' models
+   already exist in the sim.
+5. **A voice: the satirical feed (M).** A fake social feed beside (or instead of) the news ticker: fictional
+   researchers, pundits, doomers, accelerationists and rival CEOs reacting to your moves, with likes and ratios, plus
+   a short pixel TV-news cut for the big milestones (an anchor at a desk saying your company's name). It's what people
+   screenshot and post. Everyone fictional.
+6. **A shareable time-lapse of your run (M).** At each act's end (and from Stats): a 15–20 s GIF/MP4 of the world map
+   from 2027 to now (sites lighting up, cables, the supergrid, the swarm) with the K meter climbing and your company's
+   name. The end card already exists; a moving one is the organic marketing loop.
+7. **Replay: scenarios, a weekly challenge, New Game+ (M).** 8–12 scenarios on top of the sandbox sliders, each with a
+   win condition and bronze/silver/gold by date (the strait closes in 2029; a global pause; fusion never works; open
+   weights win; speedrun to Type I); a weekly seed everyone plays (Steam leaderboards later); shareable scenario codes;
+   legacy perks after Type I. Steam players judge value in replay hours.
+8. **Streamer mode: chat votes on event cards (S–M).** The event cards are made for it: read Twitch chat anonymously
+   (IRC over WebSocket, no login), show a 30 s vote bar on the card, take the winner. All the music is generated, so
+   it's stream-safe already. Streamers are the biggest discovery channel for sims.
+9. **A Steam-native build (L).** Steamworks achievements (the 37 have ids ready), Steam Cloud for the five slots, rich
+   presence ("Act III · 2041 · K 0.812"), full controller support and 1280×800 readability for Steam Deck Verified, and
+   the Tauri-vs-Electron call (the Steam overlay is dependable with Electron's Chromium, shaky over WebView2/WebKitGTK).
+   Steam requires an AI-content disclosure: lean into it ("a game about the AI boom, built with AI").
+10. **Localisation, Simplified Chinese first (L).** Often Steam's largest language, and the AI race is a huge topic
+    there. An i18n layer (keys for content, events, How to Play), LLM-drafted translations against a glossary plus a
+    paid native review, Noto Sans SC behind Atkinson for running text and an open CJK pixel font for titles. Then JA,
+    KO, DE, PT-BR, ES, RU, FR.
+
+Also in the retune (already planned, now with a Steam reason): Steam refunds anything played under two hours, so the
+first two hours (Act I and the opening of Act II) must be the strongest part; the long Bit-2 wait is the known hole.
