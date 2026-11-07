@@ -160,6 +160,9 @@ src/
                   worlds (`act4PreviewState`, `act5PreviewState`) and the orbit and solar-system scenes
     playtest.ts   the playtest report (real time per act from `meta.log`, the notes) that Settings → Data → Log saves
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window
+    icons.ts      the 9×9 UI icons (top bar, panels, inline text); dockIcons.ts = the dock's 15×15 icons (13×13 art +
+                  an automatic outline; grids, `disc`, `bevel`), drawn by DockIcon.tsx on a canvas at a whole number of
+                  device pixels per art pixel (dock + How to Play's panel list; the Classic look keeps the 9×9 ones)
     panels/Act2Panels.tsx  Team (advisor jobs), Deals (supply · customers · companies), Blocs, Board & debt, Crunch tracker
     panels/Act3Panels.tsx  Charter (overview · contracts · missions · partners · world), Council, Charter desk,
                            own-run licence box, Threshold tracker, Charter HQ / megaproject / launch inspectors
@@ -334,6 +337,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Campus behaviour, critter, vehicle | `render/diorama/life.ts` (the scene feeds it `Spot`s and a `LifeEnv` each frame) |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
+| Dock icon | `ui/dockIcons.ts` (keep a 9×9 icon of the same name in `icons.ts` for Classic); look with `PREVIEW_DIR=… DOCK_ZOOM=a,b npx vitest run tests/dock-icons.test.ts` |
 | Menu tour shot | `game/tour.ts` (`SHOTS`) and, for a new campus, `game/showcase.ts` |
 | Re-tune the economy | `sim/model.ts` constants, `content/facilities.ts`, `content/companies.ts` |
 | Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render/diorama/` + `mapIcons.ts` |
@@ -368,6 +372,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Re-tune Act V pacing | `tests/act5.test.ts` + `tests/helpers/act5bot.ts`; `SYSTEM` numbers (doubling by dial, seed size, segments, dividend, eraStopK), the reach slowdown in `sim/foundries.ts#growthMult`, planner limits in `sim/eras.ts` |
 
 ## Known gaps / next (see SPEC §12, §16, §17, §18, §19, §20)
+
+**Unmerged (2026-11-08): branch `dock-icons`** = a v0.9.3 candidate (SPEC §26: the new dock icons, the dock badge fix, the
+desktop updater's retry on a stalled download); SPEC §27 is a proposal list for Steam, not agreed yet.
 
 **Next: the user's playthrough of v0.8.0** (Settings → Gameplay → Playtest notes, J to note; Data → Log), then the
 retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
