@@ -1,7 +1,8 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.9.2 "Pocket Size"** (the phone pass: tutorial bubbles that fit, a two-column phone menu, no double
+Current build: **v0.9.3 "Clear Signs"** (new 15×15 dock icons drawn in whole device pixels, the dock badge fix, the desktop
+updater's retry on a stalled download: SPEC §26) on top of v0.9.2 "Pocket Size" (the phone pass: tutorial bubbles that fit, a two-column phone menu, no double
 cutout gap in the Android app, a top bar that fits, toasts over the ticker: SPEC §25) on top of v0.9.1 "Skip Ahead"
 (Coming up + skip-ahead, Act I side goals, Stats, campus moments: SPEC §24) and
 v0.9.0 "Easy Start" (the modern HUD layer, How to Play, a 20-step tutorial, advisor tips: SPEC §23), v0.8.1 (the Linux AppImage sound fix) and v0.8.0 "Stakes & Polish" (a whole-game audit for fun, bugs and speed: SPEC §22) and v0.7.0 "Sandbox &
@@ -373,9 +374,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 ## Known gaps / next (see SPEC §12, §16, §17, §18, §19, §20)
 
-**On main, not released (2026-11-08):** the v0.9.3 work (SPEC §26: the new dock icons, the dock badge fix, the desktop
-updater's retry on a stalled download) is pushed (the web game has it) but has no version bump, tag or desktop/Android
-release yet. **SPEC §27 = the Steam ideas list** (ten proposals, not agreed): the reference for Steam planning.
+**SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
 **Next: the user's playthrough of v0.8.0** (Settings → Gameplay → Playtest notes, J to note; Data → Log), then the
 retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form

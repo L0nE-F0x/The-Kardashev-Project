@@ -1918,7 +1918,7 @@ left). The emulator (AVD `kp`, the 0.5.2 debug APK, punch-hole cutout overlay) l
 Calls I made: kept the 520 px breakpoint (a 1200×540 phone gets the desktop layout, which works); kept the 0.88 phone
 zoom; no native change in the APK (the web fix covers every installed app version).
 
-## 26. v0.9.3 candidate: the dock icons (built 2026-11-08, branch `dock-icons`, not shipped)
+## 26. v0.9.3 "Clear Signs": the dock icons (shipped 2026-11-08)
 
 The user's ask (screenshot of the Act II dock on their 2560×1440 monitor at 1.25× scaling): the sidebar icons are "a
 little bit too low quality … too old-fashioned and retro"; make them more recognizable and keep the pixel look.

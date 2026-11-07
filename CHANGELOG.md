@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.9.3 — Clear Signs (2026-11-08)
+New icons for the dock: more detail, sharp at any screen scale and easy to tell apart. Plus steadier updates for the desktop app.
+
+**The dock**
+- Every dock button has a new icon with nearly three times the detail: a chip for Compute, a parcel for Orders, a flask for Research, a coin for Finance, rising bars for Stats, a handshake for Deals, two flags for Blocs, a target for Goals, an open book for the Field Guide, a front page for News, a pylon for power lines, a gear for Settings, and new ones for the Charter, the Council, the Planet and the System. Each has its own colour, so the dock reads at a glance.
+- The icons are drawn pixel-perfect at any screen scale (125%, 150%, phones): every pixel the same size, no more uneven, fuzzy edges.
+- The red badges on dock buttons are small again: they had stretched into bars across the top of the button.
+- How to Play's list of panels shows the same icons.
+- Settings → Display → Interface look → Classic keeps the old icons.
+
+**Desktop app updates**
+- When the download from GitHub stalls, the game starts it again on a fresh connection instead of waiting it out (one stuck connection made the 0.9.2 update take half an hour). The update message says "reconnected" when that happens. This helps from the next update on.
+
 ## 0.9.2 — Pocket Size (2026-11-07)
 A pass over the whole game on phones held sideways: everything fits on the screen, nothing you need to tap hides off the edge, and the Android app stops wasting the space beside the camera.
 
