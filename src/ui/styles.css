@@ -207,6 +207,15 @@ html.native-insets {
     height: 18px;
   }
 }
+/* the v0.9.3 icons: a canvas filling its box (a dock button, How to Play's panel list), drawn in whole device
+   pixels (DockIcon.tsx) */
+canvas.dock-ic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
 .dock .btn .badge {
   position: absolute;
   top: 2px;
@@ -2173,17 +2182,17 @@ img.endcard {
 .achievement .d.gold {
   color: var(--gold);
 }
-.badge {
+.ach-badge {
   position: relative;
   flex: none;
   width: calc(var(--px, 3px) * 24);
   height: calc(var(--px, 3px) * 24);
 }
-.badge .medal {
+.ach-badge .medal {
   width: 100%;
   height: 100%;
 }
-.badge .glyph {
+.ach-badge .glyph {
   position: absolute;
   left: 0;
   right: 0;
@@ -2192,11 +2201,11 @@ img.endcard {
   display: grid;
   place-items: center;
 }
-.badge.locked .glyph {
+.ach-badge.locked .glyph {
   opacity: 0.45;
   filter: grayscale(1);
 }
-.badge .glyph b {
+.ach-badge .glyph b {
   color: var(--muted);
   font-family: var(--font-pixel);
 }
@@ -2466,6 +2475,13 @@ kbd {
   flex-direction: row;
   gap: 10px;
   align-items: flex-start;
+}
+.ht-panel .ht-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
 }
 .ht-panel .grow {
   display: flex;

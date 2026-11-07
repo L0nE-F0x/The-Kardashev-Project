@@ -257,7 +257,14 @@ function AppUpdateToast() {
         {later}
       </>
     );
-  else if (st.phase === 'downloading') body = <span>Downloading version {u.version}{st.fraction !== null ? ` · ${Math.round(st.fraction * 100)}%` : '…'}</span>;
+  else if (st.phase === 'downloading')
+    body = (
+      <span data-tip={(st.attempt ?? 1) > 1 ? 'The first connection was slow, so the game started a fresh one.' : undefined}>
+        Downloading version {u.version}
+        {st.fraction !== null ? ` · ${Math.round(st.fraction * 100)}%` : '…'}
+        {(st.attempt ?? 1) > 1 ? ' · reconnected' : ''}
+      </span>
+    );
   else if (st.phase === 'permission') body = <span>Allow the game to install updates, then come back.</span>;
   else if (st.phase === 'installing') body = <span>{isAndroid() ? 'Installing: confirm on screen, then open the game again.' : 'Installing: the game restarts in a moment.'}</span>;
   else if (st.phase === 'browser')

@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { Icon, useGame } from '../components';
 import { ACT_GOALS, ACT_NAMES, ACT_RHYTHM, LOOP, PANEL_GUIDE, howToTopics, type HowToTopic } from '../../content/howToPlay';
 import { KEYS } from './SettingsScreen';
+import { DockIcon } from '../DockIcon';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
@@ -153,11 +154,15 @@ function Screen() {
 }
 
 function Panels({ act }: { act: number }) {
+  // the same icons as the dock buttons
+  const classic = useGame().settings.uiStyle === 'classic';
   return (
     <div class="ht-panels">
       {PANEL_GUIDE.filter((p) => p.act <= act).map((p) => (
         <div class="ht-panel" key={p.name}>
-          <Icon name={p.icon} size="lg" />
+          <span class="ht-ic">
+            <DockIcon name={p.icon} classic={classic} />
+          </span>
           <div class="grow">
             <div class="row between">
               <b>{p.name}</b>

@@ -148,7 +148,7 @@ export function onHostBack(fn: () => boolean): void {
 
 export type AppUpdateStatus =
   | { phase: 'ready' }
-  | { phase: 'downloading'; fraction: number | null }
+  | { phase: 'downloading'; fraction: number | null; attempt?: number }
   | { phase: 'permission' } // Android: allow the app to install updates
   | { phase: 'installing' }
   | { phase: 'browser' } // Android apps from before v0.5.1: the APK downloads in the browser
@@ -180,6 +180,47 @@ export async function checkAppUpdate(): Promise<AppUpdate | null> {
   return null;
 }
 
+/**
+ * Time limits for each try at the desktop download (ms; 0 = none). A healthy line fetches the ~90 MB AppImage
+ * in seconds, but now and then one GitHub connection crawls at ~50 KB/s while a fresh one gets full speed
+ * (2026-11-08: 0.9.2 took 30 minutes in the app while curl fetched it in 3 s on the same line). Every try opens
+ * a new connection, so a stalled one is replaced instead of waited out; the last try has no limit, so a genuinely
+ * slow line still gets there.
+ */
+export const DESKTOP_DOWNLOAD_LIMITS = [90_000, 240_000, 0];
+
+/** The bit of Tauri's Update that the retry needs (a fake one in tests). */
+export interface Downloadable {
+  download(onEvent: (e: DownloadProgress) => void, options?: { timeout?: number }): Promise<void>;
+}
+export type DownloadProgress = { event: 'Started'; data: { contentLength?: number } } | { event: 'Progress'; data: { chunkLength: number } } | { event: 'Finished' };
+
+/** Download the update, starting over on a fresh connection when a try runs past its limit. */
+export async function downloadWithRetry(update: Downloadable, onStatus: (s: AppUpdateStatus) => void, limits = DESKTOP_DOWNLOAD_LIMITS): Promise<void> {
+  let lastErr: unknown = null;
+  for (let i = 0; i < limits.length; i++) {
+    let total = 0;
+    let got = 0;
+    const attempt = i + 1;
+    onStatus({ phase: 'downloading', fraction: null, attempt });
+    try {
+      await update.download((e) => {
+        if (e.event === 'Started') total = e.data.contentLength ?? 0;
+        else if (e.event === 'Progress') {
+          got += e.data.chunkLength;
+          onStatus({ phase: 'downloading', fraction: total ? Math.min(1, got / total) : null, attempt });
+        }
+      }, limits[i] ? { timeout: limits[i] } : undefined);
+      return;
+    } catch (err) {
+      lastErr = err;
+      // a file that fails its signature won't pass on the next try
+      if (/signature/i.test(String((err as Error)?.message ?? err))) break;
+    }
+  }
+  throw lastErr;
+}
+
 async function checkDesktopUpdate(): Promise<AppUpdate | null> {
   const { check } = await import('@tauri-apps/plugin-updater');
   const update = await check();
@@ -187,18 +228,11 @@ async function checkDesktopUpdate(): Promise<AppUpdate | null> {
   return {
     version: update.version,
     install(onStatus) {
-      let total = 0;
-      let got = 0;
-      onStatus({ phase: 'downloading', fraction: null });
       void (async () => {
         try {
-          await update.downloadAndInstall((e) => {
-            if (e.event === 'Started') total = e.data.contentLength ?? 0;
-            else if (e.event === 'Progress') {
-              got += e.data.chunkLength;
-              onStatus({ phase: 'downloading', fraction: total ? Math.min(1, got / total) : null });
-            } else if (e.event === 'Finished') onStatus({ phase: 'installing' });
-          });
+          await downloadWithRetry(update, onStatus);
+          onStatus({ phase: 'installing' });
+          await update.install();
           // Windows has already closed the app to run the installer; elsewhere, restart into it
           const { relaunch } = await import('@tauri-apps/plugin-process');
           await relaunch();

@@ -38,7 +38,7 @@ function medalUrl(tier: Tier | 'locked'): string {
 
 export function AchievementBadge({ a, got }: { a: AchievementDef; got: boolean }) {
   return (
-    <span class={`badge ${got ? '' : 'locked'}`}>
+    <span class={`ach-badge ${got ? '' : 'locked'}`}>
       <img class="px medal" src={medalUrl(got ? a.tier : 'locked')} alt="" draggable={false} />
       <span class="glyph">{got || !a.secret ? <Icon name={a.icon} size="sm" /> : <b>?</b>}</span>
     </span>

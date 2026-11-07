@@ -202,9 +202,8 @@ html:not(.ui-classic) {
     filter 0.12s,
     transform 0.12s;
 }
-:where(html:not(.ui-classic)) .dock .btn:hover:not(:disabled) {
-  transform: translateX(2px);
-}
+/* no hover slide on the dock (v0.9.3): 2 CSS px is a fraction of a device pixel at 1.25× and would blur the
+   crisp icon canvases; the hover brightening is enough */
 :where(html:not(.ui-classic)) .dock .btn.active::before {
   content: '';
   position: absolute;
