@@ -373,8 +373,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 ## Known gaps / next (see SPEC §12, §16, §17, §18, §19, §20)
 
-**Unmerged (2026-11-08): branch `dock-icons`** = a v0.9.3 candidate (SPEC §26: the new dock icons, the dock badge fix, the
-desktop updater's retry on a stalled download); SPEC §27 is a proposal list for Steam, not agreed yet.
+**On main, not released (2026-11-08):** the v0.9.3 work (SPEC §26: the new dock icons, the dock badge fix, the desktop
+updater's retry on a stalled download) is pushed (the web game has it) but has no version bump, tag or desktop/Android
+release yet. **SPEC §27 = the Steam ideas list** (ten proposals, not agreed): the reference for Steam planning.
 
 **Next: the user's playthrough of v0.8.0** (Settings → Gameplay → Playtest notes, J to note; Data → Log), then the
 retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
