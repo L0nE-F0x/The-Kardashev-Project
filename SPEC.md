@@ -1957,7 +1957,7 @@ tried on the AppImage (WebKitGTK has no device-pixel box, so it takes the estima
 
 Next for this style, if the user likes it: the top bar's stat icons, panel headers and the build buttons.
 
-## 26b. The update download, done properly (built 2026-11-08, for v0.9.4)
+## 26b. v0.9.4 "Fast Lane": the update download, done properly (shipped 2026-11-08)
 
 The morning after 0.9.3 the user's 0.9.2 → 0.9.3 update crawled again (51 of 93 MB after 25 minutes, ~30 KB/s on one
 connection). 0.9.3's retry couldn't help: the old app does the download. Measured from the user's machine: GitHub's

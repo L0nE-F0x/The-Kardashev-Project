@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.4 — Fast Lane (2026-11-08)
+Desktop app updates that take seconds instead of half an hour.
+
+**Desktop app updates**
+- The game now downloads updates itself: the file comes in small pieces over six connections at once, spread across GitHub's servers. A connection that stalls or crawls is swapped for a fresh one, and nothing it already downloaded is lost. The 93 MB Linux app arrived in 5–7 seconds in tests, where one slow connection had taken over 25 minutes.
+- The update is still checked against its signature before anything is installed, exactly as before.
+- If this download can't run, the game falls back to the old one.
+- This works from the next update on: the update to 0.9.4 itself still uses 0.9.3's download.
+
 ## 0.9.3 — Clear Signs (2026-11-08)
 New icons for the dock: more detail, sharp at any screen scale and easy to tell apart. Plus steadier updates for the desktop app.
 
