@@ -193,7 +193,11 @@ src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the gam
               updater, restart, opener scoped to the ApexForge page). The AppImage bundles GStreamer plugins
               (`bundleMediaFramework`, plugin packages installed in CI): without them Ubuntu's bundled GStreamer finds
               none on Arch/Fedora and WebKit aborts the page when the game's audio starts (≤ 0.8.0). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
-              only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater)
+              only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater).
+              Since v0.9.4 the app downloads the file itself (src/fastdl.rs, the `update_fast` command: 2 MB pieces
+              over 6 connections spread across the host's addresses, a stalled or crawling one swapped for a fresh
+              one, keeping its bytes) and hands it to the updater's `install`, which checks the signature first;
+              errors starting "fast download:" fall back to the updater's own download (`platform.ts#installDesktop`)
 android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
               /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more
               (v0.5.0): Xiaomi's MIUI/HyperOS silently blocks the hand-off to Chrome, so the icon did nothing. The page
@@ -400,6 +404,12 @@ retune from the log and v1.0.0 (SPEC §21–22). Later: Type II as an Act VI tha
   publishing can miss a release (GitHub's latest/download lags), so relaunch to test. `check()` errors are swallowed in
   platform.ts. To debug the desktop page: `WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9339` + the WebKit inspector protocol
   over ws://127.0.0.1:9339/socket/1/1/WebPage (Target.sendMessageToTarget → Runtime.evaluate, Page.snapshotRect).
+- Desktop update test (v0.9.4): `cd src-tauri && cargo test --lib fastdl` (fake slow/stalled/broken servers on
+  127.0.0.x), `-- --ignored --nocapture` fetches the real latest release and checks its signature. End to end: `npx tauri
+  build --debug --no-bundle --config '{"version":"0.9.2","identifier":"com.lonefox.kardashevproject.updatetest"}'`, copy
+  the binary to a scratch dir as `kp-test.AppImage` (an unbundled build installs over its own file), run it with
+  scratch `XDG_DATA_HOME`/`XDG_CONFIG_HOME`/`XDG_CACHE_HOME` (the restarted real AppImage inherits them, so the real saves
+  stay untouched) and the inspector env var, then `game.installAppUpdate()`. 2026-11-08: 93 MB in 5.4 s, restarted as 0.9.3.
 - In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
   refused; the Android app in the emulator) and on the user's real Xiaomi phone, which updated itself to v0.5.1. Not yet
   on Windows or macOS. CI also signs the .deb (latest.json has linux-x86_64-deb), untested.

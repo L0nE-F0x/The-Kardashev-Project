@@ -1957,6 +1957,34 @@ tried on the AppImage (WebKitGTK has no device-pixel box, so it takes the estima
 
 Next for this style, if the user likes it: the top bar's stat icons, panel headers and the build buttons.
 
+## 26b. The update download, done properly (built 2026-11-08, for v0.9.4)
+
+The morning after 0.9.3 the user's 0.9.2 → 0.9.3 update crawled again (51 of 93 MB after 25 minutes, ~30 KB/s on one
+connection). 0.9.3's retry couldn't help: the old app does the download. Measured from the user's machine: GitHub's
+download host (release-assets.githubusercontent.com) has four addresses, and fresh connections to them ranged from
+~25 KB/s to ~50 MB/s, varying per connection rather than per address (an address slow on one try was fast on the next).
+The retry was also weaker than it looked: its 90 s first try killed a healthy 1 MB/s download at 97 %, and its last,
+unlimited try could land on a crawling connection again.
+
+- `src-tauri/src/fastdl.rs` (the `update_fast` command): probe the first byte (size, the URL after GitHub's redirect),
+  look up the host's addresses (in the family that answered), then fetch 2 MB pieces over 6 connections, each pinned
+  to an address. A connection is dropped when no bytes come for 8 s, or when after 4 s on a piece it runs below
+  max(64 KB/s, the best recent piece speed / 8); the bytes it got are kept and the rest of its piece goes back in the
+  queue for a fresh connection on the next address. An expired link (GitHub signs it for 30 minutes) is fetched again.
+  No bytes on any connection for 60 s = give up. The bytes go to the updater's `Update::install`, which verifies the
+  signature first, so the security is the plugin's own.
+- `platform.ts#installDesktop`: the fast download first; errors starting "fast download:" (no range support, no
+  network) fall back to the updater's own download (now limits 3 min, then none); a bad signature or a failed install
+  is final.
+- Tested: 7 Rust tests against fake servers on 127.0.0.x (fast, slow, stalled, hanging up, hanging, no ranges, expiring
+  links; turning the slow-drop off fails the timing test); the real 0.9.3 AppImage from GitHub 3× (5–7 s, 13–18 MB/s,
+  signature verified); end to end, a local build calling itself 0.9.2 found 0.9.3, downloaded it in 5.4 s, installed it
+  over its own file and restarted as 0.9.3 (byte-identical to the release). Three JS tests for the fallback.
+- Only from 0.9.4 on: the 0.9.3 → 0.9.4 update still runs 0.9.3's retry.
+
+Calls I made: 6 connections and 2 MB pieces (45 requests for the AppImage; not tuned further, 5–7 s seemed enough);
+the same code for Windows and macOS (untested there, like the rest of the desktop updater).
+
 ## 27. Proposal: taking it to Steam (2026-11-08, NOT agreed — for the user to pick from)
 
 The user's brief: v1.0 is when marketing starts; the goal is Steam and real sales; "what can we do to push this to the
