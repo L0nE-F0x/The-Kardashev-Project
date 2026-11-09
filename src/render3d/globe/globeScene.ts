@@ -23,7 +23,8 @@ import { Labels } from './labels';
 import { globePath, NetworkLayer } from './layers2';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { softLine, softLineMaterial, starField } from './soft';
 import { CharterLayer } from './layers3';
 import { PlanetLayer } from './layers45';
 import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2Layers';
@@ -47,7 +48,8 @@ const markerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness
 export class GlobeScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(32, 1, 0.5, 6000);
-  readonly look: Look = { ...defaultLook(), bloom: 0.35, bloomThreshold: 0.9, vignette: 0.34 };
+  // no FXAA: the globe anti-aliases its own edges (coasts, lines, stars), and FXAA only made thin lines flicker
+  readonly look: Look = { ...defaultLook(), bloom: 0.35, bloomThreshold: 0.9, vignette: 0.34, fxaa: false };
   private earth: THREE.Mesh;
   private earthMat: THREE.ShaderMaterial;
   private clouds: THREE.Mesh;
@@ -60,7 +62,8 @@ export class GlobeScene implements Scene3D {
   private routeRoot = new THREE.Group();
   private linkRoot = new THREE.Group();
   private chokeRoot = new THREE.Group();
-  private ships = new Map<string, { obj: THREE.Object3D; line: THREE.Line; key: string }>();
+  private ships = new Map<string, { obj: THREE.Object3D; line: Line2; key: string }>();
+  private stars = starField();
   private linkKey = '';
   private selRing: THREE.Mesh;
   private labels: Labels;
@@ -97,7 +100,7 @@ export class GlobeScene implements Scene3D {
     atmo.renderOrder = 3;
     this.scene.add(this.earth, this.clouds, atmo);
     this.scene.add(this.sun, this.sun.target, new THREE.HemisphereLight(0xb8c8ff, 0x302a3a, 0.7), new THREE.AmbientLight(0x404060, 0.4));
-    this.scene.add(stars());
+    this.scene.add(this.stars);
     this.scene.add(this.markerRoot, this.shipRoot, this.routeRoot, this.linkRoot, this.chokeRoot);
     this.scene.background = new THREE.Color(0x05060e);
     this.selRing = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.16, 6, 40), new THREE.MeshBasicMaterial({ color: 0xfde9a4 }));
@@ -196,6 +199,8 @@ export class GlobeScene implements Scene3D {
     this.w = w;
     this.h = h;
     this.network?.setResolution(w, h);
+    for (const e of this.ships?.values() ?? []) (e.line.material as LineMaterial).resolution.set(w, h);
+    for (const l of this.linkRoot?.children ?? []) ((l as Line2).material as LineMaterial).resolution.set(w, h);
     this.charter?.setResolution(w, h);
     this.planet?.setResolution(w, h);
   }
@@ -256,11 +261,14 @@ export class GlobeScene implements Scene3D {
     this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n));
     this.charter.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 120);
     this.planet.update(s, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 200);
+    this.earthMat.uniforms.tintOn.value = (this.earthMat.uniforms.regionTint.value as THREE.Vector4[]).some((t) => t.w > 0) ? 1 : 0;
     this.updateShips(s, day);
     this.updateLinks(s);
     this.updateChokepoints(s);
     this.updateLabels(s);
     this.updateToolPreview();
+    // stars keep their size on screen whatever the 3D resolution
+    (this.stars.material as THREE.ShaderMaterial).uniforms.pixelRatio.value = g.stage.scale || 1;
   }
 
   /** The power-line / fiber tool: a dashed line from the chosen site to the cursor. */
@@ -275,7 +283,7 @@ export class GlobeScene implements Scene3D {
     const pts = globePath([[from.lon, from.lat], [end.lon, end.lat]], 1.004, 0.5);
     const flat = pts.flatMap((p) => [p.x, p.y, p.z]);
     if (!this.toolLine) {
-      const m = new LineMaterial({ color: tool!.kind === 'fiber' ? 0xfbd46e : 0xf7b258, linewidth: 2.4, dashed: true, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.95 });
+      const m = softLineMaterial({ color: tool!.kind === 'fiber' ? 0xfbd46e : 0xf7b258, width: 2.4, dashed: true, dashSize: 0.8, gapSize: 0.5, opacity: 0.95 });
       this.toolLine = new Line2(new LineGeometry(), m);
       this.scene.add(this.toolLine);
     }
@@ -390,7 +398,7 @@ export class GlobeScene implements Scene3D {
       let e = this.ships.get(sh.id);
       const key = `${sh.portDay}|${sh.route.length}|${sh.overland.length}`;
       if (!e || e.key !== key) {
-        if (e) { this.shipRoot.remove(e.obj); this.routeRoot.remove(e.line); e.line.geometry.dispose(); }
+        if (e) { this.shipRoot.remove(e.obj); this.routeRoot.remove(e.line); e.line.geometry.dispose(); e.line.material.dispose(); }
         const obj = sh.mode === 'air' ? planeMesh() : shipMesh();
         const pts: THREE.Vector3[] = [];
         const path = [...sh.route, ...sh.overland.slice(1)];
@@ -404,15 +412,14 @@ export class GlobeScene implements Scene3D {
           }
           pts.push(a.multiplyScalar(R * 1.003));
         }
-        const geo = new THREE.BufferGeometry().setFromPoints(pts);
-        const line = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: sh.mode === 'air' ? 0xd6e2f0 : 0xc9ece6, dashSize: 0.9, gapSize: 0.7, transparent: true, opacity: 0.75 }));
-        line.computeLineDistances();
+        const line = softLine(pts, { color: sh.mode === 'air' ? 0xd6e2f0 : 0xc9ece6, width: 1, dashed: true, dashSize: 0.9, gapSize: 0.7, opacity: 0.75 });
+        (line.material as LineMaterial).resolution.set(this.w, this.h);
         this.shipRoot.add(obj);
         this.routeRoot.add(line);
         e = { obj, line, key };
         this.ships.set(sh.id, e);
       }
-      (e.line.material as THREE.LineDashedMaterial).color.set(sh.id === hov ? 0xfde9a4 : sh.mode === 'air' ? 0xd6e2f0 : 0xc9ece6);
+      (e.line.material as LineMaterial).color.set(sh.id === hov ? 0xfde9a4 : sh.mode === 'air' ? 0xd6e2f0 : 0xc9ece6);
       const pos = this.shipPos(sh, t);
       e.obj.visible = !!pos && this.facing(pos.p) > 0.05;
       if (!pos || !e.obj.visible) continue;
@@ -428,7 +435,7 @@ export class GlobeScene implements Scene3D {
       e.obj.matrixAutoUpdate = false;
       e.obj.matrixWorldNeedsUpdate = true;
     }
-    for (const [id, e] of this.ships) if (!alive.has(id)) { this.shipRoot.remove(e.obj); this.routeRoot.remove(e.line); e.line.geometry.dispose(); this.ships.delete(id); }
+    for (const [id, e] of this.ships) if (!alive.has(id)) { this.shipRoot.remove(e.obj); this.routeRoot.remove(e.line); e.line.geometry.dispose(); e.line.material.dispose(); this.ships.delete(id); }
   }
 
   // ── power links between sites ─────────────────────────────────────────────────────────────
@@ -437,7 +444,7 @@ export class GlobeScene implements Scene3D {
     const key = links.map((l) => l.id + l.status).join(',');
     if (key === this.linkKey) return;
     this.linkKey = key;
-    for (const c of [...this.linkRoot.children]) { this.linkRoot.remove(c); (c as THREE.Line).geometry.dispose(); }
+    for (const c of [...this.linkRoot.children]) { this.linkRoot.remove(c); (c as Line2).geometry.dispose(); ((c as Line2).material as LineMaterial).dispose(); }
     for (const l of links) {
       const a = siteDef(l.a), b = siteDef(l.b);
       const pa = dir(a.lon, a.lat), pb = dir(b.lon, b.lat);
@@ -448,11 +455,10 @@ export class GlobeScene implements Scene3D {
         const p = pa.clone().lerp(pb, t).normalize();
         pts.push(p.multiplyScalar(R * (1.002 + Math.sin(Math.PI * t) * ang * 0.08)));
       }
-      const mat = l.status === 'online'
-        ? new THREE.LineBasicMaterial({ color: 0xfbd46e, transparent: true, opacity: 0.9 })
-        : new THREE.LineDashedMaterial({ color: 0xf7b258, dashSize: 0.6, gapSize: 0.6, transparent: true, opacity: 0.8 });
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
-      line.computeLineDistances();
+      const line = l.status === 'online'
+        ? softLine(pts, { color: 0xfbd46e, width: 1.2, opacity: 0.9 })
+        : softLine(pts, { color: 0xf7b258, width: 1.2, dashed: true, dashSize: 0.6, gapSize: 0.6, opacity: 0.8 });
+      (line.material as LineMaterial).resolution.set(this.w, this.h);
       this.linkRoot.add(line);
     }
   }
@@ -795,20 +801,4 @@ function planeMesh() {
   const g = new THREE.Group();
   g.add(m);
   return g;
-}
-
-function stars() {
-  const r = rng(42);
-  const pts: number[] = [];
-  const cols: number[] = [];
-  for (let i = 0; i < 2600; i++) {
-    const u = r() * 2 - 1, a = r() * Math.PI * 2, k = Math.sqrt(1 - u * u);
-    pts.push(Math.cos(a) * k * 2500, u * 2500, Math.sin(a) * k * 2500);
-    const b = 0.5 + r() * 0.5, warm = r();
-    cols.push(b, b * (0.9 + warm * 0.1), b * (0.85 + (1 - warm) * 0.15));
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, depthWrite: false }));
 }

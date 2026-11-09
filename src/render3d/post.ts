@@ -23,6 +23,11 @@ export interface Look {
   bloom: number;
   bloomThreshold: number;
   vignette: number;
+  /**
+   * FXAA when there's no MSAA (default on). A scene that anti-aliases its own edges can turn it off: FXAA's
+   * per-frame edge guesses flicker on thin lines as the camera moves, and it softens fine texture.
+   */
+  fxaa?: boolean;
 }
 
 export const defaultLook = (): Look => ({ ao: false, tilt: 0, focus: 0.45, bloom: 0.2, bloomThreshold: 1.4, vignette: 0.3 });
@@ -78,6 +83,7 @@ export class Post {
   private tiltV: ShaderPass;
   private bloom: UnrealBloomPass;
   private grade: ShaderPass;
+  private fxaa: FXAAPass | null = null;
 
   constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, ao: boolean, samples = 4) {
     const size = renderer.getSize(new THREE.Vector2());
@@ -105,7 +111,7 @@ export class Post {
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     // no MSAA (the low preset): a cheap FXAA pass keeps edges from stair-stepping
-    if (!samples) this.composer.addPass(new FXAAPass());
+    if (!samples) this.composer.addPass((this.fxaa = new FXAAPass()));
     this.grade = new ShaderPass(Grade);
     this.composer.addPass(this.grade);
     this.resize();
@@ -131,6 +137,7 @@ export class Post {
       p.uniforms.focus.value = look.focus;
     }
     if (this.gtao) this.gtao.enabled = look.ao;
+    if (this.fxaa) this.fxaa.enabled = look.fxaa !== false;
     this.bloom.enabled = look.bloom > 0.01;
     this.bloom.strength = look.bloom;
     this.bloom.threshold = look.bloomThreshold;
