@@ -171,6 +171,21 @@ function Display() {
       <Toggle label="Day & night" hint="The real-time night side on the map; local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
       <Toggle label="CRT filter" hint="Scanlines and a soft vignette, for that old-monitor glow." value={st.crt} onChange={(v) => game.updateSettings({ crt: v })} />
       <Toggle label="Battery saver" hint="Draw at ~30 fps with fewer particles." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
+      <Choice
+        label="Edition"
+        hint="The same game and the same saves, drawn two ways: the original pixel art, or the 3D edition (in development). Switching reloads the page where you are."
+        value={document.documentElement.classList.contains('edition-3d') ? '3d' : 'pixel'}
+        options={[
+          ['pixel', 'Pixel'],
+          ['3d', '3D (beta)'],
+        ]}
+        onChange={(v) => {
+          const is3d = document.documentElement.classList.contains('edition-3d');
+          if ((v === '3d') === is3d) return;
+          game.save();
+          location.href = `${v === '3d' ? '../play3d/' : '../play/'}index.html${location.search}`;
+        }}
+      />
       {document.documentElement.classList.contains('edition-3d') && (
         <Choice
           label="3D detail"

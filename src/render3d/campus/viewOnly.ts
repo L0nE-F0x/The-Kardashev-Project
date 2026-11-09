@@ -8,7 +8,7 @@ import type { GameState } from '../../sim/types';
 import type { SetPieceKind } from './industry';
 import { FRONT_Z, type Rect } from './layout';
 import { act3Plan, type Act3PieceKind } from '../../render/diorama/act3Pieces';
-import { ACT3_SIZE } from './act3sets';
+import { ACT3_SIZE } from './act3sizes';
 import { PALETTE } from '../../render/palette';
 
 export interface SetSpec {
