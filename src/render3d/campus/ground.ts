@@ -59,7 +59,7 @@ export const BACKDROPS: Record<Backdrop, BackdropDef> = {
     plants: [{ kind: 'oak', n: 140, s: [0.7, 1.2], near: true, cluster: 3 }, { kind: 'broadleaf', n: 1300, s: [0.9, 1.6], cluster: 6 }, { kind: 'birch', n: 200, s: [0.9, 1.3] }, { kind: 'shrub', n: 700, s: [0.6, 1.2] }],
   },
   tropical: {
-    ground: ['#4f8a3a', '#6f9a42', '#9c6a3d'], rock: '#7d6a5a', snowLine: null, relief: 5, far: 'hills', water: -1.8,
+    ground: ['#4a7d38', '#628a3e', '#8f6a42'], rock: '#7d6a5a', snowLine: null, relief: 5, far: 'hills', water: -1.8,
     plants: [{ kind: 'palm', n: 700, s: [1.0, 1.6] }, { kind: 'broadleaf', n: 1800, s: [1.0, 1.8], cluster: 5 }, { kind: 'shrub', n: 1200, s: [0.7, 1.4] }],
   },
   savanna: {

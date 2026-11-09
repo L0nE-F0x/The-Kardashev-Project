@@ -10,7 +10,7 @@ import { rng, withClouds } from '../kit';
 import type { Backdrop } from './ground';
 import type { Rect } from './layout';
 
-export type Crop = 'wheat' | 'green' | 'plough' | 'stubble' | 'rape' | 'pasture' | 'pivot' | 'orchard';
+export type Crop = 'wheat' | 'green' | 'plough' | 'stubble' | 'rape' | 'pasture' | 'range' | 'pivot' | 'orchard';
 
 export interface Field {
   cx: number; cz: number;
@@ -25,8 +25,8 @@ export interface Field {
 
 /** Which crops a backdrop's farms grow (weighted by repeats); none = no farmland. */
 const CROPS: Partial<Record<Backdrop, Crop[]>> = {
-  plains: ['wheat', 'wheat', 'stubble', 'plough', 'green', 'pivot', 'pivot', 'pasture'],
-  savanna: ['stubble', 'pasture', 'pasture', 'plough', 'wheat', 'pivot'],
+  plains: ['wheat', 'wheat', 'stubble', 'plough', 'green', 'pivot', 'pivot', 'range'],
+  savanna: ['stubble', 'range', 'range', 'plough', 'wheat', 'pivot'],
   desert: ['pivot', 'pivot', 'pivot', 'plough'],
   temperate: ['green', 'green', 'wheat', 'rape', 'plough', 'pasture', 'pasture', 'orchard'],
   coast: ['green', 'pasture', 'pasture', 'wheat', 'plough', 'orchard', 'rape'],
@@ -115,6 +115,8 @@ const CROP_PAINT: Record<Crop, { a: string; b: string; rows: number; furrow: num
   stubble: { a: '#cdb27a', b: '#a98e5e', rows: 0.7, furrow: 0.25 },
   rape: { a: '#e8d23a', b: '#7d9a3e', rows: 1.0, furrow: 0.3 },
   pasture: { a: '#7ea24a', b: '#6a8c40', rows: 3.0, furrow: 0.08 },
+  // dry-country grazing: sun-cured grass, fenced off from the scrub
+  range: { a: '#b9a65e', b: '#a99752', rows: 3.0, furrow: 0.06 },
   pivot: { a: '#5a9a3a', b: '#8a7048', rows: 1.2, furrow: 0.4 },
   orchard: { a: '#4f8034', b: '#8a8a52', rows: 5.0, furrow: 0.7 },
 };
