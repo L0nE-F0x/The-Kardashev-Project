@@ -104,6 +104,8 @@ export interface GroundOpts {
   clear?: Rect;
   /** Bring the sea in to this z (a landing station's beach). Turns any backdrop into a coast. */
   seaZ?: number;
+  /** A small world: the ground falls away with this radius (an asteroid's horizon). */
+  curve?: number;
   /** Pieces that reshape the ground (world coordinates): a height, or null to keep the land. */
   carve?: (x: number, z: number) => number | null;
   /** Extra flat strips (roads). */
@@ -126,7 +128,8 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
   const centre = { x: (o.flat.x0 + o.flat.x1) / 2, z: (o.flat.z0 + o.flat.z1) / 2 };
   const seaZ = o.seaZ ?? def.seaZ;
   const water = def.water ?? (o.seaZ !== undefined ? -1.2 : null);
-  const h = (x: number, z: number) => {
+  const h = (x: number, z: number) => hBase(x, z) - (o.curve ? (Math.pow(x - centre.x, 2) + Math.pow(z - centre.z, 2)) / (2 * o.curve) : 0);
+  const hBase = (x: number, z: number) => {
     const cv = o.carve?.(x, z);
     if (cv !== undefined && cv !== null) return cv;
     const fd = flatD(x, z);

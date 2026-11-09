@@ -18,6 +18,8 @@ import { siteDef } from './content/sites';
 import { Stage3D } from './render3d/stage3d';
 import { GlobeScene } from './render3d/globe/globeScene';
 import { CampusScene } from './render3d/campus/campusScene';
+import { OrbitScene3D } from './render3d/orbit/orbitScene';
+import { SystemScene3D } from './render3d/system/systemScene';
 import { loadModels, PEOPLE } from './render3d/models';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
@@ -39,6 +41,8 @@ async function boot() {
   const game: Game = new Game(stage, { lods, router }, {
     map: (g) => new GlobeScene(g),
     diorama: (g, siteId) => new CampusScene(g, siteId),
+    orbit: (g) => new OrbitScene3D(g),
+    system: (g, opts) => new SystemScene3D(g, opts),
     // the menu tour, with the shots the 3D edition can show so far (Acts I–II campuses and the globe)
     tour: (g) => new TourDirector(g, { supports: (shot) => (shot.world ?? 2) === 2 && (shot.kind === 'map' || (shot.kind === 'campus' && shotReady(shot.site!))) }),
   });

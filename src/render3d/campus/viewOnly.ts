@@ -34,9 +34,9 @@ export const paletteHex = (idx: number | undefined, fallback = '#f7b258') => (id
 export const sizeOf = (kind: string): [number, number] => (SET_SIZE as Record<string, [number, number]>)[kind] ?? ACT3_SIZE[kind as Act3PieceKind] ?? [30, 24];
 
 /** Sites drawn from the shared Act III–V planner (Geneva, megaprojects, launch sites, the Moon). */
-export const isPlanSite = (site: SiteDef) => site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch' || site.kind === 'moon';
+export const isPlanSite = (site: SiteDef) => ['charter', 'mega', 'launch', 'moon', 'yards', 'ring', 'habitat', 'asteroid'].includes(site.kind);
 
-export interface PlanSet { specs: SetSpec[]; scenery: string; offshore: boolean; lakeAt?: number }
+export interface PlanSet { specs: SetSpec[]; scenery: string; offshore: boolean; lakeAt?: number; extra?: Record<string, unknown> }
 
 export function planSpecs(s: GameState | null, site: SiteDef): PlanSet {
   const plan = act3Plan(s, site, 0);
@@ -44,7 +44,7 @@ export function planSpecs(s: GameState | null, site: SiteDef): PlanSet {
     kind: p.kind as Act3PieceKind, brand: p.builder ?? 'charter', label: p.label, variant: p.variant,
     accent: paletteHex(p.accent), hi: paletteHex(p.accentHi, '#fbd46e'), n: p.n, p: p.p, builder: p.builder, vseed: p.seed, backdrop: p.backdrop, offshore: p.offshore,
   }));
-  return { specs, scenery: plan.scenery.kind, offshore: !!plan.offshore, lakeAt: plan.lakeAt };
+  return { specs, scenery: plan.scenery.kind, offshore: !!plan.offshore, lakeAt: plan.lakeAt, extra: plan.scenery as unknown as Record<string, unknown> };
 }
 
 /** The planner's pieces in rows (wrapping at `maxW`), rows stepping back from the road. */

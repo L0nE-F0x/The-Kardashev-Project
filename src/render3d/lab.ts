@@ -19,6 +19,7 @@ import { FACILITY_PIECES, setFactory } from './campus/registry';
 import { sizeOf } from './campus/viewOnly';
 import { clipAbove, pad, type Env, type Piece } from './pieces';
 import { plumeUniforms } from './fx';
+import { habitatShell } from './campus/habitatShell';
 import { closeScope, openScope } from './kit';
 import type { FacilityType } from '../sim/types';
 
@@ -28,6 +29,7 @@ interface LabOpts {
   brand?: string; label?: string; variant?: string; night?: number;
   // Act III–V set pieces
   accent?: string; hi?: string; n?: number; p?: number; builder?: string; vseed?: number; sea?: number; moon?: number;
+  space?: number; habitat?: number; asteroid?: string;
 }
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -72,17 +74,20 @@ async function show(o: LabOpts = {}) {
   }
   const carve = piece?.ground?.bind(piece);
   const W = opts.w, D = opts.d;
-  const ground = buildGround({ backdrop: o.moon ? 'lunar' : o.backdrop ?? 'plains', seed: 3, flat: { x0: -W / 2 - 30, z0: -D / 2 - 30, x1: W / 2 + 30, z1: D / 2 + 30 }, roads: [], carve, seaZ: o.sea ? 900 : undefined });
-  scene.add(ground.mesh, ground.plants);
-  if (ground.water) scene.add(ground.water);
-  sky = new CampusSky(scene, 'clear', !!o.moon);
+  if (o.habitat) scene.add(habitatShell(0.6));
+  else if (!o.space) {
+    const ground = buildGround({ backdrop: o.moon || o.asteroid ? 'lunar' : o.backdrop ?? 'plains', seed: 3, flat: { x0: -W / 2 - 30, z0: -D / 2 - 30, x1: W / 2 + 30, z1: D / 2 + 30 }, roads: [], carve, seaZ: o.sea ? 900 : undefined, curve: o.asteroid ? 220 : undefined });
+    scene.add(ground.mesh, ground.plants);
+    if (ground.water) scene.add(ground.water);
+  }
+  sky = new CampusSky(scene, 'clear', o.space ? 'space' : o.habitat ? 'habitat' : o.asteroid ? 'asteroid' : o.moon ? 'lunar' : 'earth', { place: o.space ? 'l4' : undefined, swarm: o.space || o.asteroid ? 6 : 0 });
   sky.focus(new THREE.Vector3(), Math.max(W, D) + 20);
-  sunAlt = o.night ? -30 : o.alt ?? 35;
+  sunAlt = o.night ? -30 : o.alt ?? (o.moon || o.space || o.asteroid ? 10 : 35);
   const az = ((o.az ?? -40) * Math.PI) / 180;
   const el = (Math.max(-80, sunAlt) * Math.PI) / 180;
   // azimuth 0 = due south (towards the camera), negative = east
   sunV = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
-  if (!carve && !q.has('nopad') && !o.sea && !o.moon) scene.add(pad(W - 0.6, D - 0.6, '#c4b8a6', 1));
+  if (!carve && !q.has('nopad') && !o.sea && !o.moon && !o.space && !o.habitat && !o.asteroid) scene.add(pad(W - 0.6, D - 0.6, '#c4b8a6', 1));
   if (!piece) console.warn('lab: no such piece', o);
   if (piece) {
     scene.add(piece.obj);
@@ -94,7 +99,7 @@ async function show(o: LabOpts = {}) {
   // a person for scale, at the plot's front-left corner
   const p = person('worker');
   if (p) {
-    p.obj.position.set(-W / 2 + 1, o.sea ? -100 : 0, D / 2 + 1.5);
+    p.obj.position.set(-W / 2 + 1, o.sea || o.space ? -100 : 0, D / 2 + 1.5);
     p.walk.paused = true;
     scene.add(p.obj);
   }
@@ -143,6 +148,7 @@ const first: LabOpts = {
   brand: q.get('brand') ?? undefined, label: q.get('label') ?? undefined, variant: q.get('variant') ?? undefined, night: num('night'),
   accent: q.get('accent') ? `#${q.get('accent')}` : undefined, hi: q.get('hi') ? `#${q.get('hi')}` : undefined, n: num('n'), p: num('p'),
   builder: q.get('builder') ?? undefined, vseed: num('vseed'), sea: num('sea'), moon: num('moon'),
+  space: num('space'), habitat: num('habitat'), asteroid: q.get('asteroid') ?? undefined,
 };
 Object.assign(window, { lab: { show, scene: () => scene, camera, controls } });
 show(first).then(() => { (window as unknown as { labReady: boolean }).labReady = true; requestAnimationFrame(frame); });

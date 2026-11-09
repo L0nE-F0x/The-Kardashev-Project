@@ -29,7 +29,7 @@ export function lonLatOf(p: THREE.Vector3): { lon: number; lat: number } {
 const BIOME_COL: Record<number, string> = {
   [BIOME.ICE]: '#eef3f8', [BIOME.TUNDRA]: '#9fa48a', [BIOME.BOREAL]: '#3f6b4a', [BIOME.TEMPERATE]: '#5f8f45',
   [BIOME.GRASS]: '#a3a85a', [BIOME.DESERT]: '#e0bf82', [BIOME.SAVANNA]: '#b9a25a', [BIOME.RAINFOREST]: '#2f6a3a',
-  [BIOME.MOUNTAIN]: '#b09a82', [BIOME.ALPINE]: '#c9c2bb', [BIOME.PLATEAU]: '#c8a674', [BIOME.WETLAND]: '#4f7f5a',
+  [BIOME.MOUNTAIN]: '#b8a48c', [BIOME.ALPINE]: '#c9c2bb', [BIOME.PLATEAU]: '#c8a674', [BIOME.WETLAND]: '#4f7f5a',
   [BIOME.FARMLAND]: '#8fa456', [BIOME.LAKE]: '#3b7fae', [BIOME.RIVER]: '#3b7fae',
 };
 const HEIGHT: Record<number, number> = { [BIOME.MOUNTAIN]: 0.75, [BIOME.ALPINE]: 1, [BIOME.PLATEAU]: 0.45, [BIOME.ICE]: 0.3, [BIOME.TUNDRA]: 0.18 };
@@ -90,6 +90,18 @@ export function earthTextures(lod: MapLod): EarthTextures {
         data[o + 1] = 0;
       }
       data[o + 3] = 255;
+    }
+  }
+  // smooth the relief: three 3×3 passes over the height channel
+  for (let pass = 0; pass < 3; pass++) {
+    const src = data.slice();
+    for (let y = 1; y < H - 1; y++) for (let x = 0; x < W; x++) {
+      let acc = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const wgt = dx === 0 && dy === 0 ? 4 : dx === 0 || dy === 0 ? 2 : 1;
+        acc += src[(((y + dy) * W + ((x + dx + W) % W)) * 4) + 1] * wgt; n += wgt;
+      }
+      data[(y * W + x) * 4 + 1] = acc / n;
     }
   }
   // soften biome edges: two 3×3 passes over the land colours (sea pixels stay as they are)
@@ -199,20 +211,44 @@ function cityLights(): THREE.CanvasTexture {
   return t;
 }
 
-/** A tileable (in longitude) cloud field. */
+/** 3D value noise (for fields on the sphere, with no seam and no stretching). */
+function hash3(x: number, y: number, z: number, seed: number) {
+  let h = (x * 374761393 + y * 668265263 + z * 1274126177 + seed * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function noise3(x: number, y: number, z: number, seed: number) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const f = (t: number) => t * t * (3 - 2 * t);
+  const u = f(x - xi), v = f(y - yi), w = f(z - zi);
+  const c = (dx: number, dy: number, dz: number) => hash3(xi + dx, yi + dy, zi + dz, seed);
+  const l = (a: number, b: number, t: number) => a + (b - a) * t;
+  return l(l(l(c(0, 0, 0), c(1, 0, 0), u), l(c(0, 1, 0), c(1, 1, 0), u), v), l(l(c(0, 0, 1), c(1, 0, 1), u), l(c(0, 1, 1), c(1, 1, 1), u), v), w);
+}
+function fbm3(x: number, y: number, z: number, seed: number, oct: number) {
+  let s = 0, a = 0.5, f = 1, n = 0;
+  for (let i = 0; i < oct; i++) { s += a * noise3(x * f, y * f, z * f, seed + i * 31); n += a; a *= 0.5; f *= 2.07; }
+  return s / n;
+}
+
+/** The cloud field: billowy clusters from 3D noise on the sphere, thicker along the storm tracks. */
 function cloudMap(): THREE.DataTexture {
   const w = 1024, h = 512;
   const arr = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) {
-    const lat = 90 - (y / h) * 180;
-    // the trade-wind belts are clearer, the storm tracks cloudier
-    const belt = 0.5 + 0.18 * Math.cos(lat * RAD * 4) + (Math.abs(lat) > 70 ? 0.1 : 0);
+    const lat = 90 - ((y + 0.5) / h) * 180;
+    const cl = Math.cos(lat * RAD), sl = Math.sin(lat * RAD);
+    // the trade-wind belts are clearer, the storm tracks and the tropics' convection cloudier
+    const belt = 0.46 + 0.16 * Math.cos(lat * RAD * 4) + (Math.abs(lat) > 68 ? 0.08 : 0);
     for (let x = 0; x < w; x++) {
-      const a = (x / w) * Math.PI * 2;
-      // sample on a cylinder so the seam at ±180° is invisible
-      const cx = Math.cos(a) * 9, cz = Math.sin(a) * 9;
-      const v = fbm(cx + 50, y * 0.055 + cz, 5, 5) * 0.7 + fbm(cx * 2.6 + 9, y * 0.14 + cz * 2.6, 11, 3) * 0.3;
-      const k = Math.max(0, Math.min(1, (v * belt - 0.26) * 3.4));
+      const lon = ((x + 0.5) / w) * 360 - 180;
+      const px = cl * Math.cos(lon * RAD), pz = cl * Math.sin(lon * RAD), py = sl;
+      // a warp makes the clusters swirl a little
+      const wx = fbm3(px * 2 + 7, py * 2, pz * 2, 3, 2) - 0.5, wz = fbm3(px * 2, py * 2 + 5, pz * 2, 4, 2) - 0.5;
+      const base = fbm3(px * 3.2 + wx, py * 3.2, pz * 3.2 + wz, 5, 4);
+      const puff = fbm3(px * 11 + wx * 2, py * 11, pz * 11 + wz * 2, 9, 3);
+      const v = base * 0.72 + puff * 0.28;
+      const k = Math.max(0, Math.min(1, (v * belt * 1.9 - 0.56) * 3.6));
       const o = (y * w + x) * 4;
       arr[o] = arr[o + 1] = arr[o + 2] = 255;
       arr[o + 3] = k * 255;
@@ -234,11 +270,12 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
       tLand: { value: t.land }, tColor: { value: t.color }, tData: { value: t.data }, tRegion: { value: t.region }, tLights: { value: t.lights }, tClouds: { value: t.clouds },
       sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, texel: { value: new THREE.Vector2(1 / W, 1 / H) },
       hoverCode: { value: -1 }, selCode: { value: -1 }, time: { value: 0 }, nightLights: { value: 1 },
+      regionTint: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 0, 0)) }, haze: { value: new THREE.Vector4(1, 0.55, 0.3, 0) },
     },
     vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vW;
       void main(){ vUv = vec2(uv.x, 1.0 - uv.y); vN = normalize(position); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz;
         gl_Position = projectionMatrix * viewMatrix * w; }`,
-    fragmentShader: `uniform sampler2D tLand, tColor, tData, tRegion, tLights, tClouds; uniform vec3 sunDir; uniform float cloudShift, hoverCode, selCode, time, nightLights; uniform vec2 texel;
+    fragmentShader: `uniform sampler2D tLand, tColor, tData, tRegion, tLights, tClouds; uniform vec3 sunDir; uniform float cloudShift, hoverCode, selCode, time, nightLights; uniform vec2 texel; uniform vec4 regionTint[16]; uniform vec4 haze;
       varying vec2 vUv; varying vec3 vN; varying vec3 vW;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       float vnoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
@@ -260,7 +297,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         float h0 = dat.g;
         float hx = texture2D(tData, vUv + vec2(texel.x, 0.0)).g - texture2D(tData, vUv - vec2(texel.x, 0.0)).g;
         float hy = texture2D(tData, vUv - vec2(0.0, texel.y)).g - texture2D(tData, vUv + vec2(0.0, texel.y)).g;
-        vec3 N = normalize(n - (east * hx + north * hy) * 1.1 * land);
+        vec3 N = normalize(n - (east * hx + north * hy) * 0.9 * land);
         float fine = vnoise(vUv * vec2(2400.0, 1200.0)) * 0.08 + vnoise(vUv * vec2(600.0, 300.0)) * 0.1;
         vec3 ground = col.rgb * (0.92 + fine);
         // a sandy rim along the coast
@@ -270,8 +307,10 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         vec3 sea = mix(deep, shallow, shal) * (0.95 + vnoise(vUv * vec2(900.0, 450.0)) * 0.08);
         vec3 alb = mix(sea, ground, land);
         // region borders and the hovered / selected region
-        // the hovered / selected region: a soft fill with a brighter rim
         float c0 = code(vUv);
+        // Act IV–V: provinces tinted by who runs them, garden green or forge grey
+        for (int i = 0; i < 16; i++) if (float(i) == c0) alb = mix(alb, regionTint[i].rgb * (0.8 + fine), regionTint[i].a * land);
+        // the hovered / selected region: a soft fill with a brighter rim
         if (hoverCode > 0.0 || selCode > 0.0) {
           float want = c0 == selCode ? selCode : hoverCode;
           float inside = 0.0;
@@ -297,12 +336,14 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         // the sea's glint
         vec3 V = normalize(cameraPosition - vW);
         vec3 Hh = normalize(sunDir + V);
-        float spec = pow(max(dot(n, Hh), 0.0), 90.0) * (1.0 - land) * smoothstep(0.0, 0.2, dn);
-        c += vec3(1.0, 0.9, 0.75) * spec * 0.9;
+        float spec = pow(max(dot(n, Hh), 0.0), 220.0) * (1.0 - land) * smoothstep(0.0, 0.2, dn);
+        c += vec3(1.0, 0.9, 0.75) * spec * 0.45;
         // city lights on the night side
         float night = 1.0 - smoothstep(-0.12, 0.08, dn);
         float li = texture2D(tLights, vUv).r * land * night * nightLights;
         c += vec3(1.0, 0.72, 0.38) * li * 1.6;
+        // waste heat: a warm haze over the whole day side
+        c = mix(c, haze.rgb * lit, haze.a * 0.35);
         // haze over the surface towards the limb (day side)
         float rim = pow(1.0 - max(dot(n, V), 0.0), 3.0);
         c = mix(c, vec3(0.45, 0.68, 1.0) * smoothstep(-0.1, 0.4, dn), rim * 0.55);
@@ -323,7 +364,7 @@ export function cloudMaterial(t: EarthTextures) {
         float a = texture2D(tClouds, vUv + vec2(cloudShift, 0.0)).a;
         float dn = dot(normalize(vN), sunDir);
         float lit = smoothstep(-0.15, 0.4, dn);
-        vec3 c = mix(vec3(0.05, 0.06, 0.12), mix(vec3(1.0, 0.7, 0.55), vec3(1.0), smoothstep(0.0, 0.35, dn)), lit) * 1.05;
+        vec3 c = mix(vec3(0.05, 0.06, 0.12), mix(vec3(1.0, 0.7, 0.55), vec3(1.0), smoothstep(0.0, 0.35, dn)), lit) * 0.9;
         gl_FragColor = vec4(c, a * opacity * (0.35 + 0.65 * lit));
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

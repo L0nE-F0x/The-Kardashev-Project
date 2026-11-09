@@ -20,6 +20,8 @@ import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, l
 import { Kit, rng } from '../kit';
 import { Labels } from './labels';
 import { NetworkLayer } from './layers2';
+import { CharterLayer } from './layers3';
+import { PlanetLayer } from './layers45';
 import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2Layers';
 
 const RAD = Math.PI / 180;
@@ -59,6 +61,8 @@ export class GlobeScene implements Scene3D {
   private selRing: THREE.Mesh;
   private labels: Labels;
   private network: NetworkLayer;
+  private charter = new CharterLayer();
+  private planet: PlanetLayer;
   private w = 1;
   private h = 1;
   private time = 0;
@@ -98,7 +102,8 @@ export class GlobeScene implements Scene3D {
     this.buildChokepoints();
     this.labels = new Labels();
     this.network = new NetworkLayer(game.world.router);
-    this.scene.add(this.network.group);
+    this.planet = new PlanetLayer(this.earthMat);
+    this.scene.add(this.network.group, this.charter.group, this.planet.group);
     // start over home (or the middle of the Atlantic in the menu)
     const s = game.state;
     if (s) {
@@ -187,6 +192,8 @@ export class GlobeScene implements Scene3D {
     this.w = w;
     this.h = h;
     this.network?.setResolution(w, h);
+    this.charter?.setResolution(w, h);
+    this.planet?.setResolution(w, h);
   }
 
   // ── frame ─────────────────────────────────────────────────────────────────────────────────
@@ -243,6 +250,8 @@ export class GlobeScene implements Scene3D {
 
     this.updateMarkers(s);
     this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n));
+    this.charter.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 120);
+    this.planet.update(s, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 200);
     this.updateShips(s, day);
     this.updateLinks(s);
     this.updateChokepoints(s);

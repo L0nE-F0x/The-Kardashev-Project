@@ -46,7 +46,13 @@ export class CampusSky {
   private fog: THREE.Fog;
   private cloudMat: THREE.MeshStandardMaterial;
 
-  constructor(scene: THREE.Scene, private weather: Weather = 'clear', private readonly lunar = false) {
+  /** 'earth' (the default), 'lunar' (the Moon), 'space' (the yards, the ring), 'habitat' (inside Aurora), 'asteroid'. */
+  private readonly lunar: boolean;
+  constructor(scene: THREE.Scene, private weather: Weather = 'clear', readonly mode: 'earth' | 'lunar' | 'space' | 'habitat' | 'asteroid' | boolean = 'earth', extra: { place?: string; swarm?: number; habitats?: number } = {}) {
+    if (mode === true) mode = 'lunar';
+    if (mode === false) mode = 'earth';
+    this.mode = mode;
+    this.lunar = mode === 'lunar' || mode === 'space' || mode === 'asteroid';
     this.dome = new THREE.Mesh(
       new THREE.SphereGeometry(3000, 32, 16),
       new THREE.ShaderMaterial({
@@ -100,17 +106,37 @@ export class CampusSky {
       c.userData.drift = 2 + cr() * 3;
       this.clouds.add(c);
     }
-    if (!lunar) scene.add(this.clouds);
+    if (!this.lunar && this.mode !== 'habitat') scene.add(this.clouds);
     this.fog = new THREE.Fog(0xffffff, 380, 1900);
     scene.fog = this.fog;
-    if (lunar) {
-      // the Earth hangs low over the horizon
-      const earth = new THREE.Mesh(new THREE.SphereGeometry(70, 32, 20), new THREE.MeshStandardMaterial({ color: 0x5f9ad8, roughness: 0.6, emissive: 0x16304f, emissiveIntensity: 0.4, fog: false }));
-      earth.position.set(-900, 260, -2200);
-      const swirl = new THREE.Mesh(new THREE.SphereGeometry(71, 32, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, roughness: 1, fog: false }));
+    if (this.lunar && mode !== 'asteroid') {
+      // the Earth hangs in the black: low over the Moon's horizon, big beside the yards
+      const big = mode === 'space' && extra.place !== 'ring';
+      const er = big ? 260 : 70;
+      const earth = new THREE.Mesh(new THREE.SphereGeometry(er, 48, 28), new THREE.MeshStandardMaterial({ color: 0x5f9ad8, roughness: 0.6, emissive: 0x16304f, emissiveIntensity: 0.4, fog: false }));
+      earth.position.set(big ? -700 : -900, big ? 120 : 260, -2200);
+      const swirl = new THREE.Mesh(new THREE.SphereGeometry(er * 1.015, 48, 28), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, roughness: 1, fog: false }));
       swirl.position.copy(earth.position);
       swirl.scale.set(1, 0.6, 1);
       scene.add(earth, swirl);
+      if (mode === 'space') {
+        const moon = new THREE.Mesh(new THREE.SphereGeometry(60, 32, 20), new THREE.MeshStandardMaterial({ color: 0xbfb6ac, roughness: 1, fog: false }));
+        moon.position.set(900, 300, -2400);
+        scene.add(moon);
+      }
+    }
+    if (this.lunar && (extra.swarm ?? 0) > 0) {
+      // the swarm glitters in a band round the sun
+      const r2 = rng(17);
+      const n = Math.round(200 + (extra.swarm ?? 0) * 160);
+      const pts: number[] = [];
+      for (let i = 0; i < n; i++) {
+        const a = (r2() - 0.5) * 2.4 + 0.4, y = Math.sin(a * 2) * 0.08 + (r2() - 0.5) * 0.05 + 0.25;
+        pts.push(Math.sin(a) * 2700, y * 2700, -Math.cos(a) * 2700);
+      }
+      const sg2 = new THREE.BufferGeometry();
+      sg2.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      scene.add(new THREE.Points(sg2, new THREE.PointsMaterial({ color: 0xfbd46e, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.85, fog: false, depthWrite: false })));
     }
   }
 
@@ -124,6 +150,7 @@ export class CampusSky {
 
   /** `sunLocal`: unit vector to the sun in campus space (x east, y up, z south); `alt` in degrees. */
   update(dt: number, sunLocal: THREE.Vector3, alt: number) {
+    if (this.mode === 'habitat') return this.updateHabitat(dt);
     if (this.lunar) return this.updateLunar(dt, sunLocal);
     const k = sample(alt);
     const wet = this.weather === 'rain' || this.weather === 'snow';
@@ -159,6 +186,31 @@ export class CampusSky {
     for (const m of glowMats) {
       if (m.userData.manual) continue;
       m.emissiveIntensity = m.userData.nightOnly ? k.night * m.userData.nightOnly : m.userData.glowBase + k.night * 2.4;
+    }
+  }
+
+  /** Inside the habitat: soft daylight from the sun-line overhead, green bounce from the land all round. */
+  private updateHabitat(dt: number) {
+    this.night = 0;
+    this.uni.top.value.set(0xc4e0f2);
+    this.uni.hor.value.set(0xd6eaf6);
+    this.uni.below.value.set(0xa9c5de);
+    this.fog.color.set(0xcfe2ee);
+    this.fog.near = 120;
+    this.fog.far = 900;
+    this.sun.position.copy(this.sun.target.position).add(new THREE.Vector3(60, 500, 80));
+    this.sun.color.set(0xfff4e0);
+    this.sun.intensity = 2.4;
+    this.hemi.color.set(0xcfe8c8);
+    this.hemi.groundColor.set(0x5a8a4a);
+    this.hemi.intensity = 1.5;
+    (this.stars.material as THREE.PointsMaterial).opacity = 0;
+    cloudUniforms.uCloudTime.value += dt;
+    cloudUniforms.uCloudK.value = 0.18;
+    for (const m of poolMats) m.opacity = 0;
+    for (const m of glowMats) {
+      if (m.userData.manual) continue;
+      m.emissiveIntensity = m.userData.nightOnly ? 0 : m.userData.glowBase;
     }
   }
 

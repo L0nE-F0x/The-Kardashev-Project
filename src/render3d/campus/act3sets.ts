@@ -45,10 +45,22 @@ export const ACT3_SIZE: Partial<Record<Act3PieceKind, [number, number]>> = {
   he3Plant: [30, 26], he3Tanks: [24, 20], massDriver: [90, 20], moonBuild: [34, 28],
   // Act V (on the Moon)
   moonFoundry: [40, 30],
+  // Act V in space: the L4/L5 yards, Ring One (no ground: they float)
+  yardsModule: [30, 26], yardsCopy: [30, 26], yardsOutbound: [34, 26], yardsDock: [30, 26], yardsBerth: [60, 30],
+  ringRack: [26, 30], ringHub: [36, 34], ringHead: [30, 30],
+  // Aurora, inside the habitat cylinder
+  habHouses: [30, 24], habSchool: [28, 22], habPark: [30, 24], habFarm: [34, 26], habSquare: [26, 22], habDorms: [28, 22],
+  habWorks: [30, 24], habTower: [22, 22], habVilla: [26, 22], habBuild: [28, 22],
+  // asteroids
+  astRocks: [30, 24], astBeacon: [16, 16], astClaim: [26, 22], astRig: [32, 28], astCatapult: [44, 24],
 };
 
 import { SETS_GENEVA } from './sets/geneva';
 import { SETS_LAUNCH } from './sets/launch';
 import { SETS_MEGA } from './sets/mega';
+import { SETS_FUSION } from './sets/fusion';
+import { SETS_MOON } from './sets/moon';
+import { SETS_SPACE } from './sets/space';
+import { SETS_HABITAT } from './sets/habitat';
 
-export const ACT3_SETS: Partial<Record<Act3PieceKind, Act3SetFactory>> = { ...SETS_GENEVA, ...SETS_LAUNCH, ...SETS_MEGA };
+export const ACT3_SETS: Partial<Record<Act3PieceKind, Act3SetFactory>> = { ...SETS_GENEVA, ...SETS_LAUNCH, ...SETS_MEGA, ...SETS_FUSION, ...SETS_MOON, ...SETS_SPACE, ...SETS_HABITAT };

@@ -86,8 +86,12 @@ export class NetworkLayer {
 
   constructor(private router: Router) {}
 
+  private res = new THREE.Vector2(1280, 720);
   setResolution(w: number, h: number) {
-    for (const m of this.mats) m.resolution.set(w, h);
+    this.res.set(w, h);
+  }
+  private applyRes() {
+    for (const m of this.mats) m.resolution.copy(this.res);
   }
 
   /** Sea routes are worked out a couple per frame, so the first look at the globe doesn't hitch. */
@@ -100,6 +104,7 @@ export class NetworkLayer {
 
   update(s: GameState | null, day: number, dt: number, scale: (p: THREE.Vector3, px: number) => number, facing: (n: THREE.Vector3) => number) {
     this.time += dt;
+    this.applyRes();
     const on = !!s && actOf(s).act >= 2;
     this.group.visible = on;
     if (!on || !s) return;

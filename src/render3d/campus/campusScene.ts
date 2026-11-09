@@ -25,7 +25,8 @@ import {
 import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
-import { buildGround, type Backdrop, type Ground } from './ground';
+import { BACKDROPS, buildGround, type Backdrop, type Ground } from './ground';
+import { habFloor, habitatShell, HAB_R } from './habitatShell';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
 import { act3Key } from '../../render/diorama/act3Pieces';
 import { CampusSky, type Weather } from './sky';
@@ -155,7 +156,8 @@ export class CampusScene implements Scene3D {
         sl = planLayout(plan.specs);
         if (this.scenery === 'offshore') seaZ = 900;
         if (this.scenery === 'launch') seaZ = sl.bounds.z0 - 50;
-        if (this.scenery === 'moon') backdrop = 'lunar';
+        if (this.scenery === 'moon' || this.scenery === 'asteroid') backdrop = 'lunar';
+        this.sceneExtra = plan.extra ?? {};
         if (this.scenery === 'geneva' && plan.lakeAt !== undefined) {
           // Lake Geneva begins at the jetty: the land drops away to the east of it
           const jetty = sl.items[plan.lakeAt];
@@ -188,8 +190,11 @@ export class CampusScene implements Scene3D {
         const root = new THREE.Group();
         const c = rectCenter(item.rect);
         root.position.set(c.x, 0, c.z);
+        // inside the habitat the floor curves up: stand each piece on it, square to it
+        if (this.scenery === 'habitat') { root.position.y = habFloor(c.z); root.rotation.x = -Math.asin(Math.max(-1, Math.min(1, c.z / HAB_R))); }
         const onWater = this.scenery === 'offshore' || sp.kind === 'jetty';
-        if (!piece.ground && sp.kind !== 'manhole' && !onWater && this.scenery !== 'moon') root.add(pad(w - 0.6, d - 0.6, '#c4b8a6', hashStr(sp.kind)));
+        const bare = this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid' || this.scenery === 'habitat';
+        if (!piece.ground && sp.kind !== 'manhole' && !onWater && !bare) root.add(pad(w - 0.6, d - 0.6, '#c4b8a6', hashStr(sp.kind)));
         root.add(piece.obj);
         piece.progress?.(1);
         this.setPieces.push({ item, piece, root });
@@ -205,18 +210,30 @@ export class CampusScene implements Scene3D {
     const seed = hashStr(this.siteId);
     const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = modelParts('mesquite'); return p ? instanced(p.parts, p.size, at, 6.5) : null; };
     const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = modelParts('oak'); return p ? instanced(p.parts, p.size, at, 7) : null; };
-    const roadless = this.scenery === 'offshore' || this.scenery === 'moon';
-    this.ground = buildGround({
-      backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
-      roads: roadless ? [] : [
-        { a: [-1700, HIGHWAY_Z], b: [1700, HIGHWAY_Z], w: 12 },
-        { a: [this.layout.accessX, HIGHWAY_Z], b: [this.layout.accessX, -PD - 6], w: 8 },
-      ],
-    }, { mesquite: mesq, oak });
+    const roadless = this.scenery !== 'campus' && this.scenery !== 'geneva' && this.scenery !== 'launch' && this.scenery !== 'mega';
+    const ex = this.sceneExtra as { km?: number; type?: string; place?: string; swarm?: number; habitats?: number; lived?: number };
+    if (this.scenery === 'space') {
+      // the yards and the ring float: no ground at all
+      this.ground = { mesh: new THREE.Mesh(), water: null, plants: new THREE.Group(), h: () => 0, def: BACKDROPS.lunar };
+    } else if (this.scenery === 'habitat') {
+      this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: new THREE.Group(), h: (_x, z) => habFloor(z), def: BACKDROPS.temperate };
+    } else {
+      this.ground = buildGround({
+        backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
+        curve: this.scenery === 'asteroid' ? 160 + Math.sqrt(ex.km ?? 10) * 30 : undefined,
+        roads: roadless ? [] : [
+          { a: [-1700, HIGHWAY_Z], b: [1700, HIGHWAY_Z], w: 12 },
+          { a: [this.layout.accessX, HIGHWAY_Z], b: [this.layout.accessX, -PD - 6], w: 8 },
+        ],
+      }, { mesquite: mesq, oak });
+      if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
+    }
     this.scene.add(this.ground.mesh, this.ground.plants);
     if (this.ground.water) this.scene.add(this.ground.water);
-    const weather = this.scenery === 'moon' ? 'clear' : this.pickWeather();
-    this.sky = new CampusSky(this.scene, weather, this.scenery === 'moon');
+    const offWorld = this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid' || this.scenery === 'habitat';
+    const weather = offWorld ? 'clear' : this.pickWeather();
+    const skyMode = this.scenery === 'moon' ? 'lunar' : this.scenery === 'space' ? 'space' : this.scenery === 'asteroid' ? 'asteroid' : this.scenery === 'habitat' ? 'habitat' : 'earth';
+    this.sky = new CampusSky(this.scene, weather, skyMode, { place: ex.place, swarm: ex.swarm, habitats: ex.habitats });
     this.precip = new Precip(weather, seed);
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
@@ -236,6 +253,7 @@ export class CampusScene implements Scene3D {
 
   /** What surrounds the pieces: a campus, Geneva's lakeside, open sea, a launch coast, the Moon. */
   private scenery = 'campus';
+  private sceneExtra: Record<string, unknown> = {};
   private moonSun: THREE.Vector3 | null = null;
 
   // ── the static campus ─────────────────────────────────────────────────────────────────────
@@ -619,7 +637,7 @@ export class CampusScene implements Scene3D {
 
   update(dt: number) {
     this.time += dt;
-    if (this.scenery === 'moon') {
+    if (this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid') {
       const a = (Date.now() / 3_600_000) * 0.26 + 0.6;
       const v = new THREE.Vector3(Math.sin(a) * 0.98, 0.14, Math.cos(a) * 0.98).normalize();
       this.moonSun = v;
@@ -894,6 +912,14 @@ export class CampusScene implements Scene3D {
 }
 
 const LINE_INDEX = new Map<string, number>();
+
+/** An asteroid's ground by its type: dark carbon (C), stony tan (S), metal grey (M). */
+function tintAsteroid(mesh: THREE.Mesh, type: string) {
+  const c = mesh.geometry.attributes.color as THREE.BufferAttribute;
+  const k = type === 'C' ? [0.55, 0.52, 0.5] : type === 'S' ? [1.05, 0.95, 0.8] : [0.95, 0.95, 1.02];
+  for (let i = 0; i < c.count; i++) c.setXYZ(i, c.getX(i) * k[0], c.getY(i) * k[1], c.getZ(i) * k[2]);
+  c.needsUpdate = true;
+}
 const crane3 = (h: number, seed: number) => crane(h, 16, seed + 5);
 
 // ── facility pieces ──────────────────────────────────────────────────────────────────────────
