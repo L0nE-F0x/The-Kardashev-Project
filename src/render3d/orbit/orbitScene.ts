@@ -375,7 +375,7 @@ export class OrbitScene3D implements Scene3D {
       const p = this.screenOf(sp.at.clone().add(new THREE.Vector3(0, sp.r + 4, 0)));
       if (p) items.push({ id: sp.id, text: sp.name, x: p.x, y: p.y, pri: 5, tone: this.hover === sp.id ? 'hot' : 'owned' });
     }
-    this.labels.show(items, this.game.mode === 'title' ? 0.8 : 1);
+    this.labels.show(items, (this.game.mode === 'title' ? 0.8 : 1) * (1 - Math.min(1, this.game.stage.fade)));
   }
 
   private spotAt(x: number, y: number): string | null {

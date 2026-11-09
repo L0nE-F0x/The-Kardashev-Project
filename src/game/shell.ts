@@ -33,7 +33,8 @@ export function startShell(game: Game) {
       const budget = 1000 / fps;
       // keep to the average rate on screens that aren't a multiple of it, but never catch up in a burst
       nextDraw = Math.max(nextDraw + budget, now + budget * 0.75);
-      const dt = Math.min(0.25, (now - lastDraw) / 1000);
+      // (never negative: a frame's timestamp can come from before the loop started, after a long first build)
+      const dt = Math.max(0, Math.min(0.25, (now - lastDraw) / 1000));
       lastDraw = now;
       game.frame(dt, now);
     }

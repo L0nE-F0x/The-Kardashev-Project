@@ -520,7 +520,7 @@ export class GlobeScene implements Scene3D {
       const sp = this.screenOf(n.multiplyScalar(R * 1.01));
       if (sp) items.push({ id: 'r:' + r.id, text: r.name.toUpperCase(), x: sp.x, y: sp.y, pri: r.id === hovR ? 9 : 0.5, tone: r.id === hovR ? 'region hot-region' : 'region' });
     }
-    this.labels.show(items, this.game.mode === 'title' ? 0.85 : 1);
+    this.labels.show(items, (this.game.mode === 'title' ? 0.85 : 1) * (1 - Math.min(1, this.game.stage.fade)));
     void s;
   }
 

@@ -131,7 +131,7 @@ export class Post {
     this.bloom.strength = look.bloom;
     this.bloom.threshold = look.bloomThreshold;
     this.grade.uniforms.vignette.value = look.vignette;
-    this.grade.uniforms.fade.value = fade;
+    this.grade.uniforms.fade.value = Math.max(0, Math.min(1, fade));
     this.composer.render(dt);
   }
 

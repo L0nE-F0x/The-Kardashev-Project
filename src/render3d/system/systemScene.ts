@@ -318,7 +318,7 @@ export class SystemScene3D implements Scene3D {
       const p = this.screenOf(t.at.clone().add(new THREE.Vector3(0, 9, 0)));
       if (p) items.push({ id: t.id, text: t.name, x: p.x, y: p.y, pri: t.open ? 5 : 2, tone: this.hover === t.id ? 'hot' : t.open ? 'owned' : 'build' });
     }
-    this.labels.show(items);
+    this.labels.show(items, 1 - Math.min(1, this.game.stage.fade));
   }
 
   private hitAt(x: number, y: number) {

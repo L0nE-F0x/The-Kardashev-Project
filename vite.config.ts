@@ -85,13 +85,16 @@ export default defineConfig({
         navigateFallback: null,
         // the installed app opens /play/?app=1 — serve the cached page for it offline
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^app$/],
+        // the 3D edition's models (18 MB) load as a place needs them: keep each one once fetched, so the 3D game
+        // also plays offline after a first visit (not precached: pixel-game players never download them)
+        runtimeCaching: [{ urlPattern: /\/3d\/models\/.*\.glb$/, handler: 'CacheFirst', options: { cacheName: 'kp-3d-models', expiration: { maxEntries: 80 } } }],
       },
       devOptions: { enabled: false },
     }),
   ],
   build: {
     target: 'es2022',
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 1800,
     rollupOptions: {
       input: {
         main: 'index.html',
