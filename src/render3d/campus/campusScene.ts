@@ -34,7 +34,8 @@ import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetIte
 import { act3Key } from '../../render/diorama/act3Pieces';
 import { CampusSky, type Weather } from './sky';
 import { Precip } from './weather';
-import { Crowd, makeBit, Traffic } from './life';
+import { Crowd, makeBit } from './life';
+import { Traffic } from './vehicles';
 import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
 import { GrassPatch, grassColours } from './grass';
 import { deskHolder } from '../../sim/systemView';
@@ -700,10 +701,9 @@ export class CampusScene implements Scene3D {
     // a delivery now and then up the access road and along the front
     // deliveries: in along the highway's eastbound lane, up the access road, along the frontage and back, out onto the
     // westbound lane; they turn round far down the highway, out of sight (never across a field)
-    const far = L.accessX - 420;
-    const run: [number, number][] = [[far, HIGHWAY_Z + 2], [L.accessX - 2, HIGHWAY_Z + 2], [L.accessX - 2, FRONT_Z + 1.5], [east, FRONT_Z + 1.5], [east, FRONT_Z - 1.5], [L.accessX + 2, FRONT_Z - 1.5], [L.accessX + 2, HIGHWAY_Z - 2], [far, HIGHWAY_Z - 2]];
-    this.traffic.loop('flatbed', run, h, 9, 0);
-    this.traffic.loop('van', run, h, 10, 0.5);
+    // (right-hand traffic, turning arcs, stop lines, a stop to unload outside the front-row buildings)
+    const docks = L.items.filter((it) => it.kind === 'facility' && it.rect.z0 > 0).map((it) => (it.rect.x0 + it.rect.x1) / 2);
+    this.traffic.deliveries({ highwayZ: HIGHWAY_Z, accessX: L.accessX, frontZ: FRONT_Z, east: east + 6, docks }, ['flatbed', 'van', 'pickup'], h);
   }
 
   /** Who of the cast is out on this campus (as the pixel campus picks them). */
