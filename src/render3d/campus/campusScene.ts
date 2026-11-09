@@ -171,6 +171,8 @@ export class CampusScene implements Scene3D {
             return -0.2 - Math.min(1, d / 14) * 5;
           };
           carve = shore;
+          // a water level for the lake (Geneva's mountain backdrop has none of its own); no sea comes in
+          seaZ = -4000;
         }
       } else {
         this.planKey = null;

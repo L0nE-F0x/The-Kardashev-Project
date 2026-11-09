@@ -262,6 +262,10 @@ export class Kit {
     return this.add(g, paint, o.jitter ?? 0.05, o.shade ?? 0.25, y, h);
   }
 
+  /**
+   * A cylinder standing on (x, y, z), `h` tall. With `rx`/`rz` it tips over about its BASE (it grows from the point
+   * along the tilted axis), not about its middle.
+   */
   cyl(rTop: number, rBot: number, h: number, paint: Paint, x = 0, y = 0, z = 0, seg = 10, o: { rx?: number; rz?: number; jitter?: number; shade?: number } = {}) {
     const g = new THREE.CylinderGeometry(rTop, rBot, h, seg, 1);
     g.translate(0, h / 2, 0);

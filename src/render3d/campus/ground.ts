@@ -277,6 +277,6 @@ const groundMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexCo
 const plantMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
 
 function waterMaterial() {
-  const m = new THREE.MeshStandardMaterial({ color: col('#2c6399'), roughness: 0.16, metalness: 0.15 });
+  const m = new THREE.MeshStandardMaterial({ color: col('#2c6399'), roughness: 0.3, metalness: 0.1 });
   return withClouds(m);
 }
