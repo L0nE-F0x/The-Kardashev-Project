@@ -237,7 +237,12 @@ export interface BoxOpts {
   jitter?: number;
   /** Darken towards the bottom (fake contact shade), 0..1. */
   shade?: number;
+  /** Bevel segments (default: 2 on high detail, 1 on medium/low). */
+  seg?: number;
 }
+
+/** Bevel segments for rounded boxes (the quality presets set it: fewer triangles on phones). */
+export const kitDetail = { bevelSeg: 2 };
 
 /**
  * Collects shapes and merges them into one mesh with vertex colours: one draw call per object,
@@ -250,7 +255,7 @@ export class Kit {
   /** Bevelled box, centred at (x, y, z) with y = its bottom. */
   box(w: number, h: number, d: number, paint: Paint, x = 0, y = 0, z = 0, o: BoxOpts = {}) {
     const r = o.r ?? Math.min(0.12, Math.min(w, h, d) * 0.06);
-    const g = r > 0.001 ? new RoundedBoxGeometry(w, h, d, 2, r) : new THREE.BoxGeometry(w, h, d);
+    const g = r > 0.001 ? new RoundedBoxGeometry(w, h, d, o.seg ?? kitDetail.bevelSeg, r) : new THREE.BoxGeometry(w, h, d);
     g.translate(0, h / 2, 0);
     if (o.ry) g.rotateY(o.ry);
     g.translate(x, y, z);

@@ -120,7 +120,8 @@ export class CampusScene implements Scene3D {
     const width = this.layout.bounds.x1 - this.layout.bounds.x0;
     this.dist = Math.max(110, Math.min(this.planKey !== null ? 420 : 320, width * 1.2));
     this.yaw = -0.3;
-    this.pitch = 1.16;
+    // a mine's pit floor hides behind its near rim from low down
+    this.pitch = this.site.kind === 'mine' ? 1.0 : 1.16;
   }
 
   /** The planner's key the set pieces were built from (Act III–V sites), null elsewhere. */

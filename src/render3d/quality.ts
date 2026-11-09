@@ -4,6 +4,7 @@
  * at once.
  */
 import { isPhone } from '../platform/platform';
+import { kitDetail } from './kit';
 
 export type QualityLevel = 'high' | 'medium' | 'low';
 
@@ -38,4 +39,5 @@ export function resolveQuality(setting: 'auto' | QualityLevel | undefined): Qual
 
 export function setQuality(level: QualityLevel) {
   Object.assign(quality, PRESETS[level]);
+  kitDetail.bevelSeg = level === 'high' ? 2 : 1;
 }
