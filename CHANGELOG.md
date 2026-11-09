@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.0 — Third Dimension (2026-11-10)
+A second way to see the game: the 3D edition, in beta. The same game, the same acts and the same saves, drawn as a handmade scale model instead of pixel art. Switch in Settings → Display → Edition.
+
+**The 3D edition (beta)**
+- The world map is a 3D globe: the real sun moving over it, drifting clouds, city lights on the night side, and every site, cable, ship and supergrid line on the surface.
+- Every place is built in 3D, all five acts: the garage and its first data halls, every power plant and upgrade, the suppliers, mines and landing stations, the Charter's Geneva headquarters on the lake, the megaprojects, launch sites where rockets lift off, fusion plants, the Moon base, the orbital yards, Ring One, Aurora's town inside its habitat, and the asteroid mines.
+- People walk about (your advisors too: click one to hear what they think), cars and trucks come and go, and each campus sits in its own countryside: deserts, forests, coasts, mountains, snow.
+- The orbit and solar-system views are 3D too, and so is the Type I ending.
+- The menu's tour flies over all of it.
+- Settings → Display → 3D detail: Auto keeps it smooth on your machine by lowering the 3D resolution when the graphics card can't keep up (the text and panels stay sharp). High adds soft contact shadows; Low is for older laptops.
+- The game remembers your edition: the desktop and Android apps open straight into it next time.
+- It's a beta: expect rough edges, and tell us what you spot.
+
+**Both editions**
+- The opening fade can no longer hold the screen dark for a few seconds after a slow start.
+
 ## 0.9.4 — Fast Lane (2026-11-08)
 Desktop app updates that take seconds instead of half an hour.
 

@@ -1,7 +1,8 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.9.4 "Fast Lane"** (desktop updates download in pieces over six connections: SPEC §26b) on top of
+Current build: **v0.10.0 "Third Dimension"** (the 3D edition in beta, opt-in via Settings → Display → Edition: SPEC §28) on
+top of v0.9.4 "Fast Lane" (desktop updates download in pieces over six connections: SPEC §26b) on top of
 v0.9.3 "Clear Signs" (new 15×15 dock icons drawn in whole device pixels, the dock badge fix, the desktop
 updater's retry on a stalled download: SPEC §26) on top of v0.9.2 "Pocket Size" (the phone pass: tutorial bubbles that fit, a two-column phone menu, no double
 cutout gap in the Android app, a top bar that fits, toasts over the ticker: SPEC §25) on top of v0.9.1 "Skip Ahead"
