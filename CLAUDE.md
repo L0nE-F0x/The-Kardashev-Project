@@ -17,12 +17,27 @@ Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 ## The 3D edition (branch `3d`, SPEC §28)
 
 A second front end on the same game: `play3d/index.html` → `src/main3d.ts` builds the same `Game` with
-`render3d/stage3d.ts` (three.js) and 3D scenes behind `SceneFactory` (globe/globeScene.ts, campus/campusScene.ts; the
-same TourDirector with a `supports` filter). Sim, UI, tutorial, saves and audio are shared, so sim/UI changes land in
-both. Both stages meet `GameStage`/`GameScene` (render/stage.ts); the keys and frame loop are `game/shell.ts`. Art
-direction: `art3d/DIRECTION.md`. Meshy: `tools/meshy.mjs` (concept image first, one style brief; `--char` for rigged
-people), `tools/glb-tex.mjs` shrinks textures into `public/3d/models/`. Dev: http://127.0.0.1:5317/play3d/. QA helpers:
-the campus scene's `aim(x, z, dist, yaw, pitch)`; `game.updateSettings({ dayNight: false })` pins local noon.
+`render3d/stage3d.ts` (three.js) and 3D scenes behind `SceneFactory`; sim, UI, tutorial, saves and audio are shared,
+so sim/UI changes land in both. Both stages meet `GameStage`/`GameScene` (render/stage.ts); keys and the frame loop are
+`game/shell.ts`. Settings → Display → Edition switches between /play/ and /play3d/ (same saves); 3D detail =
+`render3d/quality.ts` (shadows, AO, resolution, MSAA/FXAA, plants, bevel segments; auto = low on phones).
+- **Scenes:** `globe/` (globeScene: Earth from `earth.ts` = biome/land/relief/region textures + shader with real-time
+  sun, city lights, clouds, region tints, heat haze; `layers2/3/45.ts` = Act II cables/fiber/lanes · Act III megaproject
+  patches, HVDC, satellite, liftoff · Act IV–V supergrid, fusion/rectenna glows, banners, garden/forge), `campus/`
+  (campusScene: every site — build sites on plots (`layout.ts`), view-only places (`viewOnly.ts`: Act II set pieces via
+  `setPiecesFor`, Act III–V via the shared planner `act3Plan` + `act3Key` rebuilds), sceneries: campus, geneva (lake),
+  offshore, launch coast, moon, space (no ground), habitat (`habitatShell.ts`), asteroid (curved ground); `ground.ts` =
+  ten backdrops to the horizon, `sky.ts` (real sun at the site, weather, lunar/space/habitat modes), `weather.ts`,
+  `life.ts` (rigged people, advisors, Bit, traffic)), `orbit/orbitScene.ts` (Act IV–V), `system/systemScene.ts`
+  (Act V + the Type I pull-back), the same TourDirector (`supports` filter in main3d.ts).
+- **Pieces:** `campus/registry.ts` maps facility types (`act1.ts`, `plants2.ts`) and set pieces (`industry.ts`,
+  `act3sets.ts` → `sets/*.ts`; footprints in `act3sizes.ts`) to builders returning `Piece` (pieces.ts). Conventions
+  and the lab: `art3d/PIECES.md`; lab page `/play3d/lab.html?piece=…|set=…` (dev). Art direction: `art3d/DIRECTION.md`.
+- **Meshy:** `tools/meshy.mjs` (concept image first with one style brief; `--char` = rigged people), `tools/glb-tex.mjs`
+  shrinks textures into `public/3d/models/`; models load on demand (`models.ts`).
+- **QA:** headless Chrome + `--use-angle=swiftshader`; stub Vite's `@vite/client` with a working `updateStyle` (else no
+  CSS) when other edits would hot-reload the page; campus `aim(x, z, dist, yaw, pitch)`; `game.updateSettings({ dayNight:
+  false })` pins local noon; `tests/render3d-layout.test.ts` checks every place's layout.
 
 ## Commands
 

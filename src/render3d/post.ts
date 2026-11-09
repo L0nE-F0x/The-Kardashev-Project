@@ -10,6 +10,7 @@ import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
 
 /** What a scene wants from the post pipeline (it may change these every frame). */
 export interface Look {
@@ -99,6 +100,8 @@ export class Post {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.2, 0.55, 1.4);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
+    // no MSAA (the low preset): a cheap FXAA pass keeps edges from stair-stepping
+    if (!samples) this.composer.addPass(new FXAAPass());
     this.grade = new ShaderPass(Grade);
     this.composer.addPass(this.grade);
     this.resize();
