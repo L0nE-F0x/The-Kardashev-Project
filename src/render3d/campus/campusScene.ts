@@ -47,6 +47,16 @@ import { sfx } from '../../audio/sfx';
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const RAD = Math.PI / 180;
 
+/**
+ * The latitude a campus takes its sun from. Real up to 40°, then squeezed (×0.3 beyond it), so the far north
+ * gets a mid-latitude sun: Luleå (65.6°N) lights like 47.7°N — a winter noon sun near 20° instead of 1–7°, a
+ * working day of daylight instead of a dim three hours. The sun still moves over the real day and year.
+ */
+export function lightLat(lat: number) {
+  const a = Math.abs(lat);
+  return Math.sign(lat) * (a <= 40 ? a : 40 + (a - 40) * 0.3);
+}
+
 interface Entry {
   f: Facility;
   item: PlotItem;
@@ -869,7 +879,7 @@ export class CampusScene implements Scene3D {
     const date = this.simDate();
     const sub = subsolar(date);
     const sun = dir(sub.lon, sub.lat);
-    const n = dir(this.site.lon, this.site.lat);
+    const n = dir(this.site.lon, lightLat(this.site.lat));
     const east = new THREE.Vector3(0, 1, 0).cross(n).normalize();
     const north = n.clone().cross(east);
     const up = sun.dot(n);

@@ -1,7 +1,7 @@
 {
   "name": "kardashev-project",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "A cozy-but-real pixel-art management sim about the AI boom: guide Earth up the Kardashev scale.",
   "type": "module",
   "scripts": {

@@ -2080,3 +2080,36 @@ chosen edition is remembered across launches. Also checked in 3D: the tutorial's
 ending, the launch at night. **Open:** the user's own look on their hardware; optional Meshy heroes the art agents
 suggested (council hall, ferry, crawler, haulers, landers, rovers); merging to main (the live site and the apps only get
 /play3d/ then). Then the user's choice between editions.
+
+**The polish pass (v0.10.1 "Lived In", 2026-11-10)** — the user's first list after playing 0.10.0 in 3D on the desktop
+app ("not quite sparking joy"): the menu globe flickered; side roads were flat black; campuses had a floating edge
+(vehicles drove off it, buildings hung over it); roads were tiles; code-built rocks and bushes looked poor close up
+("use more Meshy credits"); people walked through buildings with no schedule; the zoomed-out globe looked worse than 2D;
+colours, speed; and realism of the mechanics, not just the graphics. What changed:
+- Globe (`globe/earth.ts`, `soft.ts`): coasts, borders, clouds and cable lines anti-aliased from screen-space
+  derivatives, mipmapped detail noise instead of per-pixel noise, the pixel map's biome ramps and sea depth bands, baked
+  relief, sea ice; no FXAA on the globe (`Look.fxaa`); solar megaproject fields as one mipmapped disc (no moiré).
+- Campus ground (`layout.ts`, `ground.ts`): plots grow east from a fixed west edge, so a build never moves the gate, the
+  access road or what's built, and the levelled ground covers every future plot; terrain graded along the roads
+  (sampled profile, smoothed, blended over a corridor); objects sit on the drawn triangles (`meshHeight`).
+- Roads (`roads.ts`): continuous ribbons with shader-drawn, anti-aliased markings (centre dashes, edge lines, stop lines,
+  zebras), kerbs, pavements, rounded junctions and a turning circle; one material for every road kind.
+- Grass (`grass.ts`): instanced blade clumps swaying in the wind, a sparse carpet everywhere and a dense patch on a world
+  grid that follows the camera up close. Farmland (`fields.ts`): crop fields with rows, pasture, dry range, orchards,
+  centre pivots, hedgerows and tree lines round campus and megaproject sites.
+- Meshy scenery: rock, boulder, broadleaf, pine (`--nature` style) simplified with `tools/glb-lod.mjs` (meshoptimizer),
+  foliage normals spherized; code shrubs rounded; far plants cast no shadows.
+- Traffic (`vehicles.ts`): the intelligent-driver model (gaps, queues), filleted routes with a curvature speed limit,
+  give-way before turning across traffic, stop lines with a front-bumper hold; deliveries yield, dock and leave.
+- People (`people.ts`, `paths.ts`): an A* walk map on a 0.5 m grid (pavements preferred; buildings, fences, cars
+  blocked), schedules on the campus's local hour (arrivals, breaks, lunch, errands, rounds, leaving, crews, the night
+  guard), Meshy animation clips (idle, chat, talk, phone, drink, sit, hammer, carry…), doors and blockers on Act I
+  pieces; `tests/render3d-people.test.ts` walks a whole day.
+- Light: far-north campuses take their sun from a squeezed latitude (`lightLat`: real to 40°, ×0.3 beyond: Luleå lights
+  like 47.7°N), so a winter noon sun stands near 20° instead of 1–7° (the user chose readable over true to life); more
+  sky fill when the sun is low; a warmer Act I grade; less tilt-shift close up.
+- Speed on the dev laptop's iGPU (2048×1152 at 1.25): wide ~43 ms, close ~39 ms (0.10.0: ~38–42 / ~32–34) with all the
+  above. Checked in headless Chrome and a debug desktop build (WebKitGTK).
+**Still open after 0.10.1:** commuter cars don't drive in or out (people appear at their car); figures set pieces
+place directly (Moon astronauts, some Aurora townsfolk) hold a walk frame; Act II plants and Act III–V set pieces have a
+guessed front door only; the website still shows the 2D game.

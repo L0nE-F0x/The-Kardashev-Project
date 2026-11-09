@@ -67,7 +67,7 @@ export const BACKDROPS: Record<Backdrop, BackdropDef> = {
     plants: [{ kind: 'mesquite', n: 90, s: [0.9, 1.4], near: true }, { kind: 'acacia', n: 500, s: [1.1, 1.8] }, { kind: 'tuft', n: 2400, s: [0.9, 1.6] }, { kind: 'shrub', n: 500, s: [0.5, 1.1] }, { kind: 'boulder', n: 70, s: [0.8, 2.2] }],
   },
   volcanic: {
-    ground: ['#6a7a4a', '#4f5a46', '#3a3436'], rock: '#3f3538', snowLine: 110, relief: 4, far: 'volcano', water: -2,
+    ground: ['#7a8a50', '#5f6a4c', '#4a4244'], rock: '#4a4044', snowLine: 110, relief: 4, far: 'volcano', water: -2,
     plants: [{ kind: 'shrub', n: 900, s: [0.4, 1.0] }, { kind: 'tuft', n: 900, s: [0.8, 1.2] }, { kind: 'rock', n: 900, s: [0.6, 1.8] }, { kind: 'boulder', n: 200, s: [0.6, 1.8] }],
   },
   lunar: {

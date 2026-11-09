@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.10.1 — Lived In (2026-11-10)
+A big polish pass on the 3D edition: a steady globe, proper roads, real grass and farmland, traffic that drives like traffic, and people with a working day.
+
+**The globe**
+- The globe behind the main menu no longer flickers or shimmers as it turns: coastlines, borders, cables and cloud edges are smoothed, and fine detail no longer crawls.
+- A richer Earth: the pixel map's colours for every land and the sea's depth bands, relief, sea ice, softer clouds and a clearer highlight on the region you select.
+- The solar megaprojects of Acts III–V no longer shimmer either.
+
+**Campuses**
+- Roads are one smooth road instead of tiles, with painted lines, stop lines, kerbs, pavements, rounded junctions and a turning circle. The side roads to new buildings get them too.
+- No more floating edge: the land is levelled under every plot you could ever build, building never moves the gate or anything already built, and nothing hangs off an edge.
+- Grass you can see blade by blade up close, swaying in the wind.
+- New rocks, boulders, broadleaf and pine trees near the campus (made with Meshy, like the people), rounder bushes and softer foliage.
+- Farmland around the campuses: crop fields in rows, pasture, orchards, irrigation circles in dry country, hedgerows and lines of trees.
+- Crisper close-ups, warmer colours in Act I, and daylight you can see by in the far north (Luleå, the fjords, Reykjanes), where the winter sun used to barely clear the horizon.
+
+**Traffic**
+- Cars and trucks take real turning arcs, slow down for bends, keep their distance and queue, give way before turning across traffic, and wait at stop lines for a gap. Delivery trucks keep to their lane and unload outside the buildings.
+
+**People**
+- People keep a working day on the campus's own clock. Staff arrive in the morning from their cars or the gate and go in by the door; they come out for coffee, phone calls, errands and lunch on the benches; engineers walk the fence line; everyone heads home in the evening. Building crews hammer and carry, and a night guard patrols with a torch.
+- Nobody walks through buildings, fences or parked cars any more: people follow the pavements and paths.
+- New animations: talking, listening, phone calls, coffee, sitting, hammering, carrying.
+- Advisors spend the day where their work is (click one, as before), and Bit floats beside one of them.
+
+**Smoother**
+- The 3D resolution steps back up at most every 12 seconds, so the picture doesn't keep sharpening and softening.
+- Starting or finishing a building no longer stutters.
+
 ## 0.10.0 — Third Dimension (2026-11-10)
 A second way to see the game: the 3D edition, in beta. The same game, the same acts and the same saves, drawn as a handmade scale model instead of pixel art. Switch in Settings → Display → Edition.
 

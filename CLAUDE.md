@@ -1,8 +1,9 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.10.0 "Third Dimension"** (the 3D edition in beta, opt-in via Settings → Display → Edition: SPEC §28) on
-top of v0.9.4 "Fast Lane" (desktop updates download in pieces over six connections: SPEC §26b) on top of
+Current build: **v0.10.1 "Lived In"** (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
+working day, far-north daylight: SPEC §28) on top of v0.10.0 "Third Dimension" (the 3D edition in beta, opt-in via
+Settings → Display → Edition: SPEC §28) on top of v0.9.4 "Fast Lane" (desktop updates download in pieces over six connections: SPEC §26b) on top of
 v0.9.3 "Clear Signs" (new 15×15 dock icons drawn in whole device pixels, the dock badge fix, the desktop
 updater's retry on a stalled download: SPEC §26) on top of v0.9.2 "Pocket Size" (the phone pass: tutorial bubbles that fit, a two-column phone menu, no double
 cutout gap in the Android app, a top bar that fits, toasts over the ticker: SPEC §25) on top of v0.9.1 "Skip Ahead"
@@ -420,9 +421,8 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next: the user's list of refinements, polish and fixes for the 3D edition** (they're playing v0.10.0 in 3D on the
-desktop app, Steam/computers only, and will bring screenshots), then their choice of edition. **To do (asked
-2026-11-10): bring the website up to the 3D look** — it still shows only the 2D pixel art (the hero, the gallery's
+**Next:** the user plays v0.10.1 (their first 3D polish list is done: SPEC §28 "The polish pass"; still open there),
+then their choice of edition. **To do (asked 2026-11-10): bring the website up to the 3D look** — it still shows only the 2D pixel art (the hero, the gallery's
 `public/screenshots/`, the PWA manifest shots, the OG image); new 3D shots and copy once the polish list is done. Still pending after that:
 their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the log and v1.0.0
 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
