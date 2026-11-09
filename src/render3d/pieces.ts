@@ -33,6 +33,16 @@ export interface Piece {
   ground?(x: number, z: number): number | null;
   /** A brownout at the site: halls flicker and show red. */
   setAlert?(on: boolean): void;
+  /**
+   * Where people go in and out (piece-local: the spot a step outside each door, and the way out, default +z). Without
+   * it, the middle of the front face.
+   */
+  doors?: { x: number; z: number; nx?: number; nz?: number }[];
+  /**
+   * What people walk round (piece-local boxes: walls, plant, yards, clutter). Without it, the whole w × d. Cars
+   * placed with `parkedCars` count by themselves.
+   */
+  blockers?: { x0: number; z0: number; x1: number; z1: number }[];
 }
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -305,12 +315,14 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
     front.box(12, 0.05, 4.4, '#6f6878', -6.5, 0.04, D / 2 + 5.6, { r: 0.03, shade: 0 });
     for (let i = 0; i < 6; i++) front.box(0.1, 0.02, 2.2, 'ink9', -12 + i * 2.2, 0.1, D / 2 + 5.4, { r: 0, jitter: 0 });
   }
+  // (without a car park the transformers stand closer, inside the plot's fence)
+  const tz = o.noParking ? D / 2 + 3.8 : D / 2 + 5.4;
   for (const x of [5.5, 8.5]) {
-    front.box(2.2, 2.0, 1.8, '#8a8f80', x, 0.15, D / 2 + 5.4, { r: 0.08 });
-    for (let k = 0; k < 4; k++) front.box(0.08, 1.5, 1.9, '#727868', x - 0.9 + k * 0.6, 0.35, D / 2 + 5.4, { r: 0, jitter: 0 });
-    for (const bx of [-0.6, 0, 0.6]) front.cyl(0.09, 0.12, 0.8, '#d8cfc3', x + bx, 2.15, D / 2 + 5.4, 6);
+    front.box(2.2, 2.0, 1.8, '#8a8f80', x, 0.15, tz, { r: 0.08 });
+    for (let k = 0; k < 4; k++) front.box(0.08, 1.5, 1.9, '#727868', x - 0.9 + k * 0.6, 0.35, tz, { r: 0, jitter: 0 });
+    for (const bx of [-0.6, 0, 0.6]) front.cyl(0.09, 0.12, 0.8, '#d8cfc3', x + bx, 2.15, tz, 6);
   }
-  front.box(5.6, 0.12, 3, '#a39a91', 7, 0, D / 2 + 5.4, { r: 0.03, shade: 0 });
+  front.box(5.6, 0.12, 3, '#a39a91', 7, 0, tz, { r: 0.03, shade: 0 });
   const fm = front.build();
   g.add(fm);
   if (!o.noParking) parkedCars(g, -11.4, D / 2 + 5.6, 6, 2.2, seed + 9, Math.PI / 2);
@@ -320,6 +332,14 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
   const cyan = col('cyn5').clone(), red = col('red3').clone();
   return {
     obj: g, w: W + 2, d: D + 7, h: H + 2.5,
+    // the glass door in the entrance block; the hall with its generators and pipe rack, the block, the dock, the transformers
+    doors: [{ x: -W / 2 + 3, z: D / 2 + 2.75 }],
+    blockers: [
+      { x0: -W / 2 - 0.3, z0: -D / 2 - 3.1, x1: W / 2 + 0.3, z1: D / 2 + 0.3 },
+      { x0: -W / 2 + 0.9, z0: D / 2, x1: -W / 2 + 5.1, z1: D / 2 + 2.15 },
+      { x0: W / 2 - 8.35, z0: D / 2, x1: W / 2 - 0.85, z1: D / 2 + 2.2 },
+      { x0: 4.2, z0: tz - 1.5, x1: 9.8, z1: tz + 1.5 },
+    ],
     setLoad(f) { load = f; },
     setAlert(on) { alert = on; },
     update(e) {

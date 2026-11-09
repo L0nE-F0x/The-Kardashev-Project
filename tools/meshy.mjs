@@ -10,6 +10,9 @@
 //   node tools/meshy.mjs model <name> --char                 A-pose mesh, ~4k triangles
 //   node tools/meshy.mjs rig <name> [--height 1.75]          humanoid rig (5 cr) → art3d/raw/<name>_rigged.glb
 //                                                             + the free walk/run clips (_walk.glb, _run.glb)
+//   node tools/meshy.mjs animate <name> <id> [<id> …]        library animations on the rig (3 cr each, ids from
+//                                                             GET /v1/animations/library) → art3d/raw/<name>_anims.glb
+//                                                             (merge into the web figure: tools/glb-anim.mjs)
 //   node tools/meshy.mjs status <kind> <id>
 //
 // Every task id and credit spent goes to art3d/meshy-log.json.
@@ -131,6 +134,19 @@ if (cmd === 'balance') {
   const basic = t.result.basic_animations ?? {};
   if (basic.walking_glb_url) await download(basic.walking_glb_url, `${ROOT}raw/${name}_walk.glb`);
   if (basic.running_glb_url) await download(basic.running_glb_url, `${ROOT}raw/${name}_run.glb`);
+} else if (cmd === 'animate') {
+  // library animations on a rigged figure (3 cr per action; one merged file, one clip per action, in order)
+  const [name, ...ids] = rest.filter((a) => !a.startsWith('--'));
+  const action_ids = ids.map(Number).filter((n) => Number.isInteger(n));
+  if (!name || !action_ids.length) throw new Error('animate <name> <action id> [<action id> …]');
+  const all = JSON.parse(fs.readFileSync(LOG, 'utf8'));
+  const rig = all.filter((e) => e.name === name && e.step === 'rig.done').pop();
+  if (!rig) throw new Error(`no finished rig for ${name}`);
+  const { result: id } = await api('POST', '/v1/animations', { rig_task_id: rig.id, action_ids });
+  log({ name, step: 'animate', id, action_ids });
+  const t = await wait(`/v1/animations/${id}`, `${name} animate`);
+  log({ name, step: 'animate.done', id, credits: t.consumed_credits });
+  await download(t.result.animation_glb_url, `${ROOT}raw/${name}_anims.glb`);
 } else {
-  console.log('usage: balance | concept <name> "<subject>" | model <name> [--polys n] | status <kind> <id>');
+  console.log('usage: balance | concept <name> "<subject>" | model <name> [--polys n] | rig <name> | animate <name> <ids…> | status <kind> <id>');
 }

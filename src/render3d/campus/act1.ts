@@ -30,7 +30,8 @@ function hq(o: { seed: number }): Piece {
   k.box(0.9, 0.08, 6, '#cfc6bd', 3.5, 0.02, 9.5, { r: 0.02, shade: 0 });
   k.box(0.35, 1.0, 0.35, '#c23a3f', 5.5, 0, 11.5, { r: 0.05 });
   k.box(0.6, 0.4, 0.4, '#5b5562', 5.5, 1.0, 11.5, { r: 0.08 });
-  for (let x = -12; x < 12; x += 0.5) if (x < -7 || x > -1) k.box(0.1, 0.7, 0.05, '#efe8de', x, 0, 12.6, { r: 0, jitter: 0.02 });
+  // the picket fence, open at the driveway and at the front path's gate
+  for (let x = -12; x < 12; x += 0.5) if ((x < -7 || x > -1) && (x < 2.9 || x > 4.1)) k.box(0.1, 0.7, 0.05, '#efe8de', x, 0, 12.6, { r: 0, jitter: 0.02 });
   // a hedge along the side, shrubs by the house, a tree in the back yard
   for (let z = -10; z < 10; z += 0.9) k.geo(new THREE.IcosahedronGeometry(0.55, 0).scale(1, 0.8, 1).translate(-12.2, 0.4, z), '#3f6b35', 0.18);
   for (const [x, z] of [[2, 4.6], [6, 4.4], [9, 4.8], [-9, 4.5]]) k.geo(new THREE.IcosahedronGeometry(0.7, 0).scale(1, 0.75, 1).translate(x, 0.45, z), '#4a7a3a', 0.2);
@@ -42,13 +43,37 @@ function hq(o: { seed: number }): Piece {
   const light = new THREE.PointLight(0xffc27a, 0, 16, 1.6);
   light.position.set(-3.5, 2.2, 2.5);
   g.add(light);
-  return { obj: g, w: 22, d: 24, h: 8, update(e) { light.intensity = e.night * 50; } };
+  return {
+    obj: g, w: 22, d: 24, h: 8, update(e) { light.intensity = e.night * 50; },
+    // the front door up the path, and the open garage bay off the driveway (where the lab began)
+    doors: [{ x: 3.5, z: 3.75 }, { x: -3.6, z: 3.75 }],
+    blockers: [
+      { x0: -8.6, z0: -7.1, x1: 8.6, z1: 3.1 },
+      ...([[2, 4.6], [6, 4.4], [9, 4.8], [-9, 4.5]] as [number, number][]).map(([x, z]) => ({ x0: x - 0.7, z0: z - 0.55, x1: x + 0.7, z1: z + 0.55 })),
+      { x0: -12.8, z0: -10.6, x1: -11.6, z1: 10.4 },
+      { x0: 8.65, z0: -10.35, x1: 9.35, z1: -9.65 },
+      { x0: 5.25, z0: 11.25, x1: 5.75, z1: 11.75 },
+      { x0: -12.05, z0: 12.5, x1: -7.2, z1: 12.7 }, { x0: -0.8, z0: 12.5, x1: 2.75, z1: 12.7 }, { x0: 4.25, z0: 12.5, x1: 11.85, z1: 12.7 },
+    ],
+  };
 }
 
+/**
+ * A data hall, set back on its plot so its car park and transformers sit inside the yard's fence (the plot is
+ * 26 deep: hall, generators, entrance, aisle and car park only just fit).
+ */
 function hall(o: { seed: number; tier: number }): Piece {
-  if (o.tier >= 3) return dataHall(o.seed, { W: 25, D: 15, H: 10, chRows: 3, storeys: 2, noParking: true });
-  if (o.tier === 2) return dataHall(o.seed, { W: 24, D: 13, H: 7.2, chRows: 3 });
-  return dataHall(o.seed);
+  const [p, back] = o.tier >= 3 ? [dataHall(o.seed, { W: 25, D: 15, H: 10, chRows: 3, storeys: 2, noParking: true }), 0.8]
+    : o.tier === 2 ? [dataHall(o.seed, { W: 24, D: 13, H: 7.2, chRows: 3 }), 2.4] : [dataHall(o.seed), 1.6];
+  const g = new THREE.Group();
+  p.obj.position.z = -back;
+  g.add(p.obj);
+  const at = <T extends { z: number }>(v: T) => ({ ...v, z: v.z - back });
+  return {
+    ...p, obj: g,
+    doors: p.doors?.map(at),
+    blockers: p.blockers?.map((r) => ({ ...r, z0: r.z0 - back, z1: r.z1 - back })),
+  };
 }
 
 function solar(o: { seed: number; w: number; d: number; tier: number }): Piece {
@@ -91,8 +116,19 @@ function gas(o: { seed: number; tier: number }): Piece {
     }
     g.add(k.build());
   }
+  // the operators' pickup, inside the yard by the gate
+  parkedCars(g, big ? 9.5 : 11.7, big ? 6.5 : 5, 1, 3, o.seed + 4, Math.PI / 2, ['pickup']);
+  // what stands on the model's slab (its halls, stacks and the control room; the slab's rim is walkable)
+  const L = big ? 19 : 24, mx = m.position.x, mz = m.position.z, hx = (0.839 * L) / 2, hz = L / 2;
+  const blockers = [{ x0: mx - hx + 0.6, z0: mz - hz + 0.6, x1: mx + hx - 0.6, z1: mz + hz - 1.2 }];
+  if (big) {
+    for (let b = 0; b < (o.tier >= 3 ? 2 : 1); b++) blockers.push({ x0: 9 - b * 6 - 2.2, z0: -10.9, x1: 9 - b * 6 + 2.2, z1: -5.2 });
+    if (o.tier >= 3) blockers.push({ x0: -8.2, z0: -10.7, x1: 0.2, z1: -6.3 });
+  }
   return {
     obj: g, w: 26, d: 24, h: big ? 17 : s.y + 0.5,
+    doors: [{ x: mx - hx * 0.45, z: mz + hz - 0.5 }],
+    blockers,
     update(e) { for (const p of plumes) p.update(e); },
   };
 }
@@ -120,17 +156,26 @@ function lab(o: { seed: number; tier: number }): Piece {
       k.geo(new THREE.IcosahedronGeometry(1.3, 1).translate(x, 2.6, z), '#3f7b35', 0.18);
     }
   }
-  // the car park in front
-  k.box(14, 0.06, 6, '#6f6878', 0, 0.02, 8.4, { r: 0.04, shade: 0 });
-  for (let i = 0; i < 6; i++) k.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.08, 8.2, { r: 0, jitter: 0 });
+  // the car park in front (a walk between it and the building, so the door can be reached)
+  k.box(14, 0.06, 6, '#6f6878', 0, 0.02, 9.7, { r: 0.04, shade: 0 });
+  for (let i = 0; i < 6; i++) k.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.08, 9.5, { r: 0, jitter: 0 });
   g.add(k.build());
-  parkedCars(g, -6, 8.3, 6, 2.4, o.seed + 78, Math.PI / 2);
+  parkedCars(g, -6, 9.7, 6, 2.4, o.seed + 78, Math.PI / 2);
   const lm = glowMat('yel1', 0);
   lm.userData.nightOnly = 0.9;
   const glow = new THREE.Mesh(new THREE.BoxGeometry(s.x * 0.3, s.y * 0.3, 0.05), lm);
   glow.position.set(m.position.x - s.x * 0.05, s.y * 0.25, -2 + s.z / 2 - 0.4);
   g.add(glow);
-  return { obj: g, w: 20, d: 22, h: Math.max(s.y, o.tier >= 3 ? 8.4 : 6.4) + 0.3 };
+  // the building (the model is 0.834 as wide as it is deep), the wings, the courtyard's trees
+  const L = o.tier >= 3 ? 13 : 15, mx = m.position.x, hx = (0.834 * L) / 2, front = -2 + L / 2;
+  const blockers = [{ x0: mx - hx, z0: -2 - L / 2, x1: mx + hx, z1: front }];
+  if (o.tier >= 2) blockers.push({ x0: 3.35, z0: -8.65, x1: 10.65, z1: 2.65 });
+  if (o.tier >= 3) blockers.push({ x0: -10.65, z0: -13.4, x1: 2.65, z1: -8.6 }, { x0: 1.7, z0: 3.7, x1: 2.3, z1: 4.3 }, { x0: 4.7, z0: 3.2, x1: 5.3, z1: 3.8 });
+  return {
+    obj: g, w: 20, d: 22, h: Math.max(s.y, o.tier >= 3 ? 8.4 : 6.4) + 0.3,
+    doors: [{ x: mx - hx * 0.35, z: front + 0.7 }],
+    blockers,
+  };
 }
 
 export const ACT1_PIECES: Partial<Record<FacilityType, PieceFactory>> = {

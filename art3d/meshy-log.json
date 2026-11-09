@@ -1144,5 +1144,342 @@
     "step": "rig.done",
     "id": "01a1c0a1-617d-7567-a4c6-a4d7f8951318",
     "credits": 5
+  },
+  {
+    "at": "2026-11-09T17:14:36.125Z",
+    "name": "worker",
+    "step": "animate",
+    "id": "01a1c14d-fb81-70cb-9f95-287cff894135",
+    "action_ids": [
+      243,
+      56,
+      47,
+      342,
+      50,
+      128,
+      611,
+      284,
+      276,
+      338
+    ]
+  },
+  {
+    "at": "2026-11-09T17:17:53.634Z",
+    "name": "worker",
+    "step": "animate.done",
+    "id": "01a1c14d-fb81-70cb-9f95-287cff894135",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T17:18:37.717Z",
+    "name": "engineer",
+    "step": "animate",
+    "id": "01a1c151-aac6-7774-b970-6f71f8ccf1bc",
+    "action_ids": [
+      243,
+      56,
+      47,
+      313,
+      50,
+      342,
+      693,
+      32,
+      281
+    ]
+  },
+  {
+    "at": "2026-11-09T17:18:40.708Z",
+    "name": "office",
+    "step": "animate",
+    "id": "01a1c151-b6f2-76dc-b578-4bbb14adaaf7",
+    "action_ids": [
+      243,
+      56,
+      47,
+      313,
+      50,
+      342,
+      693,
+      33,
+      338
+    ]
+  },
+  {
+    "at": "2026-11-09T17:21:46.938Z",
+    "name": "office",
+    "step": "animate.done",
+    "id": "01a1c151-b6f2-76dc-b578-4bbb14adaaf7",
+    "credits": 27
+  },
+  {
+    "at": "2026-11-09T17:21:55.192Z",
+    "name": "engineer",
+    "step": "animate.done",
+    "id": "01a1c151-aac6-7774-b970-6f71f8ccf1bc",
+    "credits": 27
+  },
+  {
+    "at": "2026-11-09T17:22:40.843Z",
+    "name": "researcher",
+    "step": "animate",
+    "id": "01a1c155-60ed-75da-ac05-97aa213a801a",
+    "action_ids": [
+      243,
+      56,
+      47,
+      313,
+      50,
+      342,
+      693,
+      33
+    ]
+  },
+  {
+    "at": "2026-11-09T17:22:44.928Z",
+    "name": "scientist",
+    "step": "animate",
+    "id": "01a1c155-7121-77af-a270-24c9bb3cc902",
+    "action_ids": [
+      243,
+      56,
+      47,
+      313,
+      50,
+      342,
+      693,
+      32
+    ]
+  },
+  {
+    "at": "2026-11-09T17:25:34.155Z",
+    "name": "scientist",
+    "step": "animate.done",
+    "id": "01a1c155-7121-77af-a270-24c9bb3cc902",
+    "credits": 24
+  },
+  {
+    "at": "2026-11-09T17:25:35.592Z",
+    "name": "researcher",
+    "step": "animate.done",
+    "id": "01a1c155-60ed-75da-ac05-97aa213a801a",
+    "credits": 24
+  },
+  {
+    "at": "2026-11-09T17:27:45.899Z",
+    "name": "adv_juno",
+    "step": "animate",
+    "id": "01a1c15a-08a3-722b-9a77-35226937d49f",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:27:50.135Z",
+    "name": "adv_penny",
+    "step": "animate",
+    "id": "01a1c15a-1909-747a-a2fd-8aab1cc30333",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:29:03.674Z",
+    "name": "adv_penny",
+    "step": "animate.done",
+    "id": "01a1c15a-1909-747a-a2fd-8aab1cc30333",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:29:21.937Z",
+    "name": "adv_juno",
+    "step": "animate.done",
+    "id": "01a1c15a-08a3-722b-9a77-35226937d49f",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:29:58.557Z",
+    "name": "adv_mira",
+    "step": "animate",
+    "id": "01a1c15c-0e91-765a-a2e2-4dec73e4f558",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:30:02.596Z",
+    "name": "adv_sol",
+    "step": "animate",
+    "id": "01a1c15c-1eb4-7510-8bbc-6bc7255c44d5",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:31:23.144Z",
+    "name": "adv_mira",
+    "step": "animate.done",
+    "id": "01a1c15c-0e91-765a-a2e2-4dec73e4f558",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:31:27.197Z",
+    "name": "adv_sol",
+    "step": "animate.done",
+    "id": "01a1c15c-1eb4-7510-8bbc-6bc7255c44d5",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:31:41.249Z",
+    "name": "adv_iris",
+    "step": "animate",
+    "id": "01a1c15d-9f99-74f6-9de5-641465803c24",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:31:45.380Z",
+    "name": "adv_kip",
+    "step": "animate",
+    "id": "01a1c15d-af96-7029-a943-4aa4b00cf6b6",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:33:00.310Z",
+    "name": "adv_iris",
+    "step": "animate.done",
+    "id": "01a1c15d-9f99-74f6-9de5-641465803c24",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:33:10.216Z",
+    "name": "adv_kip",
+    "step": "animate.done",
+    "id": "01a1c15d-af96-7029-a943-4aa4b00cf6b6",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:36:40.200Z",
+    "name": "adv_lena",
+    "step": "animate",
+    "id": "01a1c162-2eae-76f4-8da6-d4b16df24f2b",
+    "action_ids": [
+      243,
+      56,
+      313,
+      50
+    ]
+  },
+  {
+    "at": "2026-11-09T17:36:44.119Z",
+    "name": "resident_a",
+    "step": "animate",
+    "id": "01a1c162-3e9c-70d1-beba-feed9c83e243",
+    "action_ids": [
+      243,
+      56
+    ]
+  },
+  {
+    "at": "2026-11-09T17:37:29.348Z",
+    "name": "resident_a",
+    "step": "animate.done",
+    "id": "01a1c162-3e9c-70d1-beba-feed9c83e243",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:37:47.319Z",
+    "name": "resident_b",
+    "step": "animate",
+    "id": "01a1c163-356a-751d-bef2-8497f475ed4b",
+    "action_ids": [
+      243,
+      56
+    ]
+  },
+  {
+    "at": "2026-11-09T17:37:59.243Z",
+    "name": "adv_lena",
+    "step": "animate.done",
+    "id": "01a1c162-2eae-76f4-8da6-d4b16df24f2b",
+    "credits": 12
+  },
+  {
+    "at": "2026-11-09T17:38:11.125Z",
+    "name": "kid_a",
+    "step": "animate",
+    "id": "01a1c163-92dd-7316-92ba-088f58863e44",
+    "action_ids": [
+      243,
+      56
+    ]
+  },
+  {
+    "at": "2026-11-09T17:38:32.723Z",
+    "name": "resident_b",
+    "step": "animate.done",
+    "id": "01a1c163-356a-751d-bef2-8497f475ed4b",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:38:46.215Z",
+    "name": "kid_b",
+    "step": "animate",
+    "id": "01a1c164-1bc6-725c-a3ed-58140e0e0f71",
+    "action_ids": [
+      243,
+      56
+    ]
+  },
+  {
+    "at": "2026-11-09T17:39:02.206Z",
+    "name": "kid_a",
+    "step": "animate.done",
+    "id": "01a1c163-92dd-7316-92ba-088f58863e44",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:39:19.599Z",
+    "name": "astronaut",
+    "step": "animate",
+    "id": "01a1c164-9e16-71b1-8870-c0263b278ce1",
+    "action_ids": [
+      243,
+      338
+    ]
+  },
+  {
+    "at": "2026-11-09T17:39:31.627Z",
+    "name": "kid_b",
+    "step": "animate.done",
+    "id": "01a1c164-1bc6-725c-a3ed-58140e0e0f71",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:40:16.328Z",
+    "name": "astronaut",
+    "step": "animate.done",
+    "id": "01a1c164-9e16-71b1-8870-c0263b278ce1",
+    "credits": 6
   }
 ]
