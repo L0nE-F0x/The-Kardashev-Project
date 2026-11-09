@@ -1013,7 +1013,7 @@ export class CampusPeople {
     const every = !onScreen ? 0.25 : far > 170 ? 1 / 15 : far > 90 ? 1 / 30 : 0;
     if (a.acc >= every) { a.fig.update(a.acc); a.acc = 0; }
     // Bit's trail
-    if (a.role === 'advisor') {
+    if (a.role === 'advisor' || a.role === 'guard') {
       a.trail ??= [];
       const last = a.trail[a.trail.length - 1];
       if (!last || Math.hypot(last.x - a.pos.x, last.z - a.pos.z) > 0.3) a.trail.push({ x: a.pos.x, z: a.pos.z, t: this.time });
@@ -1021,17 +1021,24 @@ export class CampusPeople {
     }
   }
 
-  /** Where Bit goes: just behind an advisor who's out (on the way they came, so never into anything). */
+  /**
+   * Where Bit goes: a little behind an advisor who's out (on the way they came, so never into anything), or the guard
+   * at night; beside them (on open ground) when they stand still, not on their head.
+   */
   bitTarget(): { x: number; z: number; heading: number } | null {
     const outs = this.agents.filter((a) => a.role === 'advisor' && a.state === 'out' && a.obj.visible);
-    const buddy = outs[Math.floor(this.time / 45) % Math.max(1, outs.length)];
-    if (buddy?.trail?.length) {
-      const tr = buddy.trail;
-      const back = tr.find((p) => this.time - p.t < 1.2) ?? tr[tr.length - 1];
+    const buddy = outs[Math.floor(this.time / 45) % Math.max(1, outs.length)] ?? this.agents.find((a) => a.role === 'guard' && a.state === 'out' && a.obj.visible);
+    if (buddy) {
+      const tr = buddy.trail ?? [];
+      const back = tr.find((p) => this.time - p.t < 1.4) ?? tr[tr.length - 1] ?? buddy.pos;
+      if (Math.hypot(back.x - buddy.pos.x, back.z - buddy.pos.z) > 1) return { x: back.x, z: back.z, heading: buddy.heading };
+      const rx = Math.cos(buddy.heading), rz = -Math.sin(buddy.heading);
+      for (const s of [1, -1]) {
+        const x = buddy.pos.x + rx * 1.1 * s, z = buddy.pos.z + rz * 1.1 * s;
+        if (this.map.free(x, z)) return { x, z, heading: buddy.heading };
+      }
       return { x: back.x, z: back.z, heading: buddy.heading };
     }
-    const g = this.agents.find((a) => a.role === 'guard' && a.state === 'out');
-    if (g) return { x: g.pos.x, z: g.pos.z, heading: g.heading };
     const s = this.breaks.values().next().value as Spot | undefined;
     return s ? { x: s.x, z: s.z, heading: 0 } : null;
   }

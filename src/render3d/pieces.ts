@@ -344,6 +344,8 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
     setAlert(on) { alert = on; },
     update(e) {
       for (const f of fans) f.rotation.y += e.dt * f.userData.spin * (alert ? 0.15 : 0.3 + load);
+      // the lobby's lit window is a night thing (by day the pale panel reads as a board over the door)
+      win.visible = e.night > 0.05;
       if (alert) {
         // a brownout: the band pulses red and flickers
         const pulse = Math.sin(e.t * 5) > 0 ? 1 : 0.25;
