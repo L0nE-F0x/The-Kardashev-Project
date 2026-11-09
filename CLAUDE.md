@@ -19,8 +19,12 @@ Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 A second front end on the same game: `play3d/index.html` → `src/main3d.ts` builds the same `Game` with
 `render3d/stage3d.ts` (three.js) and 3D scenes behind `SceneFactory`; sim, UI, tutorial, saves and audio are shared,
 so sim/UI changes land in both. Both stages meet `GameStage`/`GameScene` (render/stage.ts); keys and the frame loop are
-`game/shell.ts`. Settings → Display → Edition switches between /play/ and /play3d/ (same saves); 3D detail =
-`render3d/quality.ts` (shadows, AO, resolution, MSAA/FXAA, plants, bevel segments; auto = low on phones).
+`game/shell.ts`. Settings → Display → Edition switches between /play/ and /play3d/ (same saves) and is remembered
+(`settings.edition`: the apps always open /play/, whose boot hands over to /play3d/). 3D detail = `render3d/quality.ts`
+(shadows, AO at half resolution, resolution, MSAA on high only / FXAA below, plants, bevel segments). Auto = low on
+phones, high only when the browser names a discrete GPU (WebKit never does), else medium, plus adaptive resolution in
+`stage3d.ts` (one frame timed by GPU syncs every 0.7 s; not the frame rate: WebKit caps rAF at 30 in low-power mode).
+Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-res AO +24, 4× MSAA +11, bloom +3.5.
 - **Scenes:** `globe/` (globeScene: Earth from `earth.ts` = biome/land/relief/region textures + shader with real-time
   sun, city lights, clouds, region tints, heat haze; `layers2/3/45.ts` = Act II cables/fiber/lanes · Act III megaproject
   patches, HVDC, satellite, liftoff · Act IV–V supergrid, fusion/rectenna glows, banners, garden/forge), `campus/`
@@ -41,7 +45,12 @@ so sim/UI changes land in both. Both stages meet `GameStage`/`GameScene` (render
   lines them up). The service worker caches `/3d/models/*.glb` at run time (not precached).
 - **QA:** headless Chrome + `--use-angle=swiftshader`; stub Vite's `@vite/client` with a working `updateStyle` (else no
   CSS) when other edits would hot-reload the page; campus `aim(x, z, dist, yaw, pitch)`; `game.updateSettings({ dayNight:
-  false })` pins local noon; `tests/render3d-layout.test.ts` checks every place's layout.
+  false })` pins local noon; `tests/render3d-layout.test.ts` checks every place's layout. Adaptive resolution is off
+  under automation (`navigator.webdriver`). Real-GPU timing: Chrome with `--use-angle=gl-egl` (the Intel iGPU), or the
+  desktop app (`npx tauri build --debug --no-bundle --config '{"identifier":"…test3d","build":{"beforeBuildCommand":""}}'`
+  after `npm run build`, scratch XDG dirs + the WebKit inspector, see the update test below; WebKit's Runtime.evaluate
+  doesn't await promises). `window.quality3d` is the live detail level. Android: the emulator's WebView renders WebGL
+  but CDP screenshots leave the canvas black — use `adb exec-out screencap -p`.
 
 ## Commands
 

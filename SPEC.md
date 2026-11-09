@@ -2071,8 +2071,12 @@ cycle, fusion (five designs) and air capture, the Moon base, the L4/L5 yards, Ri
 painted cylinder, and the asteroid mines; the globe, orbit and solar-system views; the menu tour plays every shot.
 3D-6: quality presets done; scenes free their GPU memory on exit (flat across visits); the production build serves
 /play3d/ and the service worker keeps the models once fetched (offline after a first visit). Measured per frame (all
-passes, high preset): 200–1,200 draw calls, 1–8.5M triangles. **Open:** a real-GPU speed check by the user (headless
-SwiftShader only so far; plant density and shadow-pass triangles are the first knobs if it's slow), the desktop and
-Android apps running /play3d/ (no code changes expected: the Edition switch navigates inside the same bundle/site, but
-untested in WebKitGTK and the Android WebView), the launch cycle at night (not looked at), optional Meshy heroes the
-art agents suggested (council hall, ferry, crawler, haulers, landers, rovers). Then the user's choice between editions.
+passes, high preset): 200–1,200 draw calls, 1–8.5M triangles (Act I 6.0M high / 1.6M low after trimming roads and
+plant shadows). Real GPU (the dev laptop's Intel iGPU, on battery): the old high preset ran the Act I campus at 8 fps at
+2× in a large window, so AO went to half resolution, MSAA to high only (FXAA below), Auto picks high only for a named
+discrete GPU, and Auto adapts the 3D resolution to the measured frame cost (medium now ~26 ms at 1.5× in Chrome). The
+3D edition runs in the desktop app (WebKitGTK, checked with a debug build) and in the Android app (emulator), and the
+chosen edition is remembered across launches. Also checked in 3D: the tutorial's spotlights, an Act IV jump, the Type I
+ending, the launch at night. **Open:** the user's own look on their hardware; optional Meshy heroes the art agents
+suggested (council hall, ferry, crawler, haulers, landers, rovers); merging to main (the live site and the apps only get
+/play3d/ then). Then the user's choice between editions.
