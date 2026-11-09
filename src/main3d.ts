@@ -39,7 +39,7 @@ async function boot() {
   const lods = decodeWorldMap(buf);
   const router = new Router(lods[0]);
   /** Facility types with their 3D art so far (the tour only cuts to campuses built from these). */
-  const DONE = new Set(['hq', 'solar', 'wind', 'gas', 'battery', 'datacenter', 'lab']);
+  const DONE = new Set(['hq', 'solar', 'wind', 'gas', 'battery', 'datacenter', 'lab', 'hydro', 'geothermal', 'restart', 'smr', 'reactor', 'packaging', 'fab', 'campus']);
   const shotReady = (site: string) => siteDef(site).kind === 'build' && (game.showcase?.facilities ?? []).filter((f) => f.siteId === site).every((f) => DONE.has(f.type));
   const game: Game = new Game(stage, { lods, router }, {
     map: (g) => new GlobeScene(g),
