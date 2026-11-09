@@ -103,6 +103,43 @@ export class WalkMap {
     this.solids.push(r);
     this.cells(grow(r, pad), (k) => { this.cost[k] = 0; });
     this.cache.clear();
+    this.comp = null;
+  }
+
+  /** Which open cells reach which (a label per connected patch, 0 = closed), worked out once per change. */
+  private comp: Int32Array | null = null;
+  private components() {
+    if (this.comp) return this.comp;
+    const { nx, nz, cost } = this;
+    const comp = new Int32Array(nx * nz);
+    const queue = new Int32Array(nx * nz);
+    let label = 0;
+    for (let s = 0; s < comp.length; s++) {
+      if (!cost[s] || comp[s]) continue;
+      label++;
+      let head = 0, tail = 0;
+      queue[tail++] = s;
+      comp[s] = label;
+      while (head < tail) {
+        const k = queue[head++];
+        const i = k % nx;
+        // (four ways: the search's diagonals need both sides open, so they never join two patches)
+        if (i > 0 && cost[k - 1] && !comp[k - 1]) { comp[k - 1] = label; queue[tail++] = k - 1; }
+        if (i < nx - 1 && cost[k + 1] && !comp[k + 1]) { comp[k + 1] = label; queue[tail++] = k + 1; }
+        if (k >= nx && cost[k - nx] && !comp[k - nx]) { comp[k - nx] = label; queue[tail++] = k - nx; }
+        if (k + nx < comp.length && cost[k + nx] && !comp[k + nx]) { comp[k + nx] = label; queue[tail++] = k + nx; }
+      }
+    }
+    return (this.comp = comp);
+  }
+
+  /** Can someone walk from a to b (each snapped to the nearest open ground)? Cheap: no search. */
+  connected(a: P2, b: P2): boolean {
+    const sa = this.nearestFree(a.x, a.z), sb = this.nearestFree(b.x, b.z);
+    if (!sa || !sb) return false;
+    const comp = this.components();
+    const ka = this.iz(sa.z) * this.nx + this.ix(sa.x), kb = this.iz(sb.z) * this.nx + this.ix(sb.x);
+    return comp[ka] > 0 && comp[ka] === comp[kb];
   }
 
   /** A fence (or wall) from a to b. */
@@ -115,6 +152,7 @@ export class WalkMap {
       this.cells({ x0: x - pad, z0: z - pad, x1: x + pad, z1: z + pad }, (k) => { this.cost[k] = 0; });
     }
     this.cache.clear();
+    this.comp = null;
   }
 
   /** Open a gap again (a gate in a fence, a door's threshold). */
@@ -122,6 +160,7 @@ export class WalkMap {
     const c = Math.round(cost * 10);
     this.cells(r, (k) => { this.cost[k] = c; });
     this.cache.clear();
+    this.comp = null;
   }
 
   costAt(x: number, z: number) {

@@ -440,7 +440,7 @@ export class CampusPeople {
         const ang = (i / n) * TAU;
         const x = p.x + Math.cos(ang) * rad, z = p.z + Math.sin(ang) * rad;
         if (within && !inRect(within, x, z)) continue;
-        if (this.map.free(x, z) && this.map.roomAt(x, z, 0.3) && this.map.route(from, { x, z })) return { x, z };
+        if (this.map.free(x, z) && this.map.roomAt(x, z, 0.3) && this.map.connected(from, { x, z })) return { x, z };
       }
     }
     return null;
@@ -620,7 +620,7 @@ export class CampusPeople {
       }
     }
     cands.sort((a, b) => a.score - b.score);
-    for (const c of cands.slice(0, 12)) if (this.map.route(d, c)) return { x: c.x, z: c.z };
+    for (const c of cands.slice(0, 12)) if (this.map.connected(d, c)) return { x: c.x, z: c.z };
     return null;
   }
 
@@ -672,7 +672,7 @@ export class CampusPeople {
       // work along every side of the building going up (the front first, where it shows), facing it
       const add = (x: number, z: number, face: number) => {
         if (spot.slots.some((s) => Math.hypot(s.x - x, s.z - z) < 2) || !inRect(yard, x, z)) return;
-        if (this.map.free(x, z) && this.map.route(office, { x, z })) spot.slots.push({ spot, x, z, face, by: null });
+        if (this.map.free(x, z) && this.map.connected(office, { x, z })) spot.slots.push({ spot, x, z, face, by: null });
       };
       for (const m of [1.35, 2.4]) {
         const ring = grow(body, m);
@@ -701,7 +701,7 @@ export class CampusPeople {
       for (let x = ring.x1; x >= ring.x0; x -= 5) per(x, ring.z0);
       for (let z = ring.z0; z <= ring.z1; z += 5) per(ring.x0, z);
       const gate = placeGate(p, this.roads);
-      const ok = pts.filter((q) => this.map.route(gate, q));
+      const ok = pts.filter((q) => this.map.connected(gate, q));
       if (ok.length >= 3) this.loops.set(p.id, ok);
     }
   }
@@ -721,7 +721,7 @@ export class CampusPeople {
     for (const p of [...places].filter((q) => STAFF[q.kind]).sort((q, s) => q.cx - s.cx)) stops.push(p.doors[0]);
     stops.push({ x: R.east + 3, z: pz });
     if (R.laneZ !== null) stops.push({ x: R.east + 2, z: R.laneZ }, { x: ax, z: R.laneZ });
-    this.patrol = stops.map((s) => this.map.nearestFree(s.x, s.z, 3)).filter((s): s is P2 => !!s && !!this.map.route(stops[0], s));
+    this.patrol = stops.map((s) => this.map.nearestFree(s.x, s.z, 3)).filter((s): s is P2 => !!s && this.map.connected(stops[0], s));
   }
 
   // ── benches and paths ──────────────────────────────────────────────────────────────────────
