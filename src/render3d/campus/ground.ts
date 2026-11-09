@@ -102,6 +102,8 @@ export interface GroundOpts {
   flat: Rect;
   /** Where nothing may grow (the campus as it is today); defaults to `flat`. */
   clear?: Rect;
+  /** Bring the sea in to this z (a landing station's beach). Turns any backdrop into a coast. */
+  seaZ?: number;
   /** Pieces that reshape the ground (world coordinates): a height, or null to keep the land. */
   carve?: (x: number, z: number) => number | null;
   /** Extra flat strips (roads). */
@@ -122,6 +124,8 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     return d;
   };
   const centre = { x: (o.flat.x0 + o.flat.x1) / 2, z: (o.flat.z0 + o.flat.z1) / 2 };
+  const seaZ = o.seaZ ?? def.seaZ;
+  const water = def.water ?? (o.seaZ !== undefined ? -1.2 : null);
   const h = (x: number, z: number) => {
     const cv = o.carve?.(x, z);
     if (cv !== undefined && cv !== null) return cv;
@@ -156,11 +160,11 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
         y += (Math.sin(x * 0.02 + fbm(x * 0.004, z * 0.004, s, 2) * 6) * 0.5 + 0.5) * 12 * farK;
         break;
     }
-    if (def.seaZ !== undefined && def.water !== null) {
+    if (seaZ !== undefined && water !== null) {
       // the land drops to a beach and under the sea behind the campus
-      const k = smooth(def.seaZ + 40, def.seaZ - 40, z + (fbm(x * 0.006, 0, s + 20, 3) - 0.5) * 140);
-      y = Math.max(y, def.water + 0.9) * (1 - k) + (def.water - 6) * k;
-    } else if (def.water !== null) {
+      const k = smooth(seaZ + 40, seaZ - 40, z + (fbm(x * 0.006, 0, s + 20, 3) - 0.5) * (o.seaZ !== undefined ? 40 : 140));
+      y = Math.max(y, water + 0.9) * (1 - k) + (water - 6) * k;
+    } else if (water !== null) {
       // lakes in the hollows
       const lake = smooth(0.62, 0.7, fbm(x * 0.006 + 40, z * 0.006, s + 21, 3)) * smooth(150, 280, d);
       y -= lake * 14;
@@ -190,7 +194,7 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
         c.lerp(band, smooth(0.25, 0.6, slope));
       } else c.lerp(col(def.rock), smooth(0.35, 0.9, slope));
       if (def.snowLine !== null) c.lerp(col('#f1f6fb'), smooth(def.snowLine, def.snowLine + 20, y + n1 * 20) * (1 - smooth(1.2, 2, slope) * 0.4));
-      if (def.water !== null) c.lerp(col('#e6d4a4'), smooth(def.water + 1.1, def.water + 0.25, y) * (1 - smooth(def.water - 1, def.water - 3, y)));
+      if (water !== null) c.lerp(col('#e6d4a4'), smooth(water + 1.1, water + 0.25, y) * (1 - smooth(water - 1, water - 3, y)));
       c.multiplyScalar(0.92 + (n2 - 0.5) * 0.09);
       cols[k] = c.r; cols[k + 1] = c.g; cols[k + 2] = c.b;
     }
@@ -210,11 +214,11 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
   mesh.castShadow = true;
   mesh.name = 'ground';
 
-  let water: THREE.Mesh | null = null;
-  if (def.water !== null) {
-    water = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), waterMaterial());
-    water.position.y = def.water;
-    water.receiveShadow = true;
+  let waterMesh: THREE.Mesh | null = null;
+  if (water !== null) {
+    waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), waterMaterial());
+    waterMesh.position.y = water;
+    waterMesh.receiveShadow = true;
   }
 
   // plants: Meshy trees close in (a few), code-built ones everywhere
@@ -225,7 +229,7 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     if (distToRect(x, z, clear) < 3) return false;
     for (const rd of o.roads) if (segDist(x, z, rd.a, rd.b) < rd.w / 2 + 2) return false;
     const y = h(x, z);
-    if (def.water !== null && y < def.water + 0.6) return false;
+    if (water !== null && y < water + 0.6) return false;
     if (def.snowLine !== null && y > def.snowLine) return false;
     if (near && Math.hypot(x - centre.x, z - centre.z) > 220) return false;
     return true;
@@ -261,7 +265,7 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     }
     plants.add(treeField(p.kind, at, plantMat));
   }
-  return { mesh, water, plants, h, def };
+  return { mesh, water: waterMesh, plants, h, def };
 }
 
 const groundMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })));

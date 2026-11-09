@@ -7,6 +7,7 @@ import type { Piece } from '../pieces';
 import { ACT1_PIECES } from './act1';
 import { ACT2_PLANTS } from './plants2';
 import { SET_PIECES, type SetPieceKind } from './industry';
+import { ACT3_SETS } from './act3sets';
 
 export interface PieceOpts {
   /** Stable per facility (variety). */
@@ -33,6 +34,11 @@ export type SetPieceFactory = (o: SetPieceOpts) => Piece;
 
 export const FACILITY_PIECES: Partial<Record<FacilityType, PieceFactory>> = { ...ACT1_PIECES, ...ACT2_PLANTS };
 export { SET_PIECES, type SetPieceKind };
+
+/** A set piece's builder by kind: Act II's view-only pieces, then the Act III–V planner's. */
+export function setFactory(kind: string): ((o: SetPieceOpts & Record<string, unknown>) => Piece) | undefined {
+  return (SET_PIECES as Record<string, SetPieceFactory>)[kind] ?? (ACT3_SETS as Record<string, (o: never) => Piece>)[kind] as never;
+}
 
 /** Brand colours for set pieces and signs (the map markers use the same). */
 export const BRANDS: Record<string, { name: string; accent: string; hi: string }> = {

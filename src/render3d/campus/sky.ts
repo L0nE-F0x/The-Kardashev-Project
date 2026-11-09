@@ -46,7 +46,7 @@ export class CampusSky {
   private fog: THREE.Fog;
   private cloudMat: THREE.MeshStandardMaterial;
 
-  constructor(scene: THREE.Scene, private weather: Weather = 'clear') {
+  constructor(scene: THREE.Scene, private weather: Weather = 'clear', private readonly lunar = false) {
     this.dome = new THREE.Mesh(
       new THREE.SphereGeometry(3000, 32, 16),
       new THREE.ShaderMaterial({
@@ -100,9 +100,18 @@ export class CampusSky {
       c.userData.drift = 2 + cr() * 3;
       this.clouds.add(c);
     }
-    scene.add(this.clouds);
+    if (!lunar) scene.add(this.clouds);
     this.fog = new THREE.Fog(0xffffff, 380, 1900);
     scene.fog = this.fog;
+    if (lunar) {
+      // the Earth hangs low over the horizon
+      const earth = new THREE.Mesh(new THREE.SphereGeometry(70, 32, 20), new THREE.MeshStandardMaterial({ color: 0x5f9ad8, roughness: 0.6, emissive: 0x16304f, emissiveIntensity: 0.4, fog: false }));
+      earth.position.set(-900, 260, -2200);
+      const swirl = new THREE.Mesh(new THREE.SphereGeometry(71, 32, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, roughness: 1, fog: false }));
+      swirl.position.copy(earth.position);
+      swirl.scale.set(1, 0.6, 1);
+      scene.add(earth, swirl);
+    }
   }
 
   /** Point the shadow box at the campus. */
@@ -115,6 +124,7 @@ export class CampusSky {
 
   /** `sunLocal`: unit vector to the sun in campus space (x east, y up, z south); `alt` in degrees. */
   update(dt: number, sunLocal: THREE.Vector3, alt: number) {
+    if (this.lunar) return this.updateLunar(dt, sunLocal);
     const k = sample(alt);
     const wet = this.weather === 'rain' || this.weather === 'snow';
     const grey = this.weather === 'cloudy' ? 0.35 : wet ? 0.65 : 0;
@@ -150,5 +160,30 @@ export class CampusSky {
       if (m.userData.manual) continue;
       m.emissiveIntensity = m.userData.nightOnly ? k.night * m.userData.nightOnly : m.userData.glowBase + k.night * 2.4;
     }
+  }
+
+  /** The Moon: a black sky full of stars, a hard white sun low over the rim, earthshine for fill. */
+  private updateLunar(dt: number, sunLocal: THREE.Vector3) {
+    this.night = 0.55;
+    this.uni.top.value.set(0x020204);
+    this.uni.hor.value.set(0x0b0a12);
+    this.uni.below.value.set(0x0b0a12);
+    this.fog.color.set(0x0b0a12);
+    this.fog.near = 2500;
+    this.fog.far = 6000;
+    this.sun.position.copy(this.sun.target.position).addScaledVector(sunLocal, 500);
+    this.sun.color.set(0xfff8ee);
+    this.sun.intensity = 3.4;
+    this.hemi.color.set(0x6a86c8);
+    this.hemi.groundColor.set(0x2a2832);
+    this.hemi.intensity = 0.35;
+    (this.stars.material as THREE.PointsMaterial).opacity = 1;
+    cloudUniforms.uCloudK.value = 0;
+    for (const m of poolMats) m.opacity = 0.55 * m.userData.strength;
+    for (const m of glowMats) {
+      if (m.userData.manual) continue;
+      m.emissiveIntensity = m.userData.nightOnly ? 0.6 * m.userData.nightOnly : m.userData.glowBase + 1.2;
+    }
+    void dt;
   }
 }

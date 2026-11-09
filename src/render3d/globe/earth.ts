@@ -92,6 +92,22 @@ export function earthTextures(lod: MapLod): EarthTextures {
       data[o + 3] = 255;
     }
   }
+  // soften biome edges: two 3×3 passes over the land colours (sea pixels stay as they are)
+  for (let pass = 0; pass < 2; pass++) {
+    const src = color.slice();
+    for (let y = 1; y < H - 1; y++) for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      if (src[i + 3] < 200) continue;
+      let r = 0, g2 = 0, b = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const j = ((y + dy) * W + ((x + dx + W) % W)) * 4;
+        if (src[j + 3] < 200) continue;
+        const wgt = dx === 0 && dy === 0 ? 4 : dx === 0 || dy === 0 ? 2 : 1;
+        r += src[j] * wgt; g2 += src[j + 1] * wgt; b += src[j + 2] * wgt; n += wgt;
+      }
+      color[i] = r / n; color[i + 1] = g2 / n; color[i + 2] = b / n;
+    }
+  }
   // spread land colours a few pixels out to sea (alpha stays 0), so a smooth coast never shows sea colour on land
   for (let pass = 0; pass < 3; pass++) {
     const src = color.slice();
@@ -229,8 +245,11 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }
       float code(vec2 uv){ return floor(texture2D(tRegion, uv).r * 255.0 + 0.5); }
       void main(){
-        vec4 col = texture2D(tColor, vUv);
-        vec4 dat = texture2D(tData, vUv);
+        // organic biome edges: look the colour up through a little noise warp
+        vec2 warp = (vec2(vnoise(vUv * vec2(1800.0, 900.0)), vnoise(vUv * vec2(1800.0, 900.0) + 17.0)) - 0.5) * texel * 2.2
+                  + (vec2(vnoise(vUv * vec2(420.0, 210.0) + 5.0), vnoise(vUv * vec2(420.0, 210.0) + 9.0)) - 0.5) * texel * 3.0;
+        vec4 col = texture2D(tColor, vUv + warp);
+        vec4 dat = texture2D(tData, vUv + warp * 0.6);
         float lf = texture2D(tLand, vUv).r;
         float cut = 0.5 + (vnoise(vUv * vec2(3200.0, 1600.0)) - 0.5) * 0.22 + (vnoise(vUv * vec2(800.0, 400.0)) - 0.5) * 0.18;
         float land = smoothstep(cut - 0.04, cut + 0.04, lf);

@@ -19,6 +19,8 @@ import type { GameState, Shipment } from '../../sim/types';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, lonLatOf, R } from './earth';
 import { Kit, rng } from '../kit';
 import { Labels } from './labels';
+import { NetworkLayer } from './layers2';
+import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2Layers';
 
 const RAD = Math.PI / 180;
 const MIN_DIST = 9, MAX_DIST = 330;
@@ -56,6 +58,7 @@ export class GlobeScene implements Scene3D {
   private linkKey = '';
   private selRing: THREE.Mesh;
   private labels: Labels;
+  private network: NetworkLayer;
   private w = 1;
   private h = 1;
   private time = 0;
@@ -94,6 +97,8 @@ export class GlobeScene implements Scene3D {
     this.selRing.visible = false;
     this.buildChokepoints();
     this.labels = new Labels();
+    this.network = new NetworkLayer(game.world.router);
+    this.scene.add(this.network.group);
     // start over home (or the middle of the Atlantic in the menu)
     const s = game.state;
     if (s) {
@@ -181,6 +186,7 @@ export class GlobeScene implements Scene3D {
   resize(w: number, h: number) {
     this.w = w;
     this.h = h;
+    this.network?.setResolution(w, h);
   }
 
   // ── frame ─────────────────────────────────────────────────────────────────────────────────
@@ -236,6 +242,7 @@ export class GlobeScene implements Scene3D {
     this.earthMat.uniforms.selCode.value = sel ?? -1;
 
     this.updateMarkers(s);
+    this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n));
     this.updateShips(s, day);
     this.updateLinks(s);
     this.updateChokepoints(s);
@@ -271,11 +278,13 @@ export class GlobeScene implements Scene3D {
       alive.add(site.id);
       const kind = this.kindOf(site, s);
       const facs = s ? s.facilities.filter((f) => f.siteId === site.id) : [];
-      const sig = `${kind}|${facs.map((f) => f.type + f.status[0]).join(',')}`;
+      const rivals = rivalsAt(s, site.id);
+      const active = (site.kind === 'landing' && landingActive(s, site.id)) || (site.kind === 'mine' && mineOwned(s, site.id));
+      const sig = `${kind}|${facs.map((f) => f.type + f.status[0]).join(',')}|${rivals.map((r) => r.owner + (r.building ? 'b' : '')).join(',')}|${active}`;
       let m = this.markers.get(site.id);
       if (!m || m.sig !== sig) {
         if (m) { this.markerRoot.remove(m.group); m.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose()); }
-        m = makeMarker(site, kind, facs.map((f) => f.status === 'online'), sig);
+        m = makeMarker(site, kind, facs.map((f) => f.status === 'online'), sig, rivals, active);
         this.markerRoot.add(m.group);
         this.markers.set(site.id, m);
       }
@@ -656,9 +665,21 @@ const KIND_COL: Record<MarkerKind, string> = {
   mine: '#d4a862', charter: '#f7b258', mega: '#f08a46', launch: '#e6e0e3', other: '#c3bcc7',
 };
 
-function makeMarker(site: SiteDef, kind: MarkerKind, online: boolean[], sig: string): Marker {
+const RIVAL_COL: Record<string, string> = { meridian: '#c23a3f', lattice: '#7e43a8', orchard: '#5a9537' };
+
+function makeMarker(site: SiteDef, kind: MarkerKind, online: boolean[], sig: string, rivals: { owner: string; building: boolean }[] = [], active = false): Marker {
   const k = new Kit(rng(site.id.length * 31 + site.lat * 7));
-  const col = KIND_COL[kind];
+  const col = active ? '#a3f0d6' : KIND_COL[kind];
+  // rivals' halls stand on little pads beside the plinth (a crane while they build)
+  rivals.forEach((r, i) => {
+    const a = -0.9 + i * 0.75, x = Math.cos(a) * 1.55, z = Math.sin(a) * 1.55;
+    k.geo(new THREE.CylinderGeometry(0.42, 0.46, 0.18, 6).translate(x, 0.09, z), '#433c52', 0.02);
+    k.box(0.5, r.building ? 0.25 : 0.42, 0.4, RIVAL_COL[r.owner] ?? '#9d95a6', x, 0.18, z, { r: 0.03 });
+    if (r.building) {
+      k.box(0.05, 0.75, 0.05, '#fbd46e', x + 0.2, 0.18, z, { r: 0, jitter: 0 });
+      k.box(0.5, 0.05, 0.05, '#fbd46e', x + 0.2, 0.9, z, { r: 0, jitter: 0 });
+    }
+  });
   const hexPlinth = (r: number, h: number, c: string, y = 0) => k.geo(new THREE.CylinderGeometry(r, r * 1.08, h, 6).translate(0, y + h / 2, 0), c, 0.02);
   hexPlinth(1.15, 0.28, '#433c52');
   hexPlinth(1.0, 0.16, col, 0.28);

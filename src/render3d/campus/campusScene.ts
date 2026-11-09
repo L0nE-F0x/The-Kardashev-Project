@@ -22,13 +22,17 @@ import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
   scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
 } from '../pieces';
-import { FACILITY_PIECES } from './registry';
+import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
 import { buildGround, type Backdrop, type Ground } from './ground';
+import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
+import { act3Key } from '../../render/diorama/act3Pieces';
 import { CampusSky, type Weather } from './sky';
+import { Precip } from './weather';
 import { Crowd, makeBit, Traffic } from './life';
 import { deskHolder } from '../../sim/systemView';
+import { sfx } from '../../audio/sfx';
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const RAD = Math.PI / 180;
@@ -67,21 +71,27 @@ export class CampusScene implements Scene3D {
   autoPan = false;
   private scope: number;
   private site: SiteDef;
-  private ground: Ground;
-  private sky: CampusSky;
-  private layout: CampusLayout;
+  private ground!: Ground;
+  private sky!: CampusSky;
+  private layout!: CampusLayout;
   private world = new THREE.Group();
   private roads = new THREE.Group();
   private entries = new Map<string, Entry>();
   private empties = new Map<number, THREE.Object3D>();
   private hitboxes = new THREE.Group();
-  private hoverRing: THREE.LineLoop;
+  private hoverRing!: THREE.LineLoop;
   private crowd = new Crowd();
   private traffic = new Traffic();
   private updaters: ((e: Env) => void)[] = [];
   private bit: { obj: THREE.Object3D; hit: THREE.Mesh } | null = null;
   private layoutKey = '';
+  /** Suppliers, the cloud, mines, landing stations: set pieces, no plots. */
+  private viewOnly: boolean;
+  private setPieces: { item: SetItem; piece: Piece; root: THREE.Group }[] = [];
+  /** Rival labs' campuses on plots here (Act II). */
+  private rivals = new Map<string, { root: THREE.Group; piece: Piece; crane: THREE.Group | null; key: string }>();
   private time = 0;
+  private precip!: Precip;
   private timeOffset = 0;
   private w = 1;
   private h = 1;
@@ -101,42 +111,132 @@ export class CampusScene implements Scene3D {
   constructor(private readonly game: Game, readonly siteId: string) {
     this.scope = openScope();
     this.site = siteDef(siteId);
-    const s = game.view;
-    const backdrop = (this.site.backdrop ?? 'plains') as Backdrop;
-    this.layout = campusLayout(s, siteId);
+    this.viewOnly = this.site.kind !== 'build';
+    this.build();
+    // first view: the plots, a little from the south-west
+    this.target.set(this.layout.focus.x, 0, this.layout.focus.z);
+    const width = this.layout.bounds.x1 - this.layout.bounds.x0;
+    this.dist = Math.max(110, Math.min(this.planKey !== null ? 420 : 320, width * 1.2));
+    this.yaw = -0.3;
+    this.pitch = 1.16;
+  }
+
+  /** The planner's key the set pieces were built from (Act III–V sites), null elsewhere. */
+  private planKey: string | null = null;
+  private planCheck = 0;
+
+  /** (Re)build everything but the camera: the ground, the sky, the pieces, the life. */
+  private build() {
+    const s = this.game.view;
+    for (const c of [...this.scene.children]) this.scene.remove(c);
+    this.world = new THREE.Group();
+    this.roads = new THREE.Group();
+    this.hitboxes = new THREE.Group();
+    this.crowd = new Crowd();
+    this.traffic = new Traffic();
+    this.updaters = [];
+    this.setPieces = [];
+    this.entries.clear();
+    this.empties.clear();
+    this.rivals.clear();
+    this.bit = null;
+    this.layoutKey = '';
+    let backdrop = (this.site.backdrop ?? 'plains') as Backdrop;
+    let carve: ((x: number, z: number) => number | null) | undefined;
+    let seaZ: number | undefined;
+    this.scenery = 'campus';
+    if (this.viewOnly) {
+      // the set pieces come first: a mine's pit has to be dug into the ground before it's built
+      let sl: ReturnType<typeof setLayout>;
+      if (isPlanSite(this.site)) {
+        const plan = planSpecs(s, this.site);
+        this.planKey = act3Key(s, this.site) || plan.specs.map((p) => p.kind).join(',');
+        this.scenery = plan.offshore ? 'offshore' : plan.scenery;
+        sl = planLayout(plan.specs);
+        if (this.scenery === 'offshore') seaZ = 900;
+        if (this.scenery === 'launch') seaZ = sl.bounds.z0 - 50;
+        if (this.scenery === 'moon') backdrop = 'lunar';
+        if (this.scenery === 'geneva' && plan.lakeAt !== undefined) {
+          // Lake Geneva begins at the jetty: the land drops away to the east of it
+          const jetty = sl.items[plan.lakeAt];
+          const lakeX = jetty ? jetty.rect.x0 + 4 : 60;
+          const shore = (x: number, z: number) => {
+            const d = x - lakeX + (noise(z * 0.03, 0.5, 9) - 0.5) * 18;
+            if (d < 0) return null;
+            return -0.2 - Math.min(1, d / 14) * 5;
+          };
+          carve = shore;
+        }
+      } else {
+        this.planKey = null;
+        sl = setLayout(setPiecesFor(this.site));
+      }
+      if (this.site.kind === 'landing') {
+        // the cable comes ashore on the beach just behind the hut
+        const hut = sl.items[0], mh = sl.items[1];
+        if (hut && mh) mh.rect = { x0: (hut.rect.x0 + hut.rect.x1) / 2 - 3, z0: hut.rect.z0 - 30, x1: (hut.rect.x0 + hut.rect.x1) / 2 + 3, z1: hut.rect.z0 - 24 };
+        seaZ = hut ? hut.rect.z0 - 60 : -50;
+      }
+      const carvers: ((x: number, z: number) => number | null)[] = [];
+      if (carve) carvers.push(carve);
+      for (const item of sl.items) {
+        const sp = item.spec;
+        const make = setFactory(sp.kind);
+        const w = item.rect.x1 - item.rect.x0, d = item.rect.z1 - item.rect.z0;
+        const opts = { seed: hashStr(this.siteId + sp.kind + (sp.n ?? '') + (sp.vseed ?? '')), w, d, tier: 1, brand: sp.brand, label: sp.label, variant: sp.variant, accent: sp.accent ?? '#f7b258', hi: sp.hi ?? '#fbd46e', n: sp.n, p: sp.p, builder: sp.builder, vseed: sp.vseed, backdrop: sp.backdrop, offshore: sp.offshore || this.scenery === 'offshore' };
+        const piece = make ? make(opts) : genericPlant(sp.kind, w, d, opts.seed);
+        const root = new THREE.Group();
+        const c = rectCenter(item.rect);
+        root.position.set(c.x, 0, c.z);
+        const onWater = this.scenery === 'offshore' || sp.kind === 'jetty';
+        if (!piece.ground && sp.kind !== 'manhole' && !onWater && this.scenery !== 'moon') root.add(pad(w - 0.6, d - 0.6, '#c4b8a6', hashStr(sp.kind)));
+        root.add(piece.obj);
+        piece.progress?.(1);
+        this.setPieces.push({ item, piece, root });
+        if (piece.ground) carvers.push((x, z) => piece.ground!(x - c.x, z - c.z));
+      }
+      if (carvers.length) carve = (x, z) => { for (const f of carvers) { const v = f(x, z); if (v !== null) return v; } return null; };
+      this.layout = { cols: 0, cells: [], items: [], bounds: sl.bounds, accessX: sl.accessX, substation: { x: sl.accessX - 14, z: FRONT_Z - 12 }, focus: { x: 0, z: (sl.bounds.z0 + FRONT_Z) / 2 } };
+    } else this.layout = campusLayout(s, this.siteId);
     // flatten for the most plots this site could ever have, so buying land never reshapes the ground
-    const maxCols = Math.ceil((this.site.slots + MAX_EXTRA_SLOTS + 4) / 2);
-    const far = cellRect(maxCols, maxCols * 2 - 1);
+    const maxCols = this.viewOnly ? 0 : Math.ceil((this.site.slots + MAX_EXTRA_SLOTS + 4) / 2);
+    const far = maxCols ? cellRect(maxCols, maxCols * 2 - 1) : this.layout.bounds;
     const flat: Rect = { x0: this.layout.bounds.x0, z0: this.layout.bounds.z0, x1: Math.max(this.layout.bounds.x1, far.x1 + 10), z1: this.layout.bounds.z1 };
-    const seed = hashStr(siteId);
+    const seed = hashStr(this.siteId);
     const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = modelParts('mesquite'); return p ? instanced(p.parts, p.size, at, 6.5) : null; };
     const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = modelParts('oak'); return p ? instanced(p.parts, p.size, at, 7) : null; };
+    const roadless = this.scenery === 'offshore' || this.scenery === 'moon';
     this.ground = buildGround({
-      backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 },
-      roads: [
+      backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
+      roads: roadless ? [] : [
         { a: [-1700, HIGHWAY_Z], b: [1700, HIGHWAY_Z], w: 12 },
         { a: [this.layout.accessX, HIGHWAY_Z], b: [this.layout.accessX, -PD - 6], w: 8 },
       ],
     }, { mesquite: mesq, oak });
     this.scene.add(this.ground.mesh, this.ground.plants);
     if (this.ground.water) this.scene.add(this.ground.water);
-    this.sky = new CampusSky(this.scene, this.pickWeather());
-    this.sky.focus(new THREE.Vector3(0, 0, 0), 150);
+    const weather = this.scenery === 'moon' ? 'clear' : this.pickWeather();
+    this.sky = new CampusSky(this.scene, weather, this.scenery === 'moon');
+    this.precip = new Precip(weather, seed);
+    this.scene.add(this.precip.obj);
+    const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
+    this.sky.focus(new THREE.Vector3((this.layout.bounds.x0 + this.layout.bounds.x1) / 2, 0, (this.layout.bounds.z0 + this.layout.bounds.z1) / 2), reach);
     this.scene.add(this.world, this.roads, this.hitboxes, this.crowd.group, this.traffic.group);
     this.hoverRing = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xfde9a4, transparent: true, opacity: 0.9 }));
     this.hoverRing.visible = false;
     this.scene.add(this.hoverRing);
-    this.dressStatic();
-    this.traffic.highway(HIGHWAY_Z, -1500, 1500, this.ground.h, seed);
-    this.sync(true);
-    this.populate();
-    // first view: the plots, a little from the south-west
-    this.target.set(this.layout.focus.x, 0, this.layout.focus.z);
-    const width = this.layout.bounds.x1 - this.layout.bounds.x0;
-    this.dist = Math.max(110, Math.min(320, width * 1.2));
-    this.yaw = -0.3;
-    this.pitch = 1.16;
+    for (const p of this.setPieces) this.world.add(p.root);
+    if (!roadless) {
+      this.dressStatic();
+      this.traffic.highway(HIGHWAY_Z, -1500, 1500, this.ground.h, seed);
+    }
+    if (!this.viewOnly) this.sync(true);
+    if (!roadless) this.populate();
   }
+
+  /** What surrounds the pieces: a campus, Geneva's lakeside, open sea, a launch coast, the Moon. */
+  private scenery = 'campus';
+  private moonSun: THREE.Vector3 | null = null;
 
   // ── the static campus ─────────────────────────────────────────────────────────────────────
   private dressStatic() {
@@ -207,7 +307,7 @@ export class CampusScene implements Scene3D {
     const L = this.layout;
     const h = this.ground.h;
     const kit = new Kit(rng(4));
-    const east = L.cells.reduce((a, c) => Math.max(a, c.x1), 0) + 6;
+    const east = (L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10) + 6;
     const strip = (ax: number, az: number, bx: number, bz: number, w: number, c: string) => {
       const len = Math.hypot(bx - ax, bz - az);
       const ang = Math.atan2(bx - ax, bz - az);
@@ -282,6 +382,39 @@ export class CampusScene implements Scene3D {
       }
     }
     for (const [id, e] of this.entries) if (!seen.has(id)) this.removeEntry(e);
+    // rivals' campuses: their own halls behind their own fence, rising while they build
+    const rseen = new Set<string>();
+    for (const item of L.items) {
+      if (item.kind !== 'rival' || !item.rival) continue;
+      const b = item.rival;
+      rseen.add(b.id);
+      const key = `${item.rect.x0},${item.rect.z0},${item.rect.x1},${item.rect.z1}`;
+      let r = this.rivals.get(b.id);
+      if (r && r.key !== key) { this.world.remove(r.root); this.rivals.delete(b.id); r = undefined; }
+      if (!r) {
+        const w = item.rect.x1 - item.rect.x0, d = item.rect.z1 - item.rect.z0;
+        const make = SET_PIECES.rival;
+        const piece = make ? make({ seed: hashStr(b.id), w, d, tier: 1, brand: b.owner, label: b.owner.toUpperCase(), variant: String(b.slots) }) : genericPlant('rival', w, d, hashStr(b.id));
+        const root = new THREE.Group();
+        const c = rectCenter(item.rect);
+        root.position.set(c.x, 0, c.z);
+        root.add(pad(w - 0.6, d - 0.6, '#bdb4aa', hashStr(b.id)), piece.obj);
+        let crane: THREE.Group | null = null;
+        if (b.status !== 'online') {
+          crane = crane3(Math.max(14, piece.h + 8), hashStr(b.id));
+          crane.position.set(w / 2 - 3, 0, -d / 2 + 3);
+          root.add(crane);
+        }
+        this.world.add(root);
+        r = { root, piece, crane, key };
+        this.rivals.set(b.id, r);
+      }
+      const day = s?.day ?? 0;
+      const p = b.status === 'online' ? 1 : Math.max(0.02, Math.min(1, (day - b.startDay) / Math.max(1, b.readyDay - b.startDay)));
+      if (b.status === 'online' && r.crane) { r.root.remove(r.crane); r.crane = null; clipAbove(r.piece.obj, null); }
+      else if (b.status !== 'online') clipAbove(r.piece.obj, 0.05 + p * r.piece.h);
+    }
+    for (const [id, r] of this.rivals) if (!rseen.has(id)) { this.world.remove(r.root); this.rivals.delete(id); }
     // empty plots: survey stakes
     const empties = new Set<number>();
     for (const item of L.items) {
@@ -390,7 +523,13 @@ export class CampusScene implements Scene3D {
     const s = this.game.view;
     const h = this.ground.h;
     const L = this.layout;
-    const east = L.cells.reduce((a, c) => Math.max(a, c.x1), 0);
+    const east = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
+    // people working at the set pieces (suppliers' staff, miners, the landing station's tech)
+    for (const sp of this.setPieces) {
+      const r = sp.item.rect;
+      const n = sp.item.spec.kind === 'manhole' ? 0 : sp.item.spec.kind === 'openPit' || sp.item.spec.kind === 'brinePonds' ? 1 : 2;
+      for (let i = 0; i < n; i++) this.crowd.add(sp.item.spec.kind === 'openPit' || sp.item.spec.kind === 'crusher' ? 'worker' : null, [[r.x0 + 2 + i * 3, r.z1 + 1.5], [r.x1 - 2, r.z1 + 2], [r.x1 - 3 - i, r.z1 + 4]], h, { pause: [1, 6] });
+    }
     // passers-by on the frontage road's pavement
     for (let i = 0; i < 3; i++) this.crowd.add(null, [[L.accessX + 6, FRONT_Z - 4.2], [east, FRONT_Z - 4.2]], h, { pause: [0, 2] });
     // staff at each working building
@@ -480,13 +619,36 @@ export class CampusScene implements Scene3D {
 
   update(dt: number) {
     this.time += dt;
+    if (this.scenery === 'moon') {
+      const a = (Date.now() / 3_600_000) * 0.26 + 0.6;
+      const v = new THREE.Vector3(Math.sin(a) * 0.98, 0.14, Math.cos(a) * 0.98).normalize();
+      this.moonSun = v;
+    }
     if (this.game.dioramaTimelapse) this.timeOffset += dt * 2160 * 1000;
     const s = this.game.view;
-    this.sync();
-    const sun = this.sunNow();
+    if (!this.viewOnly) this.sync();
+    else if (this.planKey !== null && (this.planCheck -= dt) <= 0) {
+      this.planCheck = 1;
+      const key = act3Key(s, this.site) || planSpecs(s, this.site).specs.map((p) => p.kind).join(',');
+      if (key !== this.planKey) this.build();
+    }
+    const sun = this.moonSun ? { v: this.moonSun, alt: 8 } : this.sunNow();
     this.sky.update(dt, sun.v, sun.alt);
-    const env: Env = { t: this.time, dt, night: this.sky.night };
+    this.precip.update(dt, this.target, this.sky.night, this.time);
+    const env: Env = {
+      t: this.time, dt, night: this.sky.night,
+      cue: (n) => {
+        if (this.game.mode === 'title') return;
+        if (n === 'launch') sfx('launch');
+        else this.game.achieve?.('night-launch');
+      },
+    };
     for (const u of this.updaters) u(env);
+    for (const sp of this.setPieces) sp.piece.update?.(env);
+    for (const r of this.rivals.values()) {
+      r.piece.update?.(env);
+      if (r.crane) r.crane.userData.top.rotation.y = Math.sin(env.t * 0.25) * 1.1;
+    }
     for (const e of this.entries.values()) {
       e.piece.update?.(env);
       e.crew?.update(env);
@@ -732,6 +894,7 @@ export class CampusScene implements Scene3D {
 }
 
 const LINE_INDEX = new Map<string, number>();
+const crane3 = (h: number, seed: number) => crane(h, 16, seed + 5);
 
 // ── facility pieces ──────────────────────────────────────────────────────────────────────────
 const tierOf = (f: Facility) => f.upgrade?.to ?? f.tier ?? 1;

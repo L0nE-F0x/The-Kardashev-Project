@@ -15,7 +15,8 @@ import { Post, defaultLook, type Look } from './post';
 import { loadModels, PEOPLE, person } from './models';
 import { buildGround, type Backdrop } from './campus/ground';
 import { CampusSky } from './campus/sky';
-import { FACILITY_PIECES, SET_PIECES, type SetPieceKind } from './campus/registry';
+import { FACILITY_PIECES, setFactory } from './campus/registry';
+import { sizeOf } from './campus/viewOnly';
 import { clipAbove, pad, type Env, type Piece } from './pieces';
 import { plumeUniforms } from './fx';
 import { closeScope, openScope } from './kit';
@@ -25,6 +26,8 @@ interface LabOpts {
   piece?: string; set?: string; tier?: number; w?: number; d?: number; progress?: number;
   alt?: number; az?: number; backdrop?: Backdrop; yaw?: number; pitch?: number; dist?: number;
   brand?: string; label?: string; variant?: string; night?: number;
+  // Act III–V set pieces
+  accent?: string; hi?: string; n?: number; p?: number; builder?: string; vseed?: number; sea?: number; moon?: number;
 }
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -58,24 +61,28 @@ async function show(o: LabOpts = {}) {
   const w = o.w ?? 28, d = o.d ?? 26;
   const opts = { seed: 7, w, d, tier: o.tier ?? 1 };
   if (o.set) {
-    const f = SET_PIECES[o.set as SetPieceKind];
-    piece = f ? f({ ...opts, brand: o.brand ?? 'lumen', label: o.label ?? (o.brand ?? 'LUMEN').toUpperCase(), variant: o.variant }) : null;
+    const f = setFactory(o.set);
+    const [sw, sd] = sizeOf(o.set);
+    const so = { ...opts, w: o.w ?? sw, d: o.d ?? sd };
+    piece = f ? f({ ...so, brand: o.brand ?? o.builder ?? 'lumen', label: o.label ?? (o.brand ?? 'LUMEN').toUpperCase(), variant: o.variant, accent: o.accent ?? '#f7b258', hi: o.hi ?? '#fbd46e', n: o.n, p: o.p, builder: o.builder, vseed: o.vseed, backdrop: o.backdrop, offshore: !!o.sea }) : null;
+    Object.assign(opts, { w: so.w, d: so.d });
   } else {
     const f = FACILITY_PIECES[(o.piece ?? 'datacenter') as FacilityType];
     piece = f ? f(opts) : null;
   }
   const carve = piece?.ground?.bind(piece);
-  const ground = buildGround({ backdrop: o.backdrop ?? 'plains', seed: 3, flat: { x0: -w / 2 - 30, z0: -d / 2 - 30, x1: w / 2 + 30, z1: d / 2 + 30 }, roads: [], carve });
+  const W = opts.w, D = opts.d;
+  const ground = buildGround({ backdrop: o.moon ? 'lunar' : o.backdrop ?? 'plains', seed: 3, flat: { x0: -W / 2 - 30, z0: -D / 2 - 30, x1: W / 2 + 30, z1: D / 2 + 30 }, roads: [], carve, seaZ: o.sea ? 900 : undefined });
   scene.add(ground.mesh, ground.plants);
   if (ground.water) scene.add(ground.water);
-  sky = new CampusSky(scene, 'clear');
-  sky.focus(new THREE.Vector3(), Math.max(w, d) + 20);
+  sky = new CampusSky(scene, 'clear', !!o.moon);
+  sky.focus(new THREE.Vector3(), Math.max(W, D) + 20);
   sunAlt = o.night ? -30 : o.alt ?? 35;
   const az = ((o.az ?? -40) * Math.PI) / 180;
   const el = (Math.max(-80, sunAlt) * Math.PI) / 180;
   // azimuth 0 = due south (towards the camera), negative = east
   sunV = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize();
-  if (!carve && !q.has('nopad')) scene.add(pad(w - 0.6, d - 0.6, '#c4b8a6', 1));
+  if (!carve && !q.has('nopad') && !o.sea && !o.moon) scene.add(pad(W - 0.6, D - 0.6, '#c4b8a6', 1));
   if (!piece) console.warn('lab: no such piece', o);
   if (piece) {
     scene.add(piece.obj);
@@ -87,12 +94,12 @@ async function show(o: LabOpts = {}) {
   // a person for scale, at the plot's front-left corner
   const p = person('worker');
   if (p) {
-    p.obj.position.set(-w / 2 + 1, 0, d / 2 + 1.5);
+    p.obj.position.set(-W / 2 + 1, o.sea ? -100 : 0, D / 2 + 1.5);
     p.walk.paused = true;
     scene.add(p.obj);
   }
   post = new Post(renderer, scene, camera, true);
-  const dist = o.dist ?? Math.max(60, Math.max(w, d) * 2.6);
+  const dist = o.dist ?? Math.max(60, Math.max(W, D) * 2.6);
   const pitch = o.pitch ?? 1.0, yaw = o.yaw ?? -0.45;
   controls.target.set(0, 3, 0);
   camera.position.setFromSphericalCoords(dist, pitch, yaw).add(controls.target);
@@ -134,6 +141,8 @@ const first: LabOpts = {
   piece: q.get('piece') ?? undefined, set: q.get('set') ?? undefined, tier: num('tier'), w: num('w'), d: num('d'), progress: num('progress'),
   alt: num('alt'), az: num('az'), backdrop: (q.get('backdrop') as Backdrop) ?? undefined, yaw: num('yaw'), pitch: num('pitch'), dist: num('dist'),
   brand: q.get('brand') ?? undefined, label: q.get('label') ?? undefined, variant: q.get('variant') ?? undefined, night: num('night'),
+  accent: q.get('accent') ? `#${q.get('accent')}` : undefined, hi: q.get('hi') ? `#${q.get('hi')}` : undefined, n: num('n'), p: num('p'),
+  builder: q.get('builder') ?? undefined, vseed: num('vseed'), sea: num('sea'), moon: num('moon'),
 };
 Object.assign(window, { lab: { show, scene: () => scene, camera, controls } });
 show(first).then(() => { (window as unknown as { labReady: boolean }).labReady = true; requestAnimationFrame(frame); });

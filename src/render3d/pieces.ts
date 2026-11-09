@@ -12,6 +12,8 @@ export interface Env {
   dt: number;
   /** 0 = full day, 1 = deep night. */
   night: number;
+  /** A piece asks for a sound or reports a moment ('launch' at ignition, 'night-launch' when one lifts off in the dark). */
+  cue?: (name: 'launch' | 'night-launch') => void;
 }
 
 export interface Piece {
