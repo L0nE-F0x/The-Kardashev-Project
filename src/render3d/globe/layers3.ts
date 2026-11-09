@@ -36,6 +36,50 @@ function lengths(pts: THREE.Vector3[]) {
   return acc;
 }
 
+/**
+ * Rows of solar panels with sandy tracks between them, as a tiling texture (64 × 16: one 0.9 × 0.22 block).
+ * Mipmapped, so from far out the field fades to its average colour: drawn as geometry, rows a pixel apart
+ * shimmered (moiré) as the globe turned.
+ */
+let solarTex: THREE.DataTexture | null = null;
+function solarTexture() {
+  if (solarTex) return solarTex;
+  const w = 64, h = 16, a = new Uint8Array(w * h * 4);
+  const sand = new THREE.Color('#c9a879'), panel = new THREE.Color('#2c3f6e'), glint = new THREE.Color('#4a6aa8');
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const onPanel = x >= 2 && x < 58 && y >= 4 && y < 10;
+    const c = onPanel ? (y === 4 ? glint : panel) : sand;
+    const o = (y * w + x) * 4;
+    a[o] = c.r * 255; a[o + 1] = c.g * 255; a[o + 2] = c.b * 255; a[o + 3] = 255;
+  }
+  solarTex = new THREE.DataTexture(a, w, h, THREE.RGBAFormat);
+  solarTex.wrapS = solarTex.wrapT = THREE.RepeatWrapping;
+  solarTex.magFilter = THREE.LinearFilter;
+  solarTex.minFilter = THREE.LinearMipmapLinearFilter;
+  solarTex.generateMipmaps = true;
+  solarTex.anisotropy = 8;
+  solarTex.colorSpace = THREE.SRGBColorSpace;
+  solarTex.userData.shared = true;
+  solarTex.needsUpdate = true;
+  return solarTex;
+}
+
+/** Bend a patch built flat in its local frame (y up) onto the globe, so its wide discs don't float at the edges. */
+function bendToGlobe(g: THREE.Object3D) {
+  for (const o of g.children) {
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh) {
+      const pos = mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i) + mesh.position.x, z = pos.getZ(i) + mesh.position.z;
+        pos.setY(i, pos.getY(i) - (x * x + z * z) / (2 * R));
+      }
+      pos.needsUpdate = true;
+      mesh.geometry.computeBoundingSphere();
+    } else o.position.y -= (o.position.x * o.position.x + o.position.z * o.position.z) / (2 * R);
+  }
+}
+
 /** The patch at a megaproject: its main kind's kit, spread over a disc that grows with the stage. */
 function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE.Object3D[] } {
   const site = siteDef(v.siteId);
@@ -54,13 +98,15 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
   };
   const offshore = site.id === 'mega-northsea';
   if (kind === 'solar') {
-    // rows of dark panels in blocks, with sandy tracks between them
-    const rows = Math.round(radius * 9);
-    for (let i = 0; i < rows; i++) {
-      const z = -radius + (i + 0.5) * ((radius * 2) / rows);
-      const half = Math.sqrt(Math.max(0, radius * radius - z * z)) * (0.85 + r() * 0.1);
-      for (let x = -half; x < half; x += 0.9) k.box(Math.min(0.8, half - x), 0.01, 0.08, '#2c3f6e', x + 0.4, 0, z, { r: 0, jitter: 0.06, shade: 0 });
-    }
+    // rows of dark panels in blocks, with sandy tracks between them (a textured disc: see solarTexture)
+    const t = solarTexture();
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48).rotateX(-Math.PI / 2).translate(0, 0.006, 0), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 }));
+    // CircleGeometry's uv spans the disc's diameter: one block is 0.9 wide, a row 0.22 deep
+    const geo = disc.geometry;
+    const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * radius * 2) / 0.9, (uv.getY(i) * radius * 2) / 0.22);
+    disc.castShadow = disc.receiveShadow = false;
+    g.add(disc);
   } else if (kind === 'wind' || offshore) {
     const n = Math.round(radius * radius * 3.2) + 4;
     for (let i = 0; i < n; i++) {
@@ -108,6 +154,7 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
     ck.box(0.3, 0.02, 0.02, '#fbd46e', x + 0.1, 0.4, z, { r: 0, jitter: 0 });
     g.add(ck.build(mat));
   }
+  bendToGlobe(g);
   return { obj: g, rotors };
 }
 

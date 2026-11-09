@@ -48,7 +48,8 @@ const markerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness
 export class GlobeScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(32, 1, 0.5, 6000);
-  readonly look: Look = { ...defaultLook(), bloom: 0.35, bloomThreshold: 0.9, vignette: 0.34 };
+  // no FXAA: the globe anti-aliases its own edges (coasts, lines, stars), and FXAA only made thin lines flicker
+  readonly look: Look = { ...defaultLook(), bloom: 0.35, bloomThreshold: 0.9, vignette: 0.34, fxaa: false };
   private earth: THREE.Mesh;
   private earthMat: THREE.ShaderMaterial;
   private clouds: THREE.Mesh;
@@ -260,6 +261,7 @@ export class GlobeScene implements Scene3D {
     this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n));
     this.charter.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 120);
     this.planet.update(s, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 200);
+    this.earthMat.uniforms.tintOn.value = (this.earthMat.uniforms.regionTint.value as THREE.Vector4[]).some((t) => t.w > 0) ? 1 : 0;
     this.updateShips(s, day);
     this.updateLinks(s);
     this.updateChokepoints(s);

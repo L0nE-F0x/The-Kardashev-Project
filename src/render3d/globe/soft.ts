@@ -18,10 +18,12 @@ function softenLine(sh: THREE.WebGLProgramParametersWithUniforms) {
 				float dashW = max( fwidth( vLineDistance ), 1e-5 );
 				alpha *= clamp( ( dashSize - dashM ) / dashW + 0.5, 0.0, 1.0 ) * clamp( dashM / dashW + 0.5, 0.0, 1.0 );`,
     )
-    // the sides: the outermost pixel fades out
+    // the sides: the outermost pixel fades out. No round caps: on the globe's paths consecutive segments are all
+    // but straight, and caps overlapping at every join drew hard-edged, doubly blended beads along the line
     .replace(
       'gl_FragColor = vec4( diffuseColor.rgb, alpha );',
       `#ifndef WORLD_UNITS
+				if ( abs( vUv.y ) > 1.0 ) discard;
 				alpha *= clamp( ( 1.0 - abs( vUv.x ) ) / max( fwidth( vUv.x ), 1e-5 ), 0.0, 1.0 );
 			#endif
 			gl_FragColor = vec4( diffuseColor.rgb, alpha );`,

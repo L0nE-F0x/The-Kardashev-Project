@@ -56,7 +56,7 @@ const RAMPS: Record<number, [ColorKey, ColorKey, ColorKey]> = {
   [BIOME.ALPINE]: ['rck4', 'rck5', 'rck6'],
   [BIOME.PLATEAU]: ['rck4', 'snd4', 'rck5'],
   [BIOME.WETLAND]: ['grn3', 'cyn2', 'grn4'],
-  [BIOME.FARMLAND]: ['grn5', 'grn6', 'grn7'],
+  [BIOME.FARMLAND]: ['grn4', 'grn5', 'grn6'],
   [BIOME.LAKE]: ['sea5', 'sea6', 'sea6'],
   [BIOME.RIVER]: ['sea5', 'sea6', 'sea6'],
 };
@@ -176,7 +176,8 @@ export function earthTextures(lod: MapLod): EarthTextures {
 
   // relief: biome heights, smoothed into massifs, broken into ridges
   const hgt = new Float32Array(N);
-  for (let i = 0; i < N; i++) hgt[i] = isLand[i] ? (ice[i] ? 0.12 : HEIGHT[lod.biome[i]] ?? 0.04) : 0;
+  // (lakes sit at lowland height: as pits they drew a dark ring round every small lake)
+  for (let i = 0; i < N; i++) hgt[i] = isLand[i] ? (ice[i] ? 0.12 : HEIGHT[lod.biome[i]] ?? 0.04) : lod.biome[i] === BIOME.LAKE ? 0.04 : 0;
   boxBlur(hgt, W, H, 2, 2);
   const ridge = new Float32Array(N);
   for (let i = 0; i < N; i++) ridge[i] = isLand[i] && !ice[i] ? RIDGED[lod.biome[i]] ?? 0 : 0;
@@ -228,7 +229,7 @@ export function earthTextures(lod: MapLod): EarthTextures {
   const region = new Uint8Array(N);
   const ramps: Record<number, [number, number, number][]> = {};
   for (const k of Object.keys(RAMPS)) ramps[Number(k)] = RAMPS[Number(k)].map(P);
-  const fieldCols = (['grn5', 'grn6', 'grn7', 'snd6', 'grn6', 'snd7', 'grn4'] as ColorKey[]).map(P);
+  const fieldCols = (['grn4', 'grn5', 'grn6', 'snd5', 'grn5', 'snd6', 'grn4'] as ColorKey[]).map(P);
   const snow = P('ice3'), snowShade = P('ice1'), river = P('sea5');
   const GS = 6; // slope → byte
   for (let y = 0; y < H; y++) {
@@ -305,13 +306,16 @@ export function earthTextures(lod: MapLod): EarthTextures {
       color[i] = r / n; color[i + 1] = g2 / n; color[i + 2] = b / n;
     }
   }
-  // spread land colours a few pixels out to sea (alpha stays low), so a smooth coast never shows sea colour on land
-  const iceRows = Math.ceil((90 - 75) / lod.res);
+  // spread land colours a few pixels out over the water (alpha stays low), so a smooth coast or lake shore never
+  // shows the water's (empty) colour on land; only water within three cells of land needs it
+  const near = new Float32Array(N);
+  for (let i = 0; i < N; i++) near[i] = isLand[i];
+  boxBlur(near, W, H, 1, 3);
   for (let pass = 0; pass < 3; pass++) {
     const src = color.slice();
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4;
-      if (src[i + 3] > 200 || (lod.coast[y * W + x] > 4 && y > iceRows)) continue;
+      if (src[i + 3] > 200 || near[y * W + x] <= 0) continue;
       let r = 0, g2 = 0, b = 0, n = 0;
       const xl = x === 0 ? W - 1 : x - 1, xr = x === W - 1 ? 0 : x + 1, yu = y === 0 ? 0 : y - 1, yd = y === H - 1 ? y : y + 1;
       for (let q = 0; q < 4; q++) {
@@ -518,6 +522,8 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
       tLand: { value: t.land }, tColor: { value: t.color }, tData: { value: t.data }, tRegion: { value: t.region }, tLights: { value: t.lights }, tClouds: { value: t.clouds }, tDetail: { value: t.detail },
       sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, texel: { value: new THREE.Vector2(1 / W, 1 / H) },
       hoverCode: { value: -1 }, selCode: { value: -1 }, time: { value: 0 }, nightLights: { value: 1 }, cloudShadow: { value: 1 },
+      // set when any regionTint has alpha (the globe does it each frame), so other pixels skip the region lookups
+      tintOn: { value: 0 },
       regionTint: { value: Array.from({ length: 16 }, () => new THREE.Vector4(0, 0, 0, 0)) }, haze: { value: new THREE.Vector4(1, 0.55, 0.3, 0) },
     },
     vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vView;
@@ -526,7 +532,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         vec3 cam = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
         vView = cam - position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D tLand, tColor, tData, tRegion, tLights, tClouds, tDetail; uniform vec3 sunDir; uniform float cloudShift, hoverCode, selCode, time, nightLights, cloudShadow;
+    fragmentShader: `uniform sampler2D tLand, tColor, tData, tRegion, tLights, tClouds, tDetail; uniform vec3 sunDir; uniform float cloudShift, hoverCode, selCode, time, nightLights, cloudShadow, tintOn;
       uniform vec2 texel; uniform vec4 regionTint[16]; uniform vec4 haze;
       varying vec2 vUv; varying vec3 vN; varying vec3 vView;
       ${FRAME}
@@ -559,15 +565,14 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         sea = mix(sea, ${lin('sea5')}, smoothstep(0.42, 0.6, shelf) * 0.7);
         sea *= 0.86 + dat.g * 0.28;
         // shallows hugging the coast, and a thin surf line along it
-        sea = mix(sea, ${lin('sea6')}, smoothstep(-0.3, -0.02, e) * 0.55);
+        sea = mix(sea, ${lin('sea6')}, smoothstep(-0.3, -0.02, e) * 0.42);
         float surf = aaStep(e + 0.1) * (1.0 - land);
-        sea = mix(sea, ${lin('sea7')}, surf * 0.6);
+        sea = mix(sea, ${lin('sea7')}, surf * 0.5);
         // ── the land
         vec3 ground = col.rgb * (0.96 + (d2.a - 0.5) * 0.1 + (d1.a - 0.5) * 0.12);
         vec3 alb = mix(sea, ground, land);
         // ── regions: province tints (Acts IV–V) and the hovered / selected region, with smooth borders
-        bool tints = false;
-        for (int i = 0; i < 16; i++) tints = tints || regionTint[i].a > 0.0;
+        bool tints = tintOn > 0.5;
         if (tints || hoverCode > 0.0 || selCode > 0.0) {
           ivec2 sz = textureSize(tRegion, 0);
           vec2 rp = vUv * vec2(sz) - 0.5;
@@ -587,7 +592,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
             // a rim just inside the border: a couple of pixels from far out, a thin band close in
             float rim = inside * (1.0 - smoothstep(0.5, 0.5 + max(fwidth(mf) * 2.2, 0.16), mf));
             vec3 tint = k == 1 ? vec3(1.0, 0.80, 0.38) : vec3(1.0, 0.94, 0.80);
-            alb = mix(alb, tint, (inside * 0.14 + rim * 0.6) * land);
+            alb = mix(alb, tint, (inside * (k == 1 ? 0.2 : 0.13) + rim * (k == 1 ? 0.85 : 0.6)) * land);
           }
         }
         // ── light: a soft painted terminator with a warm band, relief, the clouds' shadows
@@ -617,7 +622,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         vec3 Hh = normalize(sunDir + V);
         float nh = max(dot(n, Hh), 0.0);
         float water = 1.0 - land;
-        c += vec3(1.0, 0.90, 0.74) * (pow(nh, 60.0) * 0.12 + pow(nh, 900.0) * 0.5) * water * smoothstep(0.0, 0.2, dn) * shade;
+        c += vec3(1.0, 0.90, 0.74) * (pow(nh, 60.0) * 0.1 + pow(nh, 900.0) * 0.35) * water * smoothstep(0.0, 0.2, dn) * shade;
         c += ${lin('sky3')} * pow(1.0 - nv, 4.0) * water * day * 0.35;
         // city lights on the night side
         float night = 1.0 - smoothstep(-0.16, 0.05, dn);
@@ -641,18 +646,24 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
 export function cloudMaterial(t: EarthTextures) {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
-    uniforms: { tClouds: { value: t.clouds }, sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, opacity: { value: 0.85 } },
+    uniforms: { tClouds: { value: t.clouds }, tDetail: { value: t.detail }, sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, opacity: { value: 0.85 } },
     vertexShader: `varying vec2 vUv; varying vec3 vN; void main(){ vUv = vec2(uv.x, 1.0 - uv.y); vN = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D tClouds; uniform vec3 sunDir; uniform float cloudShift, opacity; varying vec2 vUv; varying vec3 vN;
+    fragmentShader: `uniform sampler2D tClouds, tDetail; uniform vec3 sunDir; uniform float cloudShift, opacity; varying vec2 vUv; varying vec3 vN;
       ${FRAME}
       ${BICUBIC}
       void main(){
         vec2 uv = vUv + vec2(cloudShift, 0.0);
-        float d = bicubicR(tClouds, uv);
+        // clear sky (most of the globe) stops after one lookup: nothing here can reach the edge's threshold
+        if (texture2D(tClouds, uv).r < 0.38) discard;
+        float d0 = bicubicR(tClouds, uv);
+        // billows from the tiling detail (mipmapped: frilly edges up close, smooth from far out)
+        vec4 dA = texture2D(tDetail, uv * vec2(56.0, 28.0));
+        vec4 dB = texture2D(tDetail, uv * vec2(212.0, 106.0) + 0.5);
+        float d = d0 + (dA.r - 0.5) * 0.12 + (dB.g - 0.5) * 0.07;
         // a crisp, anti-aliased edge with a softer fringe round it
         float fw = max(fwidth(d), 1e-4);
-        float core = clamp((d - 0.64) / (fw * 1.2 + 0.08) + 0.5, 0.0, 1.0);
-        float a = max(core * (0.78 + 0.18 * smoothstep(0.7, 0.95, d)), smoothstep(0.52, 0.66, d) * 0.18);
+        float core = clamp((d - 0.64) / (fw * 1.2 + 0.07) + 0.5, 0.0, 1.0);
+        float a = max(core * (0.8 + 0.16 * smoothstep(0.7, 0.95, d)), smoothstep(0.52, 0.66, d0) * 0.16);
         // puffy: lit where the cloud thins towards the sun, shaded where it thickens
         vec3 n = normalize(vN);
         float dn = dot(n, sunDir);
@@ -660,7 +671,8 @@ export function cloudMaterial(t: EarthTextures) {
         vec3 sT = sunDir - n * dn;
         vec2 off = vec2(dot(sT, east) / max(length(n.xz), 0.08), -dot(sT, north) * 2.0) * 0.0035;
         float ds = texture2D(tClouds, uv + off).r;
-        float lit3 = clamp(0.75 + (d - ds) * 3.0, 0.0, 1.0);
+        float bump = (dA.b - 0.5) * 0.6 + (dB.a - 0.5) * 0.4;
+        float lit3 = clamp(0.72 + (d0 - ds) * 3.0 + bump * 0.6 + (d - 0.64) * 0.5, 0.0, 1.0);
         float lit = smoothstep(-0.16, 0.38, dn);
         vec3 sun = mix(vec3(1.0, 0.60, 0.42), vec3(1.0, 0.99, 0.97), smoothstep(0.0, 0.3, dn));
         vec3 body = mix(vec3(0.70, 0.76, 0.88), vec3(1.0), lit3);
@@ -694,7 +706,7 @@ export function atmosphereMaterial(shell = 1.1) {
         float dens = exp(-h / 0.016) * 0.85 + exp(-h / 0.055) * 0.22;
         dens *= 1.0 - smoothstep((shell - 1.0) * 0.7, shell - 1.0, h);
         float dn = dot(p / max(b, 1e-4), sunDir);
-        vec3 c = mix(vec3(1.0, 0.42, 0.20), vec3(0.34, 0.60, 1.0), smoothstep(-0.06, 0.3, dn)) * smoothstep(-0.3, 0.06, dn);
+        vec3 c = mix(vec3(0.62, 0.30, 0.20), vec3(0.34, 0.60, 1.0), smoothstep(-0.04, 0.26, dn)) * smoothstep(-0.22, 0.05, dn);
         // brighter looking towards the sun (light scattered forwards round the limb)
         c *= 1.0 + pow(max(dot(rd, sunDir), 0.0), 6.0) * 1.2;
         gl_FragColor = vec4(c * dens, 1.0);
