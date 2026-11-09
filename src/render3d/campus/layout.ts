@@ -4,6 +4,8 @@
  * Plots sit in two rows (back and front), column by column from the west, facing a frontage road
  * that meets the highway through an access road on the west side. A facility that takes two plots
  * fills a whole column, one that takes four fills two. The substation stands by the gate.
+ * The campus grows to the east from a fixed west edge: buying land never moves what's built (or the gate,
+ * the access road and the substation), and the ground levelled for the biggest campus covers every plot.
  */
 import { FACILITIES } from '../../content/facilities';
 import type { Facility, GameState, RivalBuild } from '../../sim/types';
@@ -42,10 +44,14 @@ export interface CampusLayout {
   focus: { x: number; z: number };
 }
 
-export function cellRect(cols: number, i: number): Rect {
-  const width = cols * (PW + GAP) - GAP;
+/** x of the first column's west edge (every campus). */
+export const WEST_X = -(PW + GAP);
+/** x of the access road's centre line. */
+export const ACCESS_X = WEST_X - 8;
+
+export function cellRect(_cols: number, i: number): Rect {
   const col = Math.floor(i / 2), row = i % 2;
-  const x0 = -width / 2 + col * (PW + GAP);
+  const x0 = WEST_X + col * (PW + GAP);
   // row 0 = front (towards the road), row 1 = back
   const z0 = row === 0 ? 1 : -PD - 1;
   return { x0, z0, x1: x0 + PW, z1: z0 + PD };
@@ -97,13 +103,13 @@ export function campusLayout(s: GameState | null, siteId: string, minPlots = 2):
   }
   let e = 0;
   free.forEach((f, i) => { if (f && i < n) items.push({ kind: 'empty', rect: cells[i], cells: [i], emptyIndex: e++ }); });
-  const width = cols * (PW + GAP) - GAP;
-  const accessX = -width / 2 - 8;
+  const east = WEST_X + cols * (PW + GAP) - GAP;
+  const accessX = ACCESS_X;
   return {
     cols, cells, items,
-    bounds: { x0: accessX - 26, z0: -PD - 8, x1: width / 2 + 10, z1: HIGHWAY_Z + 6 },
+    bounds: { x0: accessX - 26, z0: -PD - 8, x1: east + 10, z1: HIGHWAY_Z + 6 },
     accessX,
     substation: { x: accessX - 14, z: FRONT_Z - 12 },
-    focus: { x: 0, z: 4 },
+    focus: { x: (WEST_X + east) / 2, z: 4 },
   };
 }

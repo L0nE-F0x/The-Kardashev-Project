@@ -421,7 +421,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
 **Next: the user's list of refinements, polish and fixes for the 3D edition** (they're playing v0.10.0 in 3D on the
-desktop app, Steam/computers only, and will bring screenshots), then their choice of edition. Still pending after that:
+desktop app, Steam/computers only, and will bring screenshots), then their choice of edition. **To do (asked
+2026-11-10): bring the website up to the 3D look** — it still shows only the 2D pixel art (the hero, the gallery's
+`public/screenshots/`, the PWA manifest shots, the OG image); new 3D shots and copy once the polish list is done. Still pending after that:
 their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the log and v1.0.0
 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
