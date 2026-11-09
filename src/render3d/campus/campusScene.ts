@@ -19,13 +19,15 @@ import { dir } from '../globe/earth';
 import { closeScope, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
 import { modelParts, model, type PersonName } from '../models';
 import {
-  batteryYard, blinkBeacons, clipAbove, cow, crane, dataHall, fence, fenceMesh, gasPlant, instanced, pad, pumpjack, pylon,
-  researchLab, scaffold, siteClutter, solarFarm, stockPond, streetLamp, utilityPole, windFarm, windpump, wires, type Env, type Piece,
+  blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
+  scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
 } from '../pieces';
+import { FACILITY_PIECES } from './registry';
+import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
 import { buildGround, type Backdrop, type Ground } from './ground';
 import { CampusSky, type Weather } from './sky';
-import { Crowd, makeBit, parkedCars, Traffic } from './life';
+import { Crowd, makeBit, Traffic } from './life';
 import { deskHolder } from '../../sim/systemView';
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -260,13 +262,16 @@ export class CampusScene implements Scene3D {
       const f = item.facility;
       seen.add(f.id);
       let e = this.entries.get(f.id);
-      const rk = `${item.rect.x0},${item.rect.z0},${item.rect.x1},${item.rect.z1}`;
+      const rk = `${item.rect.x0},${item.rect.z0},${item.rect.x1},${item.rect.z1}|${tierOf(f)}`;
       if (e && e.rectKey !== rk) { this.removeEntry(e); e = undefined; }
       if (!e) e = this.addEntry(item, rk);
       if (!e) continue;
       e.f = f;
       const p = f.status === 'online' ? 1 : Math.min(1, f.progress / Math.max(1, f.buildDays));
       if (f.status === 'online' && !e.online) this.open(e);
+      // an expansion under way: the crane and crew come back round the (target-size) building
+      if (e.online && f.upgrade && !e.site) this.construction(e);
+      else if (e.online && !f.upgrade && e.site) this.open(e);
       if (!e.online) {
         if (e.clip) clipAbove(e.piece.obj, 0.05 + Math.max(0.02, p) * e.piece.h);
         e.piece.progress?.(Math.max(0.02, p));
@@ -325,8 +330,8 @@ export class CampusScene implements Scene3D {
     this.world.add(root);
     const clip = f.type !== 'solar' && f.type !== 'battery' && f.type !== 'wind' && f.type !== 'hq';
     const e: Entry = { f, item, root, piece, clip, online: f.status === 'online', rectKey };
-    if (!e.online) this.construction(e);
-    else piece.progress?.(1);
+    if (!e.online || f.upgrade) this.construction(e);
+    if (e.online) piece.progress?.(1);
     this.entries.set(f.id, e);
     return e;
   }
@@ -334,7 +339,7 @@ export class CampusScene implements Scene3D {
   private construction(e: Entry) {
     const site = new THREE.Group();
     const w = e.item.rect.x1 - e.item.rect.x0, d = e.item.rect.z1 - e.item.rect.z0;
-    if (e.clip) site.add(scaffold(Math.min(w - 2, e.piece.w - 1.2), e.piece.h, Math.min(d - 3, e.piece.d - 4), hashStr(e.f.id)));
+    if (e.clip && !e.online) site.add(scaffold(Math.min(w - 2, e.piece.w - 1.2), e.piece.h, Math.min(d - 3, e.piece.d - 4), hashStr(e.f.id)));
     site.add(siteClutter(w - 2, d - 2, hashStr(e.f.id) + 3));
     if (e.clip || e.f.type === 'wind') {
       const c = crane(e.f.type === 'wind' ? 24 : Math.max(14, e.piece.h + 8), e.f.type === 'wind' ? 12 : 16, hashStr(e.f.id) + 5);
@@ -357,12 +362,13 @@ export class CampusScene implements Scene3D {
   }
 
   private open(e: Entry) {
+    const fresh = !e.online || !!e.site;
     e.online = true;
     if (e.site) e.root.remove(e.site);
     e.site = e.crane = e.crew = undefined;
     if (e.clip) clipAbove(e.piece.obj, null);
     e.piece.progress?.(1);
-    this.flash(e.root.position);
+    if (fresh) this.flash(e.root.position);
   }
 
   private removeEntry(e: Entry) {
@@ -547,6 +553,7 @@ export class CampusScene implements Scene3D {
   resize(w: number, h: number) {
     this.w = w;
     this.h = h;
+    plumeUniforms.scale.value = h * Math.min(2, window.devicePixelRatio || 1) * 0.9;
   }
 
   busy() {
@@ -727,42 +734,13 @@ export class CampusScene implements Scene3D {
 const LINE_INDEX = new Map<string, number>();
 
 // ── facility pieces ──────────────────────────────────────────────────────────────────────────
+const tierOf = (f: Facility) => f.upgrade?.to ?? f.tier ?? 1;
+
 function makePiece(f: Facility, rect: Rect): Piece {
   const seed = hashStr(f.id);
   const w = rect.x1 - rect.x0, d = rect.z1 - rect.z0;
-  switch (f.type) {
-    case 'datacenter': return dataHall(seed);
-    case 'solar': return solarFarm(seed, w - 2, d - 3);
-    case 'battery': return batteryYard(seed);
-    case 'wind': return windFarm(seed);
-    case 'gas': return gasPlant();
-    case 'lab': return researchLab();
-    case 'hq': return hqPiece(seed);
-    default: return genericPlant(f.type, w, d, seed);
-  }
-}
-
-/** The garage the company started in, on its own lot with a driveway and a car. */
-function hqPiece(seed: number): Piece {
-  const g = new THREE.Group();
-  const house = model('garage', 17);
-  house.position.z = -2;
-  g.add(house);
-  const k = new Kit(rng(seed));
-  k.box(5.5, 0.08, 9, '#cfc6bd', -4, 0.02, 8.5, { r: 0.04, shade: 0 });
-  k.box(0.9, 0.08, 6, '#cfc6bd', 3.5, 0.02, 9.5, { r: 0.02, shade: 0 });
-  k.box(0.35, 1.0, 0.35, '#c23a3f', 5.5, 0, 11.5, { r: 0.05 });
-  k.box(0.6, 0.4, 0.4, '#5b5562', 5.5, 1.0, 11.5, { r: 0.08 });
-  for (let x = -12; x < 12; x += 0.5) if (x < -7 || x > -1) k.box(0.1, 0.7, 0.05, '#efe8de', x, 0, 12.6, { r: 0, jitter: 0.02 });
-  // a hedge along the side, shrubs by the house, a tree in the back yard
-  for (let z = -10; z < 10; z += 0.9) k.geo(new THREE.IcosahedronGeometry(0.55, 0).scale(1, 0.8, 1).translate(-12.2, 0.4, z), '#3f6b35', 0.18);
-  for (const [x, z] of [[2, 4.6], [6, 4.4], [9, 4.8], [-9, 4.5]]) k.geo(new THREE.IcosahedronGeometry(0.7, 0).scale(1, 0.75, 1).translate(x, 0.45, z), '#4a7a3a', 0.2);
-  k.cyl(0.25, 0.32, 2.4, '#5c3a26', 9, 0, -10, 6);
-  k.geo(new THREE.IcosahedronGeometry(2.2, 1).scale(1, 0.9, 1).translate(9, 3.6, -10), '#3f7b35', 0.18);
-  const m = k.build();
-  g.add(m);
-  parkedCars(g, -4, 9, 1, 3, seed, -Math.PI / 2);
-  return { obj: g, w: 22, d: 24, h: 8 };
+  const make = FACILITY_PIECES[f.type];
+  return make ? make({ seed, w, d, tier: tierOf(f), f }) : genericPlant(f.type, w, d, seed);
 }
 
 /** Act II plants and the rest until their 3D art lands: an honest industrial block, coloured by kind. */

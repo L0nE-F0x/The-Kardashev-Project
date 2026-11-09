@@ -102,6 +102,8 @@ export interface GroundOpts {
   flat: Rect;
   /** Where nothing may grow (the campus as it is today); defaults to `flat`. */
   clear?: Rect;
+  /** Pieces that reshape the ground (world coordinates): a height, or null to keep the land. */
+  carve?: (x: number, z: number) => number | null;
   /** Extra flat strips (roads). */
   roads: { a: [number, number]; b: [number, number]; w: number }[];
 }
@@ -121,6 +123,8 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
   };
   const centre = { x: (o.flat.x0 + o.flat.x1) / 2, z: (o.flat.z0 + o.flat.z1) / 2 };
   const h = (x: number, z: number) => {
+    const cv = o.carve?.(x, z);
+    if (cv !== undefined && cv !== null) return cv;
     const fd = flatD(x, z);
     const d = Math.hypot(x - centre.x, z - centre.z);
     let y = (fbm(x * 0.012, z * 0.012, s, 4) - 0.45) * def.relief * 2 + (fbm(x * 0.05, z * 0.05, s + 5, 2) - 0.5) * def.relief * 0.3;

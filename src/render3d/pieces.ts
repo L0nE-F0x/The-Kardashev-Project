@@ -24,6 +24,11 @@ export interface Piece {
   update?(e: Env): void;
   /** 0..1 while building; 1 = done. */
   progress?(p: number): void;
+  /**
+   * Reshape the ground under the piece (an open pit, a reservoir basin): the height at a point in
+   * the piece's own coordinates, or null to leave the ground as it is.
+   */
+  ground?(x: number, z: number): number | null;
 }
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -193,10 +198,23 @@ export function clipAbove(obj: THREE.Object3D, y: number | null) {
 }
 
 // ── the data hall ────────────────────────────────────────────────────────────────────────────
-export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
+export interface HallOpts {
+  W?: number;
+  D?: number;
+  H?: number;
+  /** Rows of rooftop chillers. */
+  chRows?: number;
+  /** 2 = a two-storey hall (a floor band half way up). */
+  storeys?: number;
+  /** Leave out the car park (big halls fill the plot). */
+  noParking?: boolean;
+}
+
+export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: number): void } {
   const g = new THREE.Group();
   const kit = new Kit(rng(seed));
-  const W = 21, D = 11, H = 5.2;
+  const W = o.W ?? 21, D = o.D ?? 11, H = o.H ?? 5.2;
+  const chRows = o.chRows ?? 2;
   const wall: Paint = '#ddd6cc';
   // body: a plinth, walls with ribbed cladding, a parapet roof
   kit.box(W + 0.6, 0.5, D + 0.6, '#a39a91', 0, 0, 0, { r: 0.08 });
@@ -209,6 +227,7 @@ export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
   kit.box(W - 0.4, 0.1, D - 0.4, '#6f6878', 0, H + 0.6, 0, { r: 0, shade: 0 }); // roof membrane
   // teal accent band + entrance block with canopy at the front-left
   kit.box(W + 0.02, 0.45, D + 0.02, 'cyn3', 0, H - 0.35, 0, { r: 0.05, shade: 0 });
+  if ((o.storeys ?? 1) > 1) kit.box(W + 0.04, 0.3, D + 0.04, '#b9b1a6', 0, H / 2, 0, { r: 0.04, shade: 0 });
   kit.box(4.2, 3.6, 2.2, '#efe8de', -W / 2 + 3, 0.4, D / 2 + 1, { r: 0.15 });
   kit.box(4.8, 0.3, 3.2, 'cyn2', -W / 2 + 3, 3.4, D / 2 + 1.4, { r: 0.08 });
   kit.box(2, 2.4, 0.1, '#3b6f7a', -W / 2 + 3, 0.5, D / 2 + 2.12, { r: 0.02 });
@@ -235,9 +254,10 @@ export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
   const fanGeo = new THREE.BoxGeometry(1.0, 0.04, 0.16);
   const fanMat = new THREE.MeshStandardMaterial({ color: col('#433c52'), roughness: 0.7 });
   const roof = new Kit(rng(seed + 3));
-  for (let r = 0; r < 2; r++)
-    for (let c = 0; c < 6; c++) {
-      const x = -W / 2 + 2.3 + c * 3.2, z = -2.4 + r * 4.4;
+  const chCols = Math.floor((W - 1.6) / 3.2);
+  for (let r = 0; r < chRows; r++)
+    for (let c = 0; c < chCols; c++) {
+      const x = -W / 2 + 2.3 + c * 3.2, z = chRows > 1 ? -D / 2 + 3.1 + r * ((D - 6.2) / (chRows - 1)) : 0;
       roof.box(2.7, 1.1, 2.3, '#b9c2c4', x, H + 0.6, z, { r: 0.1, jitter: 0.03 });
       roof.box(2.76, 0.18, 2.36, '#8a959a', x, H + 0.62, z, { r: 0.04, shade: 0 });
       for (const fx of [-0.65, 0.65]) {
@@ -277,8 +297,10 @@ export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
   for (let i = 0; i < 5; i++) lightPool(g, -W / 2 + 2.4 + i * 4.1, 0, -D / 2 - 3.6, 2.6, hallPool);
   // a car park and the hall's own transformers at the front
   const front = new Kit(rng(seed + 5));
-  front.box(12, 0.05, 4.4, '#6f6878', -6.5, 0.04, D / 2 + 5.6, { r: 0.03, shade: 0 });
-  for (let i = 0; i < 6; i++) front.box(0.1, 0.02, 2.2, 'ink9', -12 + i * 2.2, 0.1, D / 2 + 5.4, { r: 0, jitter: 0 });
+  if (!o.noParking) {
+    front.box(12, 0.05, 4.4, '#6f6878', -6.5, 0.04, D / 2 + 5.6, { r: 0.03, shade: 0 });
+    for (let i = 0; i < 6; i++) front.box(0.1, 0.02, 2.2, 'ink9', -12 + i * 2.2, 0.1, D / 2 + 5.4, { r: 0, jitter: 0 });
+  }
   for (const x of [5.5, 8.5]) {
     front.box(2.2, 2.0, 1.8, '#8a8f80', x, 0.15, D / 2 + 5.4, { r: 0.08 });
     for (let k = 0; k < 4; k++) front.box(0.08, 1.5, 1.9, '#727868', x - 0.9 + k * 0.6, 0.35, D / 2 + 5.4, { r: 0, jitter: 0 });
@@ -287,7 +309,7 @@ export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
   front.box(5.6, 0.12, 3, '#a39a91', 7, 0, D / 2 + 5.4, { r: 0.03, shade: 0 });
   const fm = front.build();
   g.add(fm);
-  parkedCars(g, -11.4, D / 2 + 5.6, 6, 2.2, seed + 9, Math.PI / 2);
+  if (!o.noParking) parkedCars(g, -11.4, D / 2 + 5.6, 6, 2.2, seed + 9, Math.PI / 2);
 
   let load = 0;
   return {
@@ -301,17 +323,16 @@ export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
 }
 
 // ── solar ────────────────────────────────────────────────────────────────────────────────────
-export function solarFarm(seed: number, W = 26, D = 23): Piece {
+export function solarFarm(seed: number, W = 26, D = 23, n = 8, trackerH = 0.9): Piece {
   const g = new THREE.Group();
   const rows: THREE.Mesh[] = [];
-  const n = 8;
   const len = W - 2;
   for (let i = 0; i < n; i++) {
     const kit = new Kit(rng(seed + i));
     const z = -D / 2 + 1.4 + i * ((D - 2.8) / (n - 1));
     // posts and a torque tube
-    for (let x = -len / 2 + 0.6; x <= len / 2; x += 2.4) kit.box(0.12, 0.9, 0.12, '#8a8490', x, 0, z, { r: 0, jitter: 0 });
-    kit.box(len, 0.1, 0.1, '#7a7186', 0, 0.9, z, { r: 0, jitter: 0 });
+    for (let x = -len / 2 + 0.6; x <= len / 2; x += 2.4) kit.box(0.12, trackerH, 0.12, '#8a8490', x, 0, z, { r: 0, jitter: 0 });
+    kit.box(len, 0.1, 0.1, '#7a7186', 0, trackerH, z, { r: 0, jitter: 0 });
     const row = new THREE.Group();
     const pk = new Kit(rng(seed * 7 + i));
     // panels: modules with a light frame, tilted towards the camera (south)
@@ -322,7 +343,7 @@ export function solarFarm(seed: number, W = 26, D = 23): Piece {
     }
     const panels = pk.build(panelMat);
     panels.rotation.x = 0.42;
-    panels.position.set(0, 1.05, z);
+    panels.position.set(0, trackerH + 0.15, z);
     row.add(panels);
     const posts = kit.build();
     row.add(posts);
@@ -343,21 +364,23 @@ export function solarFarm(seed: number, W = 26, D = 23): Piece {
 }
 
 // ── battery yard ─────────────────────────────────────────────────────────────────────────────
-export function batteryYard(seed: number): Piece {
+export function batteryYard(seed: number, tier = 1): Piece {
   const g = new THREE.Group();
   const units: THREE.Object3D[] = [];
   const r = rng(seed);
-  for (let row = 0; row < 3; row++)
+  const rowsN = tier >= 2 ? 4 : 3, levels = tier >= 3 ? 2 : 1;
+  for (let lv = 0; lv < levels; lv++)
+  for (let row = 0; row < rowsN; row++)
     for (let c = 0; c < 5; c++) {
       const kit = new Kit(r);
-      const x = -9.6 + c * 4.6, z = -7 + row * 5.6;
+      const x = -9.6 + c * 4.6, z = rowsN > 3 ? -8.4 + row * 4.4 : -7 + row * 5.6;
       kit.box(3.9, 1.6, 1.7, '#ece6dc', 0, 0.12, 0, { r: 0.12, shade: 0.15 });
       kit.box(3.94, 0.28, 1.74, 'cyn3', 0, 1.25, 0, { r: 0.05, shade: 0 });
       for (let k = 0; k < 4; k++) kit.box(0.6, 0.7, 0.06, '#9d95a6', -1.35 + k * 0.9, 0.4, 0.86, { r: 0.02, jitter: 0 });
       kit.box(1.2, 0.35, 0.9, '#b9c2c4', 1.1, 1.72, 0, { r: 0.06 }); // HVAC on top
       kit.box(1.2, 0.12, 1.9, '#8a8490', 0, 0, 0, { r: 0, jitter: 0 }); // sleepers
       const u = kit.build();
-      u.position.set(x, 0, z);
+      u.position.set(x, lv * 2.05, z);
       g.add(u);
       units.push(u);
     }
@@ -368,9 +391,9 @@ export function batteryYard(seed: number): Piece {
     k.box(0.9, 0.9, 0.9, '#8a959a', -4.6 + i * 6, 0, 9.4, { r: 0.06 });
   }
   g.add(k.build());
-  g.scale.setScalar(1.12);
+  g.scale.setScalar(rowsN > 3 ? 1.0 : 1.12);
   return {
-    obj: g, w: 25, d: 22, h: 3,
+    obj: g, w: 25, d: 22, h: 3 + levels * 2,
     progress(p) { units.forEach((u, i) => { u.visible = p >= 1 || i < Math.floor(p * units.length); }); },
   };
 }
@@ -386,10 +409,11 @@ export function windTurbine(seed: number, H = 19): { obj: THREE.Group; rotor: TH
   g.add(tower);
   const rotor = new THREE.Group();
   rotor.position.set(0, H + 0.75, 0.95);
+  const bl = 8.5 * (H / 19);
   const rk = new Kit(rng(seed + 1));
   rk.geo(new THREE.SphereGeometry(0.42, 10, 8).scale(1, 1, 1.35), '#f1ece4', 0.01);
   for (let i = 0; i < 3; i++) {
-    const blade = new THREE.CylinderGeometry(0.06, 0.26, 8.5, 6).translate(0, 4.25 + 0.3, 0).scale(1, 1, 0.45);
+    const blade = new THREE.CylinderGeometry(0.06, 0.26, bl, 6).translate(0, bl / 2 + 0.3, 0).scale(1, 1, 0.45);
     blade.rotateZ((i * Math.PI * 2) / 3);
     rk.geo(blade, '#f6f2ea', 0.01);
   }
@@ -399,11 +423,12 @@ export function windTurbine(seed: number, H = 19): { obj: THREE.Group; rotor: TH
   return { obj: g, rotor, tower };
 }
 
-export function windFarm(seed: number): Piece {
+export function windFarm(seed: number, tier = 1): Piece {
   const g = new THREE.Group();
-  const spots: [number, number][] = [[-8, 6], [1, -6], [9, 5]];
+  const spots: [number, number][] = tier >= 3 ? [[-9, 7], [-3, -7], [4, 6], [10, -5]] : [[-8, 6], [1, -6], [9, 5]];
+  const H = tier >= 3 ? 30 : tier >= 2 ? 24 : 18;
   const ts = spots.map(([x, z], i) => {
-    const t = windTurbine(seed + i * 5, 18 + i * 1.2);
+    const t = windTurbine(seed + i * 5, H + i * 1.2);
     t.obj.position.set(x, 0, z);
     t.obj.rotation.y = -0.35;
     g.add(t.obj);
@@ -419,7 +444,7 @@ export function windFarm(seed: number): Piece {
   g.add(pads);
   let done = 1;
   return {
-    obj: g, w: 26, d: 24, h: 26,
+    obj: g, w: 26, d: 24, h: H + 10,
     progress(p) {
       done = p;
       ts.forEach((t, i) => {
