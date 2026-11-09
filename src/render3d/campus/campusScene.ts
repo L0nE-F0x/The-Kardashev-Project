@@ -17,7 +17,7 @@ import { MAX_EXTRA_SLOTS } from '../../sim/model';
 import type { AdvisorId, Facility, GameState } from '../../sim/types';
 import { subsolar } from '../../world/sun';
 import { dir } from '../globe/earth';
-import { closeScope, disposeObject, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
+import { closeScope, disposeObject, fbm, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
 import { hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
@@ -28,6 +28,8 @@ import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
 import { BACKDROPS, buildGround, type Backdrop, type Ground } from './ground';
 import { habFloor, habitatShell, HAB_R } from './habitatShell';
+import { treeField, type Placement, type TreeKind } from './trees';
+import { quality } from '../quality';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
 import { act3Key } from '../../render/diorama/act3Pieces';
 import { CampusSky, type Weather } from './sky';
@@ -232,7 +234,7 @@ export class CampusScene implements Scene3D {
       // the yards and the ring float: no ground at all
       this.ground = { mesh: new THREE.Mesh(), water: null, plants: new THREE.Group(), h: () => 0, def: BACKDROPS.lunar };
     } else if (this.scenery === 'habitat') {
-      this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: new THREE.Group(), h: (_x, z) => habFloor(z), def: BACKDROPS.temperate };
+      this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: habitatMeadow(seed, this.layout.bounds, this.setPieces.map((sp) => sp.item.rect)), h: (_x, z) => habFloor(z), def: BACKDROPS.temperate };
     } else {
       this.groundOpts = {
         backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
@@ -995,6 +997,40 @@ export class CampusScene implements Scene3D {
 }
 
 const LINE_INDEX = new Map<string, number>();
+
+/**
+ * Aurora's floor round the town: groves of broadleaf and birch, hedgerow shrubs and tufts in the meadow, each
+ * standing square to the curved floor (tipped towards the axis), never on a piece.
+ */
+function habitatMeadow(seed: number, b: Rect, rects: Rect[]): THREE.Group {
+  const g = new THREE.Group();
+  const r = rng(seed + 7);
+  const free = (x: number, z: number, m: number) => !rects.some((q) => x > q.x0 - m && x < q.x1 + m && z > q.z0 - m && z < q.z1 + m);
+  const kinds: Record<'broadleaf' | 'birch' | 'blob' | 'shrub' | 'tuft', Placement[]> = { broadleaf: [], birch: [], blob: [], shrub: [], tuft: [] };
+  const X0 = b.x0 - 240, X1 = b.x1 + 240, n = Math.round(3200 * quality.plants);
+  const grove = (x: number, z: number) => fbm(x * 0.012, z * 0.012, 11, 3);
+  // groves where the noise is in its top fifth, scrub at their edges (by rank, whatever the noise's range)
+  const sample = Array.from({ length: 400 }, () => grove(X0 + r() * (X1 - X0), (r() * 2 - 1) * 180)).sort((a, c) => a - c);
+  const treeAt = sample[Math.floor(sample.length * 0.8)], scrubAt = sample[Math.floor(sample.length * 0.68)];
+  for (let i = 0; i < n; i++) {
+    const x = X0 + r() * (X1 - X0), z = (r() * 2 - 1) * 180;
+    if (!free(x, z, 2.5)) continue;
+    const gv = grove(x, z);
+    let kind: keyof typeof kinds;
+    if (gv > treeAt) kind = r() < 0.7 ? 'broadleaf' : 'birch';
+    else if (gv > scrubAt) { if (r() < 0.5) continue; kind = r() < 0.5 ? 'blob' : 'shrub'; }
+    else if (r() < 0.04) kind = r() < 0.5 ? 'broadleaf' : 'birch'; // a lone tree in the meadow
+    else if (r() < 0.6) kind = 'tuft';
+    else continue;
+    // trees keep clear of the town's paths; tufts may come close
+    if (kind !== 'tuft' && !free(x, z, 6)) continue;
+    const s = kind === 'tuft' ? 0.7 + r() * 0.5 : kind === 'shrub' ? 0.8 + r() * 0.5 : 0.9 + r() * 0.6;
+    kinds[kind].push({ x, y: habFloor(z) - 0.05, z, s, ry: r() * Math.PI * 2, rx: -Math.asin(Math.max(-0.98, Math.min(0.98, z / HAB_R))), tint: 0.88 + r() * 0.24 });
+  }
+  const mat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
+  for (const [k, at] of Object.entries(kinds)) if (at.length) g.add(treeField(k as TreeKind, at, mat));
+  return g;
+}
 
 /** An asteroid's ground by its type: dark carbon (C), stony tan (S), metal grey (M). */
 function tintAsteroid(mesh: THREE.Mesh, type: string) {

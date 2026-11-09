@@ -121,7 +121,8 @@ export function treeGeometry(kind: TreeKind): THREE.BufferGeometry {
   return g;
 }
 
-export interface Placement { x: number; y: number; z: number; s: number; ry: number; tint?: number }
+/** Where a tree stands; `rx` tips it (round x, after its spin) to stand square to curved ground. */
+export interface Placement { x: number; y: number; z: number; s: number; ry: number; tint?: number; rx?: number }
 
 /** Instanced trees of one kind, with a little colour and size variation each. */
 export function treeField(kind: TreeKind, at: Placement[], mat: THREE.Material): THREE.InstancedMesh {
@@ -129,7 +130,7 @@ export function treeField(kind: TreeKind, at: Placement[], mat: THREE.Material):
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   const c = new THREE.Color();
   at.forEach((p, i) => {
-    e.set(0, p.ry, 0);
+    e.set(p.rx ?? 0, p.ry, 0);
     q.setFromEuler(e);
     m.compose(new THREE.Vector3(p.x, p.y, p.z), q, new THREE.Vector3(p.s, p.s, p.s));
     im.setMatrixAt(i, m);
