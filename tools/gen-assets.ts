@@ -1,7 +1,7 @@
 /**
  * Renders the brand assets from the game's own pixel code:
- *   public/favicon.ico, public/icons/*.png (Pixel Earth app icons), public/og-image.png,
- *   public/logo.png, public/globe.png, the desktop app icons in src-tauri/icons/ and the Android app's
+ *   public/favicon.ico, public/icons/*.png (Pixel Earth app icons), public/og-image.png (PIXEL_SITE=1 only),
+ *   public/logo.png, public/globe.png (PIXEL_SITE=1 only), the desktop app icons in src-tauri/icons/ and the Android app's
  *   launcher and adaptive icons in android/app/src/main/res/.
  * Every size is drawn natively (or scaled by a whole number) so the pixels stay crisp —
  * `tauri icon` would resample with a smoothing filter.
@@ -240,12 +240,14 @@ writePng('logo.png', logoCanvas(), 4);
 {
   const g = new PixelCanvas(180, 180);
   drawGlobe(g, { terrain: T1, res: lods[1].res, lon0: 10, lat0: 18, cx: 90, cy: 90, r: 86, sun: { lat: 14, lon: -30 }, lights: true, atmosphere: true });
-  writePng('globe.png', g, 3);
+  // the website's no-script globe is a still of its 3D globe now (see tools/og3d.mjs); PIXEL_SITE=1 redraws this one
+  if (process.env.PIXEL_SITE) writePng('globe.png', g, 3);
 }
 
-// ── Open Graph card (1200×630 = 400×210 × 3) ─────────────────────────────────────────────
-console.log('og image');
-{
+// ── Open Graph card (1200×630 = 400×210 × 3): the pixel edition's card. The website uses the 3D card from
+// tools/og3d.mjs since v0.10.1, so this one is only written with PIXEL_SITE=1 ─────────────────────────────
+if (process.env.PIXEL_SITE) {
+  console.log('og image (pixel)');
   const W = 400;
   const H = 210;
   const pc = new PixelCanvas(W, H);

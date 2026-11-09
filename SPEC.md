@@ -2112,4 +2112,4 @@ colours, speed; and realism of the mechanics, not just the graphics. What change
   above. Checked in headless Chrome and a debug desktop build (WebKitGTK).
 **Still open after 0.10.1:** commuter cars don't drive in or out (people appear at their car); figures set pieces
 place directly (Moon astronauts, some Aurora townsfolk) hold a walk frame; Act II plants and Act III–V set pieces have a
-guessed front door only; the website still shows the 2D game.
+guessed front door only. The website went 3D the same day (hero globe, shots, OG card, Play → /play3d/).

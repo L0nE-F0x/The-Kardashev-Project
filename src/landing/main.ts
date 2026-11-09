@@ -31,42 +31,71 @@ document.querySelectorAll<HTMLImageElement>('img[data-icon]').forEach((img) => {
   document.body.style.setProperty('--stars', `url(${c.toDataURL()})`);
 }
 
-// ── the spinning Earth ───────────────────────────────────────────────────────────────────────
+// ── the spinning Earth: the pixel globe at once, then the 3D edition's globe fading in over it ──────
+// (baking the 3D Earth's textures takes a second or so of the main thread, so it waits until the page is idle;
+// both globes turn together, so the hand-over is a cross-fade, not a jump)
 async function spinGlobe() {
   const canvas = document.getElementById('globe') as HTMLCanvasElement | null;
   if (!canvas) return;
   const buf = await (await fetch(mapUrl)).arrayBuffer();
   const lods = decodeWorldMap(buf);
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const view = { lon: subsolar(new Date()).lon + 40 }; // start with the terminator in view
+  let pixel = true;
   const lod = lods[1];
   const terrain = terrainCanvas(lod);
   const size = 200;
   const pc = new PixelCanvas(size, size);
-  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let lon0 = subsolar(new Date()).lon + 40; // start with the terminator in view
   let visible = true;
   new IntersectionObserver((e) => (visible = e[0].isIntersecting)).observe(canvas);
   let last = performance.now();
   let acc = 0;
   const draw = () => {
     pc.data.fill(0);
-    drawGlobe(pc, { terrain, res: lod.res, lon0, lat0: 18, cx: size / 2, cy: size / 2, r: 92, sun: subsolar(new Date()), lights: true, atmosphere: true });
+    drawGlobe(pc, { terrain, res: lod.res, lon0: view.lon, lat0: 18, cx: size / 2, cy: size / 2, r: 92, sun: subsolar(new Date()), lights: true, atmosphere: true });
     bakeInto(pc, canvas);
   };
   draw();
   canvas.classList.add('ready');
-  if (still) return;
-  const loop = (now: number) => {
-    const dt = Math.min(0.1, (now - last) / 1000);
-    last = now;
-    acc += dt;
-    if (visible && acc > 1 / 24) {
-      lon0 -= acc * 6; // west → east rotation
-      acc = 0;
-      draw();
-    }
+  if (!still) {
+    const loop = (now: number) => {
+      if (!pixel) return;
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      acc += dt;
+      if (visible && acc > 1 / 24) {
+        view.lon -= acc * 6; // west → east rotation
+        acc = 0;
+        draw();
+      }
+      requestAnimationFrame(loop);
+    };
     requestAnimationFrame(loop);
-  };
-  requestAnimationFrame(loop);
+  }
+  const whenIdle = (cb: () => void) => ('requestIdleCallback' in window ? window.requestIdleCallback(cb, { timeout: 2500 }) : setTimeout(cb, 800));
+  whenIdle(async () => {
+    try {
+      const { spinGlobe3d } = await import('./globe3d');
+      const c3 = document.createElement('canvas');
+      c3.id = 'globe3d';
+      c3.setAttribute('aria-label', canvas.getAttribute('aria-label') ?? '');
+      canvas.after(c3);
+      // the coarser map is plenty at this size and bakes in half the time
+      if (!spinGlobe3d(c3, lods[0], still, view)) {
+        c3.remove();
+        return;
+      }
+      const done = () => {
+        pixel = false;
+        canvas.style.visibility = 'hidden';
+        canvas.setAttribute('aria-hidden', 'true');
+      };
+      c3.addEventListener('transitionend', done, { once: true });
+      setTimeout(done, 2000);
+    } catch {
+      /* no WebGL, or the chunk didn't load: the pixel Earth stays */
+    }
+  });
 }
 void spinGlobe();
 

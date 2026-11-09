@@ -65,7 +65,8 @@ npm test              # vitest: sim determinism, Act I bot, Act II bot (preset �
                       # Act IV bot (preset → jumps → the Heat Wall), Act V bot (preset → eras → Solar Maximum → Type I),
                       # offline, saves, routing, map + diorama scenes
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
-npm run gen:assets    # re-render icons, favicon, logo, globe, OG image + src-tauri/icons from game code
+npm run gen:assets    # re-render icons, favicon, logo + src-tauri/icons from game code (PIXEL_SITE=1: also the old pixel
+                      # OG card and globe; the website's are 3D now: node tools/og3d.mjs [globe], PLAYWRIGHT=<its index.mjs>)
 npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
 PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts \
@@ -220,10 +221,15 @@ src/
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens,
                   HowToPlay (the handbook: content/howToPlay.ts; menu item, dock ? button, ? / F1, `game.openHowTo(topic)`)
     Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
-  landing/    website script + css (the 2026 redesign: the hero's logo and spinning globe, then glass panels on the starfield:
-              sticky nav, a bento of pillars, one row per act, a screenshot gallery with a lightbox, the K-scale bar, install +
-              GitHub-release downloads, a compact What's New). Shots live in public/screenshots/ (campus-day.png and map.png
-              also feed the PWA manifest); the gallery's 2-wide shots need their order kept (see the comment in landing.css)
+  landing/    website script + css (the 2026 redesign, the 3D look since v0.10.1: the hero's pixel logo and spinning Earth —
+              the pixel globe at once, then the 3D edition's globe (`globe3d.ts`, earth.ts on the coarse map, baked once the
+              page is idle) cross-fading in at the same rotation — then glass panels on the starfield: sticky nav, a bento of
+              pillars, one row per act, a screenshot gallery with a lightbox, the K-scale bar, install + GitHub-release
+              downloads, a compact What's New). Play buttons open /play3d/, with a pixel-edition link beside them. Shots are
+              3D renders saved as 1600×900 WebP in public/screenshots/ (globe-asia and act2-wyoming also feed the PWA
+              manifest), shot in Chrome on the real GPU at the High preset by freezing menu-tour shots (`game.tour`:
+              index − 1, `nextShot`, `running = false`) or `makeDioramaScene` + `aim`; the gallery's 2-wide shots need
+              their order kept (see the comment in landing.css). The OG card and the no-script globe: `tools/og3d.mjs`
   platform/   platform.ts: browser vs installed PWA vs desktop app (quit, fullscreen, install prompt, service worker)
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
               achievements.ts (per-device achievement store: unlocked, advisors met, places visited)
@@ -422,8 +428,8 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
 **Next:** the user plays v0.10.1 (their first 3D polish list is done: SPEC §28 "The polish pass"; still open there),
-then their choice of edition. **To do (asked 2026-11-10): bring the website up to the 3D look** — it still shows only the 2D pixel art (the hero, the gallery's
-`public/screenshots/`, the PWA manifest shots, the OG image); new 3D shots and copy once the polish list is done. Still pending after that:
+then their choice of edition. The website shows the 3D look since 2026-11-10 (3D hero globe, 3D shots, OG card,
+copy; Play opens /play3d/). Still pending after that:
 their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the log and v1.0.0
 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
 (deferred until marketing), Electron/Steam wrapper if the game goes to Steam.

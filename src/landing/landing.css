@@ -1,5 +1,6 @@
-/* The public home page (2026 redesign). The game's fonts come from base.css; the look here is the site's own:
-   deep space, soft glows, glass panels and big pixel-art screenshots. The hero keeps the game's logo and globe. */
+/* The public home page (2026 redesign, 3D shots since v0.10.1). The game's fonts come from base.css; the look here
+   is the site's own: deep space, soft glows, glass panels and big screenshots from the 3D edition. The hero keeps the
+   game's pixel logo; its globe is the 3D edition's (the pixel one where WebGL is missing). */
 
 :root {
   --site-bg: #07060d;
@@ -58,15 +59,12 @@ body.landing {
 body.landing * {
   image-rendering: auto;
 }
+/* (the screenshots are 3D renders now: smooth scaling) */
 body.landing img.px-art,
-body.landing .shot img,
-body.landing .act-shot img,
-body.landing .tile-shot,
 body.landing .tile-icon,
 body.landing .logo,
 body.landing .brand img,
-body.landing #globe,
-body.landing .lightbox img {
+body.landing #globe.px {
   image-rendering: pixelated;
 }
 
@@ -300,6 +298,21 @@ section {
   font-size: 14px;
   color: var(--site-dim);
 }
+.fineprint a {
+  color: var(--site-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.fineprint a:hover {
+  color: var(--site-text);
+}
+.tagline .new3d {
+  font-weight: 800;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .hero-globe {
   position: relative;
   display: grid;
@@ -312,14 +325,18 @@ section {
   background: radial-gradient(circle, rgb(95 211 181 / 0.22), rgb(80 110 255 / 0.1) 45%, transparent 70%);
   filter: blur(30px);
 }
-#globe {
+/* the pixel globe and the 3D one share the grid cell: the 3D one fades in over the pixel one */
+#globe,
+#globe3d {
+  grid-area: 1 / 1;
   position: relative;
   width: min(100%, 480px);
   aspect-ratio: 1;
   opacity: 0;
   transition: opacity 0.9s;
 }
-#globe.ready {
+#globe.ready,
+#globe3d.ready {
   opacity: 1;
 }
 .hero-globe noscript img {
@@ -1029,7 +1046,8 @@ details.release[open] > summary .release-head::after {
   .hero-globe {
     order: -1;
   }
-  #globe {
+  #globe,
+  #globe3d {
     width: min(76vw, 380px);
   }
   .stats {
