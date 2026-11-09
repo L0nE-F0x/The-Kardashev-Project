@@ -18,7 +18,7 @@ import { siteVisible } from '../../render/worldMap/act2Layers';
 import { REGIONS } from '../../content/regions';
 import type { GameState, Shipment } from '../../sim/types';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, lonLatOf, R } from './earth';
-import { Kit, rng } from '../kit';
+import { disposeObject, Kit, rng } from '../kit';
 import { Labels } from './labels';
 import { globePath, NetworkLayer } from './layers2';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
@@ -698,10 +698,7 @@ export class GlobeScene implements Scene3D {
 
   destroy() {
     this.labels.destroy();
-    this.scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.geometry) m.geometry.dispose();
-    });
+    disposeObject(this.scene);
     void this.cursor;
   }
 }

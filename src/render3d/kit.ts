@@ -130,6 +130,7 @@ function grainTexture() {
       data.set([r * 255, g * 255, 0, 255], (y * n + x) * 4);
     }
   grainTex = new THREE.DataTexture(data, n, n);
+  grainTex.userData.shared = true;
   grainTex.wrapS = grainTex.wrapT = THREE.RepeatWrapping;
   grainTex.magFilter = THREE.LinearFilter;
   grainTex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -168,6 +169,7 @@ export function withGrain<M extends THREE.MeshStandardMaterial>(m: M, k = 0.22):
 // ── materials ────────────────────────────────────────────────────────────────────────────────
 /** The matte vertex-coloured material every code-built piece shares. */
 export const paintMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }));
+paintMat.userData.shared = true;
 
 /** Glowing bits (windows, beacons, screens): emissive driven by the time of day. */
 export function glowMat(c: Paint, base = 0.15) {
@@ -207,6 +209,7 @@ function poolTexture() {
   g.fillStyle = grd;
   g.fillRect(0, 0, 128, 128);
   poolTex = new THREE.CanvasTexture(c);
+  poolTex.userData.shared = true;
   poolTex.colorSpace = THREE.SRGBColorSpace;
   return poolTex;
 }
@@ -335,4 +338,41 @@ export class Kit {
 export function shadows(o: THREE.Object3D, cast = true, receive = true) {
   o.traverse((c) => { if ((c as THREE.Mesh).isMesh) { c.castShadow = cast; c.receiveShadow = receive; } });
   return o;
+}
+
+// ── freeing a scene ──────────────────────────────────────────────────────────────────────────
+const TEX_KEYS = ['map', 'emissiveMap', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'alphaMap', 'bumpMap', 'lightMap', 'envMap', 'displacementMap'] as const;
+
+/**
+ * Free what a scene built on the GPU when it goes: geometries, materials (their shader programs), their
+ * textures (sign canvases, data textures) and shadow maps. Shared things stay: anything marked
+ * `userData.shared` (model geometry and materials, cached kit textures, the Earth's textures) and model
+ * images (ImageBitmaps the model cache keeps using).
+ */
+export function disposeObject(root: THREE.Object3D) {
+  const mats = new Set<THREE.Material>(), texs = new Set<THREE.Texture>();
+  const addTex = (t: unknown) => { if (t && (t as THREE.Texture).isTexture) texs.add(t as THREE.Texture); };
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.geometry && !m.geometry.userData.shared) m.geometry.dispose();
+    if (m.material) for (const mat of Array.isArray(m.material) ? m.material : [m.material]) mats.add(mat);
+    const l = o as THREE.DirectionalLight;
+    if (l.isLight && l.shadow?.map) l.shadow.dispose();
+    // every rigged figure's skeleton holds a bone texture of its own
+    const sk = o as THREE.SkinnedMesh;
+    if (sk.isSkinnedMesh) sk.skeleton?.dispose();
+  });
+  if (root instanceof THREE.Scene) { addTex(root.background); addTex(root.environment); }
+  for (const mat of mats) {
+    if (mat.userData.shared) continue;
+    const rec = mat as unknown as Record<string, unknown>;
+    for (const k of TEX_KEYS) addTex(rec[k]);
+    const u = (mat as THREE.ShaderMaterial).uniforms;
+    if (u) for (const v of Object.values(u)) addTex(v?.value);
+    mat.dispose();
+  }
+  for (const t of texs) {
+    if (t.userData.shared || (typeof ImageBitmap !== 'undefined' && t.image instanceof ImageBitmap)) continue;
+    t.dispose();
+  }
 }

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { glowMat, Kit, lightPool, poolMat, rng, type Paint } from '../../../kit';
 import { Plume, sign } from '../../../fx';
 import { instanced, streetLamp, type Env, type Piece } from '../../../pieces';
-import { modelParts } from '../../../models';
+import { hasModel, modelParts } from '../../../models';
 import type { Act3SetOpts } from '../../act3sets';
 import { bench, CHARTER_FLAG, flagPole, Flags, greenery, lampMat, litGlass, litSign, paving, People, plantedTree, sitter, V } from './common';
 import { fit, waterMat } from './secretariat';
@@ -215,14 +215,16 @@ export function plaza(o: Act3SetOpts): Piece {
   g.add(k.build());
   // people: strolling, chatting, a kid with a balloon
   const ppl = new People(B);
-  ppl.walk([[-12.9, -6], [-1, -7.4], [-0.5, 8.6], [-12.9, 8.4]]);
-  ppl.walk([[4.5, 8.6], [4.2, -1.2], [-1.8, 1.6], [-1.4, 8.2]], 'office');
+  // (townsfolk when they've loaded: the scene rebuilds once they have)
+  const town = hasModel('resident_a') && hasModel('kid_b');
+  ppl.walk([[-12.9, -6], [-1, -7.4], [-0.5, 8.6], [-12.9, 8.4]], town ? 'resident_a' : null);
+  ppl.walk([[4.5, 8.6], [4.2, -1.2], [-1.8, 1.6], [-1.4, 8.2]], town ? 'resident_b' : 'office');
   ppl.walk([[13.0, 5.6], [3.6, 5.4], [3.9, -0.6], [12.6, -1.6], [12.4, 1.6]], 'researcher');
   ppl.walk([[-13.6, 12.6], [13.6, 12.6]], 'scientist');
   ppl.stand(0.8, 3.6, 0.6, 'engineer');
   ppl.stand(1.6, 4.3, -2.5, 'office');
   ppl.stand(8.6, -8.0, Math.PI, 'worker');
-  ppl.stand(-2.8, 1.8, -1.2, null, 1.12);
+  ppl.stand(-2.8, 1.8, -1.2, town ? 'kid_b' : null, town ? 1.28 : 1.12);
   const balloon = new THREE.Group();
   const bk = new Kit(rng(o.seed + 20));
   bk.geo(new THREE.SphereGeometry(0.34, 12, 10).scale(1, 1.15, 1).translate(0, 1.55, 0), 'red3', 0.02);

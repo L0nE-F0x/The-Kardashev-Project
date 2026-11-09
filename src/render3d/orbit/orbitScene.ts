@@ -17,7 +17,7 @@ import { ANCHORS } from '../../content/charter';
 import type { RegionId } from '../../content/mapcodes';
 import { subsolar } from '../../world/sun';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, R } from '../globe/earth';
-import { Kit, rng, noise } from '../kit';
+import { disposeObject, Kit, rng, noise } from '../kit';
 import { Labels } from '../globe/labels';
 
 const RAD = Math.PI / 180;
@@ -434,6 +434,7 @@ export class OrbitScene3D implements Scene3D {
   destroy() {
     this.labels.destroy();
     this.game.stage.canvas.style.cursor = '';
+    disposeObject(this.scene);
     void this.opts;
   }
 }

@@ -17,8 +17,8 @@ import { MAX_EXTRA_SLOTS } from '../../sim/model';
 import type { AdvisorId, Facility, GameState } from '../../sim/types';
 import { subsolar } from '../../world/sun';
 import { dir } from '../globe/earth';
-import { closeScope, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
-import { hasModel, loadModels, modelParts, model, type PersonName } from '../models';
+import { closeScope, disposeObject, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
+import { hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
   scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
@@ -124,7 +124,13 @@ export class CampusScene implements Scene3D {
     // looks out level, so the Earth hangs behind the station and Aurora's land rises up overhead
     this.pitch = this.site.kind === 'mine' ? 1.0 : this.scenery === 'space' ? 1.3 : this.scenery === 'habitat' ? 1.42 : 1.16;
     if (this.scenery === 'habitat') this.dist = Math.min(this.dist, 150);
+    // Aurora's town and Geneva's plaza have townsfolk (children, people in everyday clothes): load them, then
+    // rebuild with them in place of the stand-ins
+    if ((this.scenery === 'habitat' || this.scenery === 'geneva') && !TOWNSFOLK.every(hasModel)) {
+      loadModels(TOWNSFOLK).then(() => { if (!this.gone) this.build(); }).catch(() => {});
+    }
   }
+  private gone = false;
 
   /** The planner's key the set pieces were built from (Act III–V sites), null elsewhere. */
   private planKey: string | null = null;
@@ -133,7 +139,10 @@ export class CampusScene implements Scene3D {
   /** (Re)build everything but the camera: the ground, the sky, the pieces, the life. */
   private build() {
     const s = this.game.view;
-    for (const c of [...this.scene.children]) this.scene.remove(c);
+    for (const c of [...this.scene.children]) {
+      this.scene.remove(c);
+      disposeObject(c);
+    }
     this.world = new THREE.Group();
     this.roads = new THREE.Group();
     this.hitboxes = new THREE.Group();
@@ -978,12 +987,10 @@ export class CampusScene implements Scene3D {
   zoomOut() { this.goal = { dist: Math.min(460, this.dist * 1.3) }; }
 
   destroy() {
+    this.gone = true;
     closeScope(this.scope);
     this.game.stage.canvas.style.cursor = '';
-    this.scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.geometry && !m.geometry.userData.shared) m.geometry.dispose();
-    });
+    disposeObject(this.scene);
   }
 }
 

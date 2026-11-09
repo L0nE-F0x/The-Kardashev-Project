@@ -13,7 +13,11 @@ import { col, glowMat, Kit, kitDetail, mix, rng, withClouds, type Paint } from '
 import { sign } from '../../../fx';
 import type { Env, Piece } from '../../../pieces';
 import { Crowd } from '../../life';
-import { person as rigged, type PersonName } from '../../../models';
+import { hasModel, person as rigged, type PersonName } from '../../../models';
+
+/** While the townsfolk are still loading, a loaded figure stands in (the scene rebuilds once they arrive). */
+const STAND_IN: Partial<Record<PersonName, PersonName>> = { resident_a: 'office', resident_b: 'engineer', kid_a: 'office', kid_b: 'researcher' };
+const fig = (k: PersonName): PersonName => (hasModel(k) ? k : STAND_IN[k] ?? k);
 import { habFloor } from '../../habitatShell';
 import { treeGeometry, type TreeKind } from '../../trees';
 import { glassMat } from '../../plants2/parts';
@@ -115,7 +119,7 @@ export class Hab {
   mesh(m: THREE.Mesh, flat = false) { this.extra.push({ m, bend: !flat }); return m; }
   /** A person standing (feet-together frame). */
   stand(x: number, z: number, ry: number, kind: PersonName = 'office', h = 1.75) {
-    const p = rigged(kind, h * (0.95 + this.r() * 0.1));
+    const p = rigged(fig(kind), h * (0.95 + this.r() * 0.1));
     if (!p) return;
     p.walk.time = 0;
     p.mixer.update(0);
@@ -133,7 +137,7 @@ export class Hab {
   }
   /** Someone walking a loop of points. */
   walk(pts: [number, number][], kind: PersonName | null = null, o: { speed?: number; height?: number; pause?: [number, number] } = {}) {
-    this.crowd.add(kind ?? this.pick(RESIDENTS), pts, (_x, z) => floorY(z), { speed: o.speed, height: o.height, pause: o.pause ?? [1, 5] });
+    this.crowd.add(fig(kind ?? this.pick(RESIDENTS)), pts, (_x, z) => floorY(z), { speed: o.speed, height: o.height, pause: o.pause ?? [1, 5] });
   }
   /** A child running about a small loop round (x, z). */
   kid(x: number, z: number, r = 1.6) {
@@ -143,7 +147,9 @@ export class Hab {
       const a = a0 + (i / n) * TAU, rr = r * (0.5 + this.r() * 0.6);
       pts.push([x + Math.cos(a) * rr, z + Math.sin(a) * rr]);
     }
-    this.crowd.add(this.pick(['office', 'engineer', 'researcher'] as PersonName[]), pts, (_x, zz) => floorY(zz), { speed: 1.9 + this.r() * 0.6, height: 1.05 + this.r() * 0.2, pause: [0.4, 2] });
+    const k = this.pick(['kid_a', 'kid_b'] as PersonName[]);
+    // the children's own figures are 1.25–1.3 tall; a stand-in adult is scaled down to about that
+    this.crowd.add(fig(k), pts, (_x, zz) => floorY(zz), { speed: 1.9 + this.r() * 0.6, height: hasModel(k) ? 1.12 + this.r() * 0.22 : 1.05 + this.r() * 0.2, pause: [0.4, 2] });
   }
   /** A sign (text in the UI font) facing +z, turned by ry. */
   sign(text: string, w: number, x: number, y: number, z: number, fg: Paint = H.white, bg: Paint | null = null, ry = 0, maxH = 0) {
@@ -249,7 +255,7 @@ function blossomGeo() {
   return blossom;
 }
 
-export const RESIDENTS: PersonName[] = ['office', 'office', 'engineer', 'researcher', 'engineer', 'scientist'];
+export const RESIDENTS: PersonName[] = ['resident_a', 'resident_b', 'office', 'resident_a', 'engineer', 'resident_b', 'researcher', 'scientist'];
 export const CREW: PersonName[] = ['worker', 'worker', 'engineer'];
 
 // ── placements (a turned frame for compound parts) ───────────────────────────────────────────

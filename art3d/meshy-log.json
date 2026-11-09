@@ -664,5 +664,485 @@
     "step": "rig.done",
     "id": "01a1bf2a-e6ae-72d6-ab86-e983b8c3e320",
     "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:37:34.525Z",
+    "name": "adv_mira",
+    "step": "concept",
+    "id": "01a1bf74-a228-70de-a809-d9ebf2307df0",
+    "subject": "Mira, a supply-chain lead with light-medium skin and long straight black hair, a slim wireless headset, a deep violet blazer over a dark top, grey trousers"
+  },
+  {
+    "at": "2026-11-09T08:37:34.531Z",
+    "name": "adv_penny",
+    "step": "concept",
+    "id": "01a1bf74-a228-75a3-906a-a51ccb55b58d",
+    "subject": "Penny, a sharp chief financial officer with light skin, a chin-length brown bob and round glasses, a charcoal grey trouser suit, a slim folder under one arm"
+  },
+  {
+    "at": "2026-11-09T08:37:34.539Z",
+    "name": "adv_juno",
+    "step": "concept",
+    "id": "01a1bf74-a225-70d5-9e0c-0c28d17ffe7f",
+    "subject": "Juno, a chief engineer with dark brown skin and short black hair under a bright yellow hard hat, a navy blue work jacket with reflective trim, dark work trousers, sturdy boots, a tablet in one hand"
+  },
+  {
+    "at": "2026-11-09T08:37:51.958Z",
+    "name": "adv_penny",
+    "step": "concept.done",
+    "id": "01a1bf74-a228-75a3-906a-a51ccb55b58d",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:37:51.960Z",
+    "name": "adv_juno",
+    "step": "concept.done",
+    "id": "01a1bf74-a225-70d5-9e0c-0c28d17ffe7f",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:37:51.972Z",
+    "name": "adv_mira",
+    "step": "concept.done",
+    "id": "01a1bf74-a228-70de-a809-d9ebf2307df0",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:37:54.355Z",
+    "name": "adv_kip",
+    "step": "concept",
+    "id": "01a1bf74-ef94-73fd-8be9-9b219f80f453",
+    "subject": "Kip, a space and launch enthusiast with fair skin and spiky blond hair, sky-blue goggles pushed up on the forehead, an orange flight jacket with a blue mission patch, cargo trousers, boots"
+  },
+  {
+    "at": "2026-11-09T08:37:54.362Z",
+    "name": "adv_sol",
+    "step": "concept",
+    "id": "01a1bf74-ef9c-722e-8771-ce61c153180e",
+    "subject": "Sol, a warm diplomat with medium-brown skin, curly dark hair and a short beard, a sand-coloured suit, a red scarf loosely round the neck"
+  },
+  {
+    "at": "2026-11-09T08:37:54.367Z",
+    "name": "adv_iris",
+    "step": "concept",
+    "id": "01a1bf74-efac-74ff-9892-7350b7c7f0fd",
+    "subject": "Dr. Iris, a calm AI safety lead with fair skin, grey hair in a neat bun, rectangular glasses, a white lab coat over a light grey sweater"
+  },
+  {
+    "at": "2026-11-09T08:38:11.759Z",
+    "name": "adv_kip",
+    "step": "concept.done",
+    "id": "01a1bf74-ef94-73fd-8be9-9b219f80f453",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:38:11.785Z",
+    "name": "adv_iris",
+    "step": "concept.done",
+    "id": "01a1bf74-efac-74ff-9892-7350b7c7f0fd",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:38:46.191Z",
+    "name": "adv_sol",
+    "step": "concept.done",
+    "id": "01a1bf74-ef9c-722e-8771-ce61c153180e",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:38:48.272Z",
+    "name": "adv_lena",
+    "step": "concept",
+    "id": "01a1bf75-c238-77af-8bd3-905d2b5c47cb",
+    "subject": "Dr. Lena, a fusion physicist with light-medium skin, a short grey pixie cut and thin glasses, a light grey suit over a violet shirt, a small pink pin and earrings"
+  },
+  {
+    "at": "2026-11-09T08:38:48.299Z",
+    "name": "astronaut",
+    "step": "concept",
+    "id": "01a1bf75-c25e-73c9-8c11-2cb214f402e9",
+    "subject": "An astronaut in a white lunar surface suit with a gold-tinted visor, a backpack life-support unit, orange and slate-blue trim, chunky boots"
+  },
+  {
+    "at": "2026-11-09T08:39:05.858Z",
+    "name": "adv_lena",
+    "step": "concept.done",
+    "id": "01a1bf75-c238-77af-8bd3-905d2b5c47cb",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:39:18.094Z",
+    "name": "astronaut",
+    "step": "concept",
+    "id": "01a1bf76-36b3-729a-b547-2d26d194c215",
+    "subject": "An astronaut in a white lunar surface suit with a gold-tinted visor, a backpack life-support unit, orange and slate-blue trim, chunky boots"
+  },
+  {
+    "at": "2026-11-09T08:39:41.272Z",
+    "name": "astronaut",
+    "step": "concept.done",
+    "id": "01a1bf76-36b3-729a-b547-2d26d194c215",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T08:40:00.489Z",
+    "name": "adv_juno",
+    "step": "model",
+    "id": "01a1bf76-cf5c-7357-87f0-5db0afebfcd2"
+  },
+  {
+    "at": "2026-11-09T08:40:01.768Z",
+    "name": "adv_mira",
+    "step": "model",
+    "id": "01a1bf76-cfb3-7117-8332-bf28f5e45a70"
+  },
+  {
+    "at": "2026-11-09T08:40:02.025Z",
+    "name": "adv_penny",
+    "step": "model",
+    "id": "01a1bf76-cfc5-76a2-9d64-071b66fba2d2"
+  },
+  {
+    "at": "2026-11-09T08:41:11.237Z",
+    "name": "adv_mira",
+    "step": "model.done",
+    "id": "01a1bf76-cfb3-7117-8332-bf28f5e45a70",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:41:11.242Z",
+    "name": "adv_penny",
+    "step": "model.done",
+    "id": "01a1bf76-cfc5-76a2-9d64-071b66fba2d2",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:41:19.748Z",
+    "name": "adv_penny",
+    "step": "rig",
+    "id": "01a1bf78-0746-77fd-9feb-d0aea366a548"
+  },
+  {
+    "at": "2026-11-09T08:41:19.944Z",
+    "name": "adv_mira",
+    "step": "rig",
+    "id": "01a1bf78-0777-75fe-9a3f-91c139e2d56e"
+  },
+  {
+    "at": "2026-11-09T08:41:22.148Z",
+    "name": "adv_juno",
+    "step": "model.done",
+    "id": "01a1bf76-cf5c-7357-87f0-5db0afebfcd2",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:41:28.341Z",
+    "name": "adv_juno",
+    "step": "rig",
+    "id": "01a1bf78-2900-742c-b1e1-7a8c2ac9e6d9"
+  },
+  {
+    "at": "2026-11-09T08:41:31.542Z",
+    "name": "adv_penny",
+    "step": "rig.done",
+    "id": "01a1bf78-0746-77fd-9feb-d0aea366a548",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:41:31.760Z",
+    "name": "adv_mira",
+    "step": "rig.done",
+    "id": "01a1bf78-0777-75fe-9a3f-91c139e2d56e",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:41:40.916Z",
+    "name": "adv_juno",
+    "step": "rig.done",
+    "id": "01a1bf78-2900-742c-b1e1-7a8c2ac9e6d9",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:42:02.152Z",
+    "name": "adv_kip",
+    "step": "model",
+    "id": "01a1bf78-9754-73b7-806e-4cbdeb3547b3"
+  },
+  {
+    "at": "2026-11-09T08:42:02.204Z",
+    "name": "adv_sol",
+    "step": "model",
+    "id": "01a1bf78-9729-7048-bd73-419eb23885aa"
+  },
+  {
+    "at": "2026-11-09T08:42:04.012Z",
+    "name": "adv_iris",
+    "step": "model",
+    "id": "01a1bf78-9741-7451-9854-6174db362215"
+  },
+  {
+    "at": "2026-11-09T08:43:12.232Z",
+    "name": "adv_kip",
+    "step": "model.done",
+    "id": "01a1bf78-9754-73b7-806e-4cbdeb3547b3",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:43:12.290Z",
+    "name": "adv_sol",
+    "step": "model.done",
+    "id": "01a1bf78-9729-7048-bd73-419eb23885aa",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:43:20.343Z",
+    "name": "adv_iris",
+    "step": "model.done",
+    "id": "01a1bf78-9741-7451-9854-6174db362215",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:43:21.028Z",
+    "name": "adv_sol",
+    "step": "rig",
+    "id": "01a1bf79-e0e8-73c4-9695-43709086f1e9"
+  },
+  {
+    "at": "2026-11-09T08:43:22.289Z",
+    "name": "adv_kip",
+    "step": "rig",
+    "id": "01a1bf79-e5f3-70e6-bdf6-91e17ad9ea6f"
+  },
+  {
+    "at": "2026-11-09T08:43:28.685Z",
+    "name": "adv_iris",
+    "step": "rig",
+    "id": "01a1bf79-fc84-760f-9083-e15e3a929ca8"
+  },
+  {
+    "at": "2026-11-09T08:43:32.854Z",
+    "name": "adv_sol",
+    "step": "rig.done",
+    "id": "01a1bf79-e0e8-73c4-9695-43709086f1e9",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:43:34.237Z",
+    "name": "adv_kip",
+    "step": "rig.done",
+    "id": "01a1bf79-e5f3-70e6-bdf6-91e17ad9ea6f",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:43:41.491Z",
+    "name": "adv_iris",
+    "step": "rig.done",
+    "id": "01a1bf79-fc84-760f-9083-e15e3a929ca8",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:44:10.984Z",
+    "name": "adv_lena",
+    "step": "model",
+    "id": "01a1bf7a-9cca-7267-9df4-cea5caa86ecd"
+  },
+  {
+    "at": "2026-11-09T08:44:15.145Z",
+    "name": "astronaut",
+    "step": "model",
+    "id": "01a1bf7a-9cd7-776b-bc0f-94615b7f4993"
+  },
+  {
+    "at": "2026-11-09T08:45:20.307Z",
+    "name": "adv_lena",
+    "step": "model.done",
+    "id": "01a1bf7a-9cca-7267-9df4-cea5caa86ecd",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:45:27.884Z",
+    "name": "adv_lena",
+    "step": "rig",
+    "id": "01a1bf7b-d013-7026-afdd-851902f6368b"
+  },
+  {
+    "at": "2026-11-09T08:45:36.329Z",
+    "name": "astronaut",
+    "step": "model.done",
+    "id": "01a1bf7a-9cd7-776b-bc0f-94615b7f4993",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T08:45:39.757Z",
+    "name": "adv_lena",
+    "step": "rig.done",
+    "id": "01a1bf7b-d013-7026-afdd-851902f6368b",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T08:45:43.610Z",
+    "name": "astronaut",
+    "step": "rig",
+    "id": "01a1bf7c-0d77-7751-b586-1ad89d032a8e"
+  },
+  {
+    "at": "2026-11-09T08:45:55.509Z",
+    "name": "astronaut",
+    "step": "rig.done",
+    "id": "01a1bf7c-0d77-7751-b586-1ad89d032a8e",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T13:59:57.049Z",
+    "name": "kid_a",
+    "step": "concept",
+    "id": "01a1c09b-c6dd-7249-83ed-aedd0f1807ae",
+    "subject": "A cheerful child of about eight with medium-brown skin and short curly dark hair, a mustard-yellow t-shirt, teal shorts, white sneakers; child proportions, short and small"
+  },
+  {
+    "at": "2026-11-09T13:59:57.057Z",
+    "name": "resident_a",
+    "step": "concept",
+    "id": "01a1c09b-c6db-72cd-a519-70b249743f2f",
+    "subject": "A relaxed townsperson in a garden town, a woman with dark skin and a short natural afro, a loose sage-green linen shirt, rolled cream trousers, sandals, a canvas tote bag on one shoulder"
+  },
+  {
+    "at": "2026-11-09T13:59:57.060Z",
+    "name": "kid_b",
+    "step": "concept",
+    "id": "01a1c09b-c6e1-7732-b6d8-6e991a5b9ec1",
+    "subject": "A child of about nine with light skin and two auburn braids, a terracotta-red dress over a cream long-sleeve top, green rubber boots; child proportions, short and small"
+  },
+  {
+    "at": "2026-11-09T14:00:14.181Z",
+    "name": "resident_a",
+    "step": "concept.done",
+    "id": "01a1c09b-c6db-72cd-a519-70b249743f2f",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T14:00:19.802Z",
+    "name": "kid_a",
+    "step": "concept.done",
+    "id": "01a1c09b-c6dd-7249-83ed-aedd0f1807ae",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T14:00:21.480Z",
+    "name": "resident_b",
+    "step": "concept",
+    "id": "01a1c09c-2651-7765-b027-614e4fde8bb8",
+    "subject": "A relaxed townsperson in a garden town, an older man with light-medium skin, grey hair and a grey beard, a straw sun hat, a faded blue work jacket over a white t-shirt, brown corduroy trousers, boots"
+  },
+  {
+    "at": "2026-11-09T14:00:38.614Z",
+    "name": "resident_b",
+    "step": "concept.done",
+    "id": "01a1c09c-2651-7765-b027-614e4fde8bb8",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T14:00:54.958Z",
+    "name": "resident_a",
+    "step": "model",
+    "id": "01a1c09c-a38d-74fa-99e3-0d0d31515c6b"
+  },
+  {
+    "at": "2026-11-09T14:00:54.991Z",
+    "name": "kid_b",
+    "step": "model",
+    "id": "01a1c09c-a411-7506-bb53-8e2345f32342"
+  },
+  {
+    "at": "2026-11-09T14:00:55.025Z",
+    "name": "kid_a",
+    "step": "model",
+    "id": "01a1c09c-a309-7138-b676-43bba0bf654b"
+  },
+  {
+    "at": "2026-11-09T14:02:36.292Z",
+    "name": "kid_b",
+    "step": "model.done",
+    "id": "01a1c09c-a411-7506-bb53-8e2345f32342",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T14:02:36.297Z",
+    "name": "resident_a",
+    "step": "model.done",
+    "id": "01a1c09c-a38d-74fa-99e3-0d0d31515c6b",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T14:02:58.810Z",
+    "name": "kid_a",
+    "step": "model.done",
+    "id": "01a1c09c-a309-7138-b676-43bba0bf654b",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T14:03:02.687Z",
+    "name": "resident_b",
+    "step": "model",
+    "id": "01a1c09e-96e2-73d0-a03c-522a567eaf35"
+  },
+  {
+    "at": "2026-11-09T14:05:00.789Z",
+    "name": "resident_b",
+    "step": "model.done",
+    "id": "01a1c09e-96e2-73d0-a03c-522a567eaf35",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T14:05:29.209Z",
+    "name": "resident_a",
+    "step": "rig",
+    "id": "01a1c0a0-c26d-77d1-8b66-367213055e14"
+  },
+  {
+    "at": "2026-11-09T14:05:29.426Z",
+    "name": "kid_b",
+    "step": "rig",
+    "id": "01a1c0a0-c26a-75a4-b93a-67b8063a7e76"
+  },
+  {
+    "at": "2026-11-09T14:05:30.236Z",
+    "name": "kid_a",
+    "step": "rig",
+    "id": "01a1c0a0-c26a-7071-aac6-ffb4d77cc5f9"
+  },
+  {
+    "at": "2026-11-09T14:05:40.675Z",
+    "name": "resident_a",
+    "step": "rig.done",
+    "id": "01a1c0a0-c26d-77d1-8b66-367213055e14",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T14:05:40.876Z",
+    "name": "kid_b",
+    "step": "rig.done",
+    "id": "01a1c0a0-c26a-75a4-b93a-67b8063a7e76",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T14:05:41.734Z",
+    "name": "kid_a",
+    "step": "rig.done",
+    "id": "01a1c0a0-c26a-7071-aac6-ffb4d77cc5f9",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T14:06:07.747Z",
+    "name": "resident_b",
+    "step": "rig",
+    "id": "01a1c0a1-617d-7567-a4c6-a4d7f8951318"
+  },
+  {
+    "at": "2026-11-09T14:06:19.197Z",
+    "name": "resident_b",
+    "step": "rig.done",
+    "id": "01a1c0a1-617d-7567-a4c6-a4d7f8951318",
+    "credits": 5
   }
 ]

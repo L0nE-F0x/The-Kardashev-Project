@@ -98,12 +98,16 @@ async function show(o: LabOpts = {}) {
   }
   // ?people=1: everyone with a rig in a row (a lineup for checking the figures)
   if (q.has('people')) {
-    const all = ['worker', 'engineer', 'researcher', 'scientist', 'office', 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut'] as const;
+    // (?people=town: only the townsfolk)
+    const all = q.get('people') === 'town' ? (['resident_a', 'kid_a', 'resident_b', 'kid_b', 'office'] as const)
+      : (['worker', 'engineer', 'researcher', 'scientist', 'office', 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut', 'resident_a', 'resident_b', 'kid_a', 'kid_b'] as const);
     await loadModels([...all]);
     all.forEach((k, i) => {
-      const f = person(k);
+      const f = person(k, k.startsWith('kid') ? 1.28 : 1.75);
       if (!f) return;
-      f.obj.position.set(-12 + i * 2, 0, 8);
+      const town = q.get('people') === 'town';
+      f.obj.position.set((i - (all.length - 1) / 2) * (town ? 1.1 : 1.7), 0, town ? 0 : 8);
+      if (town && piece) piece.obj.visible = false;
       f.walk.paused = true;
       f.walk.time = 0;
       f.mixer.update(0);

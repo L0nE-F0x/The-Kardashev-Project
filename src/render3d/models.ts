@@ -13,11 +13,14 @@ export type ModelName =
   | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'mesquite' | 'oak'
   | 'pickup' | 'semitruck' | 'sedan' | 'hatchback' | 'suv' | 'van' | 'mixer' | 'flatbed';
 export type PersonName = 'worker' | 'engineer' | 'researcher' | 'scientist' | 'office'
-  | 'adv_juno' | 'adv_penny' | 'adv_mira' | 'adv_sol' | 'adv_iris' | 'adv_kip' | 'adv_lena' | 'astronaut';
+  | 'adv_juno' | 'adv_penny' | 'adv_mira' | 'adv_sol' | 'adv_iris' | 'adv_kip' | 'adv_lena' | 'astronaut'
+  | 'kid_a' | 'kid_b' | 'resident_a' | 'resident_b';
 /** The crowd's everyday figures (loaded at boot). */
 export const PEOPLE: PersonName[] = ['worker', 'engineer', 'researcher', 'scientist', 'office'];
 /** Everyone with a rig (advisors and astronauts load when a scene needs them). */
-const RIGGED = new Set<string>([...PEOPLE, 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut']);
+/** Townsfolk: two children and two people in everyday clothes (Aurora's town, Geneva's plaza; loaded there). */
+export const TOWNSFOLK: PersonName[] = ['kid_a', 'kid_b', 'resident_a', 'resident_b'];
+const RIGGED = new Set<string>([...PEOPLE, ...TOWNSFOLK, 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut']);
 export const CARS: ModelName[] = ['sedan', 'hatchback', 'suv', 'pickup', 'van'];
 
 // the page lives at /play3d/: the models sit next to it, in /3d/models/
@@ -64,6 +67,7 @@ function prepare(root: THREE.Object3D, skinned: boolean) {
     if (mesh.isMesh) {
       mesh.geometry.userData.shared = true;
       mesh.material = paletteMaterial(mesh.material as THREE.MeshStandardMaterial, skinned);
+      (mesh.material as THREE.Material).userData.shared = true;
       mesh.castShadow = true;
       mesh.receiveShadow = !skinned;
       if (skinned) mesh.frustumCulled = false;

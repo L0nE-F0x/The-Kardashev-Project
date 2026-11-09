@@ -175,6 +175,8 @@ export function earthTextures(lod: MapLod): EarthTextures {
     lights: cityLights(),
     clouds: cloudMap(),
   };
+  // the globe, the orbit view and space views all borrow these: never freed with a scene
+  for (const t of Object.values(cached)) (t as THREE.Texture).userData.shared = true;
   return cached;
 }
 

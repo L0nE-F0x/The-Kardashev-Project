@@ -15,7 +15,7 @@ import { systemView, type SystemView } from '../../sim/systemView';
 import { ASTEROIDS } from '../../content/system';
 import { dateOf } from '../../sim/core';
 import { cloudMaterial, earthMaterial, earthTextures } from '../globe/earth';
-import { Kit, rng, noise } from '../kit';
+import { disposeObject, Kit, rng, noise } from '../kit';
 import { Labels } from '../globe/labels';
 import { PALETTE } from '../../render/palette';
 
@@ -361,7 +361,7 @@ export class SystemScene3D implements Scene3D {
   wheel(_p: PixelPointer, deltaY: number) { if (!this.opts.cinematic) this.goalDist = Math.max(160, Math.min(2200, this.goalDist * Math.pow(1.0015, deltaY))); }
   zoomIn() { this.goalDist = Math.max(160, this.goalDist / 1.3); }
   zoomOut() { this.goalDist = Math.min(2200, this.goalDist * 1.3); }
-  destroy() { this.labels.destroy(); this.game.stage.canvas.style.cursor = ''; }
+  destroy() { this.labels.destroy(); this.game.stage.canvas.style.cursor = ''; disposeObject(this.scene); }
 }
 
 function radialTexture() {
