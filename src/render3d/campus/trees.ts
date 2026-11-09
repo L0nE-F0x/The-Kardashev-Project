@@ -101,9 +101,24 @@ export function treeGeometry(kind: TreeKind): THREE.BufferGeometry {
       add(new THREE.CylinderGeometry(0.1, 0.18, 2.2, 6).translate(0, 1.1, 0).rotateZ(0.08), '#5c3a26');
       add(blobby(1.8, 1, 13, 0.32).translate(0.15, 2.45, 0), '#6f8a3a', 0.16, 2);
       break;
-    case 'shrub':
-      add(blobby(0.7, 0, 15, 0.75).translate(0, 0.35, 0), '#6f7a3c', 0.25);
+    case 'shrub': {
+      // a rounded bush of three soft lobes, darker at the base (smooth-shaded: see SOFT_KINDS)
+      const lobes: [number, number, number, number, string][] = [[0, 0.42, 0, 0.62, '#5f7236'], [0.38, 0.32, 0.12, 0.44, '#6a7c3a'], [-0.32, 0.3, -0.18, 0.46, '#56682f']];
+      for (const [x, y, z, r, c2] of lobes) {
+        // lumpy, not an egg: each vertex pushed in or out a little
+        const ico = new THREE.IcosahedronGeometry(r, 2);
+        const ps = ico.attributes.position, rr = rng(Math.round(r * 1000));
+        const bump = new Map<string, number>();
+        for (let i = 0; i < ps.count; i++) {
+          const key = `${ps.getX(i).toFixed(3)},${ps.getY(i).toFixed(3)},${ps.getZ(i).toFixed(3)}`;
+          let k = bump.get(key);
+          if (k === undefined) { k = 0.88 + rr() * 0.22; bump.set(key, k); }
+          ps.setXYZ(i, ps.getX(i) * k, ps.getY(i) * k, ps.getZ(i) * k);
+        }
+        add(ico.scale(1, 0.82, 1).translate(x, y, z), c2, 0.06, Math.round(r * 100));
+      }
       break;
+    }
     case 'tuft':
       for (let i = 0; i < 5; i++) add(new THREE.ConeGeometry(0.06, 0.6, 3).rotateZ((i - 2) * 0.22).translate((i - 2) * 0.08, 0.28, 0), '#a8a456', 0.2, i);
       break;
@@ -116,6 +131,12 @@ export function treeGeometry(kind: TreeKind): THREE.BufferGeometry {
   }
   const g = mergeGeometries(parts, false)!;
   g.computeVertexNormals();
+  if (kind === 'shrub') {
+    // shade as one soft mass: normals out from the bush's middle
+    const p = g.attributes.position, n = g.attributes.normal, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) { v.set(p.getX(i), (p.getY(i) - 0.3) * 1.2, p.getZ(i)).normalize(); n.setXYZ(i, v.x, v.y, v.z); }
+    g.userData.smooth = true;
+  }
   g.computeBoundingSphere();
   cache.set(kind, g);
   return g;

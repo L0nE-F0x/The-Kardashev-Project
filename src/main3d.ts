@@ -24,7 +24,7 @@ import { loadSettings } from './save/settings';
 import { quality, resolveQuality, setQuality } from './render3d/quality';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
-const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
+const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
 
 async function boot() {
   syncCssVars();

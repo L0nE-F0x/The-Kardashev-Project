@@ -12,9 +12,9 @@ import { withClouds } from './kit';
 export type ModelName =
   | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'mesquite' | 'oak'
   | 'pickup' | 'semitruck' | 'sedan' | 'hatchback' | 'suv' | 'van' | 'mixer' | 'flatbed'
-  | 'rock_a' | 'boulder_a' | 'bush_a' | 'broadleaf_a' | 'pine_a';
+  | 'rock_a' | 'boulder_a' | 'broadleaf_a' | 'pine_a';
 /** Scenery models near a campus: rocks, a bush, two trees (the code-built ones stand further out). */
-export const SCENERY: ModelName[] = ['rock_a', 'boulder_a', 'bush_a', 'broadleaf_a', 'pine_a'];
+export const SCENERY: ModelName[] = ['rock_a', 'boulder_a', 'broadleaf_a', 'pine_a'];
 export type PersonName = 'worker' | 'engineer' | 'researcher' | 'scientist' | 'office'
   | 'adv_juno' | 'adv_penny' | 'adv_mira' | 'adv_sol' | 'adv_iris' | 'adv_kip' | 'adv_lena' | 'astronaut'
   | 'kid_a' | 'kid_b' | 'resident_a' | 'resident_b';

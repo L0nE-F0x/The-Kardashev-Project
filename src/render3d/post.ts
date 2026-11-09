@@ -48,7 +48,7 @@ const TiltShift = {
  * hazy, Grid Rush neutral, Solarpunk Bloom lush and warm, Orbital Dawn clean and cool, Swarmlight gold.
  */
 export const ERA_GRADES: { tint: [number, number, number]; sat: number; lift: number }[] = [
-  { tint: [1.02, 0.99, 0.95], sat: 0.9, lift: 0.015 },
+  { tint: [1.025, 1.0, 0.955], sat: 1.0, lift: 0.006 },
   { tint: [1, 1, 1], sat: 1.0, lift: 0 },
   { tint: [1.02, 1.03, 0.95], sat: 1.12, lift: 0 },
   { tint: [0.97, 1.0, 1.05], sat: 1.04, lift: 0 },

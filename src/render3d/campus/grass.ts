@@ -20,11 +20,10 @@ const hash = (x: number, z: number, s: number) => {
  * One clump: `n` blades from a small base, leaning out and curving over, about 1 unit tall at scale 1.
  * Normals point mostly up, so the blades light like a lawn (no black backs).
  */
-export function clumpGeometry(n = 12, seed = 1, height = 0.62): THREE.BufferGeometry {
+export function clumpGeometry(n = 12, seed = 1, height = 0.62, SEG = 3): THREE.BufferGeometry {
   const pos: number[] = [], nrm: number[] = [], colr: number[] = [], idx: number[] = [];
   let r = seed * 9301 + 49297;
   const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280);
-  const SEG = 3;
   for (let b = 0; b < n; b++) {
     const a = (b / n) * Math.PI * 2 + rnd() * 0.8;
     const rr = Math.sqrt(rnd()) * 0.09;
@@ -120,7 +119,8 @@ export function grassMaterial(kind: 'patch' | 'carpet' = 'carpet') {
 
 let clumpShared: THREE.BufferGeometry | null = null;
 export function sharedClump() {
-  clumpShared ??= clumpGeometry(15, 3, 0.55);
+  // 11 blades in two bends each: ~44 triangles a clump (the patch lays a few thousand round the camera)
+  clumpShared ??= clumpGeometry(11, 3, 0.55, 2);
   clumpShared.userData.shared = true;
   return clumpShared;
 }
@@ -142,8 +142,8 @@ export class GrassPatch {
   private readonly radius: number;
 
   constructor(private readonly h: H, private readonly ok: (x: number, z: number) => boolean, private readonly colours: [THREE.Color, THREE.Color], private readonly tint: (x: number, z: number, out: THREE.Color) => THREE.Color, opts: { radius?: number; cell?: number; density?: number; scale?: [number, number] } = {}) {
-    this.radius = opts.radius ?? 38;
-    this.cell = opts.cell ?? 0.85;
+    this.radius = opts.radius ?? 34;
+    this.cell = opts.cell ?? 0.8;
     this.density = opts.density ?? 1;
     this.scale = opts.scale ?? [0.75, 1.35];
     const max = Math.ceil(Math.PI * (this.radius / this.cell) ** 2 * 1.05);

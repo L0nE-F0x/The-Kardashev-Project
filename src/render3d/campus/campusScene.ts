@@ -26,7 +26,7 @@ import {
 import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
-import { BACKDROPS, buildGround, type Backdrop, type Ground, type GroundModels } from './ground';
+import { BACKDROPS, buildGround, plantMatSmooth, type Backdrop, type Ground, type GroundModels } from './ground';
 import { habFloor, habitatShell, HAB_R } from './habitatShell';
 import { treeField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
@@ -38,6 +38,7 @@ import { Crowd, makeBit } from './life';
 import { Traffic } from './vehicles';
 import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
 import { GrassPatch, grassColours } from './grass';
+import { fieldMesh, hedgePoints, inField } from './fields';
 import { deskHolder } from '../../sim/systemView';
 import { sfx } from '../../audio/sfx';
 
@@ -232,8 +233,9 @@ export class CampusScene implements Scene3D {
     const far = maxCols ? cellRect(maxCols, maxCols * 2 - 1) : this.layout.bounds;
     const flat: Rect = { x0: this.layout.bounds.x0, z0: this.layout.bounds.z0, x1: Math.max(this.layout.bounds.x1, far.x1 + 10), z1: this.layout.bounds.z1 };
     const seed = hashStr(this.siteId);
-    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = modelParts('mesquite'); return p ? instanced(p.parts, p.size, at, 6.5) : null; };
-    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = modelParts('oak'); return p ? instanced(p.parts, p.size, at, 7) : null; };
+    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('mesquite'); return p ? instanced(p.parts, p.size, at, 6.5) : null; };
+    // the leafy broadleaf (it reads as a real tree beside the figures) stands in for the old chunky oak
+    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('broadleaf_a') ?? modelParts('oak'); return p ? instanced(p.parts, p.size, at.map((a) => ({ ...a, s: a.s * 1.1, y: a.y - 0.1 })), 6.2) : null; };
     const roadless = this.scenery !== 'campus' && this.scenery !== 'geneva' && this.scenery !== 'launch' && this.scenery !== 'mega';
     const ex = this.sceneExtra as { km?: number; type?: string; place?: string; swarm?: number; habitats?: number; lived?: number };
     if (this.scenery === 'space') {
@@ -253,15 +255,17 @@ export class CampusScene implements Scene3D {
       };
       // Meshy scenery near the campus: width in metres at scale 1 (the code-built kinds' own sizes, a bit larger)
       const meshy = (n: SceneryName, w: number, light: number) => (at: { x: number; y: number; z: number; s: number; ry: number }[]) => {
-        const p = modelParts(n);
+        const p = sceneryParts(n);
         return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
       };
-      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.5, 1.75), boulder: meshy('boulder_a', 3.0, 1.1), shrub: meshy('bush_a', 1.7, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.05), pine: meshy('pine_a', 2.5, 1.05) };
+      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.05), pine: meshy('pine_a', 2.5, 1.05) };
+      if (this.scenery === 'campus' || this.scenery === 'mega') this.groundOpts.farms = { highwayZ: HIGHWAY_Z };
       this.ground = buildGround(this.groundOpts, this.groundModels);
       if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
     }
     this.scene.add(this.ground.mesh, this.ground.plants);
     if (this.ground.water) this.scene.add(this.ground.water);
+    this.farmland();
     this.grass = null;
     const grassy = this.scenery !== 'space' && this.scenery !== 'moon' && this.scenery !== 'asteroid' && this.scenery !== 'habitat' && this.scenery !== 'offshore' && backdrop !== 'desert' && backdrop !== 'lunar';
     if (grassy) {
@@ -269,7 +273,7 @@ export class CampusScene implements Scene3D {
       this.grass = new GrassPatch(this.ground.h, (x, z) => this.grassOk(x, z, roadless), grassColours(BACKDROPS[backdrop].ground), this.ground.tint, {
         density: dry ? 0.55 : backdrop === 'volcanic' || backdrop === 'mountain' ? 0.7 : 1,
         scale: dry ? [0.9, 1.6] : [0.75, 1.35],
-        radius: 38 * Math.max(0.6, Math.min(1, quality.plants)),
+        radius: 34 * Math.max(0.6, Math.min(1, quality.plants)),
       });
       this.scene.add(this.grass.mesh);
     }
@@ -410,6 +414,51 @@ export class CampusScene implements Scene3D {
     this.buildRoads();
   }
 
+  /** The fields' surfaces, their hedgerows and tree lines, and the orchards' rows of trees. */
+  private farmland() {
+    const fields = this.ground.fields ?? [];
+    if (!fields.length) return;
+    const g = new THREE.Group();
+    g.name = 'farmland';
+    const h = this.ground.h;
+    for (const f of fields) g.add(fieldMesh(f, h));
+    const r = rng(hashStr(this.siteId) + 77);
+    const bd = this.site.backdrop ?? 'plains';
+    const conifer = bd === 'boreal' || bd === 'mountain';
+    const trees: { x: number; y: number; z: number; s: number; ry: number }[] = [], bushes: typeof trees = [], orchard: typeof trees = [];
+    const farTrees: Placement[] = [], farBushes: Placement[] = [];
+    const cx = (this.layout.bounds.x0 + this.layout.bounds.x1) / 2, cz = (this.layout.bounds.z0 + this.layout.bounds.z1) / 2;
+    for (const f of fields) {
+      // near the campus the Meshy bush and tree; further out the light code-built ones
+      const far = Math.hypot(f.cx - cx, f.cz - cz) > 230 || quality.plants < 0.5;
+      for (const p of hedgePoints(f, 5.2, r)) {
+        const at = { x: p.x, y: h(p.x, p.z) - 0.1, z: p.z, s: 0.75 + r() * 0.5, ry: r() * Math.PI * 2 };
+        // a hedge of bushes with a tree standing out of it every so often
+        if (r() < 0.22) (far ? farTrees : trees).push({ ...at, s: 0.8 + r() * 0.5 });
+        else (far ? farBushes : bushes).push({ ...at, s: far ? 1.6 + r() * 0.8 : 1.1 + r() * 0.6 });
+      }
+      if (f.crop === 'orchard') {
+        const c = Math.cos(f.rot), sn = Math.sin(f.rot);
+        for (let lz = -f.d / 2 + 2.5; lz < f.d / 2 - 2; lz += 5) for (let lx = -f.w / 2 + 2; lx < f.w / 2 - 2; lx += 4.2) {
+          const x = f.cx + lx * c - lz * sn, z = f.cz + lx * sn + lz * c;
+          orchard.push({ x, y: h(x, z) - 0.05, z, s: 0.55 + r() * 0.2, ry: r() * Math.PI * 2 });
+        }
+      }
+    }
+    const meshyTree = conifer ? 'pine_a' : 'broadleaf_a';
+    const tm = sceneryParts(meshyTree);
+    if (tm && trees.length) g.add(instanced(tm.parts, tm.size, trees, conifer ? 2.5 : 4.6));
+    if (bushes.length) { const t = treeField('shrub', bushes.map((b) => ({ ...b, s: b.s * 1.25 })), plantMatSmooth); t.castShadow = false; g.add(t); }
+    if (farTrees.length) { const t = treeField(conifer ? 'pine' : 'broadleaf', farTrees, plantMat3); t.castShadow = false; g.add(t); }
+    if (farBushes.length) { const t = treeField('shrub', farBushes, plantMatSmooth); t.castShadow = false; g.add(t); }
+    if (orchard.length) {
+      const t = treeField(bd === 'tropical' ? 'palm' : 'blob', orchard as Placement[], plantMat3);
+      if (Math.hypot(orchard[0].x - cx, orchard[0].z - cz) > 230) t.castShadow = false;
+      g.add(t);
+    }
+    this.scene.add(g);
+  }
+
   /** Where the close-up grass may grow: not on the roads and pavements, the plots in use, the pieces or the water. */
   private grassOk(x: number, z: number, roadless: boolean) {
     const L = this.layout;
@@ -426,6 +475,7 @@ export class CampusScene implements Scene3D {
       if (Math.abs(x - L.substation.x) < 8.5 && Math.abs(z - L.substation.z) < 8.5) return false;
     }
     const inside = (r: Rect, m = 0.2) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
+    for (const f of this.ground.fields ?? []) if (inField(f, x, z, 0.5)) return false;
     for (const it of L.items) if (it.kind !== 'empty' && inside(it.rect)) return false;
     for (const sp of this.setPieces) if (inside(sp.item.rect, 0.5)) return false;
     return true;
@@ -865,7 +915,8 @@ export class CampusScene implements Scene3D {
     if (this.scenery === 'habitat') this.camera.lookAt(this.target.x, this.target.y + this.dist * 0.14, this.target.z);
     else this.camera.lookAt(this.target);
     // the miniature read is strongest when you're up high (inside the habitat the land overhead must stay sharp)
-    this.look.tilt = this.scenery === 'habitat' ? 0.35 : 0.9 + 0.8 * THREE.MathUtils.smoothstep(this.dist, 40, 220);
+    // (close in, almost none: a close-up should be crisp, not a smear above and below a thin band)
+    this.look.tilt = this.scenery === 'habitat' ? 0.35 : 0.2 + 1.3 * THREE.MathUtils.smoothstep(this.dist, 60, 300);
   }
 
   resize(w: number, h: number) {
@@ -1139,7 +1190,46 @@ function emptyPlot(r: Rect, i: number) {
   return m;
 }
 
-type SceneryName = 'rock_a' | 'boulder_a' | 'bush_a' | 'broadleaf_a' | 'pine_a';
+type SceneryName = 'rock_a' | 'boulder_a' | 'broadleaf_a' | 'pine_a' | 'mesquite';
+
+/**
+ * A scenery model's parts with soft foliage: the crown's normals point out from its middle (blended with its own),
+ * so a Meshy tree or bush shades as one rounded mass with the painted leaves on it, not as crumpled facets.
+ * Done once per model (the geometry is shared).
+ */
+const SOFT: Partial<Record<SceneryName, { from: number; k: number; cone?: boolean }>> = {
+  broadleaf_a: { from: 0.3, k: 0.8 }, mesquite: { from: 0.3, k: 0.75 }, pine_a: { from: 0.12, k: 0.7, cone: true },
+};
+function sceneryParts(n: SceneryName) {
+  const p = modelParts(n);
+  const soft = SOFT[n];
+  if (!p || !soft) return p;
+  for (const part of p.parts) {
+    const g = part.geo;
+    if (g.userData.soft) continue;
+    g.userData.soft = true;
+    g.computeBoundingBox();
+    const b = g.boundingBox!;
+    const H = b.max.y - b.min.y, cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
+    const y0 = b.min.y + H * Math.max(0, soft.from), cy = b.min.y + H * (soft.from < 0 ? 0.35 : 0.62);
+    const pos = g.attributes.position, nrm = g.attributes.normal;
+    if (!nrm) continue;
+    const v = new THREE.Vector3(), o = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y < y0) continue;
+      // a soft ramp in from the trunk, so the crown's underside doesn't snap
+      const t = Math.min(1, (y - y0) / (H * 0.12 + 1e-6)) * soft.k;
+      v.set(pos.getX(i) - cx, soft.cone ? H * 0.35 : y - cy, pos.getZ(i) - cz).normalize();
+      o.set(nrm.getX(i), nrm.getY(i), nrm.getZ(i)).lerp(v, t).normalize();
+      nrm.setXYZ(i, o.x, o.y, o.z);
+    }
+    nrm.needsUpdate = true;
+  }
+  return p;
+}
+const plantMat3 = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
+plantMat3.userData.shared = true;
 /** A scenery model's material, lightened (some Meshy textures come out darker than the land round them). Shared per source. */
 const sceneryMats = new Map<string, THREE.Material>();
 function sceneryMat(m: THREE.Material, light: number): THREE.Material {

@@ -9,6 +9,7 @@ import type { Rect } from './layout';
 import { treeField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { grassColours, grassMaterial, sharedClump } from './grass';
+import { inField, planFields, type Field } from './fields';
 
 export type Backdrop = 'plains' | 'desert' | 'coast' | 'mountain' | 'boreal' | 'temperate' | 'tropical' | 'savanna' | 'volcanic' | 'lunar';
 
@@ -84,6 +85,8 @@ export interface Ground {
   /** The ground's own colour at a point (grass takes it at the root). */
   tint: (x: number, z: number, out: THREE.Color) => THREE.Color;
   def: BackdropDef;
+  /** Farmland round the campus (none unless asked for). */
+  fields?: Field[];
 }
 
 /** A road the ground is graded for: a straight run from a to b, w wide. `valley`: the far relief opens out round it. */
@@ -118,12 +121,17 @@ export interface GroundOpts {
   carve?: (x: number, z: number) => number | null;
   /** Roads: the land is graded to a smooth profile along each (cuts and embankments), in order (a later road meets an earlier one at its height). */
   roads: GradedRoad[];
+  /** Lay out farmland round the campus (fields along the highway at this z). */
+  farms?: { highwayZ: number };
 }
 
 /** Kinds with a Meshy model for the near ring: how many of them near the campus at most (full detail), how near. */
 const NEAR_MODEL: Partial<Record<TreeKind, { cap: number; r: number }>> = {
   rock: { cap: 260, r: 170 }, boulder: { cap: 90, r: 220 }, shrub: { cap: 240, r: 150 }, broadleaf: { cap: 170, r: 200 }, pine: { cap: 240, r: 210 },
 };
+
+/** How far out from the campus centre plants cast shadows (the sun's shadow map covers about this much). */
+const SHADOW_R = 240;
 
 export type GroundModels = Partial<Record<'mesquite' | 'oak' | TreeKind, (at: Placement[]) => THREE.Object3D | null>>;
 
@@ -280,6 +288,9 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   mesh.name = 'ground';
   const surface = meshHeight(xs, zs, heights, hExact);
   const tint = meshTint(xs, zs, cols);
+  const fields = o.farms ? planFields(o.backdrop, s, o.clear ?? o.flat, o.farms.highwayZ,
+    (x, z) => water !== null && hExact(x, z) < water + 0.8,
+    (x, z) => Math.abs(hExact(x + 3, z) - hExact(x - 3, z)) + Math.abs(hExact(x, z + 3) - hExact(x, z - 3)) > 2.6) : [];
 
   let waterMesh: THREE.Mesh | null = null;
   if (water !== null) {
@@ -294,6 +305,7 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const clear = o.clear ?? o.flat;
   const okAt = (x: number, z: number, near: boolean) => {
     if (distToRect(x, z, clear) < 3) return false;
+    for (const f of fields) if (inField(f, x, z, 2.5)) return false;
     for (const rd of o.roads) if (segDist(x, z, rd.a, rd.b) < rd.w / 2 + 2) return false;
     const y = surface(x, z);
     if (water !== null && y < water + 0.6) return false;
@@ -304,7 +316,7 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const tintR = () => 0.85 + r() * 0.3;
   const carpet: BackdropDef['plants'] = o.backdrop === 'lunar' ? [] : o.backdrop === 'desert'
     ? [{ kind: 'shrub', n: 320, s: [0.35, 0.8] }, { kind: 'rock', n: 220, s: [0.25, 0.8] }]
-    : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: 'shrub', n: 220, s: [0.45, 1.1] }, { kind: 'rock', n: 110, s: [0.3, 0.8] }];
+    : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: 'shrub', n: 220, s: [0.45, 1.1] }, { kind: 'rock', n: 55, s: [0.5, 1.0] }];
   for (const p of [...def.plants, ...carpet.map((c) => ({ ...c, carpet: true }))] as (BackdropDef['plants'][number] & { carpet?: boolean })[]) {
     const at: Placement[] = [];
     const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' ? 320 : 700;
@@ -365,12 +377,16 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
       plants.add(im);
       continue;
     }
-    const field = treeField(p.kind, at, plantMat);
-    // ground cover's shadows are too small to see, but thousands of them fill the shadow pass
-    if (p.kind === 'rock' || (p.kind === 'shrub' && p.carpet)) field.castShadow = false;
-    plants.add(field);
+    // ground cover's shadows are too small to see, but thousands of them fill the shadow pass; and only plants
+    // near the campus can cast into the shadow map at all (it covers the campus), so the far ones don't try
+    const quiet = p.kind === 'rock' || (p.kind === 'shrub' && p.carpet);
+    const nearAt = quiet ? [] : at.filter((a) => Math.hypot(a.x - centre.x, a.z - centre.z) < SHADOW_R);
+    const farAt = quiet ? at : at.filter((a) => Math.hypot(a.x - centre.x, a.z - centre.z) >= SHADOW_R);
+    const mat = p.kind === 'shrub' ? plantMatSmooth : plantMat;
+    if (nearAt.length) plants.add(treeField(p.kind, nearAt, mat));
+    if (farAt.length) { const f = treeField(p.kind, farAt, mat); f.castShadow = false; plants.add(f); }
   }
-  return { mesh, water: waterMesh, plants, h: surface, tint, def };
+  return { mesh, water: waterMesh, plants, h: surface, tint, def, fields };
 }
 
 /** The ground's vertex colour at (x, z), bilinear over the grid cell. */
@@ -412,6 +428,9 @@ function meshHeight(xs: number[], zs: number[], hs: Float32Array, exact: (x: num
 
 const groundMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })));
 const plantMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
+/** Bushes shade smooth (their normals are rounded off in trees.ts). */
+export const plantMatSmooth = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 }));
+plantMatSmooth.userData.shared = true;
 
 function waterMaterial() {
   const m = new THREE.MeshStandardMaterial({ color: col('#2c6399'), roughness: 0.3, metalness: 0.1 });

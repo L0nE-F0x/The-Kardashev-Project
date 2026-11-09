@@ -19,9 +19,9 @@ const KEYS: Key[] = [
   { alt: -5, top: '#2b1a4e', hor: '#e47f55', below: '#4b3a6e', sun: '#ff7a4a', sunI: 0.9, hemiSky: '#6a5a9a', hemiGround: '#5a3440', hemiI: 0.8, fog: '#7a5a7a', night: 0.6 },
   { alt: 1, top: '#3d5fae', hor: '#ffa060', below: '#8e8ab8', sun: '#ff8a48', sunI: 2.2, hemiSky: '#7f8fd8', hemiGround: '#7a4a3a', hemiI: 0.72, fog: '#b49ab0', night: 0.15 },
   { alt: 8, top: '#3d63b4', hor: '#ffbf80', below: '#9890bc', sun: '#ff9f58', sunI: 3.1, hemiSky: '#8496d8', hemiGround: '#8a5a44', hemiI: 0.78, fog: '#bca6b4', night: 0 },
-  { alt: 20, top: '#4a7ccb', hor: '#e8dfcf', below: '#aec0d4', sun: '#ffd9a8', sunI: 2.8, hemiSky: '#a8c2e6', hemiGround: '#a87a52', hemiI: 1.05, fog: '#c3d2de', night: 0 },
-  { alt: 45, top: '#4f8ad6', hor: '#d6eaf6', below: '#a9c5de', sun: '#fff1dc', sunI: 3.0, hemiSky: '#b3d2f2', hemiGround: '#a8845c', hemiI: 1.2, fog: '#bcd6ea', night: 0 },
-  { alt: 90, top: '#4f8ad6', hor: '#d6eaf6', below: '#a9c5de', sun: '#fff1dc', sunI: 3.0, hemiSky: '#b3d2f2', hemiGround: '#a8845c', hemiI: 1.2, fog: '#bcd6ea', night: 0 },
+  { alt: 20, top: '#4a7ccb', hor: '#e8dfcf', below: '#aec0d4', sun: '#ffd9a8', sunI: 2.8, hemiSky: '#a8c2e6', hemiGround: '#a87a52', hemiI: 0.92, fog: '#c3d2de', night: 0 },
+  { alt: 45, top: '#4f8ad6', hor: '#d6eaf6', below: '#a9c5de', sun: '#fff1dc', sunI: 3.2, hemiSky: '#b3d2f2', hemiGround: '#a8845c', hemiI: 1.0, fog: '#bcd6ea', night: 0 },
+  { alt: 90, top: '#4f8ad6', hor: '#d6eaf6', below: '#a9c5de', sun: '#fff1dc', sunI: 3.2, hemiSky: '#b3d2f2', hemiGround: '#a8845c', hemiI: 1.0, fog: '#bcd6ea', night: 0 },
 ];
 
 function sample(alt: number) {
