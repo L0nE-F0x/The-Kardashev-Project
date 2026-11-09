@@ -185,7 +185,7 @@ export class SystemScene3D implements Scene3D {
     const key = JSON.stringify([v.asteroids.map((a) => a.id + a.status + (a.ownerColor ?? '')), v.foundries.map((f) => f.place + Math.round(f.cap)), v.hauls.map((h) => h.from + h.to + Math.round(h.traffic * 4))]);
     if (key === this.key) return;
     this.key = key;
-    for (const c of [...this.dyn.children]) this.dyn.remove(c);
+    for (const c of [...this.dyn.children]) { this.dyn.remove(c); disposeObject(c); }
     this.asteroids.clear();
     this.hauls = [];
     for (const a of v.asteroids) {
@@ -202,7 +202,7 @@ export class SystemScene3D implements Scene3D {
     for (const h of v.hauls) {
       const n = Math.max(1, Math.round(h.traffic * 5));
       for (let i = 0; i < n; i++) {
-        const ship = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 0.6), new THREE.MeshBasicMaterial({ color: 0xfde9a4 }));
+        const ship = new THREE.Mesh(SHIP_GEO, SHIP_MAT);
         this.dyn.add(ship);
         this.hauls.push({ ship, from: h.from, to: h.to, phase: i / n });
       }
@@ -230,9 +230,13 @@ export class SystemScene3D implements Scene3D {
     let lit = 0;
     const total = this.swarmSeg.length;
     const arr = this.swarm.instanceMatrix.array as Float32Array;
+    const cam = this.camera.position, base = this.swarmBase;
     for (let i = 0; i < total; i++) {
       const fill = v.segments[this.swarmSeg[i]] ?? 0;
       if ((i % 220) / 220 >= fill) continue;
+      // (the swarm rides Earth's orbit: a collector right by the camera would fill the screen when it's close to Earth)
+      const dx = base[i * 16 + 12] - cam.x, dy = base[i * 16 + 13] - cam.y, dz = base[i * 16 + 14] - cam.z;
+      if (dx * dx + dy * dy + dz * dz < 40 * 40) continue;
       // pack the lit ones to the front (the draw count), from the untouched layout
       arr.set(this.swarmBase.subarray(i * 16, i * 16 + 16), lit * 16);
       lit++;
@@ -254,6 +258,8 @@ export class SystemScene3D implements Scene3D {
       const p = new THREE.Vector3().copy(from).multiplyScalar((1 - t) * (1 - t)).addScaledVector(mid, 2 * t * (1 - t)).addScaledVector(to, t * t);
       h.ship.position.copy(p);
       h.ship.lookAt(to);
+      // (one right by the camera would fill the screen: the cinematic starts at Earth, where the Moon's hauls set off)
+      h.ship.visible = p.distanceToSquared(this.camera.position) > 45 * 45;
     }
     // the Mercury probe on its way, Solar Maximum's flares and shockwave
     this.probe.visible = v.mercury === 1;
@@ -363,6 +369,12 @@ export class SystemScene3D implements Scene3D {
   zoomOut() { this.goalDist = Math.min(2200, this.goalDist * 1.3); }
   destroy() { this.labels.destroy(); this.game.stage.canvas.style.cursor = ''; disposeObject(this.scene); }
 }
+
+/** A haul ship: a little lit hull (shared by every ship, so it's never freed with one). */
+const SHIP_GEO = new THREE.BoxGeometry(1.6, 0.6, 0.6);
+SHIP_GEO.userData.shared = true;
+const SHIP_MAT = new THREE.MeshStandardMaterial({ color: 0xfde9a4, emissive: 0xf7b258, emissiveIntensity: 0.35, roughness: 0.5, metalness: 0.3 });
+SHIP_MAT.userData.shared = true;
 
 function radialTexture() {
   const c = document.createElement('canvas');
