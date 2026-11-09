@@ -37,6 +37,8 @@ function screenshotSaver(): Plugin {
 export default defineConfig({
   // relative base: works at the site root, on Netlify previews and inside the desktop app
   base: './',
+  // helper checkouts that share one node_modules (a symlink) keep their own dependency cache
+  cacheDir: process.env.VITE_CACHE_DIR || 'node_modules/.vite',
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
