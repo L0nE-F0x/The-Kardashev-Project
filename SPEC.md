@@ -2062,5 +2062,17 @@ tutorial targets) · 3D-2 Act II (new plants and tiers, suppliers, mines, landin
 Moon, spaceports, climate) · 3D-5 Act V (solar system, foundries, asteroids, swarm, habitats, the Type I ending) ·
 3D-6 quality presets for phones, performance, desktop/Android builds of the 3D edition.
 
-**Budget:** Meshy credits are the limit (about 30–45 per hero model, 1,039 left on 2026-11-09, 850/month). The whole
-game needs well over that: code-build wherever it looks as good.
+**Budget:** Meshy credits are the limit (about 30–45 per hero model, 850/month; the user tops up as needed). The whole
+game needs well over that: code-build wherever it looks as good. 1,060 left on 2026-11-09 after the townsfolk.
+
+**Status (2026-11-09):** 3D-1 to 3D-5 built. Every place in the game has 3D art: all Act I–II facilities and tiers,
+the suppliers, mines, landing stations and rivals, Geneva, the 12 megaproject kinds, launch sites with the full launch
+cycle, fusion (five designs) and air capture, the Moon base, the L4/L5 yards, Ring One, Aurora's town inside its
+painted cylinder, and the asteroid mines; the globe, orbit and solar-system views; the menu tour plays every shot.
+3D-6: quality presets done; scenes free their GPU memory on exit (flat across visits); the production build serves
+/play3d/ and the service worker keeps the models once fetched (offline after a first visit). Measured per frame (all
+passes, high preset): 200–1,200 draw calls, 1–8.5M triangles. **Open:** a real-GPU speed check by the user (headless
+SwiftShader only so far; plant density and shadow-pass triangles are the first knobs if it's slow), the desktop and
+Android apps running /play3d/ (no code changes expected: the Edition switch navigates inside the same bundle/site, but
+untested in WebKitGTK and the Android WebView), the launch cycle at night (not looked at), optional Meshy heroes the
+art agents suggested (council hall, ferry, crawler, haulers, landers, rovers). Then the user's choice between editions.

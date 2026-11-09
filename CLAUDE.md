@@ -29,12 +29,16 @@ so sim/UI changes land in both. Both stages meet `GameStage`/`GameScene` (render
   offshore, launch coast, moon, space (no ground), habitat (`habitatShell.ts`), asteroid (curved ground); `ground.ts` =
   ten backdrops to the horizon, `sky.ts` (real sun at the site, weather, lunar/space/habitat modes), `weather.ts`,
   `life.ts` (rigged people, advisors, Bit, traffic)), `orbit/orbitScene.ts` (Act IV–V), `system/systemScene.ts`
-  (Act V + the Type I pull-back), the same TourDirector (`supports` filter in main3d.ts).
+  (Act V + the Type I pull-back), the same TourDirector (every shot). Scenes free their GPU memory in `destroy()` via
+  `disposeObject` (kit.ts: skips anything with `userData.shared`, e.g. model materials, cached kit textures, the
+  Earth's textures); a campus rebuild frees the old world too.
 - **Pieces:** `campus/registry.ts` maps facility types (`act1.ts`, `plants2.ts`) and set pieces (`industry.ts`,
   `act3sets.ts` → `sets/*.ts`; footprints in `act3sizes.ts`) to builders returning `Piece` (pieces.ts). Conventions
   and the lab: `art3d/PIECES.md`; lab page `/play3d/lab.html?piece=…|set=…` (dev). Art direction: `art3d/DIRECTION.md`.
 - **Meshy:** `tools/meshy.mjs` (concept image first with one style brief; `--char` = rigged people), `tools/glb-tex.mjs`
-  shrinks textures into `public/3d/models/`; models load on demand (`models.ts`).
+  shrinks textures into `public/3d/models/` (people: the `_walk.glb`, `--size 1024`); models load on demand
+  (`models.ts`: PEOPLE at boot, advisors/astronaut/TOWNSFOLK when a scene needs them; the lab's `?people=1|town`
+  lines them up). The service worker caches `/3d/models/*.glb` at run time (not precached).
 - **QA:** headless Chrome + `--use-angle=swiftshader`; stub Vite's `@vite/client` with a working `updateStyle` (else no
   CSS) when other edits would hot-reload the page; campus `aim(x, z, dist, yaw, pitch)`; `game.updateSettings({ dayNight:
   false })` pins local noon; `tests/render3d-layout.test.ts` checks every place's layout.
