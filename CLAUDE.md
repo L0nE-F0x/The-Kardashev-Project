@@ -14,6 +14,16 @@ and cleaned up the off-world dither. v0.4.2 "Easy Reading" added the readable fo
 Android app; v0.5.1 added in-app updates for the installed desktop and Android apps (an Update toast in the game).
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 
+## The 3D edition (branch `3d`, SPEC §28)
+
+A second front end on the same game: `play3d/index.html` → `src/main3d.ts` builds the same `Game` with
+`render3d/stage3d.ts` (three.js) and 3D scenes behind `SceneFactory` (globe/globeScene.ts, campus/campusScene.ts; the
+same TourDirector with a `supports` filter). Sim, UI, tutorial, saves and audio are shared, so sim/UI changes land in
+both. Both stages meet `GameStage`/`GameScene` (render/stage.ts); the keys and frame loop are `game/shell.ts`. Art
+direction: `art3d/DIRECTION.md`. Meshy: `tools/meshy.mjs` (concept image first, one style brief; `--char` for rigged
+people), `tools/glb-tex.mjs` shrinks textures into `public/3d/models/`. Dev: http://127.0.0.1:5317/play3d/. QA helpers:
+the campus scene's `aim(x, z, dist, yaw, pitch)`; `game.updateSettings({ dayNight: false })` pins local noon.
+
 ## Commands
 
 ```bash
