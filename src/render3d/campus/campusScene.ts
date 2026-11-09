@@ -10,6 +10,7 @@ import type { PixelPointer } from '../../render/stage';
 import type { Scene3D } from '../stage3d';
 import { defaultLook, type Look } from '../post';
 import { siteDef, type SiteDef } from '../../content/sites';
+import { FACILITIES } from '../../content/facilities';
 import { ADVISORS } from '../../content/advisors';
 import { campusLines } from '../../content/campusLines';
 import { MAX_EXTRA_SLOTS } from '../../sim/model';
@@ -218,14 +219,16 @@ export class CampusScene implements Scene3D {
     } else if (this.scenery === 'habitat') {
       this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: new THREE.Group(), h: (_x, z) => habFloor(z), def: BACKDROPS.temperate };
     } else {
-      this.ground = buildGround({
+      this.groundOpts = {
         backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
         curve: this.scenery === 'asteroid' ? 160 + Math.sqrt(ex.km ?? 10) * 30 : undefined,
         roads: roadless ? [] : [
           { a: [-1700, HIGHWAY_Z], b: [1700, HIGHWAY_Z], w: 12 },
           { a: [this.layout.accessX, HIGHWAY_Z], b: [this.layout.accessX, -PD - 6], w: 8 },
         ],
-      }, { mesquite: mesq, oak });
+      };
+      this.groundModels = { mesquite: mesq, oak };
+      this.ground = buildGround(this.groundOpts, this.groundModels);
       if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
     }
     this.scene.add(this.ground.mesh, this.ground.plants);
@@ -247,6 +250,7 @@ export class CampusScene implements Scene3D {
       this.dressStatic();
       this.traffic.highway(HIGHWAY_Z, -1500, 1500, this.ground.h, seed);
     }
+    this.carveKey = '';
     if (!this.viewOnly) this.sync(true);
     if (!roadless) this.populate();
     else if (this.scenery === 'moon') this.astronauts();
@@ -267,9 +271,30 @@ export class CampusScene implements Scene3D {
     else loadModels(['astronaut']).then(go).catch(() => {});
   }
 
+  /** Rebuild the land with the carving facilities' shapes (their lakes, gorges and banks). */
+  private rebuildGround() {
+    if (!this.groundOpts) return;
+    const carvers = [...this.entries.values()].filter((e) => e.piece.ground).map((e) => {
+      const c = e.root.position;
+      return (x: number, z: number) => e.piece.ground!(x - c.x, z - c.z);
+    });
+    const base = this.groundOpts.carve;
+    const carve = carvers.length || base ? (x: number, z: number) => { for (const f of carvers) { const v = f(x, z); if (v !== null) return v; } return base ? base(x, z) : null; } : undefined;
+    this.scene.remove(this.ground.mesh, this.ground.plants);
+    if (this.ground.water) this.scene.remove(this.ground.water);
+    this.ground.mesh.geometry.dispose();
+    this.ground = buildGround({ ...this.groundOpts, carve }, this.groundModels);
+    this.scene.add(this.ground.mesh, this.ground.plants);
+    if (this.ground.water) this.scene.add(this.ground.water);
+  }
+
   /** What surrounds the pieces: a campus, Geneva's lakeside, open sea, a launch coast, the Moon. */
   private scenery = 'campus';
   private brownout = false;
+  private groundOpts: Parameters<typeof buildGround>[0] | null = null;
+  private groundModels: Parameters<typeof buildGround>[1] = {};
+  /** Which facilities reshape the ground (a hydro plant's lake and gorge): the ground is rebuilt when it changes. */
+  private carveKey = '';
   private sceneExtra: Record<string, unknown> = {};
   private moonSun: THREE.Vector3 | null = null;
 
@@ -413,10 +438,16 @@ export class CampusScene implements Scene3D {
       }
       if (e.piece.setLoad) {
         const qty = (f.racks ?? []).reduce((a, b) => a + b.qty, 0);
-        e.piece.setLoad(f.status === 'online' ? Math.min(1, qty / 8300) : 0);
+        const cap = Math.max(1, (FACILITIES[f.type].itMW ?? 10) * tierMult(f) * 830);
+        e.piece.setLoad(f.status === 'online' ? Math.min(1, qty / cap) : 0);
       }
     }
     for (const [id, e] of this.entries) if (!seen.has(id)) this.removeEntry(e);
+    const ck = [...this.entries.values()].filter((e) => e.piece.ground).map((e) => e.f.id + e.rectKey).join(',');
+    if (ck !== this.carveKey) {
+      this.carveKey = ck;
+      if (ck || !force) this.rebuildGround();
+    }
     // rivals' campuses: their own halls behind their own fence, rising while they build
     const rseen = new Set<string>();
     for (const item of L.items) {
@@ -483,7 +514,7 @@ export class CampusScene implements Scene3D {
     const c = rectCenter(item.rect);
     root.position.set(c.x, 0, c.z);
     const w = item.rect.x1 - item.rect.x0, d = item.rect.z1 - item.rect.z0;
-    root.add(pad(w - 0.6, d - 0.6, f.type === 'solar' || f.type === 'wind' ? '#c8b48e' : f.type === 'hq' ? '#6a8a40' : '#c4b8a6', hashStr(f.id), f.type === 'hq' ? lawnMat : undefined));
+    if (!piece.ground) root.add(pad(w - 0.6, d - 0.6, f.type === 'solar' || f.type === 'wind' ? '#c8b48e' : f.type === 'hq' ? '#6a8a40' : '#c4b8a6', hashStr(f.id), f.type === 'hq' ? lawnMat : undefined));
     root.add(piece.obj);
     if (f.type === 'datacenter' || f.type === 'battery' || f.type === 'gas') {
       const fk = new Kit(rng(hashStr(f.id) + 30));
@@ -952,6 +983,8 @@ const crane3 = (h: number, seed: number) => crane(h, 16, seed + 5);
 
 // ── facility pieces ──────────────────────────────────────────────────────────────────────────
 const tierOf = (f: Facility) => f.upgrade?.to ?? f.tier ?? 1;
+/** The capacity multiplier of a facility's current tier (what its racks fill). */
+const tierMult = (f: Facility) => { const t = f.tier ?? 1; return t <= 1 ? 1 : FACILITIES[f.type].tiers?.[t - 2]?.mult ?? 1; };
 
 function makePiece(f: Facility, rect: Rect): Piece {
   const seed = hashStr(f.id);
