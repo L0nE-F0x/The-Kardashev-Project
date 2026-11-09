@@ -1,0 +1,258 @@
+[
+  {
+    "at": "2026-11-09T05:59:52.353Z",
+    "name": "substation",
+    "step": "concept",
+    "id": "01a1bee4-406e-7377-a294-73bda8669e2e",
+    "subject": "A small high-voltage electrical substation: two big power transformers with radiator fins and tall porcelain bushings, steel lattice gantry frames with insulators, breakers, on a gravel pad"
+  },
+  {
+    "at": "2026-11-09T05:59:52.355Z",
+    "name": "oak",
+    "step": "concept",
+    "id": "01a1bee4-406d-7009-b38a-aacebf898cc9",
+    "subject": "A California coast live oak tree: a thick short trunk and a broad rounded canopy built from several chunky dark-green leaf masses"
+  },
+  {
+    "at": "2026-11-09T05:59:52.364Z",
+    "name": "garage",
+    "step": "concept",
+    "id": "01a1bee4-407c-765d-80d3-516510b295a7",
+    "subject": "A small 1960s California ranch-style suburban house with its two-car garage door rolled up: the garage is a scrappy AI startup lab inside, a glowing server rack, desks with monitors and a whiteboard, cables; a few solar panels on the low pitched roof, a short driveway"
+  },
+  {
+    "at": "2026-11-09T05:59:52.366Z",
+    "name": "lab",
+    "step": "concept",
+    "id": "01a1bee4-407b-7089-bf6a-d180087d6e46",
+    "subject": "A small modern single-storey research lab building with a flat roof, rooftop air-handling units, a glass entrance with a projecting canopy, cream concrete and teal metal panels"
+  },
+  {
+    "at": "2026-11-09T05:59:52.382Z",
+    "name": "watertower",
+    "step": "concept",
+    "id": "01a1bee4-406d-700b-9a73-60b5118291fc",
+    "subject": "A classic rural Texas water tower: a rounded cream tank with a teal band on four tall steel legs with cross bracing and a ladder"
+  },
+  {
+    "at": "2026-11-09T05:59:52.388Z",
+    "name": "semitruck",
+    "step": "concept",
+    "id": "01a1bee4-406e-7633-985d-2bdd43b8dcd6",
+    "subject": "A semi truck: a cab-over tractor pulling a long white box trailer"
+  },
+  {
+    "at": "2026-11-09T05:59:52.394Z",
+    "name": "mesquite",
+    "step": "concept",
+    "id": "01a1bee4-4076-7555-a66d-660a4dd3ac93",
+    "subject": "A gnarled West Texas mesquite tree: a short twisted dark trunk splitting into crooked branches, a wide flat airy canopy made of a few chunky olive-green leaf clusters"
+  },
+  {
+    "at": "2026-11-09T05:59:52.426Z",
+    "name": "gasplant",
+    "step": "concept",
+    "id": "01a1bee4-40df-7235-8da7-0e15b4a11e7e",
+    "subject": "A compact natural gas peaker power plant module: two long boxy turbine enclosures, each with a tall cylindrical exhaust stack, pipe racks, an air intake filter house and a small control building, all on one concrete pad"
+  },
+  {
+    "at": "2026-11-09T06:00:10.140Z",
+    "name": "pickup",
+    "step": "concept.done",
+    "id": "01a1bee4-406f-72b0-8a47-d44b4a163683",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:10.153Z",
+    "name": "watertower",
+    "step": "concept.done",
+    "id": "01a1bee4-406d-700b-9a73-60b5118291fc",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:10.153Z",
+    "name": "lab",
+    "step": "concept.done",
+    "id": "01a1bee4-407b-7089-bf6a-d180087d6e46",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:10.153Z",
+    "name": "garage",
+    "step": "concept.done",
+    "id": "01a1bee4-407c-765d-80d3-516510b295a7",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:10.217Z",
+    "name": "substation",
+    "step": "concept.done",
+    "id": "01a1bee4-406e-7377-a294-73bda8669e2e",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:16.440Z",
+    "name": "mesquite",
+    "step": "concept.done",
+    "id": "01a1bee4-4076-7555-a66d-660a4dd3ac93",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:17.072Z",
+    "name": "gasplant",
+    "step": "concept.done",
+    "id": "01a1bee4-40df-7235-8da7-0e15b4a11e7e",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:17.082Z",
+    "name": "semitruck",
+    "step": "concept.done",
+    "id": "01a1bee4-406e-7633-985d-2bdd43b8dcd6",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:17.091Z",
+    "name": "bungalow",
+    "step": "concept.done",
+    "id": "01a1bee4-406d-762b-a3b9-e1d3483e61b2",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:00:17.115Z",
+    "name": "oak",
+    "step": "concept.done",
+    "id": "01a1bee4-406d-7009-b38a-aacebf898cc9",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T06:02:07.668Z",
+    "name": "semitruck",
+    "step": "model",
+    "id": "01a1bee5-2a91-75c1-a1e8-8d557d17a3ed"
+  },
+  {
+    "at": "2026-11-09T06:02:08.668Z",
+    "name": "watertower",
+    "step": "model",
+    "id": "01a1bee5-272d-7280-865c-fb5a1142ed5c"
+  },
+  {
+    "at": "2026-11-09T06:02:09.382Z",
+    "name": "mesquite",
+    "step": "model",
+    "id": "01a1bee5-28a8-77e9-b090-21d912fcbbe5"
+  },
+  {
+    "at": "2026-11-09T06:02:10.294Z",
+    "name": "oak",
+    "step": "model",
+    "id": "01a1bee5-275f-73b6-b012-1598c87a36a6"
+  },
+  {
+    "at": "2026-11-09T06:02:13.019Z",
+    "name": "lab",
+    "step": "model",
+    "id": "01a1bee5-27a0-7199-b6da-67d7c3194b6f"
+  },
+  {
+    "at": "2026-11-09T06:02:14.067Z",
+    "name": "garage",
+    "step": "model",
+    "id": "01a1bee5-271b-7771-95f0-744dc4487fdb"
+  },
+  {
+    "at": "2026-11-09T06:02:14.755Z",
+    "name": "substation",
+    "step": "model",
+    "id": "01a1bee5-29b5-74c4-b221-ca20129bcbc3"
+  },
+  {
+    "at": "2026-11-09T06:02:15.078Z",
+    "name": "pickup",
+    "step": "model",
+    "id": "01a1bee5-29e9-7716-b2fd-4fbcfc2de7ef"
+  },
+  {
+    "at": "2026-11-09T06:02:15.270Z",
+    "name": "gasplant",
+    "step": "model",
+    "id": "01a1bee5-2a19-7461-b3fd-cf3eebab832b"
+  },
+  {
+    "at": "2026-11-09T06:02:16.490Z",
+    "name": "bungalow",
+    "step": "model",
+    "id": "01a1bee5-278d-7685-8b5e-e3c10239122b"
+  },
+  {
+    "at": "2026-11-09T06:02:53.631Z",
+    "name": "semitruck",
+    "step": "model.done",
+    "id": "01a1bee5-2a91-75c1-a1e8-8d557d17a3ed",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:02:53.985Z",
+    "name": "watertower",
+    "step": "model.done",
+    "id": "01a1bee5-272d-7280-865c-fb5a1142ed5c",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:02:54.553Z",
+    "name": "mesquite",
+    "step": "model.done",
+    "id": "01a1bee5-28a8-77e9-b090-21d912fcbbe5",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:12.516Z",
+    "name": "pickup",
+    "step": "model.done",
+    "id": "01a1bee5-29e9-7716-b2fd-4fbcfc2de7ef",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:13.103Z",
+    "name": "oak",
+    "step": "model.done",
+    "id": "01a1bee5-275f-73b6-b012-1598c87a36a6",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:20.785Z",
+    "name": "gasplant",
+    "step": "model.done",
+    "id": "01a1bee5-2a19-7461-b3fd-cf3eebab832b",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:30.360Z",
+    "name": "lab",
+    "step": "model.done",
+    "id": "01a1bee5-27a0-7199-b6da-67d7c3194b6f",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:30.414Z",
+    "name": "garage",
+    "step": "model.done",
+    "id": "01a1bee5-271b-7771-95f0-744dc4487fdb",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:36.546Z",
+    "name": "bungalow",
+    "step": "model.done",
+    "id": "01a1bee5-278d-7685-8b5e-e3c10239122b",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T06:03:57.586Z",
+    "name": "substation",
+    "step": "model.done",
+    "id": "01a1bee5-29b5-74c4-b221-ca20129bcbc3",
+    "credits": 30
+  }
+]
