@@ -5,9 +5,9 @@
  * Act IV; garden green or forge grey in Act V), beam fields, and the waste-heat haze.
  */
 import * as THREE from 'three';
-import { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { softLine } from './soft';
 import type { GameState } from '../../sim/types';
 import { planetMapView } from '../../sim/planetView';
 import { earthView } from '../../sim/systemView';
@@ -21,12 +21,7 @@ import { Kit, rng } from '../kit';
 const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0 });
 
 function fat(pts: THREE.Vector3[], color: string, width: number, dashed = false, opacity = 0.95) {
-  const g = new LineGeometry();
-  g.setPositions(pts.flatMap((p) => [p.x, p.y, p.z]));
-  const m = new LineMaterial({ color: new THREE.Color(color).getHex(), linewidth: width, dashed, dashSize: 0.9, gapSize: 0.7, transparent: true, opacity });
-  const l = new Line2(g, m);
-  if (dashed) l.computeLineDistances();
-  return l;
+  return softLine(pts, { color, width, dashed, dashSize: 0.9, gapSize: 0.7, opacity });
 }
 const lengths = (pts: THREE.Vector3[]) => { const a = [0]; for (let i = 1; i < pts.length; i++) a.push(a[i - 1] + pts[i].distanceTo(pts[i - 1])); return a; };
 

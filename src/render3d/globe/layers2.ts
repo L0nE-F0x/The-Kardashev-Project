@@ -4,9 +4,9 @@
  * your overland fiber, data pulses running along your links, and cargo ships on the busy lanes.
  */
 import * as THREE from 'three';
-import { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { softLine } from './soft';
 import type { Router } from '../../world/routing';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
@@ -49,12 +49,7 @@ export function along(pts: THREE.Vector3[], acc: number[], f: number): { p: THRE
 }
 
 function fatLine(pts: THREE.Vector3[], color: string, width: number, opacity = 1, dashed = false) {
-  const g = new LineGeometry();
-  g.setPositions(pts.flatMap((p) => [p.x, p.y, p.z]));
-  const m = new LineMaterial({ color: new THREE.Color(color).getHex(), linewidth: width, transparent: opacity < 1, opacity, dashed, dashSize: 0.8, gapSize: 0.6, worldUnits: false });
-  const l = new Line2(g, m);
-  if (dashed) l.computeLineDistances();
-  return l;
+  return softLine(pts, { color, width, opacity, dashed, dashSize: 0.8, gapSize: 0.6 });
 }
 
 /** A small code-built cargo ship (deck containers in the lane's colours), bow towards +x. */

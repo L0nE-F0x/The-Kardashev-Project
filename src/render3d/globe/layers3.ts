@@ -5,9 +5,9 @@
  * demonstrator's beam, and the launch site's rocket climbing away after the first liftoff.
  */
 import * as THREE from 'three';
-import { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
-import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
+import { softLine } from './soft';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
 import { charterView, liftoffActive, mainKind, orbitAngle, orbitPoint } from '../../render/worldMap/act3Layers';
@@ -112,12 +112,7 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
 }
 
 function fat(pts: THREE.Vector3[], color: string, width: number, dashed = false) {
-  const geo = new LineGeometry();
-  geo.setPositions(pts.flatMap((p) => [p.x, p.y, p.z]));
-  const m = new LineMaterial({ color: new THREE.Color(color).getHex(), linewidth: width, dashed, dashSize: 0.8, gapSize: 0.6, transparent: true, opacity: 0.95 });
-  const l = new Line2(geo, m);
-  if (dashed) l.computeLineDistances();
-  return l;
+  return softLine(pts, { color, width, dashed, dashSize: 0.8, gapSize: 0.6, opacity: 0.95 });
 }
 
 export class CharterLayer {
