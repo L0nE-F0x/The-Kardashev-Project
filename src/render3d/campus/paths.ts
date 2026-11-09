@@ -389,7 +389,8 @@ export function campusWalkMap(bounds: Rect, roads: Roads, places: Place[], extra
   m.surface(rectOf(ax - 0.7, roads.accessNorth, ax + 0.7, roads.highwayZ - 7), COST.pave);
   for (const p of places) {
     for (const s of p.solids) m.block(s);
-    for (const b of p.bays) m.block(bayRect(b), 0.35);
+    // parked cars (a building site's car park is empty till it opens)
+    if (!p.building) for (const b of p.bays) m.block(bayRect(b), 0.35);
     if (p.fence) {
       const f = p.fence.rect, [g0, g1] = p.fence.gate;
       m.fence({ x: f.x0, z: f.z0 }, { x: f.x1, z: f.z0 });

@@ -45,10 +45,12 @@ function hq(o: { seed: number }): Piece {
   g.add(light);
   return {
     obj: g, w: 22, d: 24, h: 8, update(e) { light.intensity = e.night * 50; },
-    // the front door up the path, and the open garage bay off the driveway (where the lab began)
-    doors: [{ x: 3.5, z: 3.75 }, { x: -3.6, z: 3.75 }],
+    // the front door up the path, and the open garage bay off the driveway (where the lab began); the model stands
+    // on its own concrete apron, so the walls are 3.5 m behind its front edge (the gabled wing a little less)
+    doors: [{ x: 2.9, z: 0.8 }, { x: -5.0, z: 0.3 }],
     blockers: [
-      { x0: -8.6, z0: -7.1, x1: 8.6, z1: 3.1 },
+      { x0: -8.6, z0: -7.1, x1: 8.6, z1: -0.4 },
+      { x0: 3.8, z0: -0.4, x1: 8.6, z1: 0.9 },
       ...([[2, 4.6], [6, 4.4], [9, 4.8], [-9, 4.5]] as [number, number][]).map(([x, z]) => ({ x0: x - 0.7, z0: z - 0.55, x1: x + 0.7, z1: z + 0.55 })),
       { x0: -12.8, z0: -10.6, x1: -11.6, z1: 10.4 },
       { x0: 8.65, z0: -10.35, x1: 9.35, z1: -9.65 },
@@ -127,7 +129,8 @@ function gas(o: { seed: number; tier: number }): Piece {
   }
   return {
     obj: g, w: 26, d: 24, h: big ? 17 : s.y + 0.5,
-    doors: [{ x: mx - hx * 0.45, z: mz + hz - 0.5 }],
+    // (the operators go in by the left enclosure at the front)
+    doors: [{ x: mx - hx * 0.7, z: mz + hz - 0.5 }],
     blockers,
     update(e) { for (const p of plumes) p.update(e); },
   };
@@ -166,15 +169,22 @@ function lab(o: { seed: number; tier: number }): Piece {
   const glow = new THREE.Mesh(new THREE.BoxGeometry(s.x * 0.3, s.y * 0.3, 0.05), lm);
   glow.position.set(m.position.x - s.x * 0.05, s.y * 0.25, -2 + s.z / 2 - 0.4);
   g.add(glow);
-  // the building (the model is 0.834 as wide as it is deep), the wings, the courtyard's trees
-  const L = o.tier >= 3 ? 13 : 15, mx = m.position.x, hx = (0.834 * L) / 2, front = -2 + L / 2;
-  const blockers = [{ x0: mx - hx, z0: -2 - L / 2, x1: mx + hx, z1: front }];
+  // the building (the model is 0.834 as wide as it is deep) with the glass doors under the canopy set back in a
+  // notch between the planters and the corner; the wings, the courtyard's trees
+  const L = o.tier >= 3 ? 13 : 15, mx = m.position.x, hx = (0.834 * L) / 2, front = -2 + L / 2, wall = front - 1.0;
+  const blockers = [
+    { x0: mx - hx, z0: -2 - L / 2, x1: mx + hx, z1: wall },
+    { x0: mx - hx, z0: wall, x1: mx, z1: front },
+    { x0: mx + hx * 0.86, z0: wall, x1: mx + hx, z1: front },
+  ];
   if (o.tier >= 2) blockers.push({ x0: 3.35, z0: -8.65, x1: 10.65, z1: 2.65 });
   if (o.tier >= 3) blockers.push({ x0: -10.65, z0: -13.4, x1: 2.65, z1: -8.6 }, { x0: 1.7, z0: 3.7, x1: 2.3, z1: 4.3 }, { x0: 4.7, z0: 3.2, x1: 5.3, z1: 3.8 });
   return {
     obj: g, w: 20, d: 22, h: Math.max(s.y, o.tier >= 3 ? 8.4 : 6.4) + 0.3,
-    doors: [{ x: mx - hx * 0.35, z: front + 0.7 }],
+    doors: [{ x: mx + hx * 0.38, z: wall + 0.65 }],
     blockers,
+    // the lobby's light is a night thing (by day the panel would read as a board across the doors)
+    update(e) { glow.visible = e.night > 0.05; },
   };
 }
 

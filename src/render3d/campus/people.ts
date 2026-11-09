@@ -84,13 +84,14 @@ interface Agent {
 
 /** Who works where (figure, role); the first ones stay when there are too many people. */
 const STAFF: Partial<Record<Place['kind'], [PersonName, Role][]>> = {
-  hq: [['office', 'staff'], ['researcher', 'staff'], ['engineer', 'staff']],
+  hq: [['office', 'staff'], ['researcher', 'staff'], ['engineer', 'staff'], ['scientist', 'staff']],
   hall: [['engineer', 'staff'], ['engineer', 'night'], ['office', 'staff'], ['engineer', 'staff']],
-  lab: [['researcher', 'staff'], ['scientist', 'staff'], ['researcher', 'staff'], ['scientist', 'staff']],
+  lab: [['researcher', 'staff'], ['scientist', 'staff'], ['researcher', 'staff'], ['scientist', 'staff'], ['office', 'staff']],
   plant: [['worker', 'staff'], ['office', 'staff'], ['worker', 'night']],
   set: [['office', 'staff'], ['engineer', 'staff']],
 };
-const MAX_STAFF = 30;
+/** Everyone on a campus's payroll (a big Act II campus doesn't get a crowd: the first ones of each place stay). */
+const MAX_STAFF = 34;
 
 /** What each advisor tends to do standing about. */
 const PERSONA: Record<string, Act[]> = {
@@ -105,6 +106,8 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const faceTo = (from: P2, to: P2) => Math.atan2(to.x - from.x, to.z - from.z);
 /** Is local hour h within [a, b) (wrapping past midnight)? */
 const within = (h: number, a: number, b: number) => (a <= b ? h >= a && h < b : h >= a || h < b);
+/** An hour difference folded into −12..12. */
+const wrapHours = (d: number) => ((((d + 12) % 24) + 24) % 24) - 12;
 
 export interface CarObj { obj: THREE.Object3D; bay: Bay; place: string }
 
@@ -170,8 +173,8 @@ export class CampusPeople {
     // who should be here
     const want: { key: string; kind: PersonName; role: Role; home: string }[] = [];
     let n = 0;
-    const staffed = places.filter((p) => STAFF[p.kind]);
-    for (let round = 0; round < 4; round++) for (const p of staffed) {
+    const staffed = places.filter((p) => STAFF[p.kind] && !p.building);
+    for (let round = 0; round < 5; round++) for (const p of staffed) {
       const list = STAFF[p.kind]!;
       if (round >= list.length || n >= MAX_STAFF) continue;
       const [kind, role] = p.kind === 'set' && /pit|crusher|brine|salt|gas/i.test(p.id) ? (['worker', 'staff'] as [PersonName, Role]) : list[round];
@@ -241,15 +244,39 @@ export class CampusPeople {
     this.byKey.set(key, a);
     if (advisor) this.addHit(a);
     this.claimCar(a);
-    // the scene opens on a day already under way: some are out on their business, the rest indoors
-    if (this.onShift(a)) {
-      if (role === 'crew') this.crewNext(a, true);
-      else if (role === 'advisor') this.advisorNext(a, true);
-      else if (role === 'guard') this.guardNext(a, true);
-      else if (r() < 0.4 && this.breakStart(a)) { /* standing at the break spot */ }
-      else { a.state = 'inside'; a.wait = r() * 50; }
-    } else a.wait = r() * 10;
+    this.settle(a);
     return a;
+  }
+
+  /**
+   * Where someone is when the scene opens (or the clock jumps): the day already under way, so some are out on their
+   * business, the rest indoors; off shift, away.
+   */
+  private settle(a: Agent) {
+    this.release(a);
+    a.tasks = [];
+    a.route = null;
+    a.step = 0;
+    a.obj.visible = false;
+    a.state = 'away';
+    a.at = a.home;
+    this.carry(a, false);
+    if (a.role === 'staff' || a.role === 'night') a.lunch = this.hour > a.lunchAt + 1.2 ? this.day : -1;
+    if (!this.onShift(a)) { a.wait = a.r() * 10; return; }
+    if (a.role === 'crew') this.crewNext(a, true);
+    else if (a.role === 'advisor') this.advisorNext(a, true);
+    else if (a.role === 'guard') this.guardNext(a, true);
+    else if (a.r() < 0.4 && this.breakStart(a)) { /* standing at the break spot */ }
+    else { a.state = 'inside'; a.wait = a.r() * 50; }
+  }
+
+  /** The clock jumped (a time-lapse, a QA hop): everyone where they'd be by now, the car parks with it. */
+  private resettle() {
+    for (const a of [...this.agents]) {
+      if (a.done) { this.remove(a); continue; }
+      this.settle(a);
+    }
+    this.parked = false;
   }
 
   private addHit(a: Agent) {
@@ -300,7 +327,7 @@ export class CampusPeople {
     if (a.role !== 'staff' && a.role !== 'night') return;
     const home = this.places.get(a.home);
     if (!home) return;
-    const free = this.cars.filter((c) => !c.owner);
+    const free = this.cars.filter((c) => !c.owner && !this.places.get(c.place)?.building);
     free.sort((p, q) => (p.place === a.home ? 0 : 1) - (q.place === a.home ? 0 : 1) || Math.hypot(p.bay.x - home.cx, p.bay.z - home.cz) - Math.hypot(q.bay.x - home.cx, q.bay.z - home.cz));
     const c = free[0];
     if (c && (c.place === a.home || Math.hypot(c.bay.x - home.cx, c.bay.z - home.cz) < 70)) { c.owner = a; a.car = c; }
@@ -406,12 +433,13 @@ export class CampusPeople {
   }
 
   /** The open ground nearest `p` that can be walked to from `from` (null if none within reach). */
-  private anchor(p: P2, from: P2, reach = 6): P2 | null {
+  private anchor(p: P2, from: P2, reach = 6, within?: Rect): P2 | null {
     for (let rad = 0; rad <= reach; rad += 0.5) {
       const n = rad === 0 ? 1 : Math.max(8, Math.round(rad * 6));
       for (let i = 0; i < n; i++) {
         const ang = (i / n) * TAU;
         const x = p.x + Math.cos(ang) * rad, z = p.z + Math.sin(ang) * rad;
+        if (within && !inRect(within, x, z)) continue;
         if (this.map.free(x, z) && this.map.roomAt(x, z, 0.3) && this.map.route(from, { x, z })) return { x, z };
       }
     }
@@ -451,9 +479,10 @@ export class CampusPeople {
     }
     const h = this.hour;
     if (h >= 12 && h < 12.9 && a.lunch !== this.day) {
-      // lunch together by the site office
+      // lunch together by the site office (the work spot is someone else's meanwhile)
       a.lunch = this.day;
-      const s = this.near(office, 2.5, a);
+      this.release(a);
+      const s = this.near(office, 2.5, a, this.yards.get(a.home));
       if (s) { a.tasks = [{ k: 'go', to: s }, { k: 'stand', secs: 600 + a.r() * 600, acts: ['drink', 'chat', 'listen', 'idle'] }]; return; }
     }
     const stack = this.stacks.get(a.home);
@@ -464,7 +493,7 @@ export class CampusPeople {
       return;
     }
     if (slot) { a.tasks = [{ k: 'go', to: slot }, { k: 'stand', secs: 30 + a.r() * 60, acts: ['hammer', 'collect', 'pickup', 'look'], slot }]; return; }
-    const s = this.near(office, 3, a);
+    const s = this.near(office, 3, a, this.yards.get(a.home));
     a.tasks = s ? [{ k: 'go', to: s }, { k: 'stand', secs: 20 + a.r() * 20, acts: ['chat', 'listen', 'drink'] }] : [{ k: 'stand', secs: 5, acts: ['idle'] }];
   }
 
@@ -530,10 +559,11 @@ export class CampusPeople {
   }
 
   /** A free spot within `r` of a point (open ground, reachable), or null. */
-  private near(c: P2, rad: number, a: Agent): P2 | null {
-    for (let i = 0; i < 10; i++) {
+  private near(c: P2, rad: number, a: Agent, within?: Rect): P2 | null {
+    for (let i = 0; i < 12; i++) {
       const ang = a.r() * TAU, d = rad * (0.5 + a.r() * 0.5);
       const x = c.x + Math.cos(ang) * d, z = c.z + Math.sin(ang) * d;
+      if (within && !inRect(within, x, z)) continue;
       const k = this.map.costAt(x, z);
       if (k && k <= COST.ground && this.map.roomAt(x, z, 0.5)) return { x, z };
     }
@@ -543,11 +573,12 @@ export class CampusPeople {
   /** A free slot at one of the spots (nearest to `p` first); the agent reserves it. */
   private freeSlot(spots: Spot[], a: Agent, p: Place): Slot | null {
     const order = [...spots].sort((s, q) => Math.hypot(s.x - p.cx, s.z - p.cz) - Math.hypot(q.x - p.cx, q.z - p.cz));
+    // (whatever they held is free again: they're moving on)
+    this.release(a);
     for (const s of order) {
       const free = s.slots.filter((x) => !x.by);
       if (!free.length) continue;
       const slot = free[Math.floor(a.r() * free.length)];
-      this.release(a);
       slot.by = a;
       a.slot = slot;
       return slot;
@@ -558,6 +589,39 @@ export class CampusPeople {
   private release(a: Agent) {
     if (a.slot) { if (a.slot.by === a) a.slot.by = null; if (a.slot.spot.talker === a) a.slot.spot.talker = null; }
     a.slot = null;
+  }
+
+  /**
+   * Where a building's people stand about on a break: open ground near the door with room for a group, on their own
+   * plot if it can be, a step off the way in (the doorway clear), never in a parking bay or a car park's aisle.
+   */
+  private breakSpot(p: Place, places: Place[]): P2 | null {
+    const d = p.doors[0];
+    const tx = -d.nz, tz = d.nx;
+    const gate = placeGate(p, this.roads);
+    const cands: { x: number; z: number; score: number }[] = [];
+    for (let rad = 2.5; rad <= 10; rad += 1.25) {
+      for (let k = 0; k < 20; k++) {
+        const ang = (k / 20) * TAU;
+        const x = d.x + Math.cos(ang) * rad, z = d.z + Math.sin(ang) * rad;
+        const along = (x - d.x) * d.nx + (z - d.z) * d.nz, side = (x - d.x) * tx + (z - d.z) * tz;
+        if (along < -0.3 || (Math.abs(side) < 1.8 && along < 7)) continue;
+        const c = this.map.costAt(x, z);
+        if (!c || c > COST.ground || !this.map.roomAt(x, z, 1.1)) continue;
+        // on this side of the road (a group across the street from its door reads wrong)
+        const lc = this.map.lineCost(d, { x, z });
+        if (!lc || lc > COST.ground) continue;
+        if (places.some((q) => q.bays.some((b) => Math.hypot(b.x - x, b.z - z) < 4))) continue;
+        // not on the straight way from the gate to the door
+        const gx = d.x - gate.x, gz = d.z - gate.z, gl = Math.hypot(gx, gz) || 1;
+        const off = Math.abs(((x - gate.x) * gz - (z - gate.z) * gx) / gl);
+        if (off < 2) continue;
+        cands.push({ x, z, score: rad + (inRect(p.rect, x, z) ? 0 : 4) });
+      }
+    }
+    cands.sort((a, b) => a.score - b.score);
+    for (const c of cands.slice(0, 12)) if (this.map.route(d, c)) return { x: c.x, z: c.z };
+    return null;
   }
 
   /** A ring of standing places round a point (facing in). */
@@ -579,15 +643,8 @@ export class CampusPeople {
     this.work.clear();
     this.stacks.clear();
     for (const p of places) {
-      if (!STAFF[p.kind] || !p.doors.length) continue;
-      const d = p.doors[0];
-      const tx = -d.nz, tz = d.nx;
-      let best: P2 | null = null;
-      for (const [out, side] of [[2.2, 2.6], [2.2, -2.6], [3.2, 0], [1.6, 3.6], [1.6, -3.6], [3.5, 3.5], [3.5, -3.5], [4.5, 0]] as [number, number][]) {
-        const x = d.x + d.nx * out + tx * side, z = d.z + d.nz * out + tz * side;
-        const c = this.map.costAt(x, z);
-        if (c && c <= COST.ground && this.map.roomAt(x, z, 1.05) && this.map.route(d, { x, z })) { best = { x, z }; break; }
-      }
+      if (!STAFF[p.kind] || !p.doors.length || p.building) continue;
+      const best = this.breakSpot(p, places);
       if (!best) continue;
       const old = keep.get(p.id);
       const spot = this.ring(best.x, best.z, 4, 0.72, 0.4);
@@ -599,27 +656,37 @@ export class CampusPeople {
       }
     }
     this.siteDoors.clear();
+    this.yards.clear();
     for (const p of places) {
       if (!p.building || !p.site) continue;
       // the crew clock on by the site office (on whichever side has room: a fenced yard's office backs onto the fence)
+      // (and the site's people stay on the site: inside a fenced yard's fence)
       const gate = placeGate(p, this.roads);
-      const office = this.anchor(p.site.door, gate, 7);
+      const yard = p.fence ? grow(p.fence.rect, -0.4) : p.rect;
+      const office = this.anchor(p.site.door, gate, 8, yard) ?? this.anchor(p.site.door, gate, 7);
       if (!office) continue;
       this.siteDoors.set(p.id, office);
+      this.yards.set(p.id, yard);
       const body = p.solids[0];
       const spot: Spot = { x: p.cx, z: p.cz, slots: [], talker: null, talkUntil: 0 };
-      const ring = grow(body, 1.35);
+      // work along every side of the building going up (the front first, where it shows), facing it
       const add = (x: number, z: number, face: number) => {
-        if (this.map.free(x, z) && this.map.roomAt(x, z, 0.3) && this.map.route(office, { x, z })) spot.slots.push({ spot, x, z, face, by: null });
+        if (spot.slots.some((s) => Math.hypot(s.x - x, s.z - z) < 2) || !inRect(yard, x, z)) return;
+        if (this.map.free(x, z) && this.map.route(office, { x, z })) spot.slots.push({ spot, x, z, face, by: null });
       };
-      for (let x = ring.x0 + 2; x <= ring.x1 - 2; x += 3.6) { add(x, ring.z1, Math.PI); add(x, ring.z0, 0); }
-      for (let z = ring.z0 + 2; z <= ring.z1 - 2; z += 3.6) { add(ring.x0, z, Math.PI / 2); add(ring.x1, z, -Math.PI / 2); }
+      for (const m of [1.35, 2.4]) {
+        const ring = grow(body, m);
+        for (let x = ring.x0 + 1.5; x <= ring.x1 - 1.5; x += 2.6) add(x, ring.z1, Math.PI);
+        for (let z = ring.z0 + 1.5; z <= ring.z1 - 1.5; z += 2.6) { add(ring.x0, z, Math.PI / 2); add(ring.x1, z, -Math.PI / 2); }
+        for (let x = ring.x0 + 1.5; x <= ring.x1 - 1.5; x += 2.6) add(x, ring.z0, 0);
+      }
       this.work.set(p.id, spot);
-      const st = this.anchor(p.site.stack, office, 4);
+      const st = this.anchor(p.site.stack, office, 4, yard);
       if (st) this.stacks.set(p.id, st);
     }
   }
   private siteDoors = new Map<string, P2>();
+  private yards = new Map<string, Rect>();
 
   /** Rounds: inside a fence's line, or round a field's edge (points a few metres apart, every one reachable). */
   private planLoops(places: Place[]) {
@@ -731,7 +798,9 @@ export class CampusPeople {
   // ── the frame ──────────────────────────────────────────────────────────────────────────────
   update(e: Env, hour: number, cam: THREE.Camera) {
     if (hour < this.hour - 12) this.day++;
+    const jump = Math.abs(wrapHours(hour - this.hour)) > 0.5;
     this.hour = hour;
+    if (jump) this.resettle();
     this.time += e.dt;
     this.frame++;
     this.frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
@@ -756,6 +825,8 @@ export class CampusPeople {
     const first = !this.parked;
     this.parked = true;
     for (const c of this.cars) {
+      // a building site's car park stays empty till it opens
+      if (this.places.get(c.place)?.building) { c.obj.visible = false; continue; }
       const want = c.owner ? c.owner.state !== 'away' || within(this.hour, c.owner.arrive - 0.15, c.owner.leave) : within(this.hour, 7.4 + (hashKey(String(c.bay.x)) % 7) * 0.15, 18.2);
       if (c.obj.visible === want) continue;
       this.sphere.center.set(c.bay.x, 0.8, c.bay.z);
@@ -860,6 +931,8 @@ export class CampusPeople {
         }
         const face = t.slot ? t.slot.face : t.face;
         if (face !== undefined) a.heading = turn(a.heading, face, e.dt * 5);
+        // home time cuts a chat short
+        if (t.secs > 4 && (this.frame & 31) === 0 && !this.onShift(a)) t.secs = 2 + a.r() * 4;
         t.secs -= e.dt;
         a.pick -= e.dt;
         if (a.pick <= 0) {
@@ -879,7 +952,8 @@ export class CampusPeople {
   /** What someone standing does: a group takes turns to talk; alone, a drink, the phone, a look round. */
   private standAct(a: Agent, t: { acts?: Act[]; slot?: Slot }): Act {
     if (t.acts?.length === 1) return t.acts[0];
-    const spot = t.slot?.spot;
+    // a break group (or a lunch chat) takes turns to talk; work is work
+    const spot = t.slot && (!t.acts || t.acts.includes('chat')) ? t.slot.spot : undefined;
     const company = spot ? spot.slots.filter((s) => s.by && s.by !== a && s.by.state === 'out' && s.by.tasks[0]?.k === 'stand').length : 0;
     if (spot && company > 0 && !t.slot?.sit) {
       if (!spot.talker || spot.talkUntil < this.time || spot.talker.slot?.spot !== spot) {
