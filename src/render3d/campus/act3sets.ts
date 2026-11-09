@@ -37,5 +37,6 @@ import { SETS_FUSION } from './sets/fusion';
 import { SETS_MOON } from './sets/moon';
 import { SETS_SPACE } from './sets/space';
 import { SETS_HABITAT } from './sets/habitat';
+import { SETS_ASTEROID } from './sets/asteroid';
 
-export const ACT3_SETS: Partial<Record<Act3PieceKind, Act3SetFactory>> = { ...SETS_GENEVA, ...SETS_LAUNCH, ...SETS_MEGA, ...SETS_FUSION, ...SETS_MOON, ...SETS_SPACE, ...SETS_HABITAT };
+export const ACT3_SETS: Partial<Record<Act3PieceKind, Act3SetFactory>> = { ...SETS_GENEVA, ...SETS_LAUNCH, ...SETS_MEGA, ...SETS_FUSION, ...SETS_MOON, ...SETS_SPACE, ...SETS_HABITAT, ...SETS_ASTEROID };
