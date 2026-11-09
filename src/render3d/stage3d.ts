@@ -32,6 +32,16 @@ export class Stage3D implements GameStage {
   private height = 1;
   private readonly blank = new THREE.Scene();
   private readonly blankCam = new THREE.PerspectiveCamera();
+  /**
+   * Adaptive resolution ('auto' detail): the share of the preset's pixel ratio rendered at, stepped down while frames
+   * come slow and back up when there's room. The DOM UI stays crisp whatever it is.
+   */
+  private dyn = 1;
+  private costs: number[] = [];
+  private nextMeasure = 0;
+  private quietUntil = 0;
+  private lastStep = 0;
+  private readonly px = new Uint8Array(4);
 
   constructor(host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -50,8 +60,41 @@ export class Stage3D implements GameStage {
     this.bindInput();
   }
 
+  /** The share of the pixel ratio the adaptive resolution renders at now (1 = the preset's own). */
+  get renderScale() {
+    return this.dyn;
+  }
+
+  /**
+   * Adaptive resolution: every 0.7 s one frame is timed from a sync before it to a sync after it (two 1-pixel reads;
+   * what the GPU really spends, unlike the frame rate, which WebKit caps at 30 in low-power mode). Over ~22 ms (under
+   * ~45 fps): a step down; when the next step up would still fit in ~15 ms, a step up (never straight after a step).
+   * Never under automation (QA screenshots stay sharp) or just after a scene change (shader compiles).
+   */
+  private adapt(cost: number, now: number) {
+    this.costs.push(cost);
+    if (this.costs.length < 3) return;
+    const med = this.costs.sort((a, b) => a - b)[1];
+    this.costs = [];
+    const MIN = 0.5, STEP = 0.125;
+    if (med > 22 && this.dyn > MIN) {
+      this.dyn = Math.max(MIN, this.dyn - (med > 45 ? STEP * 2 : STEP));
+      this.lastStep = now;
+      this.quietUntil = now + 800;
+      this.layout();
+    } else if (this.dyn < 1 && med * ((this.dyn + STEP) / this.dyn) ** 2 < 15 && now - this.lastStep > 5000) {
+      this.dyn = Math.min(1, this.dyn + STEP);
+      this.lastStep = now;
+      this.quietUntil = now + 800;
+      this.layout();
+    }
+  }
+
   /** The detail level changed: re-lay out (resolution) and rebuild the post pipeline (AO, MSAA). */
   applyQuality() {
+    this.dyn = 1;
+    this.quietUntil = performance.now() + 2500;
+    this.costs = [];
     this.layout();
     if (this.scene) {
       this.post?.dispose();
@@ -70,7 +113,7 @@ export class Stage3D implements GameStage {
     const w = window.innerWidth, h = window.innerHeight;
     this.width = w;
     this.height = h;
-    this.scale = Math.min(dpr, quality.pixelRatio);
+    this.scale = Math.max(Math.min(dpr, 0.6), Math.min(dpr, quality.pixelRatio) * this.dyn);
     this.renderer.setPixelRatio(this.scale);
     this.renderer.setSize(w, h);
     // the UI's frames are drawn in "game pixels": keep them the size the pixel game uses
@@ -91,6 +134,8 @@ export class Stage3D implements GameStage {
     this.scene = null;
     if (zoomBoost !== undefined) this.setZoomBoost(zoomBoost);
     if (scene && !isScene3D(scene)) throw new Error('Stage3D needs a 3D scene');
+    this.quietUntil = performance.now() + 2500;
+    this.costs = [];
     this.scene = scene;
     if (scene) {
       scene.camera.aspect = this.width / this.height;
@@ -112,7 +157,18 @@ export class Stage3D implements GameStage {
     }
     s.update(dt, now);
     const look = s.look ?? defaultLook();
+    const t = performance.now();
+    const measure = quality.adaptive && !navigator.webdriver && t >= this.nextMeasure && t >= this.quietUntil && document.visibilityState === 'visible';
+    const gl = this.renderer.getContext();
+    if (measure) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
+    const t0 = performance.now();
     this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, this.fade, getEra());
+    if (measure) {
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
+      const t1 = performance.now();
+      this.nextMeasure = t1 + 700;
+      this.adapt(t1 - t0, t1);
+    }
   }
 
   private bindInput() {

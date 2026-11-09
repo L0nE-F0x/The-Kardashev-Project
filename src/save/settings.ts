@@ -26,6 +26,11 @@ export interface Settings {
   batterySaver: boolean;
   /** The 3D edition's detail (shadows, ambient occlusion, resolution, plants); 'auto' picks by device. */
   quality3d: 'auto' | 'high' | 'medium' | 'low';
+  /**
+   * Which edition opens: the installed apps always start at /play/, which hands over to /play3d/ when this is '3d'
+   * (Settings → Display → Edition sets it).
+   */
+  edition: 'pixel' | '3d';
   fps: boolean;
   /** Phones in a browser tab: go fullscreen on the first tap. */
   phoneFullscreen: boolean;
@@ -79,6 +84,7 @@ export function defaultSettings(): Settings {
     dayNight: true,
     batterySaver: false,
     quality3d: 'auto',
+    edition: 'pixel',
     fps: false,
     phoneFullscreen: true,
     master: 0.8,

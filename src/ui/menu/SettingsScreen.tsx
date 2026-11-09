@@ -182,6 +182,8 @@ function Display() {
         onChange={(v) => {
           const is3d = document.documentElement.classList.contains('edition-3d');
           if ((v === '3d') === is3d) return;
+          // remembered: the apps open /play/, which hands over to the 3D edition while this says so
+          game.updateSettings({ edition: v });
           game.save();
           location.href = `${v === '3d' ? '../play3d/' : '../play/'}index.html${location.search}`;
         }}

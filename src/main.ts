@@ -14,8 +14,14 @@ import { SystemScene } from './render/system/systemScene';
 import { TourDirector } from './game/tour';
 import { App } from './ui/App';
 import { startShell } from './game/shell';
+import { loadSettings } from './save/settings';
 
 async function boot() {
+  // the player picked the 3D edition: the installed apps start here, so hand over before building anything
+  if (loadSettings().edition === '3d') {
+    location.replace(`../play3d/index.html${location.search}`);
+    return;
+  }
   syncCssVars();
   const host = document.getElementById('game')!;
   const status = document.getElementById('boot');

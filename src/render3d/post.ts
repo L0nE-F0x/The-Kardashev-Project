@@ -87,6 +87,10 @@ export class Post {
     this.composer.addPass(new RenderPass(scene, camera));
     if (ao) {
       this.gtao = new GTAOPass(scene, camera, size.x, size.y);
+      // at half resolution: a quarter of the pixels for the costliest effect (+24 ms → ~6 on an iGPU); denoised and
+      // blended back up it looks the same
+      const setAo = this.gtao.setSize.bind(this.gtao);
+      this.gtao.setSize = (w: number, h: number) => setAo(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2)));
       this.gtao.blendIntensity = 0.85;
       this.gtao.updateGtaoMaterial({ radius: 1.6, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: 12 });
       this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });

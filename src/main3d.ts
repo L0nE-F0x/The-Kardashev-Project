@@ -21,7 +21,7 @@ import { OrbitScene3D } from './render3d/orbit/orbitScene';
 import { SystemScene3D } from './render3d/system/systemScene';
 import { loadModels, PEOPLE } from './render3d/models';
 import { loadSettings } from './save/settings';
-import { resolveQuality, setQuality } from './render3d/quality';
+import { quality, resolveQuality, setQuality } from './render3d/quality';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
 const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed'] as const;
@@ -32,7 +32,10 @@ async function boot() {
   const host = document.getElementById('game')!;
   const status = document.getElementById('boot');
   if (status) status.textContent = 'BUILDING THE WORLD…';
-  setQuality(resolveQuality(loadSettings().quality3d));
+  const q0 = loadSettings().quality3d;
+  setQuality(resolveQuality(q0), (q0 ?? 'auto') === 'auto');
+  // handy in the console while tuning (the live detail level the stage and scenes read)
+  (window as unknown as { quality3d: typeof quality }).quality3d = quality;
   const stage = new Stage3D(host);
   const [buf] = await Promise.all([(await fetch(mapUrl)).arrayBuffer(), loadModels([...ACT1_MODELS, ...PEOPLE])]);
   const lods = decodeWorldMap(buf);
@@ -50,7 +53,7 @@ async function boot() {
   game.subscribe(() => {
     if (game.settings.quality3d === q) return;
     q = game.settings.quality3d;
-    setQuality(resolveQuality(q));
+    setQuality(resolveQuality(q), q === 'auto');
     stage.applyQuality();
   });
   game.showMenu();
