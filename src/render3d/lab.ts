@@ -96,6 +96,20 @@ async function show(o: LabOpts = {}) {
       piece.progress?.(o.progress);
     } else piece.progress?.(1);
   }
+  // ?people=1: everyone with a rig in a row (a lineup for checking the figures)
+  if (q.has('people')) {
+    const all = ['worker', 'engineer', 'researcher', 'scientist', 'office', 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut'] as const;
+    await loadModels([...all]);
+    all.forEach((k, i) => {
+      const f = person(k);
+      if (!f) return;
+      f.obj.position.set(-12 + i * 2, 0, 8);
+      f.walk.paused = true;
+      f.walk.time = 0;
+      f.mixer.update(0);
+      scene.add(f.obj);
+    });
+  }
   // a person for scale, at the plot's front-left corner
   const p = person('worker');
   if (p) {
