@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { cloudUniforms, col, glowMats, mix, poolMats, rng } from '../kit';
 import { quality } from '../quality';
+import { cachedEarthTextures, cloudMaterial, earthMaterial } from '../globe/earth';
 
 interface Key {
   alt: number;
@@ -114,15 +115,30 @@ export class CampusSky {
       // the Earth hangs in the black: low over the Moon's horizon, big beside the yards
       const big = mode === 'space' && extra.place !== 'ring';
       const er = big ? 260 : 70;
-      const earth = new THREE.Mesh(new THREE.SphereGeometry(er, 48, 28), new THREE.MeshStandardMaterial({ color: 0x5f9ad8, roughness: 0.6, emissive: 0x16304f, emissiveIntensity: 0.4, fog: false }));
-      earth.position.set(big ? -700 : -900, big ? 120 : 260, -2200);
-      const swirl = new THREE.Mesh(new THREE.SphereGeometry(er * 1.015, 48, 28), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, roughness: 1, fog: false }));
-      swirl.position.copy(earth.position);
-      swirl.scale.set(1, 0.6, 1);
-      scene.add(earth, swirl);
+      const pos = new THREE.Vector3(big ? -500 : -900, big ? -330 : 260, -2200);
+      const tex = cachedEarthTextures();
+      if (tex) {
+        // the real Earth (the globe's textures), lit from the side so its night half shows its cities
+        const mat = earthMaterial(tex, 1440, 720);
+        mat.uniforms.sunDir.value.set(0.8, 0.25, 0.55).normalize();
+        mat.fog = false;
+        const earth = new THREE.Mesh(new THREE.SphereGeometry(er, 64, 32), mat);
+        earth.position.copy(pos);
+        earth.rotation.set(0.3, 2.2, 0);
+        const cm = cloudMaterial(tex);
+        cm.uniforms.sunDir.value.copy(mat.uniforms.sunDir.value);
+        const clouds = new THREE.Mesh(new THREE.SphereGeometry(er * 1.01, 64, 32), cm);
+        clouds.position.copy(pos);
+        clouds.rotation.copy(earth.rotation);
+        scene.add(earth, clouds);
+      } else {
+        const earth = new THREE.Mesh(new THREE.SphereGeometry(er, 48, 28), new THREE.MeshStandardMaterial({ color: 0x5f9ad8, roughness: 0.6, emissive: 0x16304f, emissiveIntensity: 0.4, fog: false }));
+        earth.position.copy(pos);
+        scene.add(earth);
+      }
       if (mode === 'space') {
         const moon = new THREE.Mesh(new THREE.SphereGeometry(60, 32, 20), new THREE.MeshStandardMaterial({ color: 0xbfb6ac, roughness: 1, fog: false }));
-        moon.position.set(900, 300, -2400);
+        moon.position.set(1100, -60, -2500);
         scene.add(moon);
       }
     }
@@ -196,9 +212,9 @@ export class CampusSky {
     this.uni.top.value.set(0xc4e0f2);
     this.uni.hor.value.set(0xd6eaf6);
     this.uni.below.value.set(0xa9c5de);
-    this.fog.color.set(0xcfe2ee);
-    this.fog.near = 120;
-    this.fog.far = 900;
+    this.fog.color.set(0xd6e6f0);
+    this.fog.near = 420;
+    this.fog.far = 2600;
     this.sun.position.copy(this.sun.target.position).add(new THREE.Vector3(60, 500, 80));
     this.sun.color.set(0xfff4e0);
     this.sun.intensity = 2.4;

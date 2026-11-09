@@ -120,8 +120,10 @@ export class CampusScene implements Scene3D {
     const width = this.layout.bounds.x1 - this.layout.bounds.x0;
     this.dist = Math.max(110, Math.min(this.planKey !== null ? 420 : 320, width * 1.2));
     this.yaw = -0.3;
-    // a mine's pit floor hides behind its near rim from low down
-    this.pitch = this.site.kind === 'mine' ? 1.0 : 1.16;
+    // a mine's pit floor hides behind its near rim from low down; in space and inside the habitat the camera
+    // looks out level, so the Earth hangs behind the station and Aurora's land rises up overhead
+    this.pitch = this.site.kind === 'mine' ? 1.0 : this.scenery === 'space' ? 1.3 : this.scenery === 'habitat' ? 1.42 : 1.16;
+    if (this.scenery === 'habitat') this.dist = Math.min(this.dist, 150);
   }
 
   /** The planner's key the set pieces were built from (Act III–V sites), null elsewhere. */
@@ -788,7 +790,7 @@ export class CampusScene implements Scene3D {
     this.target.x = Math.max(b.x0 - 20, Math.min(b.x1 + 20, this.target.x));
     this.target.z = Math.max(b.z0 - 20, Math.min(b.z1, this.target.z));
     this.target.y = 0;
-    this.pitch = Math.max(0.45, Math.min(1.28, this.pitch));
+    this.pitch = Math.max(0.45, Math.min(this.scenery === 'habitat' || this.scenery === 'space' ? 1.48 : 1.28, this.pitch));
     this.dist = Math.max(22, Math.min(460, this.dist));
   }
 
@@ -797,9 +799,11 @@ export class CampusScene implements Scene3D {
     this.camera.position.copy(this.target).add(off);
     const gy = this.ground.h(this.camera.position.x, this.camera.position.z) + 3;
     if (this.camera.position.y < gy) this.camera.position.y = gy;
-    this.camera.lookAt(this.target);
-    // the miniature read is strongest when you're up high
-    this.look.tilt = 0.9 + 0.8 * THREE.MathUtils.smoothstep(this.dist, 40, 220);
+    // inside the habitat look up over the town, so the land curving overhead fills the sky
+    if (this.scenery === 'habitat') this.camera.lookAt(this.target.x, this.target.y + this.dist * 0.14, this.target.z);
+    else this.camera.lookAt(this.target);
+    // the miniature read is strongest when you're up high (inside the habitat the land overhead must stay sharp)
+    this.look.tilt = this.scenery === 'habitat' ? 0.35 : 0.9 + 0.8 * THREE.MathUtils.smoothstep(this.dist, 40, 220);
   }
 
   resize(w: number, h: number) {

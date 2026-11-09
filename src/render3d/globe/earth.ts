@@ -47,6 +47,8 @@ export interface EarthTextures {
 }
 
 let cached: EarthTextures | null = null;
+/** The textures if the globe has built them already (space views borrow the real Earth). */
+export const cachedEarthTextures = () => cached;
 
 /** Build the textures once (about a quarter-second on a laptop). Rows run north → south. */
 export function earthTextures(lod: MapLod): EarthTextures {

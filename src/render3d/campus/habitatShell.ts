@@ -27,7 +27,7 @@ export function habitatShell(lived: number): THREE.Group {
     const sector = ((a / (Math.PI * 2)) * 6 + 6.25) % 6;
     const window = Math.floor(sector) % 2 === 1 && Math.abs(a) > 0.7;
     let c: THREE.Color;
-    if (window) c = mix('#9cc4ea', '#d6eaf6', fbm(x * 0.004, a * 2, 3, 2));
+    if (window) c = mix('#6c9fd2', '#c4e0f2', fbm(x * 0.004, a * 2, 3, 2)).multiplyScalar(1.15);
     else {
       const n = fbm(x * 0.01, a * 8, 7, 3);
       c = mix('#5a9537', '#a6c751', n);
