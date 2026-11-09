@@ -7,6 +7,7 @@
 //   node tools/meshy.mjs model <name> [--polys 12000]    image → 3D from art3d/concepts/<name>.png (meshy 7.1 +
 //                                                          2k texture, 30 cr) → art3d/raw/<name>.glb + thumbnail
 //   node tools/meshy.mjs concept <name> "<subject>" --char   a person in A-pose (CHAR_STYLE), for rigging
+//   node tools/meshy.mjs concept <name> "<subject>" --nature scenery (NATURE_STYLE): rocks, bushes, trees
 //   node tools/meshy.mjs model <name> --char                 A-pose mesh, ~4k triangles
 //   node tools/meshy.mjs rig <name> [--height 1.75]          humanoid rig (5 cr) → art3d/raw/<name>_rigged.glb
 //                                                             + the free walk/run clips (_walk.glb, _run.glb)
@@ -39,6 +40,14 @@ export const CHAR_STYLE =
   'Style: a hand-painted scale-model figurine, simple chunky readable shapes, slightly stylized proportions (a bit ' +
   'larger head and hands), matte painted surfaces with subtle colour variation, clean silhouette. ' +
   'Palette: warm muted colours, cream, terracotta, slate-blue, teal, charcoal. Not photoreal, not anime.';
+
+/** Scenery (rocks, bushes, trees): model-railway miniatures with natural detail, to sit beside the figurines. */
+export const NATURE_STYLE =
+  'A single isolated object for a miniature tabletop diorama, seen from a high three-quarter angle, centered, ' +
+  'on a plain flat light grey background with no ground, no base, no shadow, no text, no people. ' +
+  'Style: premium hand-painted model-railway scenery, natural realistic proportions with gently stylised detail, ' +
+  'matte painted surfaces with rich subtle colour variation, earthy natural tones. ' +
+  'Soft even studio light, gentle ambient occlusion. Not photoreal, not cartoonish, not low-poly or faceted.';
 
 const [cmd, ...rest] = process.argv.slice(2);
 const opt = (k, d = null) => { const i = rest.indexOf(`--${k}`); return i < 0 ? d : (rest[i + 1] ?? true); };
@@ -96,7 +105,7 @@ if (cmd === 'balance') {
   const [name, subject] = rest;
   if (!name || !subject) throw new Error('concept <name> "<subject>"');
   const char = rest.includes('--char');
-  const prompt = `${subject}. ${char ? CHAR_STYLE : STYLE}`;
+  const prompt = `${subject}. ${char ? CHAR_STYLE : rest.includes('--nature') ? NATURE_STYLE : STYLE}`;
   const { result: id } = await api('POST', '/v1/text-to-image', { ai_model: opt('model', 'nano-banana-2'), prompt, aspect_ratio: opt('aspect', char ? '3:4' : '1:1') });
   log({ name, step: 'concept', id, subject });
   const t = await wait(`/v1/text-to-image/${id}`, `${name} concept`);

@@ -1144,5 +1144,196 @@
     "step": "rig.done",
     "id": "01a1c0a1-617d-7567-a4c6-a4d7f8951318",
     "credits": 5
+  },
+  {
+    "at": "2026-11-09T17:16:14.831Z",
+    "name": "boulder_a",
+    "step": "concept",
+    "id": "01a1c14f-7de4-774a-815a-705f394fd09f",
+    "subject": "a single large weathered sandstone boulder, rounded and cracked, warm ochre, tan and grey"
+  },
+  {
+    "at": "2026-11-09T17:16:14.853Z",
+    "name": "rock_a",
+    "step": "concept",
+    "id": "01a1c14f-7dea-764e-a0b2-5bdb9dc73f14",
+    "subject": "a low cluster of three weathered grey granite rocks of different sizes nestled together, rounded natural shapes, a few lichen flecks"
+  },
+  {
+    "at": "2026-11-09T17:16:14.872Z",
+    "name": "bush_a",
+    "step": "concept",
+    "id": "01a1c14f-7e02-7555-8538-4fbe114f7226",
+    "subject": "a round leafy green shrub about knee high, dense small leaves in soft clumps, natural irregular silhouette, a few darker inner shadows"
+  },
+  {
+    "at": "2026-11-09T17:16:31.982Z",
+    "name": "bush_a",
+    "step": "concept.done",
+    "id": "01a1c14f-7e02-7555-8538-4fbe114f7226",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:16:32.034Z",
+    "name": "rock_a",
+    "step": "concept.done",
+    "id": "01a1c14f-7dea-764e-a0b2-5bdb9dc73f14",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:16:37.645Z",
+    "name": "boulder_a",
+    "step": "concept.done",
+    "id": "01a1c14f-7de4-774a-815a-705f394fd09f",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:16:39.041Z",
+    "name": "broadleaf_a",
+    "step": "concept",
+    "id": "01a1c14f-dc7c-730a-a399-80734cce5bd3",
+    "subject": "a mature leafy deciduous tree like a maple, a full rounded crown made of many leaf clusters, a sturdy branching trunk"
+  },
+  {
+    "at": "2026-11-09T17:16:39.062Z",
+    "name": "bush_dry",
+    "step": "concept",
+    "id": "01a1c14f-dc87-7584-96a5-91fcaa658002",
+    "subject": "a dry desert sagebrush shrub, silvery grey-green twiggy foliage, low and wide"
+  },
+  {
+    "at": "2026-11-09T17:16:39.113Z",
+    "name": "grass_a",
+    "step": "concept",
+    "id": "01a1c14f-dc9f-711a-831e-01a6d12dc549",
+    "subject": "a clump of wild meadow grass, many long thin curved blades, green fading to straw at the tips"
+  },
+  {
+    "at": "2026-11-09T17:16:56.148Z",
+    "name": "broadleaf_a",
+    "step": "concept.done",
+    "id": "01a1c14f-dc7c-730a-a399-80734cce5bd3",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:16:56.178Z",
+    "name": "bush_dry",
+    "step": "concept.done",
+    "id": "01a1c14f-dc87-7584-96a5-91fcaa658002",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:16:56.224Z",
+    "name": "grass_a",
+    "step": "concept.done",
+    "id": "01a1c14f-dc9f-711a-831e-01a6d12dc549",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:16:57.690Z",
+    "name": "palm_a",
+    "step": "concept",
+    "id": "01a1c150-2556-74be-a70c-cad3ac9a4d33",
+    "subject": "a coconut palm tree with a slender gently curved ringed trunk and a crown of long arching green fronds"
+  },
+  {
+    "at": "2026-11-09T17:16:57.715Z",
+    "name": "birch_a",
+    "step": "concept",
+    "id": "01a1c150-255f-7414-b056-fd6b59f46628",
+    "subject": "a slender silver birch tree with a white papery trunk marked with dark patches and light airy green foliage"
+  },
+  {
+    "at": "2026-11-09T17:16:57.737Z",
+    "name": "pine_a",
+    "step": "concept",
+    "id": "01a1c150-257a-7005-9fef-fdd01759ee4f",
+    "subject": "a tall evergreen pine tree with layered drooping branches of dark green needles and a straight reddish brown trunk"
+  },
+  {
+    "at": "2026-11-09T17:17:14.822Z",
+    "name": "palm_a",
+    "step": "concept.done",
+    "id": "01a1c150-2556-74be-a70c-cad3ac9a4d33",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:17:14.876Z",
+    "name": "pine_a",
+    "step": "concept.done",
+    "id": "01a1c150-257a-7005-9fef-fdd01759ee4f",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:17:14.878Z",
+    "name": "birch_a",
+    "step": "concept.done",
+    "id": "01a1c150-255f-7414-b056-fd6b59f46628",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T17:17:36.296Z",
+    "name": "rock_a",
+    "step": "model",
+    "id": "01a1c150-b6c2-70e2-b194-9d2ec839b653"
+  },
+  {
+    "at": "2026-11-09T17:17:36.891Z",
+    "name": "boulder_a",
+    "step": "model",
+    "id": "01a1c150-b7a5-7547-a4ea-f2d74ef8fe5c"
+  },
+  {
+    "at": "2026-11-09T17:18:32.789Z",
+    "name": "rock_a",
+    "step": "model.done",
+    "id": "01a1c150-b6c2-70e2-b194-9d2ec839b653",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T17:18:50.392Z",
+    "name": "boulder_a",
+    "step": "model.done",
+    "id": "01a1c150-b7a5-7547-a4ea-f2d74ef8fe5c",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T17:18:53.971Z",
+    "name": "bush_a",
+    "step": "model",
+    "id": "01a1c151-e602-714a-904e-26ba5ee9a6c0"
+  },
+  {
+    "at": "2026-11-09T17:18:54.816Z",
+    "name": "broadleaf_a",
+    "step": "model",
+    "id": "01a1c151-e6d3-70e4-aff1-171f5d2dd10f"
+  },
+  {
+    "at": "2026-11-09T17:21:26.146Z",
+    "name": "bush_a",
+    "step": "model.done",
+    "id": "01a1c151-e602-714a-904e-26ba5ee9a6c0",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T17:21:32.589Z",
+    "name": "broadleaf_a",
+    "step": "model.done",
+    "id": "01a1c151-e6d3-70e4-aff1-171f5d2dd10f",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T17:21:37.265Z",
+    "name": "pine_a",
+    "step": "model",
+    "id": "01a1c154-6253-7664-b539-9cffad1654ca"
+  },
+  {
+    "at": "2026-11-09T17:23:30.209Z",
+    "name": "pine_a",
+    "step": "model.done",
+    "id": "01a1c154-6253-7664-b539-9cffad1654ca",
+    "credits": 30
   }
 ]

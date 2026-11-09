@@ -19,12 +19,12 @@ import { GlobeScene } from './render3d/globe/globeScene';
 import { CampusScene } from './render3d/campus/campusScene';
 import { OrbitScene3D } from './render3d/orbit/orbitScene';
 import { SystemScene3D } from './render3d/system/systemScene';
-import { loadModels, PEOPLE } from './render3d/models';
+import { loadModels, PEOPLE, SCENERY } from './render3d/models';
 import { loadSettings } from './save/settings';
 import { quality, resolveQuality, setQuality } from './render3d/quality';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
-const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed'] as const;
+const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
 
 async function boot() {
   syncCssVars();

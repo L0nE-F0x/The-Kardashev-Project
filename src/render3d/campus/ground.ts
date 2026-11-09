@@ -8,6 +8,7 @@ import { col, fbm, mix, noise, rng, smooth, withClouds, withGrain, type Paint } 
 import type { Rect } from './layout';
 import { treeField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
+import { grassColours, grassMaterial, sharedClump } from './grass';
 
 export type Backdrop = 'plains' | 'desert' | 'coast' | 'mountain' | 'boreal' | 'temperate' | 'tropical' | 'savanna' | 'volcanic' | 'lunar';
 
@@ -78,9 +79,15 @@ export interface Ground {
   mesh: THREE.Mesh;
   water: THREE.Mesh | null;
   plants: THREE.Object3D;
+  /** The height of the ground as drawn (the mesh's own triangles), so whatever stands on it sits on it. */
   h: (x: number, z: number) => number;
+  /** The ground's own colour at a point (grass takes it at the root). */
+  tint: (x: number, z: number, out: THREE.Color) => THREE.Color;
   def: BackdropDef;
 }
+
+/** A road the ground is graded for: a straight run from a to b, w wide. `valley`: the far relief opens out round it. */
+export interface GradedRoad { a: [number, number]; b: [number, number]; w: number; valley?: boolean }
 
 const distToRect = (x: number, z: number, r: Rect) => Math.hypot(Math.max(r.x0 - x, 0, x - r.x1), Math.max(r.z0 - z, 0, z - r.z1));
 
@@ -109,11 +116,18 @@ export interface GroundOpts {
   curve?: number;
   /** Pieces that reshape the ground (world coordinates): a height, or null to keep the land. */
   carve?: (x: number, z: number) => number | null;
-  /** Extra flat strips (roads). */
-  roads: { a: [number, number]; b: [number, number]; w: number }[];
+  /** Roads: the land is graded to a smooth profile along each (cuts and embankments), in order (a later road meets an earlier one at its height). */
+  roads: GradedRoad[];
 }
 
-export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | 'oak', (at: Placement[]) => THREE.Object3D | null>> = {}): Ground {
+/** Kinds with a Meshy model for the near ring: how many of them near the campus at most (full detail), how near. */
+const NEAR_MODEL: Partial<Record<TreeKind, { cap: number; r: number }>> = {
+  rock: { cap: 260, r: 170 }, boulder: { cap: 90, r: 220 }, shrub: { cap: 240, r: 150 }, broadleaf: { cap: 170, r: 200 }, pine: { cap: 240, r: 210 },
+};
+
+export type GroundModels = Partial<Record<'mesquite' | 'oak' | TreeKind, (at: Placement[]) => THREE.Object3D | null>>;
+
+export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const def = BACKDROPS[o.backdrop];
   const s = o.seed;
   const segDist = (x: number, z: number, a: [number, number], b: [number, number]) => {
@@ -121,23 +135,19 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     const t = Math.max(0, Math.min(1, ((x - a[0]) * vx + (z - a[1]) * vz) / (vx * vx + vz * vz || 1)));
     return Math.hypot(x - a[0] - vx * t, z - a[1] - vz * t);
   };
-  const flatD = (x: number, z: number) => {
-    let d = distToRect(x, z, o.flat);
-    for (const r of o.roads) d = Math.min(d, segDist(x, z, r.a, r.b) - r.w / 2);
-    return d;
-  };
+  const flatD = (x: number, z: number) => distToRect(x, z, o.flat);
   const centre = { x: (o.flat.x0 + o.flat.x1) / 2, z: (o.flat.z0 + o.flat.z1) / 2 };
   const seaZ = o.seaZ ?? def.seaZ;
   const water = def.water ?? (o.seaZ !== undefined ? -1.2 : null);
-  const h = (x: number, z: number) => hBase(x, z) - (o.curve ? (Math.pow(x - centre.x, 2) + Math.pow(z - centre.z, 2)) / (2 * o.curve) : 0);
-  const hBase = (x: number, z: number) => {
-    const cv = o.carve?.(x, z);
-    if (cv !== undefined && cv !== null) return cv;
+  const valleys = o.roads.filter((r) => r.valley);
+  /** The land as nature made it (the campus levelled, the far relief opening out along the highway's valley). */
+  const hNat = (x: number, z: number) => {
     const fd = flatD(x, z);
     const d = Math.hypot(x - centre.x, z - centre.z);
     let y = (fbm(x * 0.012, z * 0.012, s, 4) - 0.45) * def.relief * 2 + (fbm(x * 0.05, z * 0.05, s + 5, 2) - 0.5) * def.relief * 0.3;
     y *= smooth(0, 30, fd);
-    const farK = smooth(140, 420, d);
+    let farK = smooth(140, 420, d);
+    for (const r of valleys) farK *= 0.12 + 0.88 * smooth(18, 240, segDist(x, z, r.a, r.b));
     switch (def.far) {
       case 'mesas': {
         const m = fbm(x * 0.004, z * 0.004, s + 11, 3);
@@ -175,16 +185,67 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     }
     return y;
   };
+  // grade each road: sample the land along it, smooth that into an easy profile (above any water), then blend the
+  // land to the profile across the road and its shoulders (a cut through a rise, an embankment over a dip)
+  // what the pieces dig or the lake shore takes away comes first; the roads are graded over it (a causeway, not a dive)
+  const hCarved = (x: number, z: number) => {
+    const cv = o.carve?.(x, z);
+    return cv !== undefined && cv !== null ? cv : hNat(x, z);
+  };
+  let hGraded = hCarved;
+  for (const r of o.roads) {
+    const len = Math.hypot(r.b[0] - r.a[0], r.b[1] - r.a[1]);
+    if (len < 1) continue;
+    const ux = (r.b[0] - r.a[0]) / len, uz = (r.b[1] - r.a[1]) / len;
+    const STEP = 4, n = Math.ceil(len / STEP) + 1;
+    let prof = new Float32Array(n);
+    const prev = hGraded;
+    for (let i = 0; i < n; i++) {
+      const t = Math.min(len, i * STEP);
+      let y = prev(r.a[0] + ux * t, r.a[1] + uz * t);
+      if (water !== null) y = Math.max(y, water + 0.8);
+      prof[i] = y;
+    }
+    // three box blurs ≈ a gaussian ~±40 m, ends held (they meet the campus or another road at its height)
+    for (let pass = 0; pass < 3; pass++) {
+      const out = new Float32Array(n), R = 7;
+      for (let i = 0; i < n; i++) {
+        let sum = 0, cnt = 0;
+        for (let j = Math.max(0, i - R); j <= Math.min(n - 1, i + R); j++) { sum += prof[j]; cnt++; }
+        out[i] = sum / cnt;
+      }
+      out[0] = prof[0]; out[n - 1] = prof[n - 1];
+      prof = out;
+    }
+    const at = (t: number) => {
+      const f = Math.max(0, Math.min(n - 1, t / STEP)), i = Math.min(n - 2, Math.floor(f)), k = f - i;
+      return prof[i] * (1 - k) + prof[i + 1] * k;
+    };
+    const half = r.w / 2;
+    hGraded = (x: number, z: number) => {
+      const dx = x - r.a[0], dz = z - r.a[1];
+      const t = Math.max(0, Math.min(len, dx * ux + dz * uz));
+      const d = Math.hypot(dx - ux * t, dz - uz * t);
+      if (d > half + 12) return prev(x, z);
+      const k = 1 - smooth(half + 0.6, half + 12, d);
+      const base = prev(x, z);
+      return base + (at(t) - base) * k;
+    };
+  }
+  const hExact = (x: number, z: number) => hGraded(x, z) - (o.curve ? (Math.pow(x - centre.x, 2) + Math.pow(z - centre.z, 2)) / (2 * o.curve) : 0);
 
   const xs = axis(1600), zs = axis(1600);
   const nx = xs.length, nz = zs.length;
   const pos = new Float32Array(nx * nz * 3);
   const cols = new Float32Array(nx * nz * 3);
   const strata = def.strata?.map((p) => col(p));
+  const heights = new Float32Array(nx * nz);
+  const h = hExact;
   for (let j = 0; j < nz; j++)
     for (let i = 0; i < nx; i++) {
       const x = xs[i], z = zs[j];
-      const y = h(x, z);
+      const y = hExact(x, z);
+      heights[j * nx + i] = y;
       const k = (j * nx + i) * 3;
       pos[k] = x; pos[k + 1] = y; pos[k + 2] = z;
       // colour: patches, bare ground, slopes to rock, strata on mesa sides, snow up high, sand at the shore
@@ -217,6 +278,8 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
   mesh.receiveShadow = true;
   mesh.castShadow = true;
   mesh.name = 'ground';
+  const surface = meshHeight(xs, zs, heights, hExact);
+  const tint = meshTint(xs, zs, cols);
 
   let waterMesh: THREE.Mesh | null = null;
   if (water !== null) {
@@ -232,7 +295,7 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
   const okAt = (x: number, z: number, near: boolean) => {
     if (distToRect(x, z, clear) < 3) return false;
     for (const rd of o.roads) if (segDist(x, z, rd.a, rd.b) < rd.w / 2 + 2) return false;
-    const y = h(x, z);
+    const y = surface(x, z);
     if (water !== null && y < water + 0.6) return false;
     if (def.snowLine !== null && y > def.snowLine) return false;
     if (near && Math.hypot(x - centre.x, z - centre.z) > 220) return false;
@@ -240,8 +303,8 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
   };
   const tintR = () => 0.85 + r() * 0.3;
   const carpet: BackdropDef['plants'] = o.backdrop === 'lunar' ? [] : o.backdrop === 'desert'
-    ? [{ kind: 'shrub', n: 900, s: [0.35, 0.8] }, { kind: 'rock', n: 500, s: [0.25, 0.8] }]
-    : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: 'shrub', n: 1100, s: [0.45, 1.1] }, { kind: 'rock', n: 300, s: [0.25, 0.7] }];
+    ? [{ kind: 'shrub', n: 320, s: [0.35, 0.8] }, { kind: 'rock', n: 220, s: [0.25, 0.8] }]
+    : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: 'shrub', n: 220, s: [0.45, 1.1] }, { kind: 'rock', n: 110, s: [0.3, 0.8] }];
   for (const p of [...def.plants, ...carpet.map((c) => ({ ...c, carpet: true }))] as (BackdropDef['plants'][number] & { carpet?: boolean })[]) {
     const at: Placement[] = [];
     const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' ? 320 : 700;
@@ -261,19 +324,90 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
         z = centre.z + Math.sin(a) * d * 0.9;
       }
       if (!okAt(x, z, !!p.near)) continue;
-      at.push({ x, y: h(x, z) - 0.05, z, s: p.s[0] + r() * (p.s[1] - p.s[0]), ry: r() * Math.PI * 2, tint: tintR() });
+      at.push({ x, y: surface(x, z) - 0.05, z, s: p.s[0] + r() * (p.s[1] - p.s[0]), ry: r() * Math.PI * 2, tint: tintR() });
     }
     if (p.kind === 'mesquite' || p.kind === 'oak') {
       const obj = models[p.kind]?.(at);
       if (obj) plants.add(obj);
       continue;
     }
+    // the nearest few as Meshy models, the rest code-built
+    const nm = NEAR_MODEL[p.kind as TreeKind];
+    const make = models[p.kind as TreeKind];
+    if (nm && make && quality.plants >= 0.5) {
+      const near: Placement[] = [], far: Placement[] = [];
+      const cap = Math.round(nm.cap * quality.plants);
+      for (const a of at) (near.length < cap && Math.hypot(a.x - centre.x, a.z - centre.z) < nm.r ? near : far).push(a);
+      const obj = near.length ? make(near) : null;
+      if (obj) {
+        if (p.kind === 'rock' || p.kind === 'shrub') obj.traverse((c) => { c.castShadow = false; });
+        plants.add(obj);
+        at.length = 0;
+        at.push(...far);
+      }
+    }
+    if (p.kind === 'tuft') {
+      // grass clumps: blades in the backdrop's own greens and straws, swaying
+      const [ga, gb] = grassColours(def.ground);
+      const im = new THREE.InstancedMesh(sharedClump(), grassMaterial('carpet'), Math.max(1, at.length));
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+      at.forEach((pl, i) => {
+        q.setFromEuler(new THREE.Euler(pl.rx ?? 0, pl.ry, 0));
+        m.compose(new THREE.Vector3(pl.x, pl.y, pl.z), q, new THREE.Vector3(pl.s * 1.3, pl.s * 1.25, pl.s * 1.3));
+        im.setMatrixAt(i, m);
+        tint(pl.x, pl.z, c).lerp(r() < 0.5 ? ga : gb, 0.25).multiplyScalar(0.92 + r() * 0.16);
+        im.setColorAt(i, c);
+      });
+      im.count = at.length;
+      im.castShadow = false;
+      im.receiveShadow = true;
+      im.computeBoundingSphere();
+      plants.add(im);
+      continue;
+    }
     const field = treeField(p.kind, at, plantMat);
     // ground cover's shadows are too small to see, but thousands of them fill the shadow pass
-    if (p.kind === 'tuft' || p.kind === 'rock' || (p.kind === 'shrub' && p.carpet)) field.castShadow = false;
+    if (p.kind === 'rock' || (p.kind === 'shrub' && p.carpet)) field.castShadow = false;
     plants.add(field);
   }
-  return { mesh, water: waterMesh, plants, h, def };
+  return { mesh, water: waterMesh, plants, h: surface, tint, def };
+}
+
+/** The ground's vertex colour at (x, z), bilinear over the grid cell. */
+function meshTint(xs: number[], zs: number[], cols: Float32Array) {
+  const nx = xs.length;
+  const find = (a: number[], v: number) => {
+    let lo = 0, hi = a.length - 2;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (a[m] <= v) lo = m; else hi = m - 1; }
+    return lo;
+  };
+  return (x: number, z: number, out: THREE.Color) => {
+    const i = find(xs, Math.max(xs[0], Math.min(xs[nx - 1], x))), j = find(zs, Math.max(zs[0], Math.min(zs[zs.length - 1], z)));
+    const u = Math.max(0, Math.min(1, (x - xs[i]) / (xs[i + 1] - xs[i]))), v = Math.max(0, Math.min(1, (z - zs[j]) / (zs[j + 1] - zs[j])));
+    const k = (ii: number, jj: number, c: number) => cols[(jj * nx + ii) * 3 + c];
+    const f = (c: number) => (k(i, j, c) * (1 - u) + k(i + 1, j, c) * u) * (1 - v) + (k(i, j + 1, c) * (1 - u) + k(i + 1, j + 1, c) * u) * v;
+    return out.setRGB(f(0), f(1), f(2));
+  };
+}
+
+/**
+ * The height of the ground mesh itself at (x, z): the grid cell, then the triangle of it the point is in (the grid's
+ * diagonals run from (i+1, j) to (i, j+1)). Out past the grid it falls back to the exact land.
+ */
+function meshHeight(xs: number[], zs: number[], hs: Float32Array, exact: (x: number, z: number) => number) {
+  const nx = xs.length;
+  const find = (a: number[], v: number) => {
+    let lo = 0, hi = a.length - 2;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (a[m] <= v) lo = m; else hi = m - 1; }
+    return lo;
+  };
+  return (x: number, z: number) => {
+    if (x < xs[0] || x > xs[nx - 1] || z < zs[0] || z > zs[zs.length - 1]) return exact(x, z);
+    const i = find(xs, x), j = find(zs, z);
+    const u = (x - xs[i]) / (xs[i + 1] - xs[i]), v = (z - zs[j]) / (zs[j + 1] - zs[j]);
+    const a = hs[j * nx + i], b = hs[j * nx + i + 1], c = hs[(j + 1) * nx + i], d = hs[(j + 1) * nx + i + 1];
+    return u + v <= 1 ? a + u * (b - a) + v * (c - a) : d + (1 - u) * (c - d) + (1 - v) * (b - d);
+  };
 }
 
 const groundMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })));

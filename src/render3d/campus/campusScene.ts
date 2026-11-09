@@ -26,7 +26,7 @@ import {
 import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
-import { BACKDROPS, buildGround, type Backdrop, type Ground } from './ground';
+import { BACKDROPS, buildGround, type Backdrop, type Ground, type GroundModels } from './ground';
 import { habFloor, habitatShell, HAB_R } from './habitatShell';
 import { treeField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
@@ -35,6 +35,8 @@ import { act3Key } from '../../render/diorama/act3Pieces';
 import { CampusSky, type Weather } from './sky';
 import { Precip } from './weather';
 import { Crowd, makeBit, Traffic } from './life';
+import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
+import { GrassPatch, grassColours } from './grass';
 import { deskHolder } from '../../sim/systemView';
 import { sfx } from '../../audio/sfx';
 
@@ -88,6 +90,9 @@ export class CampusScene implements Scene3D {
   private traffic = new Traffic();
   private updaters: ((e: Env) => void)[] = [];
   private bit: { obj: THREE.Object3D; hit: THREE.Mesh } | null = null;
+  /** Dense grass round the camera when it's close (earthly sceneries with grass). */
+  private grass: GrassPatch | null = null;
+  private grassOcc = -1;
   private layoutKey = '';
   /** Suppliers, the cloud, mines, landing stations: set pieces, no plots. */
   private viewOnly: boolean;
@@ -232,24 +237,41 @@ export class CampusScene implements Scene3D {
     const ex = this.sceneExtra as { km?: number; type?: string; place?: string; swarm?: number; habitats?: number; lived?: number };
     if (this.scenery === 'space') {
       // the yards and the ring float: no ground at all
-      this.ground = { mesh: new THREE.Mesh(), water: null, plants: new THREE.Group(), h: () => 0, def: BACKDROPS.lunar };
+      this.ground = { mesh: new THREE.Mesh(), water: null, plants: new THREE.Group(), h: () => 0, tint: (_x, _z, c) => c.setRGB(0.5, 0.5, 0.5), def: BACKDROPS.lunar };
     } else if (this.scenery === 'habitat') {
-      this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: habitatMeadow(seed, this.layout.bounds, this.setPieces.map((sp) => sp.item.rect)), h: (_x, z) => habFloor(z), def: BACKDROPS.temperate };
+      this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: habitatMeadow(seed, this.layout.bounds, this.setPieces.map((sp) => sp.item.rect)), h: (_x, z) => habFloor(z), tint: (_x, _z, c) => c.setRGB(0.45, 0.6, 0.3), def: BACKDROPS.temperate };
     } else {
       this.groundOpts = {
         backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
         curve: this.scenery === 'asteroid' ? 160 + Math.sqrt(ex.km ?? 10) * 30 : undefined,
+        // the highway runs along its own valley; the access road is graded after it, so it meets the highway level
         roads: roadless ? [] : [
-          { a: [-1700, HIGHWAY_Z], b: [1700, HIGHWAY_Z], w: 12 },
+          { a: [-1700, HIGHWAY_Z], b: [1700, HIGHWAY_Z], w: 12, valley: true },
           { a: [this.layout.accessX, HIGHWAY_Z], b: [this.layout.accessX, -PD - 6], w: 8 },
         ],
       };
-      this.groundModels = { mesquite: mesq, oak };
+      // Meshy scenery near the campus: width in metres at scale 1 (the code-built kinds' own sizes, a bit larger)
+      const meshy = (n: SceneryName, w: number, light: number) => (at: { x: number; y: number; z: number; s: number; ry: number }[]) => {
+        const p = modelParts(n);
+        return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
+      };
+      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.5, 1.75), boulder: meshy('boulder_a', 3.0, 1.1), shrub: meshy('bush_a', 1.7, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.05), pine: meshy('pine_a', 2.5, 1.05) };
       this.ground = buildGround(this.groundOpts, this.groundModels);
       if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
     }
     this.scene.add(this.ground.mesh, this.ground.plants);
     if (this.ground.water) this.scene.add(this.ground.water);
+    this.grass = null;
+    const grassy = this.scenery !== 'space' && this.scenery !== 'moon' && this.scenery !== 'asteroid' && this.scenery !== 'habitat' && this.scenery !== 'offshore' && backdrop !== 'desert' && backdrop !== 'lunar';
+    if (grassy) {
+      const dry = backdrop === 'plains' || backdrop === 'savanna';
+      this.grass = new GrassPatch(this.ground.h, (x, z) => this.grassOk(x, z, roadless), grassColours(BACKDROPS[backdrop].ground), this.ground.tint, {
+        density: dry ? 0.55 : backdrop === 'volcanic' || backdrop === 'mountain' ? 0.7 : 1,
+        scale: dry ? [0.9, 1.6] : [0.75, 1.35],
+        radius: 38 * Math.max(0.6, Math.min(1, quality.plants)),
+      });
+      this.scene.add(this.grass.mesh);
+    }
     // a small world's ground curves away: stand each piece on it, square to the slope
     if (this.scenery === 'asteroid') {
       for (const sp of this.setPieces) {
@@ -318,7 +340,7 @@ export class CampusScene implements Scene3D {
   private scenery = 'campus';
   private brownout = false;
   private groundOpts: Parameters<typeof buildGround>[0] | null = null;
-  private groundModels: Parameters<typeof buildGround>[1] = {};
+  private groundModels: GroundModels = {};
   /** Which facilities reshape the ground (a hydro plant's lake and gorge): the ground is rebuilt when it changes. */
   private carveKey = '';
   private sceneExtra: Record<string, unknown> = {};
@@ -387,50 +409,71 @@ export class CampusScene implements Scene3D {
     this.buildRoads();
   }
 
-  /** Roads, poles and lamps: rebuilt when the campus gains columns of plots. */
+  /** Where the close-up grass may grow: not on the roads and pavements, the plots in use, the pieces or the water. */
+  private grassOk(x: number, z: number, roadless: boolean) {
+    const L = this.layout;
+    const y = this.ground.h(x, z);
+    if (this.ground.water && y < this.ground.water.position.y + 0.5) return false;
+    if (!roadless) {
+      const ax = L.accessX, BACK = -PD - 4;
+      const east = (L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10) + 6;
+      if (Math.abs(z - HIGHWAY_Z) < 5.6) return false;
+      if (x > ax - 3.5 && x < ax + 4.6 && z > BACK - 2 && z < HIGHWAY_Z) return false;
+      if (z > FRONT_Z - 4.6 && z < FRONT_Z + 3.4 && x > ax && x < east) return false;
+      if ((x - east) ** 2 + (z - FRONT_Z) ** 2 < 49) return false;
+      if (Math.abs(z - BACK) < 1.9 && x > ax && x < east) return false;
+      if (Math.abs(x - L.substation.x) < 8.5 && Math.abs(z - L.substation.z) < 8.5) return false;
+    }
+    const inside = (r: Rect, m = 0.2) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
+    for (const it of L.items) if (it.kind !== 'empty' && inside(it.rect)) return false;
+    for (const sp of this.setPieces) if (inside(sp.item.rect, 0.5)) return false;
+    return true;
+  }
+
+  /** Roads, pavements, poles and lamps: rebuilt when the campus gains columns of plots. */
   private buildRoads() {
     for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); }
     const L = this.layout;
     const h = this.ground.h;
-    const kit = new Kit(rng(4));
     const east = (L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10) + 6;
-    const strip = (ax: number, az: number, bx: number, bz: number, w: number, c: string) => {
-      const len = Math.hypot(bx - ax, bz - az);
-      const ang = Math.atan2(bx - ax, bz - az);
-      const n = Math.max(1, Math.ceil(len / 6));
-      for (let i = 0; i < n; i++) {
-        const t0 = i / n, t1 = (i + 1) / n;
-        const mx = ax + (bx - ax) * (t0 + t1) / 2, mz = az + (bz - az) * (t0 + t1) / 2;
-        // (plain boxes: a bevel on a 0.14-thick strip can't be seen, and 500 of them cost ~450k triangles)
-        kit.box(w, 0.14, len / n + 0.05, c, mx, h(mx, mz) - 0.06, mz, { r: 0, ry: ang, jitter: 0.015, shade: 0 });
-      }
-    };
-    // the highway, both ways to the horizon, with its markings
-    strip(-1500, HIGHWAY_Z, 1500, HIGHWAY_Z, 9, '#58565c');
-    for (let x = -1500; x < 1500; x += 6) kit.box(2.6, 0.02, 0.22, '#fbd46e', x, h(x, HIGHWAY_Z) + 0.09, HIGHWAY_Z, { r: 0, jitter: 0 });
-    for (const sz of [-4, 4]) strip(-1500, HIGHWAY_Z + sz, 1500, HIGHWAY_Z + sz, 0.18, '#d8d2c8');
-    // the access road and the frontage road along the plots
-    strip(L.accessX, HIGHWAY_Z - 4, L.accessX, -PD - 4, 6, '#66636a');
-    strip(L.accessX, FRONT_Z, east, FRONT_Z, 6, '#66636a');
-    kit.cyl(3, 3, 0.14, '#66636a', L.accessX, h(L.accessX, FRONT_Z) - 0.06, FRONT_Z, 16, { jitter: 0, shade: 0 });
+    const ax = L.accessX, HZ = HIGHWAY_Z, FZ = FRONT_Z, BACK = -PD - 4;
+    const HW = 10, SW = 6, R = 3;
+    // the highway, both ways to the horizon; its north edge line breaks where the access road joins
+    const hwA = -1500, joinT = ax - hwA;
+    this.roads.add(roadMesh({ kind: 'highway', a: [hwA, HZ], b: [1500, HZ], w: HW, breaks: [[joinT - SW / 2 - R, joinT + SW / 2 + R, 'l']] }, h));
+    // the access road (north from the highway's edge to the service lane); its east edge and centre line break at
+    // the frontage road's junction
+    const accA: [number, number] = [ax, HZ - HW / 2 + 0.2], accB: [number, number] = [ax, BACK - 1.6];
+    const jt = accA[1] - FZ;
+    this.roads.add(roadMesh({ kind: 'street', a: accA, b: accB, w: SW, breaks: [[jt - SW / 2 - R, jt + SW / 2 + R, 'r'], [jt - SW / 2, jt + SW / 2, 'c'], [accA[1] - BACK - 2, 999, 'all']] }, h));
+    // the frontage road along the plots, ending in a turning circle
+    this.roads.add(roadMesh({ kind: 'street', a: [ax + SW / 2 - 0.2, FZ], b: [east, FZ], w: SW, breaks: [[0, 1.2, 'all']] }, h));
+    this.roads.add(discMesh('street', [east, FZ], 6.5, h));
+    // rounded corners where the roads meet
+    for (const sx of [-1, 1]) this.roads.add(cornerMesh('highway', [ax + sx * SW / 2, HZ - HW / 2 + 0.05], [0, -1], [sx, 0], R, h));
+    this.roads.add(cornerMesh('street', [ax + SW / 2, FZ - SW / 2], [0, -1], [1, 0], R, h));
+    this.roads.add(cornerMesh('street', [ax + SW / 2, FZ + SW / 2], [0, 1], [1, 0], R, h));
+    // stop lines: out of the campus onto the highway, and from the frontage road onto the access road
+    this.roads.add(paintMesh(h, [ax, HZ - HW / 2 - 0.9], [0, -1], 'stop', SW));
+    this.roads.add(paintMesh(h, [ax + SW / 2 + 0.9, FZ], [1, 0], 'stop', SW));
     // a gravel service lane behind the back row
-    strip(L.accessX, -PD - 4, east, -PD - 4, 3.2, '#cdb894');
+    this.roads.add(roadMesh({ kind: 'lane', a: [ax + SW / 2 - 0.2, BACK], b: [east, BACK], w: 3.2 }, h));
+    // pavements with kerbs: along the plots' side of the frontage road, and up the access road's campus side
+    this.roads.add(roadMesh({ kind: 'pavement', a: [ax + SW / 2 + 0.05, FZ - 3.75], b: [east - 6, FZ - 3.75], w: 1.4, kerb: 0.12 }, h));
+    this.roads.add(roadMesh({ kind: 'pavement', a: [ax + 3.75, BACK + 2], b: [ax + 3.75, FZ - 4.45], w: 1.4, kerb: 0.12 }, h));
     // poles along the frontage road carrying power from the substation
     const poles: THREE.Vector3[] = [];
-    for (let x = L.accessX + 4; x <= east; x += 14) { const y = h(x, FRONT_Z + 4); poles.push(V(x, y + 6, FRONT_Z + 4)); }
+    for (let x = L.accessX + 4; x <= east - 8; x += 14) { const y = h(x, FRONT_Z + 5); poles.push(V(x, y + 6, FRONT_Z + 5)); }
     const pk = new Kit(rng(5));
     for (const p of poles) { const lk = pk; lk.cyl(0.13, 0.16, 6.5, '#7d5232', p.x, p.y - 6, p.z, 6); lk.beam(V(p.x, p.y - 0.5, p.z - 1.1), V(p.x, p.y - 0.5, p.z + 1.1), 0.13, '#6b4a2c'); }
     void utilityPole;
     this.roads.add(pk.build());
     this.roads.add(wires([poles.map((p) => p.clone().add(V(0, -0.5, -0.9))), poles.map((p) => p.clone().add(V(0, -0.5, 0.9)))], 0.45));
-    // lamps up the access road and along the front
+    // lamps up the access road (beside its pavement) and along the far verge of the frontage road
     const lamps = new Kit(rng(8));
-    for (let z = -PD; z <= HIGHWAY_Z - 8; z += 12) streetLamp(this.roads, lamps, L.accessX + 3.6, h(L.accessX + 3.6, z), z, -1);
-    for (let x = L.accessX + 10; x <= east; x += 16) streetLamp(this.roads, lamps, x, h(x, FRONT_Z - 3.6), FRONT_Z - 3.6, 1);
+    for (let z = -PD; z <= HIGHWAY_Z - 8; z += 12) if (Math.abs(z - FRONT_Z) > 5) streetLamp(this.roads, lamps, L.accessX + 4.8, h(L.accessX + 4.8, z), z, -1);
+    for (let x = L.accessX + 11; x <= east - 8; x += 16) streetLamp(this.roads, lamps, x, h(x, FRONT_Z + 3.7), FRONT_Z + 3.7, 1);
     this.roads.add(lamps.build());
-    const m = kit.build();
-    m.castShadow = false;
-    this.roads.add(m);
   }
 
   // ── facilities ────────────────────────────────────────────────────────────────────────────
@@ -443,6 +486,8 @@ export class CampusScene implements Scene3D {
       this.layoutKey = key;
       if (!force) this.buildRoads();
     }
+    const occ = L.items.filter((i) => i.kind !== 'empty').length;
+    if (occ !== this.grassOcc) { this.grassOcc = occ; this.grass?.invalidate(); }
     const seen = new Set<string>();
     for (const item of L.items) {
       if (item.kind !== 'facility' || !item.facility) continue;
@@ -798,6 +843,7 @@ export class CampusScene implements Scene3D {
     }
     this.clampCam();
     this.placeCamera();
+    this.grass?.update(this.target, this.dist);
     void s;
   }
 
@@ -1091,4 +1137,22 @@ function emptyPlot(r: Rect, i: number) {
   const m = k.build();
   m.position.set(c.x, 0, c.z);
   return m;
+}
+
+type SceneryName = 'rock_a' | 'boulder_a' | 'bush_a' | 'broadleaf_a' | 'pine_a';
+/** A scenery model's material, lightened (some Meshy textures come out darker than the land round them). Shared per source. */
+const sceneryMats = new Map<string, THREE.Material>();
+function sceneryMat(m: THREE.Material, light: number): THREE.Material {
+  if (light === 1) return m;
+  const key = m.uuid + light;
+  let c = sceneryMats.get(key);
+  if (!c) {
+    c = m.clone();
+    (c as THREE.MeshStandardMaterial).color?.setScalar(light);
+    c.onBeforeCompile = m.onBeforeCompile;
+    c.customProgramCacheKey = m.customProgramCacheKey;
+    c.userData.shared = true;
+    sceneryMats.set(key, c);
+  }
+  return c;
 }

@@ -127,7 +127,9 @@ function grainTexture() {
       };
       const r = v(1, 4) * 0.5 + v(2, 8) * 0.3 + v(3, 16) * 0.2;
       const g = v(4, 32) * 0.6 + v(5, 64) * 0.4;
-      data.set([r * 255, g * 255, 0, 255], (y * n + x) * 4);
+      // b: fine speckle (blades and grit up close; it averages out in the mipmaps further off)
+      const b = noise(x + 0.5, y + 0.5, 6) * 0.55 + v(7, 2) * 0.45;
+      data.set([r * 255, g * 255, b * 255, 255], (y * n + x) * 4);
     }
   grainTex = new THREE.DataTexture(data, n, n);
   grainTex.userData.shared = true;
@@ -135,6 +137,7 @@ function grainTexture() {
   grainTex.magFilter = THREE.LinearFilter;
   grainTex.minFilter = THREE.LinearMipmapLinearFilter;
   grainTex.generateMipmaps = true;
+  grainTex.anisotropy = 8;
   grainTex.needsUpdate = true;
   return grainTex;
 }
@@ -159,6 +162,12 @@ export function withGrain<M extends THREE.MeshStandardMaterial>(m: M, k = 0.22):
           diffuseColor.rgb *= 1.0 + gr * ${k.toFixed(3)} * (0.4 + 0.6 * fade);
           // dry, paler flecks
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 1.08, 0.92), smoothstep(0.62, 0.8, b.r) * 0.5 * fade);
+          // up close: turf (clumps a few tens of centimetres across, and speckle)
+          float nearK = (1.0 - smoothstep(18.0, 120.0, distance(vGrainW, cameraPosition))) * ${Math.min(1, k * 4).toFixed(3)};
+          float sp = texture2D(uGrain, vGrainW.xz * 0.12 + 0.11).b;
+          float cl = texture2D(uGrain, vGrainW.xz * 0.27 + 0.53).r;
+          diffuseColor.rgb *= 1.0 + ((sp - 0.5) * 0.34 + (cl - 0.5) * 0.4) * nearK;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.86, 0.95, 0.8), smoothstep(0.55, 0.75, cl) * 0.35 * nearK);
         }`);
   };
   const key = m.customProgramCacheKey?.bind(m);
