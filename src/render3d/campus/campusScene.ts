@@ -237,6 +237,15 @@ export class CampusScene implements Scene3D {
     }
     this.scene.add(this.ground.mesh, this.ground.plants);
     if (this.ground.water) this.scene.add(this.ground.water);
+    // a small world's ground curves away: stand each piece on it, square to the slope
+    if (this.scenery === 'asteroid') {
+      for (const sp of this.setPieces) {
+        const p = sp.root.position, h = this.ground.h;
+        p.y = h(p.x, p.z);
+        const dx = (h(p.x + 2, p.z) - h(p.x - 2, p.z)) / 4, dz = (h(p.x, p.z + 2) - h(p.x, p.z - 2)) / 4;
+        sp.root.rotation.set(Math.atan(dz), 0, -Math.atan(dx));
+      }
+    }
     const offWorld = this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid' || this.scenery === 'habitat';
     const weather = offWorld ? 'clear' : this.pickWeather();
     const skyMode = this.scenery === 'moon' ? 'lunar' : this.scenery === 'space' ? 'space' : this.scenery === 'asteroid' ? 'asteroid' : this.scenery === 'habitat' ? 'habitat' : 'earth';
