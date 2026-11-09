@@ -68,7 +68,7 @@ export class Stage3D implements GameStage {
   /**
    * Adaptive resolution: every 0.7 s one frame is timed from a sync before it to a sync after it (two 1-pixel reads;
    * what the GPU really spends, unlike the frame rate, which WebKit caps at 30 in low-power mode). Over ~22 ms (under
-   * ~45 fps): a step down; when the next step up would still fit in ~15 ms, a step up (never straight after a step).
+   * ~45 fps): a step down; when the next step up would still fit in ~15 ms, a step up (at most every 12 s, so the sharpness doesn't hunt).
    * Never under automation (QA screenshots stay sharp) or just after a scene change (shader compiles).
    */
   private adapt(cost: number, now: number) {
@@ -82,7 +82,7 @@ export class Stage3D implements GameStage {
       this.lastStep = now;
       this.quietUntil = now + 800;
       this.layout();
-    } else if (this.dyn < 1 && med * ((this.dyn + STEP) / this.dyn) ** 2 < 15 && now - this.lastStep > 5000) {
+    } else if (this.dyn < 1 && med * ((this.dyn + STEP) / this.dyn) ** 2 < 15 && now - this.lastStep > 12000) {
       this.dyn = Math.min(1, this.dyn + STEP);
       this.lastStep = now;
       this.quietUntil = now + 800;
