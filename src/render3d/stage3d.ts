@@ -6,6 +6,8 @@
 import * as THREE from 'three';
 import type { GameScene, GameStage, PixelPointer } from '../render/stage';
 import { defaultLook, Post, type Look } from './post';
+import { getEra } from '../render/palette';
+import { quality } from './quality';
 
 /** A 3D scene: a three.js scene and camera, plus what it wants from the post pipeline. */
 export interface Scene3D extends GameScene {
@@ -48,6 +50,15 @@ export class Stage3D implements GameStage {
     this.bindInput();
   }
 
+  /** The detail level changed: re-lay out (resolution) and rebuild the post pipeline (AO, MSAA). */
+  applyQuality() {
+    this.layout();
+    if (this.scene) {
+      this.post?.dispose();
+      this.post = new Post(this.renderer, this.scene.scene, this.scene.camera, !!this.scene.wantsAO && quality.ao, quality.samples);
+    }
+  }
+
   setZoomBoost(z: number) {
     // the pixel game's zoom is its pixel size; here it only sizes the UI's hairlines (--px)
     this.zoom = Math.max(1, Math.min(4, Math.round(z)));
@@ -59,7 +70,7 @@ export class Stage3D implements GameStage {
     const w = window.innerWidth, h = window.innerHeight;
     this.width = w;
     this.height = h;
-    this.scale = Math.min(dpr, 2);
+    this.scale = Math.min(dpr, quality.pixelRatio);
     this.renderer.setPixelRatio(this.scale);
     this.renderer.setSize(w, h);
     // the UI's frames are drawn in "game pixels": keep them the size the pixel game uses
@@ -85,7 +96,7 @@ export class Stage3D implements GameStage {
       scene.camera.aspect = this.width / this.height;
       scene.camera.updateProjectionMatrix();
       scene.resize(this.width, this.height);
-      this.post = new Post(this.renderer, scene.scene, scene.camera, !!scene.wantsAO);
+      this.post = new Post(this.renderer, scene.scene, scene.camera, !!scene.wantsAO && quality.ao, quality.samples);
     }
   }
 
@@ -100,7 +111,8 @@ export class Stage3D implements GameStage {
       return;
     }
     s.update(dt, now);
-    this.post.render(dt, s.look ?? defaultLook(), this.fade);
+    const look = s.look ?? defaultLook();
+    this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, this.fade, getEra());
   }
 
   private bindInput() {

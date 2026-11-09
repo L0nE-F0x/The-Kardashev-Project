@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { col, fbm, mix, noise, rng, smooth, withClouds, withGrain, type Paint } from '../kit';
 import type { Rect } from './layout';
 import { treeField, type Placement, type TreeKind } from './trees';
+import { quality } from '../quality';
 
 export type Backdrop = 'plains' | 'desert' | 'coast' | 'mountain' | 'boreal' | 'temperate' | 'tropical' | 'savanna' | 'volcanic' | 'lunar';
 
@@ -246,7 +247,8 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' ? 320 : 700;
     const centres: [number, number][] = [];
     if (p.cluster) for (let i = 0; i < p.n / p.cluster; i++) centres.push([centre.x + (r() - 0.5) * radius * 2, centre.z + (r() - 0.5) * radius * 2]);
-    for (let tries = 0; at.length < p.n && tries < p.n * 12; tries++) {
+    const want = Math.round(p.n * (p.near ? Math.max(0.6, quality.plants) : quality.plants));
+    for (let tries = 0; at.length < want && tries < want * 12; tries++) {
       let x: number, z: number;
       if (p.cluster && centres.length) {
         const c = centres[Math.floor(r() * centres.length)];

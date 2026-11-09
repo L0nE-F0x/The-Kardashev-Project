@@ -17,7 +17,7 @@ import type { AdvisorId, Facility, GameState } from '../../sim/types';
 import { subsolar } from '../../world/sun';
 import { dir } from '../globe/earth';
 import { closeScope, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
-import { modelParts, model, type PersonName } from '../models';
+import { hasModel, loadModels, modelParts, model, type PersonName } from '../models';
 import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
   scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
@@ -249,10 +249,27 @@ export class CampusScene implements Scene3D {
     }
     if (!this.viewOnly) this.sync(true);
     if (!roadless) this.populate();
+    else if (this.scenery === 'moon') this.astronauts();
+  }
+
+  /** Suited crews bounding between the Moon base's pieces (they load on first visit). */
+  private astronauts() {
+    const crowd = this.crowd;
+    const go = () => {
+      if (this.crowd !== crowd) return;
+      for (const [i, sp] of this.setPieces.entries()) {
+        if (i % 2) continue;
+        const r = sp.item.rect;
+        crowd.add('astronaut', [[r.x0 + 2, r.z1 + 2], [r.x1 - 2, r.z1 + 3], [r.x1 - 4, r.z1 + 6]], this.ground.h, { pause: [2, 6], speed: 0.7 });
+      }
+    };
+    if (hasModel('astronaut')) go();
+    else loadModels(['astronaut']).then(go).catch(() => {});
   }
 
   /** What surrounds the pieces: a campus, Geneva's lakeside, open sea, a launch coast, the Moon. */
   private scenery = 'campus';
+  private brownout = false;
   private sceneExtra: Record<string, unknown> = {};
   private moonSun: THREE.Vector3 | null = null;
 
@@ -483,6 +500,7 @@ export class CampusScene implements Scene3D {
     const e: Entry = { f, item, root, piece, clip, online: f.status === 'online', rectKey };
     if (!e.online || f.upgrade) this.construction(e);
     if (e.online) piece.progress?.(1);
+    if (this.brownout) piece.setAlert?.(true);
     this.entries.set(f.id, e);
     return e;
   }
@@ -566,7 +584,10 @@ export class CampusScene implements Scene3D {
     for (const [i, id] of this.namedHere(s).entries()) {
       if (id === 'bit') continue;
       const x = L.accessX + 12 + i * 14;
-      this.crowd.add(ADVISOR_FIGURE[id] ?? 'office', [[x, FRONT_Z - 5], [x + 10, FRONT_Z - 5.5], [x + 12, FRONT_Z - 8], [x + 2, FRONT_Z - 8.5]], h, { advisor: id, pause: [2, 7], speed: 1.0 });
+      const own = `adv_${id}` as PersonName;
+      const w = this.crowd.add(hasModel(own) ? own : ADVISOR_FIGURE[id] ?? 'office', [[x, FRONT_Z - 5], [x + 10, FRONT_Z - 5.5], [x + 12, FRONT_Z - 8], [x + 2, FRONT_Z - 8.5]], h, { advisor: id, pause: [2, 7], speed: 1.0 });
+      // their own figure, as soon as it's loaded
+      if (!hasModel(own)) { const crowd = this.crowd; loadModels([own]).then(() => { if (this.crowd === crowd) crowd.reskin(w, own); }).catch(() => {}); }
     }
     if (this.namedHere(s).includes('bit')) {
       this.bit = makeBit();
@@ -663,6 +684,13 @@ export class CampusScene implements Scene3D {
     };
     for (const u of this.updaters) u(env);
     for (const sp of this.setPieces) sp.piece.update?.(env);
+    // a brownout here (more load than power): the halls go red, the people react
+    const pw = s?.stats?.sitePower?.[this.siteId];
+    const brown = !!pw && pw.load > 0.5 && pw.frac < 0.95;
+    if (brown !== this.brownout) {
+      this.brownout = brown;
+      for (const e of this.entries.values()) e.piece.setAlert?.(brown);
+    }
     for (const r of this.rivals.values()) {
       r.piece.update?.(env);
       if (r.crane) r.crane.userData.top.rotation.y = Math.sin(env.t * 0.25) * 1.1;

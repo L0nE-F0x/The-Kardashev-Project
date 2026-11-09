@@ -171,6 +171,20 @@ function Display() {
       <Toggle label="Day & night" hint="The real-time night side on the map; local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
       <Toggle label="CRT filter" hint="Scanlines and a soft vignette, for that old-monitor glow." value={st.crt} onChange={(v) => game.updateSettings({ crt: v })} />
       <Toggle label="Battery saver" hint="Draw at ~30 fps with fewer particles." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
+      {document.documentElement.classList.contains('edition-3d') && (
+        <Choice
+          label="3D detail"
+          hint="High: soft shadows, ambient occlusion and the full countryside. Low: for phones and older laptops. Auto picks for this device."
+          value={st.quality3d ?? 'auto'}
+          options={[
+            ['auto', 'Auto'],
+            ['high', 'High'],
+            ['medium', 'Medium'],
+            ['low', 'Low'],
+          ]}
+          onChange={(v) => game.updateSettings({ quality3d: v })}
+        />
+      )}
       <Toggle label="FPS counter" value={st.fps} onChange={(v) => game.updateSettings({ fps: v })} />
       {isPhone() && !isStandalone() && canFullscreen() && (
         <Toggle label="Fullscreen on phones" hint="Hide the address bar on your first tap. The fullscreen button in the top bar does it any time." value={st.phoneFullscreen} onChange={(v) => game.updateSettings({ phoneFullscreen: v })} />

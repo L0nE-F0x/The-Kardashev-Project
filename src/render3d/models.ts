@@ -12,8 +12,12 @@ import { withClouds } from './kit';
 export type ModelName =
   | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'mesquite' | 'oak'
   | 'pickup' | 'semitruck' | 'sedan' | 'hatchback' | 'suv' | 'van' | 'mixer' | 'flatbed';
-export type PersonName = 'worker' | 'engineer' | 'researcher' | 'scientist' | 'office';
+export type PersonName = 'worker' | 'engineer' | 'researcher' | 'scientist' | 'office'
+  | 'adv_juno' | 'adv_penny' | 'adv_mira' | 'adv_sol' | 'adv_iris' | 'adv_kip' | 'adv_lena' | 'astronaut';
+/** The crowd's everyday figures (loaded at boot). */
 export const PEOPLE: PersonName[] = ['worker', 'engineer', 'researcher', 'scientist', 'office'];
+/** Everyone with a rig (advisors and astronauts load when a scene needs them). */
+const RIGGED = new Set<string>([...PEOPLE, 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut']);
 export const CARS: ModelName[] = ['sedan', 'hatchback', 'suv', 'pickup', 'van'];
 
 // the page lives at /play3d/: the models sit next to it, in /3d/models/
@@ -73,7 +77,7 @@ export function loadModels(names: (ModelName | PersonName)[]): Promise<void> {
     if (templates.has(n)) return Promise.resolve();
     let p = loading.get(n);
     if (p) return p;
-    const person = (PEOPLE as string[]).includes(n);
+    const person = RIGGED.has(n);
     p = (async () => {
       const g = await loader.loadAsync(`${BASE}${n}.glb`);
       const root = g.scene;

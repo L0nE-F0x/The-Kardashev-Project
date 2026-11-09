@@ -31,6 +31,8 @@ export interface Piece {
    * the piece's own coordinates, or null to leave the ground as it is.
    */
   ground?(x: number, z: number): number | null;
+  /** A brownout at the site: halls flicker and show red. */
+  setAlert?(on: boolean): void;
 }
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -314,12 +316,25 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
   if (!o.noParking) parkedCars(g, -11.4, D / 2 + 5.6, 6, 2.2, seed + 9, Math.PI / 2);
 
   let load = 0;
+  let alert = false;
+  const cyan = col('cyn5').clone(), red = col('red3').clone();
   return {
     obj: g, w: W + 2, d: D + 7, h: H + 2.5,
     setLoad(f) { load = f; },
+    setAlert(on) { alert = on; },
     update(e) {
-      for (const f of fans) f.rotation.y += e.dt * f.userData.spin * (0.3 + load);
-      band.emissiveIntensity = load * (0.45 + e.night * 1.3);
+      for (const f of fans) f.rotation.y += e.dt * f.userData.spin * (alert ? 0.15 : 0.3 + load);
+      if (alert) {
+        // a brownout: the band pulses red and flickers
+        const pulse = Math.sin(e.t * 5) > 0 ? 1 : 0.25;
+        band.emissive.copy(red);
+        band.color.copy(red);
+        band.emissiveIntensity = (0.6 + e.night * 1.6) * pulse * (Math.random() < 0.06 ? 0.2 : 1);
+      } else {
+        band.emissive.copy(cyan);
+        band.color.copy(cyan);
+        band.emissiveIntensity = load * (0.45 + e.night * 1.3);
+      }
     },
   };
 }

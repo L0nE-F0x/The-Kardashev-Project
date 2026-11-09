@@ -55,6 +55,20 @@ export class Crowd {
     return w;
   }
 
+  /** Swap a walker's figure for another (an advisor's own model once it has loaded). */
+  reskin(w: Walker, kind: PersonName, height = 1.75) {
+    const p = person(kind, height);
+    if (!p) return;
+    p.obj.position.copy(w.obj.position);
+    p.obj.rotation.copy(w.obj.rotation);
+    if (w.hit) { w.obj.remove(w.hit); p.obj.add(w.hit); w.hit.scale.setScalar(1 / p.obj.scale.x); }
+    this.group.remove(w.obj);
+    this.group.add(p.obj);
+    w.obj = p.obj;
+    w.mixer = p.mixer;
+    w.walk = p.walk;
+  }
+
   update(e: Env) {
     for (const w of this.walkers) {
       if (w.path.length < 2) { w.mixer?.update(0); continue; }

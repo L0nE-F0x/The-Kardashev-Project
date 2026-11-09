@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { cloudUniforms, col, glowMats, mix, poolMats, rng } from '../kit';
+import { quality } from '../quality';
 
 interface Key {
   alt: number;
@@ -70,7 +71,7 @@ export class CampusSky {
     this.dome.frustumCulled = false;
     scene.add(this.dome);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(4096, 4096);
+    this.sun.shadow.mapSize.set(quality.shadowSize, quality.shadowSize);
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.04;
     scene.add(this.sun, this.sun.target, this.hemi);

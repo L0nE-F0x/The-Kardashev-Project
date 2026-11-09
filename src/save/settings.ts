@@ -24,6 +24,8 @@ export interface Settings {
   crt: boolean;
   dayNight: boolean;
   batterySaver: boolean;
+  /** The 3D edition's detail (shadows, ambient occlusion, resolution, plants); 'auto' picks by device. */
+  quality3d: 'auto' | 'high' | 'medium' | 'low';
   fps: boolean;
   /** Phones in a browser tab: go fullscreen on the first tap. */
   phoneFullscreen: boolean;
@@ -76,6 +78,7 @@ export function defaultSettings(): Settings {
     crt: false,
     dayNight: true,
     batterySaver: false,
+    quality3d: 'auto',
     fps: false,
     phoneFullscreen: true,
     master: 0.8,

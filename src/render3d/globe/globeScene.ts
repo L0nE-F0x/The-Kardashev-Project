@@ -15,11 +15,15 @@ import { closedChokepoints } from '../../sim/effects';
 import { sampleRegionCode, project } from '../../world/mapData';
 import { subsolar } from '../../world/sun';
 import { siteVisible } from '../../render/worldMap/act2Layers';
+import { REGIONS } from '../../content/regions';
 import type { GameState, Shipment } from '../../sim/types';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, lonLatOf, R } from './earth';
 import { Kit, rng } from '../kit';
 import { Labels } from './labels';
-import { NetworkLayer } from './layers2';
+import { globePath, NetworkLayer } from './layers2';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { CharterLayer } from './layers3';
 import { PlanetLayer } from './layers45';
 import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2Layers';
@@ -256,6 +260,31 @@ export class GlobeScene implements Scene3D {
     this.updateLinks(s);
     this.updateChokepoints(s);
     this.updateLabels(s);
+    this.updateToolPreview();
+  }
+
+  /** The power-line / fiber tool: a dashed line from the chosen site to the cursor. */
+  private toolLine: Line2 | null = null;
+  private updateToolPreview() {
+    const tool = this.game.tool;
+    const from = tool?.from ? siteDef(tool.from) : null;
+    const to = this.cursor ? this.pick(this.cursor.x, this.cursor.y) : null;
+    if (!from || !to) { if (this.toolLine) this.toolLine.visible = false; return; }
+    const hov = this.game.hover?.kind === 'site' ? siteDef(this.game.hover.id) : null;
+    const end = hov ?? { lon: to.lon, lat: to.lat };
+    const pts = globePath([[from.lon, from.lat], [end.lon, end.lat]], 1.004, 0.5);
+    const flat = pts.flatMap((p) => [p.x, p.y, p.z]);
+    if (!this.toolLine) {
+      const m = new LineMaterial({ color: tool!.kind === 'fiber' ? 0xfbd46e : 0xf7b258, linewidth: 2.4, dashed: true, dashSize: 0.8, gapSize: 0.5, transparent: true, opacity: 0.95 });
+      this.toolLine = new Line2(new LineGeometry(), m);
+      this.scene.add(this.toolLine);
+    }
+    this.toolLine.geometry.dispose();
+    this.toolLine.geometry = new LineGeometry();
+    this.toolLine.geometry.setPositions(flat);
+    this.toolLine.computeLineDistances();
+    (this.toolLine.material as LineMaterial).resolution.set(this.w, this.h);
+    this.toolLine.visible = true;
   }
 
   /** Marker scale for a world point: about the same size on screen at any zoom. */
@@ -481,6 +510,15 @@ export class GlobeScene implements Scene3D {
       if (!sp) continue;
       const pri = id === hovered || id === selected ? 10 : m.kind === 'home' ? 8 : m.kind === 'owned' ? 7 : always ? 5 : 1;
       items.push({ id, text: m.site.name, x: sp.x, y: sp.y - 4, pri, tone: id === hovered || id === selected ? 'hot' : m.kind });
+    }
+    // the regions' names, big and faint, from far out (or the hovered one)
+    const hovR = this.game.hover?.kind === 'region' ? this.game.hover.id : this.game.selection?.kind === 'region' ? this.game.selection.id : null;
+    for (const r of Object.values(REGIONS)) {
+      if (this.dist < 170 && r.id !== hovR) continue;
+      const n = dir(r.label.lon, r.label.lat);
+      if (this.facing(n) < 0.25) continue;
+      const sp = this.screenOf(n.multiplyScalar(R * 1.01));
+      if (sp) items.push({ id: 'r:' + r.id, text: r.name.toUpperCase(), x: sp.x, y: sp.y, pri: r.id === hovR ? 9 : 0.5, tone: r.id === hovR ? 'region hot-region' : 'region' });
     }
     this.labels.show(items, this.game.mode === 'title' ? 0.85 : 1);
     void s;

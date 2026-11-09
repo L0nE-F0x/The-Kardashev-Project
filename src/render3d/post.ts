@@ -42,12 +42,26 @@ const TiltShift = {
     }`,
 };
 
+/**
+ * The eras' grades (the pixel game re-tints its palette per era): Smog & Silicon a little grey and
+ * hazy, Grid Rush neutral, Solarpunk Bloom lush and warm, Orbital Dawn clean and cool, Swarmlight gold.
+ */
+export const ERA_GRADES: { tint: [number, number, number]; sat: number; lift: number }[] = [
+  { tint: [1.02, 0.99, 0.95], sat: 0.9, lift: 0.015 },
+  { tint: [1, 1, 1], sat: 1.0, lift: 0 },
+  { tint: [1.02, 1.03, 0.95], sat: 1.12, lift: 0 },
+  { tint: [0.97, 1.0, 1.05], sat: 1.04, lift: 0 },
+  { tint: [1.06, 1.01, 0.92], sat: 1.08, lift: 0.01 },
+];
+
 const Grade = {
-  uniforms: { tDiffuse: { value: null }, vignette: { value: 0.3 }, fade: { value: 0 }, fadeColor: { value: new THREE.Color(0x05050c) } },
+  uniforms: { tDiffuse: { value: null }, vignette: { value: 0.3 }, fade: { value: 0 }, fadeColor: { value: new THREE.Color(0x05050c) }, tint: { value: new THREE.Vector3(1, 1, 1) }, sat: { value: 1 }, lift: { value: 0 } },
   vertexShader: quadVS,
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; uniform float fade; uniform vec3 fadeColor; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; uniform float fade; uniform vec3 fadeColor; uniform vec3 tint; uniform float sat; uniform float lift; varying vec2 vUv;
     void main(){
       vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      c.rgb = mix(vec3(l), c.rgb, sat) * tint + lift;
       vec2 p = vUv - 0.5; p.x *= 1.2;
       c.rgb *= 1.0 - vignette * smoothstep(0.25, 0.85, length(p));
       c.rgb += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 160.0;
@@ -64,10 +78,10 @@ export class Post {
   private bloom: UnrealBloomPass;
   private grade: ShaderPass;
 
-  constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, ao: boolean) {
+  constructor(private renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, ao: boolean, samples = 4) {
     const size = renderer.getSize(new THREE.Vector2());
     const pr = renderer.getPixelRatio();
-    const rt = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, { type: THREE.HalfFloatType, samples: 4 });
+    const rt = new THREE.WebGLRenderTarget(size.x * pr, size.y * pr, { type: THREE.HalfFloatType, samples });
     this.composer = new EffectComposer(renderer, rt);
     this.composer.addPass(new RenderPass(scene, camera));
     if (ao) {
@@ -98,7 +112,11 @@ export class Post {
     for (const p of [this.tiltH, this.tiltV]) p.uniforms.res.value.set(size.x * pr, size.y * pr);
   }
 
-  render(dt: number, look: Look, fade: number) {
+  render(dt: number, look: Look, fade: number, era = 1) {
+    const gr = ERA_GRADES[Math.max(0, Math.min(4, era))];
+    this.grade.uniforms.tint.value.set(...gr.tint);
+    this.grade.uniforms.sat.value = gr.sat;
+    this.grade.uniforms.lift.value = gr.lift;
     const tilt = look.tilt > 0.01;
     this.tiltH.enabled = this.tiltV.enabled = tilt;
     for (const p of [this.tiltH, this.tiltV]) {

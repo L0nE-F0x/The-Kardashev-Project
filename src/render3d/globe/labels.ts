@@ -8,6 +8,9 @@ const css = `
 .g3-label.owned { color: #a3f0d6; }
 .g3-label.supplier { color: #d9b6ec; }
 .g3-label.hot { color: #0b0a12; background: #fde9a4; text-shadow: none; }
+.g3-label.region { background: none; font-family: var(--font-label, var(--font)); font-size: 13px; font-weight: 700; letter-spacing: 0.22em;
+  color: rgba(243, 237, 228, 0.42); text-shadow: 0 1px 3px rgba(0,0,0,0.7); transform: translate(-50%, -50%); }
+.g3-label.hot-region { color: rgba(253, 233, 164, 0.95); }
 @media (max-height: 520px) { .g3-label { font-size: 10px; } }
 `;
 let injected = false;
@@ -35,7 +38,7 @@ export class Labels {
     const placed: { x0: number; y0: number; x1: number; y1: number }[] = [];
     const used = new Set<string>();
     for (const it of items) {
-      const w = it.text.length * 7 + 14, h = 18;
+      const w = it.text.length * (it.tone.startsWith('region') ? 12 : 7) + 14, h = 18;
       const box = { x0: it.x - w / 2, y0: it.y - h, x1: it.x + w / 2, y1: it.y };
       if (placed.some((b) => b.x0 < box.x1 && b.x1 > box.x0 && b.y0 < box.y1 && b.y1 > box.y0)) continue;
       placed.push(box);
