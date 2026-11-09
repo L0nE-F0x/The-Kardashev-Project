@@ -48,8 +48,7 @@ export function planSpecs(s: GameState | null, site: SiteDef): PlanSet {
 }
 
 /** The planner's pieces in rows (wrapping at `maxW`), rows stepping back from the road. */
-export function planLayout(specs: SetSpec[], maxW = 260): { items: SetItem[]; bounds: Rect; accessX: number } {
-  const GAP = 6;
+export function planLayout(specs: SetSpec[], maxW = 260, GAP = 6): { items: SetItem[]; bounds: Rect; accessX: number } {
   const rows: SetSpec[][] = [[]];
   let w = 0;
   for (const spec of specs) {

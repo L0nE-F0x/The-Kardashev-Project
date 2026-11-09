@@ -155,7 +155,8 @@ export class CampusScene implements Scene3D {
         const plan = planSpecs(s, this.site);
         this.planKey = act3Key(s, this.site) || plan.specs.map((p) => p.kind).join(',');
         this.scenery = plan.offshore ? 'offshore' : plan.scenery;
-        sl = planLayout(plan.specs);
+        // a station in space is one continuous structure: a single row, no gaps
+        sl = this.scenery === 'space' ? planLayout(plan.specs, 1e9, 0) : planLayout(plan.specs);
         if (this.scenery === 'offshore') seaZ = 900;
         if (this.scenery === 'launch') seaZ = sl.bounds.z0 - 50;
         if (this.scenery === 'moon' || this.scenery === 'asteroid') backdrop = 'lunar';
