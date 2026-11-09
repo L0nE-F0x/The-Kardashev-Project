@@ -96,6 +96,7 @@ export default defineConfig({
       input: {
         main: 'index.html',
         play: 'play/index.html',
+        play3d: 'play3d/index.html',
       },
     },
   },

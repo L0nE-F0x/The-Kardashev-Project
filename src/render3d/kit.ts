@@ -109,6 +109,62 @@ export function withClouds<M extends THREE.MeshStandardMaterial>(m: M): M {
   return m;
 }
 
+// ── ground grain ─────────────────────────────────────────────────────────────────────────────
+let grainTex: THREE.DataTexture | null = null;
+function grainTexture() {
+  if (grainTex) return grainTex;
+  const n = 256, data = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      // tileable: wrap the noise lattice at the texture size
+      const v = (o: number, f: number) => {
+        const p = n / f;
+        const xi = x / f, yi = y / f;
+        const xa = Math.floor(xi), ya = Math.floor(yi), fx = xi - xa, fy = yi - ya;
+        const h = (a: number, b: number) => noise(((a % p) + p) % p + 0.5, ((b % p) + p) % p + 0.5, o);
+        const u = fx * fx * (3 - 2 * fx), w = fy * fy * (3 - 2 * fy);
+        return h(xa, ya) * (1 - u) * (1 - w) + h(xa + 1, ya) * u * (1 - w) + h(xa, ya + 1) * (1 - u) * w + h(xa + 1, ya + 1) * u * w;
+      };
+      const r = v(1, 4) * 0.5 + v(2, 8) * 0.3 + v(3, 16) * 0.2;
+      const g = v(4, 32) * 0.6 + v(5, 64) * 0.4;
+      data.set([r * 255, g * 255, 0, 255], (y * n + x) * 4);
+    }
+  grainTex = new THREE.DataTexture(data, n, n);
+  grainTex.wrapS = grainTex.wrapT = THREE.RepeatWrapping;
+  grainTex.magFilter = THREE.LinearFilter;
+  grainTex.minFilter = THREE.LinearMipmapLinearFilter;
+  grainTex.generateMipmaps = true;
+  grainTex.needsUpdate = true;
+  return grainTex;
+}
+/** Fine, world-space grain on the ground (dry patches, worn spots), fading with distance. */
+export function withGrain<M extends THREE.MeshStandardMaterial>(m: M, k = 0.22): M {
+  const tex = grainTexture();
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev?.call(m, sh, r);
+    sh.uniforms.uGrain = { value: tex };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGrainW;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvGrainW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGrainW; uniform sampler2D uGrain;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          vec2 a = texture2D(uGrain, vGrainW.xz * 0.011).rg;
+          vec2 b = texture2D(uGrain, vGrainW.xz * 0.06 + 0.37).rg;
+          float fade = 1.0 - smoothstep(120.0, 520.0, distance(vGrainW, cameraPosition));
+          float gr = (a.r - 0.5) * 0.9 + (b.g - 0.5) * 0.7;
+          diffuseColor.rgb *= 1.0 + gr * ${k.toFixed(3)} * (0.4 + 0.6 * fade);
+          // dry, paler flecks
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.12, 1.08, 0.92), smoothstep(0.62, 0.8, b.r) * 0.5 * fade);
+        }`);
+  };
+  const key = m.customProgramCacheKey?.bind(m);
+  m.customProgramCacheKey = () => (key ? key() : '') + '-grain';
+  return m;
+}
+
 // ── materials ────────────────────────────────────────────────────────────────────────────────
 /** The matte vertex-coloured material every code-built piece shares. */
 export const paintMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0 }));
@@ -117,10 +173,25 @@ export const paintMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors
 export function glowMat(c: Paint, base = 0.15) {
   const m = new THREE.MeshStandardMaterial({ color: col(c), emissive: col(c), emissiveIntensity: base, roughness: 0.6 });
   m.userData.glowBase = base;
+  m.userData.scope = scope;
   glowMats.push(m);
   return m;
 }
 export const glowMats: THREE.MeshStandardMaterial[] = [];
+
+/**
+ * Night-lit materials belong to the scene that made them: a scene opens a scope, and closing it
+ * drops that scene's glows and light pools from the lists the sky drives.
+ */
+let scope = 0;
+let nextScope = 1;
+export function openScope() { scope = nextScope++; return scope; }
+export function closeScope(id: number) {
+  for (const list of [glowMats, poolMats] as THREE.Material[][]) {
+    for (let i = list.length - 1; i >= 0; i--) if (list[i].userData.scope === id) { list[i].dispose(); list.splice(i, 1); }
+  }
+  if (scope === id) scope = 0;
+}
 
 /** Pools of light on the ground at night (additive decals; opacity follows the night). */
 let poolTex: THREE.Texture | null = null;
@@ -143,6 +214,7 @@ export const poolMats: THREE.MeshBasicMaterial[] = [];
 export function poolMat(c: Paint, strength = 0.8) {
   const m = new THREE.MeshBasicMaterial({ color: col(c), map: poolTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
   m.userData.strength = strength;
+  m.userData.scope = scope;
   poolMats.push(m);
   return m;
 }

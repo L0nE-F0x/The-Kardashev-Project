@@ -26,13 +26,13 @@ export function touchRadius(p: PixelPointer, mouse: number): number {
   return p.pointerType === 'mouse' || !p.perCss ? mouse : Math.max(mouse, 20 * p.perCss);
 }
 
-export interface Scene {
-  /** Drawn into the low-res render target, in internal pixel coordinates. */
-  readonly root: Container;
+/**
+ * What the game needs from any scene, the pixel ones here or the 3D edition's (src/render3d/).
+ * Pointer positions are in the stage's own units (internal pixels here, CSS pixels in 3D).
+ */
+export interface GameScene {
   update(dt: number, now: number): void;
   resize(width: number, height: number): void;
-  /** Fractional camera offset in internal pixels (smooth sub-pixel panning). */
-  subpixel(): { x: number; y: number };
   pointerDown?(p: PixelPointer): void;
   pointerMove?(p: PixelPointer): void;
   pointerUp?(p: PixelPointer): void;
@@ -45,6 +45,27 @@ export interface Scene {
   destroy(): void;
 }
 
+/** A pixel scene: drawn into the low-res render target. */
+export interface Scene extends GameScene {
+  /** Drawn into the low-res render target, in internal pixel coordinates. */
+  readonly root: Container;
+  /** Fractional camera offset in internal pixels (smooth sub-pixel panning). */
+  subpixel(): { x: number; y: number };
+}
+
+/** What the game needs from a stage (PixelStage, or the 3D edition's Stage3D). */
+export interface GameStage {
+  readonly canvas: HTMLCanvasElement;
+  /** Device pixels per scene unit (a game pixel here; a CSS pixel in 3D, so the device pixel ratio). */
+  readonly scale: number;
+  /** 0..1 fade to black over everything (scene cuts in the menu tour). */
+  fade: number;
+  setScene(scene: GameScene | null, zoomBoost?: number): void;
+  getScene(): GameScene | null;
+  frame(dt: number, now: number): void;
+  setZoomBoost(z: number): void;
+}
+
 /** Margin (in internal px) rendered around the view so sub-pixel offsets never expose an edge. */
 const MARGIN = 1;
 
@@ -52,7 +73,7 @@ const MARGIN = 1;
  * The pixel-perfect stage. The world renders into a fixed low-resolution render target and is
  * scaled up to the screen by a whole number, so every pixel in the game is the same size.
  */
-export class PixelStage {
+export class PixelStage implements GameStage {
   renderer!: Renderer;
   canvas!: HTMLCanvasElement;
   /** Device pixels per game pixel. */

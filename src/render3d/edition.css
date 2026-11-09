@@ -1,0 +1,2 @@
+/* The 3D edition: the shared UI as it is, over a smooth (not pixelated) WebGL canvas. */
+html.edition-3d #game canvas { position: fixed; inset: 0; display: block; image-rendering: auto; }

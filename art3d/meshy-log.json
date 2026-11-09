@@ -254,5 +254,415 @@
     "step": "model.done",
     "id": "01a1bee5-29b5-74c4-b221-ca20129bcbc3",
     "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:05:19.156Z",
+    "name": "researcher",
+    "step": "concept",
+    "id": "01a1bf20-2bb7-77b6-a3a4-6344c5e1ca2a",
+    "subject": "An AI researcher, a young man with curly hair and glasses, a cream hoodie, dark jeans, white sneakers"
+  },
+  {
+    "at": "2026-11-09T07:05:19.167Z",
+    "name": "scientist",
+    "step": "concept",
+    "id": "01a1bf20-2bb7-70de-a581-9ed071eda2a2",
+    "subject": "A scientist, an older woman with grey hair in a bun, a white lab coat over a terracotta sweater, grey trousers"
+  },
+  {
+    "at": "2026-11-09T07:05:19.187Z",
+    "name": "van",
+    "step": "concept",
+    "id": "01a1bf20-2bb7-73c8-9136-db6369faa024",
+    "subject": "A boxy white delivery van with a slate-blue stripe, three-quarter view"
+  },
+  {
+    "at": "2026-11-09T07:05:19.192Z",
+    "name": "sedan",
+    "step": "concept",
+    "id": "01a1bf20-2bb9-71fa-a2e0-82154b2665fb",
+    "subject": "A compact four-door family sedan car, teal paint, three-quarter view"
+  },
+  {
+    "at": "2026-11-09T07:05:19.193Z",
+    "name": "suv",
+    "step": "concept",
+    "id": "01a1bf20-2bde-7501-9394-fc5fedc76404",
+    "subject": "A boxy mid-size SUV, cream white paint with dark trim, three-quarter view"
+  },
+  {
+    "at": "2026-11-09T07:05:19.232Z",
+    "name": "flatbed",
+    "step": "concept",
+    "id": "01a1bf20-2bb7-73ca-866a-6103a6e95e78",
+    "subject": "A flatbed truck with a slate-blue cab carrying a big grey electrical power transformer strapped down on the bed, three-quarter view"
+  },
+  {
+    "at": "2026-11-09T07:05:19.233Z",
+    "name": "garage2",
+    "step": "concept",
+    "id": "01a1bf20-2bd3-7202-a22d-e64aa545a1ac",
+    "subject": "A small 1960s California ranch-style house with an attached two-car garage whose door is rolled up: inside the garage is a scrappy AI startup lab with a glowing server rack, desks with monitors and a whiteboard. Every exterior wall is complete and closed (it is NOT a cutaway model), the only opening is the garage door at the front; a few solar panels on the low pitched roof, a short concrete driveway"
+  },
+  {
+    "at": "2026-11-09T07:05:19.245Z",
+    "name": "office",
+    "step": "concept",
+    "id": "01a1bf20-2bd4-775d-9bf8-bb0c91abc813",
+    "subject": "An office manager, a man with a neat beard, a slate-blue shirt with rolled sleeves, charcoal trousers, brown shoes"
+  },
+  {
+    "at": "2026-11-09T07:05:19.257Z",
+    "name": "engineer",
+    "step": "concept",
+    "id": "01a1bf20-2bda-720e-bca6-f41b4292b8af",
+    "subject": "A data center engineer, a woman with short dark hair, a teal polo shirt, khaki trousers, a lanyard badge, sneakers"
+  },
+  {
+    "at": "2026-11-09T07:05:19.261Z",
+    "name": "mixer",
+    "step": "concept",
+    "id": "01a1bf20-2bde-735b-aee3-f49916b3c7ea",
+    "subject": "A concrete mixer truck with an orange cab and a striped grey drum, three-quarter view"
+  },
+  {
+    "at": "2026-11-09T07:05:30.831Z",
+    "name": "hatchback",
+    "step": "concept.done",
+    "id": "01a1bf20-2bd7-754e-8ca1-6d353a8ba1cb",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.465Z",
+    "name": "scientist",
+    "step": "concept.done",
+    "id": "01a1bf20-2bb7-70de-a581-9ed071eda2a2",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.467Z",
+    "name": "van",
+    "step": "concept.done",
+    "id": "01a1bf20-2bb7-73c8-9136-db6369faa024",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.487Z",
+    "name": "sedan",
+    "step": "concept.done",
+    "id": "01a1bf20-2bb9-71fa-a2e0-82154b2665fb",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.493Z",
+    "name": "office",
+    "step": "concept.done",
+    "id": "01a1bf20-2bd4-775d-9bf8-bb0c91abc813",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.493Z",
+    "name": "garage2",
+    "step": "concept.done",
+    "id": "01a1bf20-2bd3-7202-a22d-e64aa545a1ac",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.497Z",
+    "name": "flatbed",
+    "step": "concept.done",
+    "id": "01a1bf20-2bb7-73ca-866a-6103a6e95e78",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:05:36.764Z",
+    "name": "researcher",
+    "step": "concept.done",
+    "id": "01a1bf20-2bb7-77b6-a3a4-6344c5e1ca2a",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:06:20.974Z",
+    "name": "mixer",
+    "step": "concept.done",
+    "id": "01a1bf20-2bde-735b-aee3-f49916b3c7ea",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:06:31.071Z",
+    "name": "suv",
+    "step": "concept",
+    "id": "01a1bf21-44ad-7152-bbe9-7c9557bec073",
+    "subject": "A boxy mid-size SUV, cream white paint with dark trim, three-quarter view"
+  },
+  {
+    "at": "2026-11-09T07:06:53.749Z",
+    "name": "suv",
+    "step": "concept.done",
+    "id": "01a1bf21-44ad-7152-bbe9-7c9557bec073",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:06:57.499Z",
+    "name": "worker",
+    "step": "concept",
+    "id": "01a1bf21-abe8-75a5-af9f-df0263865c3f",
+    "subject": "A construction worker in an orange hi-vis vest over a grey t-shirt, a yellow hard hat, blue jeans and brown work boots"
+  },
+  {
+    "at": "2026-11-09T07:07:14.600Z",
+    "name": "worker",
+    "step": "concept.done",
+    "id": "01a1bf21-abe8-75a5-af9f-df0263865c3f",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:07:25.362Z",
+    "name": "engineer",
+    "step": "concept",
+    "id": "01a1bf22-18bf-71e4-871f-48af164afeee",
+    "subject": "A data center engineer, a woman with short dark hair, a teal polo shirt, khaki trousers, a lanyard badge, sneakers"
+  },
+  {
+    "at": "2026-11-09T07:07:48.693Z",
+    "name": "engineer",
+    "step": "concept.done",
+    "id": "01a1bf22-18bf-71e4-871f-48af164afeee",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:08:33.127Z",
+    "name": "garage3",
+    "step": "concept",
+    "id": "01a1bf23-2066-75b8-9b0e-34122b4b4bc0",
+    "subject": "The front of a small closed 1960s California ranch-style suburban house seen from the street: cream stucco walls, a low charcoal hip roof with three solar panels, a front door and windows; on one side an attached two-car garage with its roll-up door raised, and through that open doorway you glimpse a cosy scrappy AI startup lab (a glowing server rack, desks and monitors). The house and garage are complete solid buildings with all walls and the roof intact, like a real house, not a cutaway or dollhouse; a short concrete driveway in front"
+  },
+  {
+    "at": "2026-11-09T07:08:35.400Z",
+    "name": "sedan",
+    "step": "model",
+    "id": "01a1bf22-d40f-70ae-936b-a31f3260ba92"
+  },
+  {
+    "at": "2026-11-09T07:08:36.552Z",
+    "name": "suv",
+    "step": "model",
+    "id": "01a1bf22-d147-7787-9f3c-eaaa4c046f08"
+  },
+  {
+    "at": "2026-11-09T07:08:36.863Z",
+    "name": "hatchback",
+    "step": "model",
+    "id": "01a1bf22-d0ee-735d-8046-5b5361ec7872"
+  },
+  {
+    "at": "2026-11-09T07:08:50.377Z",
+    "name": "garage3",
+    "step": "concept.done",
+    "id": "01a1bf23-2066-75b8-9b0e-34122b4b4bc0",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-09T07:09:21.961Z",
+    "name": "suv",
+    "step": "model.done",
+    "id": "01a1bf22-d147-7787-9f3c-eaaa4c046f08",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:09:27.826Z",
+    "name": "sedan",
+    "step": "model.done",
+    "id": "01a1bf22-d40f-70ae-936b-a31f3260ba92",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:09:34.872Z",
+    "name": "hatchback",
+    "step": "model.done",
+    "id": "01a1bf22-d0ee-735d-8046-5b5361ec7872",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:10:20.470Z",
+    "name": "garage3",
+    "step": "model",
+    "id": "01a1bf24-7ba0-7359-b69f-70418c61c700"
+  },
+  {
+    "at": "2026-11-09T07:10:22.565Z",
+    "name": "flatbed",
+    "step": "model",
+    "id": "01a1bf24-9454-7252-bdad-07e0f2a72541"
+  },
+  {
+    "at": "2026-11-09T07:10:23.018Z",
+    "name": "van",
+    "step": "model",
+    "id": "01a1bf24-940a-7269-8dd1-87974e59b209"
+  },
+  {
+    "at": "2026-11-09T07:10:23.075Z",
+    "name": "mixer",
+    "step": "model",
+    "id": "01a1bf24-9443-753a-962b-ccd8357e2ec3"
+  },
+  {
+    "at": "2026-11-09T07:11:08.589Z",
+    "name": "garage3",
+    "step": "model.done",
+    "id": "01a1bf24-7ba0-7359-b69f-70418c61c700",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:11:08.993Z",
+    "name": "van",
+    "step": "model.done",
+    "id": "01a1bf24-940a-7269-8dd1-87974e59b209",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:11:14.479Z",
+    "name": "flatbed",
+    "step": "model.done",
+    "id": "01a1bf24-9454-7252-bdad-07e0f2a72541",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:11:15.192Z",
+    "name": "mixer",
+    "step": "model.done",
+    "id": "01a1bf24-9443-753a-962b-ccd8357e2ec3",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:11:54.692Z",
+    "name": "researcher",
+    "step": "model",
+    "id": "01a1bf25-de8a-76a4-9a75-a419aaddda79"
+  },
+  {
+    "at": "2026-11-09T07:11:54.929Z",
+    "name": "worker",
+    "step": "model",
+    "id": "01a1bf25-de49-7525-98d0-d1bf1ba6e20a"
+  },
+  {
+    "at": "2026-11-09T07:11:56.900Z",
+    "name": "engineer",
+    "step": "model",
+    "id": "01a1bf25-de79-7748-b286-0affc18aba0a"
+  },
+  {
+    "at": "2026-11-09T07:12:53.334Z",
+    "name": "engineer",
+    "step": "model.done",
+    "id": "01a1bf25-de79-7748-b286-0affc18aba0a",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:12:56.925Z",
+    "name": "researcher",
+    "step": "model.done",
+    "id": "01a1bf25-de8a-76a4-9a75-a419aaddda79",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:13:05.167Z",
+    "name": "engineer",
+    "step": "rig",
+    "id": "01a1bf27-3b78-70ba-ba91-b26f39cc0889"
+  },
+  {
+    "at": "2026-11-09T07:13:11.967Z",
+    "name": "worker",
+    "step": "model.done",
+    "id": "01a1bf25-de49-7525-98d0-d1bf1ba6e20a",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:13:14.142Z",
+    "name": "engineer",
+    "step": "rig.done",
+    "id": "01a1bf27-3b78-70ba-ba91-b26f39cc0889",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T07:13:19.186Z",
+    "name": "researcher",
+    "step": "rig",
+    "id": "01a1bf27-7355-73b2-9f93-48f766732383"
+  },
+  {
+    "at": "2026-11-09T07:13:31.536Z",
+    "name": "worker",
+    "step": "rig",
+    "id": "01a1bf27-a31e-742d-abf3-007c3c664d3b"
+  },
+  {
+    "at": "2026-11-09T07:13:32.037Z",
+    "name": "researcher",
+    "step": "rig.done",
+    "id": "01a1bf27-7355-73b2-9f93-48f766732383",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T07:13:44.858Z",
+    "name": "worker",
+    "step": "rig.done",
+    "id": "01a1bf27-a31e-742d-abf3-007c3c664d3b",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T07:15:37.975Z",
+    "name": "office",
+    "step": "model",
+    "id": "01a1bf29-6c88-72da-9d81-352ec924cae6"
+  },
+  {
+    "at": "2026-11-09T07:15:43.272Z",
+    "name": "scientist",
+    "step": "model",
+    "id": "01a1bf29-6cbb-74c0-bcc2-f9288e13bb09"
+  },
+  {
+    "at": "2026-11-09T07:16:40.180Z",
+    "name": "office",
+    "step": "model.done",
+    "id": "01a1bf29-6c88-72da-9d81-352ec924cae6",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:16:51.232Z",
+    "name": "scientist",
+    "step": "model.done",
+    "id": "01a1bf29-6cbb-74c0-bcc2-f9288e13bb09",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-09T07:16:52.744Z",
+    "name": "office",
+    "step": "rig",
+    "id": "01a1bf2a-b5fe-73c2-b4f1-3af69af01ad2"
+  },
+  {
+    "at": "2026-11-09T07:17:04.797Z",
+    "name": "office",
+    "step": "rig.done",
+    "id": "01a1bf2a-b5fe-73c2-b4f1-3af69af01ad2",
+    "credits": 5
+  },
+  {
+    "at": "2026-11-09T07:17:05.356Z",
+    "name": "scientist",
+    "step": "rig",
+    "id": "01a1bf2a-e6ae-72d6-ab86-e983b8c3e320"
+  },
+  {
+    "at": "2026-11-09T07:17:13.935Z",
+    "name": "scientist",
+    "step": "rig.done",
+    "id": "01a1bf2a-e6ae-72d6-ab86-e983b8c3e320",
+    "credits": 5
   }
 ]

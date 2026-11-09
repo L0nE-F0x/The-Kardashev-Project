@@ -1,7 +1,7 @@
 import type { FacilityType, GameState, SandboxOpts, SupplierId } from '../sim/types';
 import type { MapLod } from '../world/mapData';
 import type { Router } from '../world/routing';
-import type { PixelStage, Scene } from '../render/stage';
+import type { GameStage, GameScene as Scene } from '../render/stage';
 import type { RegionId } from '../content/mapcodes';
 import { newGame, type NewGameOptions } from '../sim/state';
 import { newAct2Game } from '../sim/act2';
@@ -181,7 +181,7 @@ export class Game {
   private fpsFrames = 0;
 
   constructor(
-    readonly stage: PixelStage,
+    readonly stage: GameStage,
     readonly world: { lods: MapLod[]; router: Router },
     private readonly scenes: SceneFactory,
   ) {

@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { col, glowMat, Kit, lightPool, poolMat, rng, withClouds, type Paint } from './kit';
 import { model } from './models';
+import { parkedCars } from './campus/life';
 
 export interface Env {
   t: number;
@@ -84,10 +85,10 @@ export function fenceMesh(group: THREE.Group, w: number, d: number, gate = 6) {
 }
 
 /** A gravel pad the size of the plot. */
-export function pad(w: number, d: number, paint: Paint = '#c4b8a6', seed = 1) {
+export function pad(w: number, d: number, paint: Paint = '#c4b8a6', seed = 1, mat?: THREE.Material) {
   const kit = new Kit(rng(seed));
   kit.box(w, 0.16, d, paint, 0, -0.04, 0, { r: 0.08, jitter: 0.02, shade: 0 });
-  const m = kit.build();
+  const m = kit.build(mat);
   m.castShadow = false;
   return m;
 }
@@ -286,12 +287,7 @@ export function dataHall(seed: number): Piece & { setLoad(f: number): void } {
   front.box(5.6, 0.12, 3, '#a39a91', 7, 0, D / 2 + 5.4, { r: 0.03, shade: 0 });
   const fm = front.build();
   g.add(fm);
-  for (const [x, ry] of [[-10.9, 0.04], [-6.5, -0.05], [-2.1, 0.02]] as const) {
-    const car = model('pickup', 3.7);
-    car.rotation.y = Math.PI / 2 + ry;
-    car.position.set(x, 0.06, D / 2 + 5.6);
-    g.add(car);
-  }
+  parkedCars(g, -11.4, D / 2 + 5.6, 6, 2.2, seed + 9, Math.PI / 2);
 
   let load = 0;
   return {
@@ -460,12 +456,7 @@ export function researchLab(): Piece {
   const lot = kit.build();
   lot.castShadow = false;
   g.add(lot);
-  for (const [x, ry] of [[-4.8, 0.1], [2.4, -0.05]] as const) {
-    const car = model('pickup', 3.7);
-    car.rotation.y = Math.PI / 2 + ry;
-    car.position.set(x, 0.05, 8.3);
-    g.add(car);
-  }
+  parkedCars(g, -6, 8.3, 6, 2.4, 78, Math.PI / 2);
   const s = m.userData.size as THREE.Vector3;
   const lm = glowMat('yel1', 0);
   lm.userData.nightOnly = 0.9;

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <title>Play 3D · The Kardashev Project</title>
+    <meta name="description" content="Play The Kardashev Project in your browser: a cozy-but-real pixel-art sim of the AI boom. Build power, chips and compute, and guide Earth up the Kardashev scale." />
+    <link rel="canonical" href="%VITE_SITE_URL%/play3d/" />
+    <meta name="theme-color" content="#0b0a12" />
+    <meta name="color-scheme" content="dark" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="The Kardashev Project" />
+    <meta property="og:title" content="Play The Kardashev Project" />
+    <meta property="og:description" content="A cozy-but-real pixel sim of the AI boom. Build power, chips & compute on a real Earth — and climb the Kardashev scale." />
+    <meta property="og:url" content="%VITE_SITE_URL%/play3d/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+
+    <link rel="icon" href="../favicon.ico" sizes="48x48" />
+    <link rel="icon" href="../icons/icon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kardashev" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #9d95a6;
+        background: #0b0a12;
+        font: 14px ui-monospace, monospace;
+        letter-spacing: 1px;
+        z-index: 10;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="ui"></div>
+    <div id="boot">BOOTING THE KARDASHEV PROJECT…</div>
+    <script type="module" src="/src/main3d.ts"></script>
+  </body>
+</html>

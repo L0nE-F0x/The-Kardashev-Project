@@ -2034,3 +2034,33 @@ next level?" Ten ideas, most leverage first. Effort: S = a session, M = a milest
 
 Also in the retune (already planned, now with a Steam reason): Steam refunds anything played under two hours, so the
 first two hours (Act I and the opening of Act II) must be the strongest part; the long Bit-2 wait is the known hole.
+
+## 28. The 3D edition (agreed 2026-11-09, building on branch `3d`)
+
+The look test (art3d/DIRECTION.md, branch `3d-look`) won the user over: "this looks freaking beautiful", the *Model*
+look, not the pixel hybrid. The brief: remake the whole game in 3D **alongside** the pixel game, so both exist and the
+user picks one when the 3D one is complete. It must be **the same game** (same sim, acts, panels, globe, tutorial,
+saves); only the look changes. Refine it properly, not as a demo.
+
+**How:** one game, two renderers. `play3d/index.html` → `src/main3d.ts` builds the same `Game` with a three.js stage
+(`src/render3d/stage3d.ts`) and 3D scenes behind the existing `SceneFactory` (map → the globe, diorama → the campus,
+tour → the same TourDirector, orbit, system). Sim, content, UI, tutorial, saves, audio and platform code are shared,
+so every sim or UI change lands in both. Shared-code changes stay type-level (a `Stage` interface both stages meet).
+
+**Look rules** (from the test, kept): scale-model art (bevelled, matte, hand-painted colour, the game palette);
+Meshy for hero models via concept image first (one style brief), code for repeating/growing/moving pieces; soft sun
+shadows, AO, cloud shadows, tilt-shift, a real day/night; life everywhere. **Changed from the test:** campuses are real
+places, not floating slabs: the ground runs to the horizon with each backdrop's distant land (plains, desert, coast,
+mountain, boreal, temperate, tropical, savanna, volcanic, lunar); the world map is a 3D globe.
+
+**Feedback to fix from the test:** better people (rigged, animated), varied vehicles, no cars parked in the road,
+the garage's missing wall (the Meshy cut-away).
+
+**Milestones:** 3D-1 Act I end to end (stage, globe, campuses for every Act I site, people, vehicles, menu + tour,
+tutorial targets) · 3D-2 Act II (new plants and tiers, suppliers, mines, landing stations, rivals, cables, ships) ·
+3D-3 Act III (Geneva, megaprojects, launch sites, HVDC, satellites) · 3D-4 Act IV (supergrid, fusion, orbit view,
+Moon, spaceports, climate) · 3D-5 Act V (solar system, foundries, asteroids, swarm, habitats, the Type I ending) ·
+3D-6 quality presets for phones, performance, desktop/Android builds of the 3D edition.
+
+**Budget:** Meshy credits are the limit (about 30–45 per hero model, 1,039 left on 2026-11-09, 850/month). The whole
+game needs well over that: code-build wherever it looks as good.
