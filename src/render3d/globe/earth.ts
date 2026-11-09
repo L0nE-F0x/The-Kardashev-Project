@@ -344,11 +344,13 @@ export function earthMaterial(t: EarthTextures, W: number, H: number) {
         float night = 1.0 - smoothstep(-0.12, 0.08, dn);
         float li = texture2D(tLights, vUv).r * land * night * nightLights;
         c += vec3(1.0, 0.72, 0.38) * li * 1.6;
-        // waste heat: a warm haze over the whole day side
-        c = mix(c, haze.rgb * lit, haze.a * 0.35);
-        // haze over the surface towards the limb (day side)
+        // haze over the surface towards the limb (day side); waste heat turns it warm and lets it reach further in,
+        // with only a light warm wash over the land itself (a flat wash over the sea read as grey)
         float rim = pow(1.0 - max(dot(n, V), 0.0), 3.0);
-        c = mix(c, vec3(0.45, 0.68, 1.0) * smoothstep(-0.1, 0.4, dn), rim * 0.55);
+        float dayHaze = smoothstep(-0.1, 0.4, dn);
+        c = mix(c, c * mix(vec3(1.0), vec3(1.12, 0.96, 0.82), haze.a), land * dayHaze * 0.6);
+        float rimH = mix(rim, pow(1.0 - max(dot(n, V), 0.0), 1.8), haze.a * 0.7);
+        c = mix(c, mix(vec3(0.45, 0.68, 1.0), haze.rgb, haze.a * 0.75) * dayHaze, rimH * 0.55);
         gl_FragColor = vec4(c, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

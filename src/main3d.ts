@@ -14,7 +14,6 @@ import { Game } from './game/game';
 import { TourDirector } from './game/tour';
 import { App } from './ui/App';
 import { startShell } from './game/shell';
-import { siteDef } from './content/sites';
 import { Stage3D } from './render3d/stage3d';
 import { GlobeScene } from './render3d/globe/globeScene';
 import { CampusScene } from './render3d/campus/campusScene';
@@ -38,16 +37,13 @@ async function boot() {
   const [buf] = await Promise.all([(await fetch(mapUrl)).arrayBuffer(), loadModels([...ACT1_MODELS, ...PEOPLE])]);
   const lods = decodeWorldMap(buf);
   const router = new Router(lods[0]);
-  /** Facility types with their 3D art so far (the tour only cuts to campuses built from these). */
-  const DONE = new Set(['hq', 'solar', 'wind', 'gas', 'battery', 'datacenter', 'lab', 'hydro', 'geothermal', 'restart', 'smr', 'reactor', 'packaging', 'fab', 'campus']);
-  const shotReady = (site: string) => siteDef(site).kind === 'build' && (game.showcase?.facilities ?? []).filter((f) => f.siteId === site).every((f) => DONE.has(f.type));
   const game: Game = new Game(stage, { lods, router }, {
     map: (g) => new GlobeScene(g),
     diorama: (g, siteId) => new CampusScene(g, siteId),
     orbit: (g) => new OrbitScene3D(g),
     system: (g, opts) => new SystemScene3D(g, opts),
-    // the menu tour, with the shots the 3D edition can show so far (Acts I–II campuses and the globe)
-    tour: (g) => new TourDirector(g, { supports: (shot) => (shot.world ?? 2) === 2 && (shot.kind === 'map' || (shot.kind === 'campus' && shotReady(shot.site!))) }),
+    // the menu tour: every shot, from the first campuses to Geneva, the Moon, the swarm and Aurora
+    tour: (g) => new TourDirector(g),
   });
   // the detail level follows the setting
   let q = game.settings.quality3d;
