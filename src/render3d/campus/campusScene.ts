@@ -653,8 +653,12 @@ export class CampusScene implements Scene3D {
       this.scene.add(this.bit.obj);
     }
     // a delivery now and then up the access road and along the front
-    this.traffic.loop('flatbed', [[L.accessX - 2, HIGHWAY_Z + 60], [L.accessX - 2, FRONT_Z + 1.5], [east, FRONT_Z + 1.5], [east, FRONT_Z - 1.5], [L.accessX + 2, FRONT_Z - 1.5], [L.accessX + 2, HIGHWAY_Z + 60]], h, 6, 0);
-    this.traffic.loop('van', [[L.accessX - 2, HIGHWAY_Z + 60], [L.accessX - 2, FRONT_Z + 1.5], [east, FRONT_Z + 1.5], [east, FRONT_Z - 1.5], [L.accessX + 2, FRONT_Z - 1.5], [L.accessX + 2, HIGHWAY_Z + 60]], h, 7, 0.5);
+    // deliveries: in along the highway's eastbound lane, up the access road, along the frontage and back, out onto the
+    // westbound lane; they turn round far down the highway, out of sight (never across a field)
+    const far = L.accessX - 420;
+    const run: [number, number][] = [[far, HIGHWAY_Z + 2], [L.accessX - 2, HIGHWAY_Z + 2], [L.accessX - 2, FRONT_Z + 1.5], [east, FRONT_Z + 1.5], [east, FRONT_Z - 1.5], [L.accessX + 2, FRONT_Z - 1.5], [L.accessX + 2, HIGHWAY_Z - 2], [far, HIGHWAY_Z - 2]];
+    this.traffic.loop('flatbed', run, h, 9, 0);
+    this.traffic.loop('van', run, h, 10, 0.5);
   }
 
   /** Who of the cast is out on this campus (as the pixel campus picks them). */

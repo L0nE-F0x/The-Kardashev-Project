@@ -132,6 +132,8 @@ interface Mover {
   dist: number;
   speed: number;
   total: number;
+  /** The ground: the vehicle keeps its wheels on it (and pitches with the slope) the whole way, not just at the ends. */
+  h?: (x: number, z: number) => number;
 }
 
 const LEN: Partial<Record<ModelName, number>> = { semitruck: 11, mixer: 7.5, flatbed: 7.5, van: 5.2, pickup: 4.6, sedan: 4.3, hatchback: 3.8, suv: 4.6 };
@@ -179,10 +181,9 @@ export class Traffic {
       for (let i = 0; i < n; i++) {
         const { o } = vehicle(pool[Math.floor(r() * pool.length)], this.head, this.tail, this.beam);
         this.group.add(o);
-        this.movers.push({ obj: o, path: [a, b], dist: (i + r() * 0.5) * (total / n), speed: (lane > 0 ? 17 : 15) + (r() - 0.5) * 2, total });
+        this.movers.push({ obj: o, path: [a, b], dist: (i + r() * 0.5) * (total / n), speed: (lane > 0 ? 17 : 15) + (r() - 0.5) * 2, total, h });
       }
     }
-    for (const m of this.movers) m.path.forEach((p) => (p.y = h(p.x, p.z)));
   }
 
   /** A vehicle driving a loop (in from the highway, along the campus road and out again). */
@@ -192,7 +193,7 @@ export class Traffic {
     for (let i = 0; i < path.length; i++) total += path[i].distanceTo(path[(i + 1) % path.length]);
     const { o } = vehicle(n, this.head, this.tail, this.beam);
     this.group.add(o);
-    this.movers.push({ obj: o, path, dist: offset * total, speed, total });
+    this.movers.push({ obj: o, path, dist: offset * total, speed, total, h });
   }
 
   update(e: Env) {
@@ -208,6 +209,13 @@ export class Traffic {
         if (d <= len || i === segs - 1) {
           const t = len > 0 ? Math.min(1, d / len) : 0;
           m.obj.position.lerpVectors(a, b, t);
+          if (m.h) {
+            // on the ground under it, nose up or down with the road
+            const p = m.obj.position, fx = (b.x - a.x) / (len || 1), fz = (b.z - a.z) / (len || 1);
+            p.y = m.h(p.x, p.z);
+            m.obj.rotation.order = 'YXZ';
+            m.obj.rotation.x = -Math.atan((m.h(p.x + fx * 2, p.z + fz * 2) - m.h(p.x - fx * 2, p.z - fz * 2)) / 4);
+          }
           const want = Math.atan2(b.x - a.x, b.z - a.z);
           let dd = want - m.obj.rotation.y;
           dd = Math.atan2(Math.sin(dd), Math.cos(dd));
