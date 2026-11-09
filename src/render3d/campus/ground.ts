@@ -247,7 +247,7 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
     const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' ? 320 : 700;
     const centres: [number, number][] = [];
     if (p.cluster) for (let i = 0; i < p.n / p.cluster; i++) centres.push([centre.x + (r() - 0.5) * radius * 2, centre.z + (r() - 0.5) * radius * 2]);
-    const want = Math.round(p.n * (p.near ? Math.max(0.6, quality.plants) : quality.plants));
+    const want = Math.round(p.n * quality.plants);
     for (let tries = 0; at.length < want && tries < want * 12; tries++) {
       let x: number, z: number;
       if (p.cluster && centres.length) {
@@ -268,7 +268,10 @@ export function buildGround(o: GroundOpts, models: Partial<Record<'mesquite' | '
       if (obj) plants.add(obj);
       continue;
     }
-    plants.add(treeField(p.kind, at, plantMat));
+    const field = treeField(p.kind, at, plantMat);
+    // ground cover's shadows are too small to see, but thousands of them fill the shadow pass
+    if (p.kind === 'tuft' || p.kind === 'rock' || (p.kind === 'shrub' && p.carpet)) field.castShadow = false;
+    plants.add(field);
   }
   return { mesh, water: waterMesh, plants, h, def };
 }

@@ -401,7 +401,8 @@ export class CampusScene implements Scene3D {
       for (let i = 0; i < n; i++) {
         const t0 = i / n, t1 = (i + 1) / n;
         const mx = ax + (bx - ax) * (t0 + t1) / 2, mz = az + (bz - az) * (t0 + t1) / 2;
-        kit.box(w, 0.14, len / n + 0.05, c, mx, h(mx, mz) - 0.06, mz, { r: 0.03, ry: ang, jitter: 0.015, shade: 0 });
+        // (plain boxes: a bevel on a 0.14-thick strip can't be seen, and 500 of them cost ~450k triangles)
+        kit.box(w, 0.14, len / n + 0.05, c, mx, h(mx, mz) - 0.06, mz, { r: 0, ry: ang, jitter: 0.015, shade: 0 });
       }
     };
     // the highway, both ways to the horizon, with its markings
