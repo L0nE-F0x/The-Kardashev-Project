@@ -1,7 +1,8 @@
 /**
  * The Meshy models: loaded on demand (each scene asks for what it needs), re-centred (bottom at
  * y = 0, centred in x/z), made matte and given a light pull towards the game's palette so they sit
- * with the code-built pieces. People are rigged: copies share a skeleton layout and the walk clip.
+ * with the code-built pieces. People are rigged: copies share a skeleton layout and their figure's clips (the walk
+ * from rigging, and Meshy library actions merged in with tools/glb-anim.mjs: idle, chat, phone, drink…).
  */
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -30,7 +31,8 @@ export const CARS: ModelName[] = ['sedan', 'hatchback', 'suv', 'pickup', 'van'];
 const BASE = '../3d/models/';
 const templates = new Map<string, THREE.Object3D>();
 const loading = new Map<string, Promise<void>>();
-const clips = new Map<string, THREE.AnimationClip>();
+/** Each rigged figure's clips by name ('walk' first, then whatever the file carries). */
+const clips = new Map<string, Map<string, THREE.AnimationClip>>();
 const loader = new GLTFLoader();
 
 /** Shared uniform: how hard textures are pulled to the palette. */
@@ -96,8 +98,8 @@ export function loadModels(names: (ModelName | PersonName)[]): Promise<void> {
       wrap.add(root);
       wrap.userData.size = box.getSize(new THREE.Vector3());
       templates.set(n, wrap);
-      // people come as Meshy's walk file: the rigged figure and its walk cycle in one
-      if (person && g.animations[0]) clips.set(n, g.animations[0]);
+      // people come as Meshy's walk file (the rigged figure and its walk cycle in one) with the library clips added
+      if (person && g.animations[0]) clips.set(n, new Map(g.animations.map((a, i) => [i === 0 ? 'walk' : a.name, a])));
     })();
     loading.set(n, p);
     return p;
@@ -121,18 +123,110 @@ export function model(n: ModelName, size: number): THREE.Object3D {
   return o;
 }
 
-/** A rigged person `height` tall with its own mixer playing the walk (null if not loaded). */
-export function person(n: PersonName, height = 1.75): { obj: THREE.Object3D; mixer: THREE.AnimationMixer; walk: THREE.AnimationAction } | null {
+/** What a figure can be doing (the clips' names, as tools/glb-anim.mjs names them). */
+export type Act = 'walk' | 'idle' | 'chat' | 'listen' | 'talk' | 'phone' | 'drink' | 'walkphone' | 'sit' | 'inspect' | 'look'
+  | 'hammer' | 'carry' | 'collect' | 'pickup';
+/** What to play when a figure lacks a clip. */
+const FALLBACK: Record<Act, Act[]> = {
+  walk: [], idle: [], chat: ['talk', 'idle'], listen: ['idle'], talk: ['chat', 'idle'], phone: ['idle'], drink: ['idle'],
+  walkphone: ['walk'], sit: ['idle'], inspect: ['pickup', 'look', 'idle'], look: ['idle'], hammer: ['collect', 'pickup', 'idle'],
+  carry: ['walk'], collect: ['pickup', 'idle'], pickup: ['collect', 'idle'],
+};
+const WALKING = new Set<Act>(['walk', 'walkphone', 'carry']);
+export const isWalking = (a: Act) => WALKING.has(a);
+
+type BoneKey = 'spine' | 'neck' | 'rfore' | 'hips';
+const BONE_NAMES: Record<string, BoneKey> = { Spine01: 'spine', neck: 'neck', RightForeArm: 'rfore', Hips: 'hips' };
+
+/**
+ * A rigged person and its animation. `play(act)` cross-fades to that clip, or the nearest one the figure has; a
+ * figure with no idle clip stands on the walk's first frame and breathes, shifts its weight and (talking) moves a
+ * hand on its bones, so nobody freezes mid-step.
+ */
+export class Figure {
+  readonly mixer: THREE.AnimationMixer;
+  /** The walk action (older callers pause it to stand a figure still). */
+  readonly walk: THREE.AnimationAction;
+  /** What it shows now. */
+  act: Act = 'walk';
+  private action: THREE.AnimationAction;
+  private set: Map<string, THREE.AnimationClip>;
+  private bones: Partial<Record<BoneKey, THREE.Object3D>> = {};
+  private t = Math.random() * 10;
+  private proc: 'none' | 'stand' | 'talk' = 'none';
+
+  constructor(readonly obj: THREE.Object3D, readonly kind: PersonName) {
+    this.set = clips.get(kind)!;
+    this.mixer = new THREE.AnimationMixer(obj);
+    this.walk = this.mixer.clipAction(this.set.get('walk')!);
+    this.walk.play();
+    this.action = this.walk;
+    obj.traverse((o) => { const k = BONE_NAMES[o.name]; if (k) this.bones[k] = o; });
+  }
+
+  has(a: Act) { return this.set.has(a); }
+
+  /** The act this figure really shows for `a`. */
+  resolve(a: Act): Act {
+    if (this.set.has(a)) return a;
+    for (const f of FALLBACK[a]) if (this.set.has(f)) return f;
+    return WALKING.has(a) ? 'walk' : 'idle';
+  }
+
+  /** Cross-fade to an act over `fade` seconds; returns what it plays. */
+  play(want: Act, fade = 0.35): Act {
+    const a = this.resolve(want);
+    const clip = this.set.get(a);
+    const still = !clip || (a === 'idle' && !this.set.has('idle'));
+    this.proc = !still ? 'none' : want === 'chat' || want === 'talk' ? 'talk' : 'stand';
+    const next = still ? this.walk : this.mixer.clipAction(clip!);
+    if (next !== this.action || this.act !== a) {
+      if (next !== this.action) {
+        next.reset();
+        next.enabled = true;
+        next.setEffectiveWeight(1);
+        next.play();
+        if (fade > 0) next.crossFadeFrom(this.action, fade, false);
+        else this.action.stop();
+        this.action = next;
+      }
+      next.timeScale = 1;
+      if (still) { next.paused = true; next.time = 0; } else {
+        next.paused = false;
+        // a looping idle starts somewhere along it, so a crowd doesn't breathe in step
+        if (!WALKING.has(a)) next.time = Math.random() * clip!.duration;
+      }
+    }
+    this.act = a;
+    return a;
+  }
+
+  /** Walking pace: the cycle follows the ground speed (m/s). */
+  pace(speed: number) {
+    if (this.act === 'walk') this.action.timeScale = speed / 1.2;
+    else if (WALKING.has(this.act)) this.action.timeScale = speed / 1.1;
+  }
+
+  update(dt: number) {
+    this.mixer.update(dt);
+    this.t += dt;
+    if (this.proc === 'none') return;
+    const t = this.t, b = this.bones;
+    b.spine?.rotateX(Math.sin(t * 1.4) * 0.02).rotateZ(Math.sin(t * 0.37) * 0.035);
+    b.hips?.rotateZ(Math.sin(t * 0.37) * 0.03);
+    b.neck?.rotateY(Math.sin(t * 0.23) * 0.3 + Math.sin(t * 0.71) * 0.08);
+    if (this.proc === 'talk') b.rfore?.rotateX(-0.45 - 0.35 * Math.max(0, Math.sin(t * 2.3))).rotateY(Math.sin(t * 3.1) * 0.25);
+  }
+}
+
+/** A rigged person `height` tall, walking (null if its figure isn't loaded). */
+export function person(n: PersonName, height = 1.75): Figure | null {
   const t = templates.get(n);
-  const clip = clips.get(n);
-  if (!t || !clip) return null;
+  if (!t || !clips.get(n)?.get('walk')) return null;
   const o = cloneSkinned(t);
   const s = t.userData.size as THREE.Vector3;
   o.scale.setScalar(height / s.y);
-  const mixer = new THREE.AnimationMixer(o);
-  const walk = mixer.clipAction(clip);
-  walk.play();
-  return { obj: o, mixer, walk };
+  return new Figure(o, n);
 }
 
 /** The model's geometry + material pairs (for instancing trees). */

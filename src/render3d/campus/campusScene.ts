@@ -39,6 +39,8 @@ import { Traffic } from './vehicles';
 import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
 import { GrassPatch, grassColours } from './grass';
 import { fieldMesh, hedgePoints, inField } from './fields';
+import { CampusPeople, shapeOf, type CarObj } from './people';
+import { FENCED, placeKind, placeOf, sitePlan, type Place, type Rect as WRect } from './paths';
 import { deskHolder } from '../../sim/systemView';
 import { sfx } from '../../audio/sfx';
 
@@ -55,7 +57,8 @@ interface Entry {
   crane?: THREE.Group;
   online: boolean;
   rectKey: string;
-  crew?: Crowd;
+  /** The building site while it's built (plot-local): the site office's door, the stacks, what stands about. */
+  siteInfo?: { door: { x: number; z: number }; stack: { x: number; z: number }; solids: WRect[] };
 }
 
 const hitMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -89,6 +92,9 @@ export class CampusScene implements Scene3D {
   private hitboxes = new THREE.Group();
   private hoverRing!: THREE.LineLoop;
   private crowd = new Crowd();
+  /** The campus's working day (staff, crews, the guard, the advisors). */
+  private people: CampusPeople | null = null;
+  private peopleKey = '';
   private traffic = new Traffic();
   private updaters: ((e: Env) => void)[] = [];
   private bit: { obj: THREE.Object3D; hit: THREE.Mesh } | null = null;
@@ -156,6 +162,8 @@ export class CampusScene implements Scene3D {
     this.roads = new THREE.Group();
     this.hitboxes = new THREE.Group();
     this.crowd = new Crowd();
+    this.people = null;
+    this.peopleKey = '';
     this.traffic = new Traffic();
     this.updaters = [];
     this.setPieces = [];
@@ -308,6 +316,73 @@ export class CampusScene implements Scene3D {
     if (!roadless) this.populate();
     else if (this.scenery === 'moon') this.astronauts();
   }
+
+  // ── the walk map's places ─────────────────────────────────────────────────────────────────
+  /** Everything people walk round and go into, as places (world coordinates), and the cars in their bays. */
+  private placesNow(): { places: Place[]; cars: CarObj[]; extra: WRect[] } {
+    const places: Place[] = [];
+    const cars: CarObj[] = [];
+    const extra: WRect[] = [];
+    const add = (id: string, kind: Place['kind'], rect: Rect, piece: Piece, root: THREE.Object3D, o: { fence?: number; building?: boolean; site?: Entry['siteInfo'] } = {}) => {
+      const { shape, cars: cs } = shapeOf(piece, root);
+      const p = placeOf(id, kind, rect, shape, root.position.x, root.position.z, o);
+      if (o.site) {
+        const c = root.position;
+        const s = o.site;
+        p.site = {
+          door: { x: s.door.x + c.x, z: s.door.z + c.z, nx: 0, nz: 1 },
+          stack: { x: s.stack.x + c.x, z: s.stack.z + c.z },
+          solids: s.solids.map((r) => ({ x0: r.x0 + c.x, z0: r.z0 + c.z, x1: r.x1 + c.x, z1: r.z1 + c.z })),
+        };
+      }
+      places.push(p);
+      for (const c of cs) cars.push({ ...c, place: id });
+    };
+    for (const e of this.entries.values()) {
+      add(e.f.id, placeKind(e.f.type), e.item.rect, e.piece, e.root, { fence: FENCED.has(e.f.type) ? 7 : undefined, building: !!e.site, site: e.site ? e.siteInfo : undefined });
+    }
+    for (const [id, r] of this.rivals) {
+      const item = this.layout.items.find((i) => i.rival?.id === id);
+      if (item) add(`rival:${id}`, 'rival', item.rect, r.piece, r.root);
+    }
+    // a surveyed plot: nobody walks across the string line
+    for (const item of this.layout.items) if (item.kind === 'empty') extra.push({ x0: item.rect.x0 + 0.8, z0: item.rect.z0 + 0.8, x1: item.rect.x1 - 0.8, z1: item.rect.z1 - 0.8 });
+    for (const [i, sp] of this.setPieces.entries()) {
+      if (sp.item.spec.kind === 'manhole') { extra.push(sp.item.rect); continue; }
+      add(`set:${i}:${sp.item.spec.kind}`, 'set', sp.item.rect, sp.piece, sp.root);
+    }
+    // the substation where the grid comes in (and its yard)
+    const s = this.layout.substation;
+    extra.push({ x0: s.x - 8, z0: s.z - 8, x1: s.x + 8, z1: s.z + 8 });
+    return { places, cars, extra };
+  }
+
+  /** Tell the people about the places (when something is built, finished, upgraded or knocked down). */
+  private placePeople(force = false) {
+    if (!this.people) return;
+    const L = this.layout;
+    const key = [L.cols, ...[...this.entries.values()].map((e) => `${e.f.id}${e.rectKey}${e.site ? 'b' : ''}`), ...[...this.rivals.keys()], this.setPieces.length].join('|');
+    if (!force && key === this.peopleKey) return;
+    this.peopleKey = key;
+    const { places, cars, extra } = this.placesNow();
+    const east = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
+    this.people.setPlaces(L.bounds, { frontZ: FRONT_Z, accessX: L.accessX, highwayZ: HIGHWAY_Z, east: east + 6, laneZ: this.viewOnly ? null : -PD - 4, accessNorth: -PD - 4 }, places, cars, extra, this.localHour());
+  }
+
+  /** The campus's local (solar) time, 0–24: what the sun and the people follow. */
+  localHour() {
+    const d = this.simDate();
+    return (((d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600 + this.site.lon / 15) % 24) + 24) % 24;
+  }
+
+  /** QA: set the campus's clock to a local hour (with the day–night cycle on). */
+  setHour(h: number) {
+    const now = this.localHour();
+    this.timeOffset += ((((h - now) % 24) + 24) % 24) * 3_600_000;
+  }
+
+  /** QA: the people's walk map and plans drawn over the ground. */
+  debugPeople(on = true) { this.people?.debug(on); return this.people; }
 
   /** Suited crews bounding between the Moon base's pieces (they load on first visit). */
   private astronauts() {
@@ -617,6 +692,7 @@ export class CampusScene implements Scene3D {
       }
     }
     for (const [c, o] of this.empties) if (!empties.has(c)) { this.world.remove(o); this.empties.delete(c); }
+    this.placePeople();
     // hit boxes for every plot (hover + click)
     for (const c of [...this.hitboxes.children]) this.hitboxes.remove(c);
     for (const item of L.items) {
@@ -662,9 +738,17 @@ export class CampusScene implements Scene3D {
   private construction(e: Entry) {
     const site = new THREE.Group();
     const w = e.item.rect.x1 - e.item.rect.x0, d = e.item.rect.z1 - e.item.rect.z0;
-    if (e.clip && !e.online) site.add(scaffold(Math.min(w - 2, e.piece.w - 1.2), e.piece.h, Math.min(d - 3, e.piece.d - 4), hashStr(e.f.id)));
+    const withCrane = e.clip || e.f.type === 'wind';
+    // where everything stands (the crew in people.ts walk round it, clock on at the office, fetch from the stacks)
+    const plan = sitePlan(w, d, e.piece, { scaffold: e.clip && !e.online, crane: withCrane });
+    // the scaffold rings the building itself (its first blocker when the piece says), else the middle of the footprint
+    if (plan.scaffold) {
+      const sc = scaffold(plan.scaffold.w, e.piece.h, plan.scaffold.d, hashStr(e.f.id));
+      sc.position.set(plan.scaffold.x, 0, plan.scaffold.z);
+      site.add(sc);
+    }
     site.add(siteClutter(w - 2, d - 2, hashStr(e.f.id) + 3));
-    if (e.clip || e.f.type === 'wind') {
+    if (withCrane) {
       const c = crane(e.f.type === 'wind' ? 24 : Math.max(14, e.piece.h + 8), e.f.type === 'wind' ? 12 : 16, hashStr(e.f.id) + 5);
       c.position.set(w / 2 - 3, 0, -d / 2 + 3);
       site.add(c);
@@ -677,18 +761,14 @@ export class CampusScene implements Scene3D {
     site.add(mx);
     e.root.add(site);
     e.site = site;
-    const crew = new Crowd();
-    const hw = Math.min(w, e.piece.w) / 2 + 1, hd = Math.min(d, e.piece.d) / 2;
-    for (let i = 0; i < 4; i++) crew.add('worker', [[-hw + i * 2, hd + 1], [hw - i, hd + 1.5], [hw, -hd + i], [-hw + i, -hd]], () => 0.08, { pause: [1, 5] });
-    site.add(crew.group);
-    e.crew = crew;
+    e.siteInfo = { door: plan.door, stack: plan.stack, solids: plan.solids };
   }
 
   private open(e: Entry) {
     const fresh = !e.online || !!e.site;
     e.online = true;
     if (e.site) e.root.remove(e.site);
-    e.site = e.crane = e.crew = undefined;
+    e.site = e.crane = e.siteInfo = undefined;
     if (e.clip) clipAbove(e.piece.obj, null);
     e.piece.progress?.(1);
     if (fresh) this.flash(e.root.position);
@@ -714,44 +794,25 @@ export class CampusScene implements Scene3D {
     const h = this.ground.h;
     const L = this.layout;
     const east = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
-    // people working at the set pieces (suppliers' staff, miners, the landing station's tech)
-    for (const sp of this.setPieces) {
-      const r = sp.item.rect;
-      const n = sp.item.spec.kind === 'manhole' ? 0 : sp.item.spec.kind === 'openPit' || sp.item.spec.kind === 'brinePonds' ? 1 : 2;
-      for (let i = 0; i < n; i++) this.crowd.add(sp.item.spec.kind === 'openPit' || sp.item.spec.kind === 'crusher' ? 'worker' : null, [[r.x0 + 2 + i * 3, r.z1 + 1.5], [r.x1 - 2, r.z1 + 2], [r.x1 - 3 - i, r.z1 + 4]], h, { pause: [1, 6] });
-    }
-    // passers-by on the frontage road's pavement
-    for (let i = 0; i < 3; i++) this.crowd.add(null, [[L.accessX + 6, FRONT_Z - 4.2], [east, FRONT_Z - 4.2]], h, { pause: [0, 2] });
-    // staff at each working building
-    for (const e of this.entries.values()) {
-      if (e.f.type !== 'datacenter' && e.f.type !== 'lab' && e.f.type !== 'hq' && e.f.type !== 'gas') continue;
-      const c = e.root.position;
-      const n = e.f.type === 'hq' ? 2 : 3;
-      for (let i = 0; i < n; i++) {
-        const pts: [number, number][] = e.f.type === 'datacenter'
-          ? [[c.x - 7.5 + i, c.z + 9], [c.x - 7.5, c.z + 11], [c.x - 11 + i * 2, c.z + 11.2]]
-          : [[c.x - 3 + i * 2, c.z + 6], [c.x - 4, c.z + 9], [c.x + 3, c.z + 9.5]];
-        this.crowd.add(e.f.type === 'lab' ? (i ? 'scientist' : 'researcher') : e.f.type === 'datacenter' ? 'engineer' : null, pts, h, { pause: [1, 6] });
-      }
-    }
-    // the advisors who are out today, and Bit
-    for (const [i, id] of this.namedHere(s).entries()) {
-      if (id === 'bit') continue;
-      const x = L.accessX + 12 + i * 14;
+    // the working day: staff, crews, the night guard, the people at the set pieces (people.ts)
+    const people = new CampusPeople(h);
+    this.people = people;
+    this.scene.add(people.group);
+    this.placePeople(true);
+    // the advisors who are out today (their own figures as soon as they've loaded), and Bit
+    const advisors = this.namedHere(s).filter((id) => id !== 'bit').map((id) => {
       const own = `adv_${id}` as PersonName;
-      const w = this.crowd.add(hasModel(own) ? own : ADVISOR_FIGURE[id] ?? 'office', [[x, FRONT_Z - 5], [x + 10, FRONT_Z - 5.5], [x + 12, FRONT_Z - 8], [x + 2, FRONT_Z - 8.5]], h, { advisor: id, pause: [2, 7], speed: 1.0 });
-      // their own figure, as soon as it's loaded
-      if (!hasModel(own)) { const crowd = this.crowd; loadModels([own]).then(() => { if (this.crowd === crowd) crowd.reskin(w, own); }).catch(() => {}); }
-    }
+      if (!hasModel(own)) loadModels([own]).then(() => { if (this.people === people) people.reskin(id, own); }).catch(() => {});
+      return { id, kind: hasModel(own) ? own : ADVISOR_FIGURE[id] ?? 'office' };
+    });
+    people.setAdvisors(advisors);
     if (this.namedHere(s).includes('bit')) {
       this.bit = makeBit();
       this.bit.hit.userData.advisor = 'bit';
       this.scene.add(this.bit.obj);
     }
-    // a delivery now and then up the access road and along the front
-    // deliveries: in along the highway's eastbound lane, up the access road, along the frontage and back, out onto the
-    // westbound lane; they turn round far down the highway, out of sight (never across a field)
-    // (right-hand traffic, turning arcs, stop lines, a stop to unload outside the front-row buildings)
+    // deliveries: in along the highway, up the access road, along the frontage, round the turning circle, a stop to
+    // unload outside the front-row buildings, out onto the highway again (right-hand traffic, see vehicles.ts)
     const docks = L.items.filter((it) => it.kind === 'facility' && it.rect.z0 > 0).map((it) => (it.rect.x0 + it.rect.x1) / 2);
     this.traffic.deliveries({ highwayZ: HIGHWAY_Z, accessX: L.accessX, frontZ: FRONT_Z, east: east + 6, docks }, ['flatbed', 'van', 'pickup'], h);
   }
@@ -795,13 +856,17 @@ export class CampusScene implements Scene3D {
   }
 
   // ── frame ─────────────────────────────────────────────────────────────────────────────────
-  private sunNow(): { v: THREE.Vector3; alt: number } {
-    if (this.game.dioramaTimelapse) this.timeOffset += 0;
-    let date: Date;
+  /** The moment the campus shows: now (plus the time-lapse), or local noon today with the day–night cycle off. */
+  private simDate(): Date {
     if (!this.game.settings.dayNight) {
       const now = new Date();
-      date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12) - (this.site.lon / 15) * 3_600_000);
-    } else date = new Date(Date.now() + this.timeOffset);
+      return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12) - (this.site.lon / 15) * 3_600_000);
+    }
+    return new Date(Date.now() + this.timeOffset);
+  }
+
+  private sunNow(): { v: THREE.Vector3; alt: number } {
+    const date = this.simDate();
     const sub = subsolar(date);
     const sun = dir(sub.lon, sub.lat);
     const n = dir(this.site.lon, this.site.lat);
@@ -854,20 +919,25 @@ export class CampusScene implements Scene3D {
     }
     for (const e of this.entries.values()) {
       e.piece.update?.(env);
-      e.crew?.update(env);
       if (e.crane) e.crane.userData.top.rotation.y = Math.sin(env.t * 0.25 + hashStr(e.f.id)) * 1.1;
     }
     this.crowd.update(env);
+    this.camera.updateMatrixWorld();
+    this.people?.update(env, this.localHour(), this.camera);
     this.traffic.update(env);
     blinkBeacons(this.world, env);
     if (this.bit) {
+      // Bit keeps company with an advisor (a little behind, on the way they came), or the guard at night
       const p = this.bit.obj.position;
+      const to = this.people?.bitTarget();
       const L = this.layout;
-      const tx = L.accessX + 16 + Math.sin(this.time * 0.13) * 18, tz = FRONT_Z - 7 + Math.cos(this.time * 0.21) * 3;
-      p.x += (tx - p.x) * Math.min(1, dt * 0.8);
-      p.z += (tz - p.z) * Math.min(1, dt * 0.8);
-      p.y = 1.6 + Math.sin(this.time * 2.2) * 0.18;
-      this.bit.obj.rotation.y = Math.sin(this.time * 0.5) * 0.6;
+      const tx = to ? to.x : L.accessX + 16 + Math.sin(this.time * 0.13) * 18, tz = to ? to.z : FRONT_Z - 7;
+      const k = Math.min(1, dt * 1.6);
+      p.x += (tx - p.x) * k;
+      p.z += (tz - p.z) * k;
+      p.y = this.ground.h(p.x, p.z) + 2.05 + Math.sin(this.time * 2.2) * 0.15;
+      const look = to ? to.heading : Math.sin(this.time * 0.5) * 0.6;
+      this.bit.obj.rotation.y += Math.atan2(Math.sin(look - this.bit.obj.rotation.y), Math.cos(look - this.bit.obj.rotation.y)) * Math.min(1, dt * 3);
     }
     for (const f of [...this.flashes]) {
       f.t += dt;
@@ -936,7 +1006,7 @@ export class CampusScene implements Scene3D {
   }
 
   private advisorAt(x: number, y: number): string | null {
-    const targets: THREE.Object3D[] = this.crowd.hitTargets();
+    const targets: THREE.Object3D[] = [...this.crowd.hitTargets(), ...(this.people?.hitTargets() ?? [])];
     if (this.bit) targets.push(this.bit.hit);
     const hit = this.rayAt(x, y).intersectObjects(targets, false)[0];
     if (!hit) return null;
@@ -1092,6 +1162,7 @@ export class CampusScene implements Scene3D {
 
   destroy() {
     this.gone = true;
+    this.people?.destroy();
     closeScope(this.scope);
     this.game.stage.canvas.style.cursor = '';
     disposeObject(this.scene);
