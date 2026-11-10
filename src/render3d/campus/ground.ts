@@ -10,6 +10,7 @@ import { treeField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { grassColours, grassMaterial, sharedClump } from './grass';
 import { inField, planFields, type Field } from './fields';
+import { waterGeometry, waterMaterial } from './water';
 
 export type Backdrop = 'plains' | 'desert' | 'coast' | 'mountain' | 'boreal' | 'temperate' | 'tropical' | 'savanna' | 'volcanic' | 'lunar';
 
@@ -117,6 +118,8 @@ export interface GroundOpts {
   seaZ?: number;
   /** A small world: the ground falls away with this radius (an asteroid's horizon). */
   curve?: number;
+  /** Where the far relief stands (1) or stands down (0): the hills ease off toward a lake's shore instead of ending in a wall. */
+  open?: (x: number, z: number) => number;
   /** Pieces that reshape the ground (world coordinates): a height, or null to keep the land. */
   carve?: (x: number, z: number) => number | null;
   /** Roads: the land is graded to a smooth profile along each (cuts and embankments), in order (a later road meets an earlier one at its height). */
@@ -154,7 +157,7 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
     const d = Math.hypot(x - centre.x, z - centre.z);
     let y = (fbm(x * 0.012, z * 0.012, s, 4) - 0.45) * def.relief * 2 + (fbm(x * 0.05, z * 0.05, s + 5, 2) - 0.5) * def.relief * 0.3;
     y *= smooth(0, 30, fd);
-    let farK = smooth(140, 420, d);
+    let farK = smooth(140, 420, d) * (o.open?.(x, z) ?? 1);
     for (const r of valleys) farK *= 0.12 + 0.88 * smooth(18, 240, segDist(x, z, r.a, r.b));
     switch (def.far) {
       case 'mesas': {
@@ -247,6 +250,8 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const pos = new Float32Array(nx * nz * 3);
   const cols = new Float32Array(nx * nz * 3);
   const strata = def.strata?.map((p) => col(p));
+  rockUniforms.uStrata.value.forEach((c, i) => c.copy(strata ? strata[i % strata.length] : col(def.rock)).multiplyScalar(strata ? 1 : 0.86 + (i % 3) * 0.09));
+  rockUniforms.uStrataStep.value = strata ? 7 : 4;
   const heights = new Float32Array(nx * nz);
   const h = hExact;
   for (let j = 0; j < nz; j++)
@@ -294,7 +299,9 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
 
   let waterMesh: THREE.Mesh | null = null;
   if (water !== null) {
-    waterMesh = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), waterMaterial());
+    const warm = o.backdrop === 'tropical' || o.backdrop === 'coast' || o.backdrop === 'desert' || o.backdrop === 'savanna';
+    const cold = o.backdrop === 'boreal' || o.backdrop === 'mountain';
+    waterMesh = new THREE.Mesh(waterGeometry(xs, zs, heights, water), warm ? waterMaterial('#3fb6ae', '#17508c') : cold ? waterMaterial('#3f8388', '#16395e') : waterMaterial('#4a9ea2', '#1b4a7c'));
     waterMesh.position.y = water;
     waterMesh.receiveShadow = true;
   }
@@ -426,13 +433,64 @@ function meshHeight(xs: number[], zs: number[], hs: Float32Array, exact: (x: num
   };
 }
 
-const groundMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })));
+/** The cliffs' colours for the ground in view (one campus is drawn at a time): the backdrop's strata, or its rock. */
+const rockUniforms = { uStrata: { value: Array.from({ length: 6 }, () => new THREE.Color()) }, uStrataStep: { value: 7 } };
+
+/**
+ * Steep ground shows its rock, drawn per pixel from the height: level strata with ledges and weathering streaks
+ * (mesas and canyon walls), where the mesh's own corner colours would smear down a cliff. Also a fine bump from the
+ * grain, so low sun rakes across the land instead of lying flat on it.
+ */
+function withRock<M extends THREE.MeshStandardMaterial>(m: M): M {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev.call(m, sh, r);
+    Object.assign(sh.uniforms, rockUniforms);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uStrata[6]; uniform float uStrataStep;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          vec3 wn = inverseTransformDirection(normalize(vNormal), viewMatrix);
+          float steep = smoothstep(0.86, 0.62, wn.y);
+          if (steep > 0.0) {
+            float warp = texture2D(uGrain, vGrainW.xz * 0.0031).g * 9.0 + texture2D(uGrain, vGrainW.xz * 0.021).r * 2.0;
+            // layers of uneven thickness (a slow wobble in the step), each a shade off the cliff's mean colour
+            float t = (vGrainW.y + warp) / uStrataStep;
+            t += sin(t * 1.7) * 0.6;
+            float f = fract(t);
+            int i = int(mod(floor(t), 6.0));
+            vec3 mean = (uStrata[0] + uStrata[1] + uStrata[2] + uStrata[3] + uStrata[4] + uStrata[5]) / 6.0;
+            vec3 band = mix(mean, mix(uStrata[i], uStrata[int(mod(float(i) + 1.0, 6.0))], smoothstep(0.82, 1.0, f)), 0.62);
+            // a shadowed ledge under each layer, streaks where water runs down the face
+            band *= 1.0 - 0.2 * smoothstep(0.8, 0.97, f) * (1.0 - smoothstep(0.97, 1.0, f));
+            float streak = texture2D(uGrain, vec2((vGrainW.x + vGrainW.z) * 0.035, vGrainW.y * 0.004)).r;
+            band *= 0.86 + 0.28 * streak;
+            diffuseColor.rgb = mix(diffuseColor.rgb, band, steep);
+          }
+        }`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          // a bump from the grain (finite differences), fading out with distance
+          float bk = (1.0 - smoothstep(60.0, 420.0, distance(vGrainW, cameraPosition))) * 0.55;
+          if (bk > 0.01) {
+            vec2 buv = vGrainW.xz * 0.045; float e = 0.004;
+            float h0 = texture2D(uGrain, buv).r + texture2D(uGrain, buv * 4.3).b * 0.4;
+            float hx = texture2D(uGrain, buv + vec2(e, 0.0)).r + texture2D(uGrain, (buv + vec2(e, 0.0)) * 4.3).b * 0.4;
+            float hz = texture2D(uGrain, buv + vec2(0.0, e)).r + texture2D(uGrain, (buv + vec2(0.0, e)) * 4.3).b * 0.4;
+            vec3 bw = normalize(vec3((h0 - hx) * 2.6, 1.0, (h0 - hz) * 2.6));
+            // tilt the surface normal by the bump's lean (world x and z, taken to view space)
+            normal = normalize(normal + (viewMatrix * vec4(bw.x, 0.0, bw.z, 0.0)).xyz * bk);
+          }
+        }`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => key() + '-rock';
+  return m;
+}
+
+const groundMat = withRock(withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }))));
 const plantMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
 /** Bushes shade smooth (their normals are rounded off in trees.ts). */
 export const plantMatSmooth = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 }));
 plantMatSmooth.userData.shared = true;
 
-function waterMaterial() {
-  const m = new THREE.MeshStandardMaterial({ color: col('#2c6399'), roughness: 0.3, metalness: 0.1 });
-  return withClouds(m);
-}
