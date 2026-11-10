@@ -15,8 +15,14 @@ import { isAndroidApp, openExternal } from '../platform/platform';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
 
-/** The 3D edition (main3d.ts marks the page before the UI renders): a few screens carry extra markup for its look. */
-export const is3d = (): boolean => document.documentElement.classList.contains('edition-3d');
+/**
+ * The 3D edition wearing its own interface look (render3d/ui/*.css; main3d.ts marks the page before the UI renders,
+ * and the Classic look turns it off): a few screens carry extra markup for it.
+ */
+export const is3d = (): boolean => {
+  const c = document.documentElement.classList;
+  return c.contains('edition-3d') && !c.contains('ui-classic');
+};
 
 /** Subscribe to game updates; returns the game. */
 export function useGame(): Game {
