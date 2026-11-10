@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.13.0 — New Faces (2026-11-11)
+The last of the pixel art is gone: everything in the interface is now drawn to match the 3D world.
+
+- **Everyone has a new face.** The advisors, Bit, every company boss, delegate and governor are little 3D busts now, with their moods (happy, worried, angry, excited) and, in Act V, their age. Bit still changes shape with every model generation, all the way to a free mind.
+- **New icons everywhere.** All 123 interface icons and the dock's buttons are redrawn as smooth, shaded icons in the same colours you already know, sharp at any interface size. Achievement medals too.
+- **A new logo and app icon.** The logo is the same wordmark as a 3D sculpture; the app icon is the game's own Earth.
+- **The Type I end card** is a full-HD picture of your Sun ringed by the swarm, with your run's numbers.
+- **Home-site pictures** on the New company screen are smooth relief maps.
+- **Graphics card (Settings → Display).** On a laptop with two graphics cards the game can now run on the stronger one: better picture and frame rate, more battery. The game restarts to switch and gives you 20 seconds to keep it; if the picture is wrong, it goes back by itself. (Tested on Linux; new on Windows.)
+- **Retro options removed:** the Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack. Old settings carry over to the standard ones.
+
 ## 0.12.0 — All In (2026-11-11)
 One game, in 3D, on your computer. The pixel-art edition and every way of playing outside the desktop app are retired, so all the work goes into the game that is heading for Steam.
 

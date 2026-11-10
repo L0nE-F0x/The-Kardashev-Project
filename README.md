@@ -6,7 +6,7 @@ compute and supply lines on a real Earth, keep your models safe, and guide civil
 **Get it:** https://thekardashevproject.netlify.app — a desktop game for Windows, macOS and Linux (installers on
 [Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases)). A Steam release is planned.
 
-> Status: **v0.12.0 "All In"**. The whole campaign is playable end to end: Acts I (The Garage), II (The Scale-Up),
+> Status: **v0.13.0 "New Faces"**. The whole campaign is playable end to end: Acts I (The Garage), II (The Scale-Up),
 > III (The Charter), IV (Planetary) and V (Type I). See `SPEC.md` for the design and `CHANGELOG.md` for what changed.
 
 ## Run it locally

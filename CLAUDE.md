@@ -4,9 +4,12 @@ A 3D management sim about the AI boom, for desktop (Windows, macOS, Linux; Steam
 (pillars, acts, decisions log).
 **One game, one platform (v0.12.0 "All In", SPEC §30):** the pixel-art edition, the web game, the installable web app
 (PWA) and the Android app were removed on 2026-11-11. Don't bring them back, and don't add phone or browser support:
-the game is the 3D one, shipped as the desktop app. What is left of the pixel days is the interface's art (logo,
-portraits, 9×9 and 15×15 icons, the Type I end card) and the optional Chiptune soundtrack.
-Current build: **v0.12.0 "All In"** on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
+the game is the 3D one, shipped as the desktop app.
+**No pixel art, no retro options (v0.13.0 "New Faces", SPEC §31):** the logo, the app icon, every portrait and icon,
+the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
+Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
+art or `image-rendering: pixelated` anywhere.
+Current build: **v0.13.0 "New Faces"** on top of v0.12.0 "All In" on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
 campuses, the globe rebuilt, cinematic space views and ending, a 3D interface theme, new sound, photo mode: SPEC §29)
 on top of v0.10.1 "Lived In" (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
 working day, far-north daylight: SPEC §28) on top of v0.10.0 "Third Dimension" (the 3D edition in beta, opt-in via
@@ -97,13 +100,18 @@ npm test              # vitest: sim determinism, Act I bot, Act II bot (preset �
                       # Act IV bot (preset → jumps → the Heat Wall), Act V bot (preset → eras → Solar Maximum → Type I),
                       # offline, saves, routing, the site planner and the 3D layouts
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
-npm run gen:assets    # re-render icons, favicon, logo + src-tauri/icons from the pixel-art code (the website's social
-                      # card and still globe are 3D renders: node tools/og3d.mjs [globe], PLAYWRIGHT=<its index.mjs>)
+PLAYWRIGHT=<playwright's index.mjs> npm run gen:assets [-- logo|icons|og]
+                      # re-render the 3D logo (public/logo.png; letter outlines in tools/brand/glyphs.json), the app
+                      # icons (public/icons, favicon, src-tauri/icons incl. ICO/ICNS) and the social card. Needs
+                      # Playwright + Chrome: it starts its own Vite and a software-rendered Chrome (about a minute);
+                      # CDP=http://127.0.0.1:<port> / BASE=<dev server> reuse running ones. The website's still globe:
+                      # node tools/og3d.mjs globe
 npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
-PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act4-portraits.test.ts \
-  tests/act5-portraits.test.ts tests/governors.test.ts tests/dock-icons.test.ts
-                      # render the terrain / portrait / route / dock-icon previews to PNG
+PREVIEW_DIR=/some/dir npx vitest run tests/dock-icons.test.ts   # writes icon-sheet.svg (every icon, dock icon, medal)
+                      # Contact sheets in the dev server: /play/icons.html (?group=…&sizes=…&mag=6&bg=hud|gold|light)
+                      # and /play/portraits.html?set=advisors|ages|ceos|governors|bit|ais|moods; the piece lab is
+                      # /play/lab.html. None of the three is in the build.
 ```
 
 In the browser console, `window.game` is the live `Game` (state, actions, `setEraOverride(0..3)`, `enterDiorama(siteId)`,
@@ -181,18 +189,21 @@ src/
               contract kinds live in charter.ts (ACT5_KINDS, `vstage`); SPACE_SITES (yards, ring, habitat, asteroids) are
               in SITE_BY_ID but not in SITES, like the Moon
   world/      map raster decode + sea router (A* over 0.5° ocean, carved canals, closable chokepoints) + sun position
-  render/     What is left of the pixel renderer: the stage contract and the interface's pixel art (no Pixi, no scenes).
+  render/     Three leftovers with a historical folder name (nothing here draws pixels any more):
     stage.ts      `GameStage` / `GameScene` / `PixelPointer`: all `Game` knows about what draws it (Stage3D implements it)
     palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn → Swarmlight);
-                  the 3D post pass reads the era, pieces and plans carry colours as palette indices
-    pixels.ts     PixelCanvas: indexed-colour drawing (rect/line/ellipse/dither/text) baked with the era palette
-    font.ts / globe.ts / worldMap/terrain.ts   pixel text, the pixel Earth and the terrain painter: the logo, the app
-                  icons (tools/gen-assets.ts), site previews in panels and the end card draw with them
-    endcard.ts    the Type I end card (480×270 PixelCanvas: the Sun, the swarm, the Earth, the run's numbers)
-    sprites/portraits.ts   advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to
-                  Bit-9; every partner CEO, the faction delegates, Ade and the three rival AIs have looks). Portraits take
-                  an `age` (0–3: greying, elder, renewed) and Bit gens 10 (co-steward) and 11 (a free mind)
+                  the 3D post pass reads the era; pieces, plans, icons and portrait looks name colours by palette key
+    endcard.ts    the Type I end card: a 1920×1080 2D canvas over a capture of the ending's solar-system scene
+                  (`SystemScene3D.atCardPose`), the run's numbers in the interface typeface, the logo small
   render3d/   the renderer (three.js): see "The renderer" above
+    portraits/    every face in the interface, rendered live from 3D busts: looks.ts (the look data per advisor, CEO,
+                  delegate, governor; ages; `bitModel(gen)`; no three.js, safe for the sim and tests), portraits.ts (the
+                  API panels call: `portraitUrl(id, mood, bitGen, age)`, `ceoPortraitUrl`, `governorPortraitUrl`; returns a
+                  URL at once, a cached JPEG or, past 16 ms of new faces in one render pass, a stand-in that is swapped
+                  when the bust is ready; `warmPortraits()` runs behind the loading screen), studio.ts (one extra
+                  WebGL renderer, 240 px, read back with readPixels: toDataURL on an antialiased canvas dropped
+                  meshes in Chrome), head / hair / dress / backdrop / bust (people: five moods, four ages, 30 hair
+                  styles, the extras), bit.ts (Bit's generations 0–11), avatars.ts (Apex, Weft, Sapling, Chorus)
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
     tutorial.ts   Bit's guided steps (20 since v0.9: the loop, the dock, a typical day, How to play): text, target (`data-tut`
@@ -210,9 +221,11 @@ src/
                   worlds (`act4PreviewState`, `act5PreviewState`) and the orbit and solar-system scenes
     playtest.ts   the playtest report (real time per act from `meta.log`, the notes) that Settings → Data → Log saves
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window
-    icons.ts      the 9×9 UI icons (top bar, panels, inline text); dockIcons.ts = the dock's 15×15 icons (13×13 art +
-                  an automatic outline; grids, `disc`, `bevel`), drawn by DockIcon.tsx on a canvas at a whole number of
-                  device pixels per art pixel (dock + How to Play's panel list; the Classic look keeps the 9×9 ones)
+    icons.ts      the interface icons (123, SVG on a 24 grid, a few lines each, drawn with iconKit.ts: shapes and
+                  three-tone lighting from palette keys; `iconUrl(name)` = a cached data URL); dockIcons.ts = the dock's
+                  richer icons on a 32 grid (DockIcon.tsx: dock + How to Play's panel list); medals.ts = achievement
+                  medals; logo.ts = the 3D logo's URL (public/logo.png); sitePreview.ts = the home sites' relief maps,
+                  drawn in 2D from the globe's baked textures while the title screen idles
     panels/Act2Panels.tsx  Team (advisor jobs), Deals (supply · customers · companies), Blocs, Board & debt, Crunch tracker
     panels/Act3Panels.tsx  Charter (overview · contracts · missions · partners · world), Council, Charter desk,
                            own-run licence box, Threshold tracker, Charter HQ / megaproject / launch inspectors
@@ -224,13 +237,14 @@ src/
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website (`.frame` reads --frame-bg/-edge/-shadow)
     styles.css    the HUD (its `max-height: 520px` / narrow-window rules date from the phone days: harmless, never hit in
                   the app's 960×540 minimum window; leave or prune, don't extend)
-    modern.css    the modern HUD layer (v0.9): softer frames, accent rules, hairlines, motion; every rule is scoped
-                  `:where(html:not(.ui-classic))` (zero specificity, so variant rules still win); Settings → Display →
-                  Interface look → Classic adds `html.ui-classic` and turns it off
+    modern.css    the modern HUD layer (v0.9): softer frames, accent rules, hairlines, motion. Its rules are scoped
+                  `:where(html:not(.ui-classic))` and the theme's `html.edition-3d:not(.ui-classic)`: always true since
+                  v0.13 (nothing sets ui-classic). Leave the selectors: stripping them changes which rules win
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens,
                   HowToPlay (the handbook: content/howToPlay.ts; menu item, dock ? button, ? / F1, `game.openHowTo(topic)`)
-    Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: FPS, update toast, decision pill, confirm
-  landing/    website script + css: the hero (the pixel logo and the game's own globe: `globe3d.ts`, earth.ts on the
+    Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: FPS, update toast, decision pill, confirm, the graphics-card
+                  dialog (`GpuNotice`: the restart question, the 20-second trial, a trial that was undone)
+  landing/    website script + css: the hero (the 3D logo and the game's own globe: `globe3d.ts`, earth.ts on the
               coarse map, baked once the page is idle, fading in over a CSS dark planet; without WebGL a still,
               public/globe.png), then glass panels on a starfield: sticky nav, a bento of pillars, one row per act, a
               screenshot gallery with a lightbox, the K-scale bar, one download card per system filled from the latest
@@ -251,10 +265,9 @@ src/
   audio/      All synthesised in WebAudio (v0.11: SPEC §29). engine.ts (the mix: sfx / music / ambience buses, each
               with a dry path and two shared sends (a generated hall, a tempo-synced echo), then sub filter → glue
               compressor → limiter → ceiling; one look-ahead timer for every sequencer; `renderOffline` for
-              measurements), music.ts (which track plays, the `soundtrack` setting: cinematic by default,
-              chiptune as the retro option; `setMusicMood`; the menu's theme.mp3 override), the cinematic score = score.ts
+              measurements), music.ts (which track plays; `setMusicMood`; the menu's theme.mp3 override), the score = score.ts
               (sequencer, voice-leading) + synth.ts (instruments) + cinematic.ts + tracks.ts (seven pieces on one
-              theme: menu, era0–4, ending), chiptune.ts (the optional retro tracks), sfx.ts (layered effects in the
+              theme: menu, era0–4, ending), sfx.ts (layered effects in the
               music's key) + ui.ts (clicks and hover ticks on every button), ambience.ts (a living bed per place: map,
               campus, night, rain, coast, lake, Moon, space, habitat; the 3D campus says which through `ambience()`).
               Nobody can listen in QA: measure instead (the harness and rendered WAVs lived in the session's scratchpad;
@@ -267,7 +280,15 @@ src-tauri/    Tauri 2 desktop shell (one window loading play/index.html from dis
               Since v0.9.4 the app downloads the file itself (src/fastdl.rs, the `update_fast` command: 2 MB pieces
               over 6 connections spread across the host's addresses, a stalled or crawling one swapped for a fresh
               one, keeping its bytes) and hands it to the updater's `install`, which checks the signature first;
-              errors starting "fast download:" fall back to the updater's own download (`platform.ts#installDesktop`)
+              errors starting "fast download:" fall back to the updater's own download (`platform.ts#installDesktop`).
+              src/savefile.rs = `save_file` (see platform/). src/gpu.rs = Settings → Display → Graphics card: the
+              choice lives in `<config dir>/<identifier>/gpu.json` and is applied first thing in `run()`, before the
+              webview's processes exist (Linux: PRIME offload; NVIDIA's driver also gets
+              `__NV_DISABLE_EXPLICIT_SYNC=1`, without which WebKitGTK 2.5x on Wayland dies with "Error 71 (Protocol
+              error)"; Windows: `--force_high_performance_gpu` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS; macOS:
+              nothing). A new choice restarts the game and is "trying" until `gpu_keep`; a start that finds it still
+              "trying" goes back to automatic, so a black window undoes itself. A restart inherits the old run's
+              environment, hence `KARDASHEV_GPU_SWITCHED` and `unswitch()`. Auto detail = High on the stronger card
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
 .github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + latest.json on a draft GitHub release
@@ -275,17 +296,18 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 
 ## Conventions
 
-- **Interface pixel art:** the logo, portraits, icons and the end card go through `PixelCanvas` with palette
-  indices (`C.ink3`, `C.yel0`…), never raw hex, and are shown at a whole number of device pixels per art pixel
-  (render3d/ui/art.css), never resampled. The world itself is 3D: `art3d/DIRECTION.md`, `art3d/PIECES.md`.
+- **Interface art:** smooth and resolution-independent (`art3d/INTERFACE.md`): icons are SVG drawn with
+  `ui/iconKit.ts` from palette keys, portraits are live 3D busts, the logo and the app icon are renders from
+  `npm run gen:assets`. Sizes are plain CSS (`render3d/ui/art-portraits.css`, `art-icons.css`, `art-logo.css`). Check
+  new art at 16–20 px (icons) and 40 px (portraits) on the contact-sheet pages. The world: `art3d/DIRECTION.md`,
+  `art3d/PIECES.md`.
 - **Sim/render split:** the sim must stay runnable in Node (tests). UI reads `game.state` (or `game.view`, which is
   the showcase world during the menu tour); mutations go through `game.*` action wrappers (they refresh stats,
   play sounds, toast errors and honour the confirm-spend setting).
 - **Platform split:** game code never touches Tauri/Electron APIs directly — only `src/platform/platform.ts`.
-- **Fonts:** `--font` (Atkinson Hyperlegible Next: all running text, buttons, numbers), `--font-label` (small labels;
-  their rules set capitals + `--caps-track`), `--font-pixel` (Silkscreen: `h2` titles, the website's section titles
-  and brand only). Never set a pixel font on body text. Settings → Accessibility → Text font switches `html.font-pixel`
-  (the pre-0.4.2 Pixelify + Silkscreen look) or `html.font-system`. In-world text (map labels, logo) is PixelCanvas art.
+- **Fonts:** `--font` (Atkinson Hyperlegible Next: everything), `--font-label` (small labels; their rules set
+  capitals + `--caps-track`), `--font-pixel` (an old name: it is `var(--font)` now, used by titles). Settings →
+  Accessibility → Text font switches `html.font-system`. The logo's letters are Inter, baked into the image.
 - **Windows, not phones:** the app's window is at least 960×540; the HUD also has to hold up on big and high-DPI
   screens and on a Steam Deck (1280×800, touch). **Zoomed HUD boxes** (the `zoom: …--ui-zoom…` list in styles.css):
   size them in % of the screen, never `vh`/`vw` (zoom multiplies those; divide by `--z` if you must). Spotlight bubbles
@@ -382,14 +404,16 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Advisor's campus line | `content/campusLines.ts` (act range per line) |
 | Achievement | `content/achievements.ts` (`done(s)` check, or `done: null` + `game.achieve(id)`; ids are for Steam later) |
 | Sandbox switch or slider | `SandboxOpts` in `sim/types.ts`, read it in the sim formula, add the control in `ui/menu/SandboxControls.tsx` |
-| Province governor | `GOVERNORS` in `content/planet.ts` + a look in `GOVERNOR_LOOKS` (`render/sprites/portraits.ts`) |
-| Era music / place ambience | the score: `audio/tracks.ts` (a `TrackDef` per piece: key, tempo, sections, instruments) · the optional chiptune: `audio/chiptune.ts` · beds: `audio/ambience.ts` |
+| Province governor | `GOVERNORS` in `content/planet.ts` + a look in `GOVERNOR_LOOKS` (`render3d/portraits/looks.ts`) |
+| A person's portrait (hair style, extra, backdrop) | the look in `render3d/portraits/looks.ts`; a new hair style or extra in `hair.ts` / `dress.ts` / `backdrop.ts`; check `/play/portraits.html`; `tests/portraits.test.ts` wants every look distinct |
+| Interface icon | a few lines in `ui/icons.ts` (shapes from `ui/iconKit.ts`, palette keys only); check `/play/icons.html` at 16 px |
+| Era music / place ambience | the score: `audio/tracks.ts` (a `TrackDef` per piece: key, tempo, sections, instruments) · beds: `audio/ambience.ts` |
 | Sound effect | a `SoundId` + its recipe in `audio/sfx.ts` (layers: transient, body, tail), then `sfx(id)` where it happens |
 | People (models, clips, a working day) | `render3d/models.ts` (PEOPLE, TOWNSFOLK), `render3d/campus/people.ts` + `paths.ts`; `tests/render3d-people.test.ts` |
 | Campus behaviour, traffic | `render3d/campus/life.ts`, `vehicles.ts` |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
-| Dock icon | `ui/dockIcons.ts` (keep a 9×9 icon of the same name in `icons.ts` for Classic); look with `PREVIEW_DIR=… DOCK_ZOOM=a,b npx vitest run tests/dock-icons.test.ts` |
+| Dock icon | `ui/dockIcons.ts` (32 grid, same name as the panel's icon in `icons.ts`); check `/play/icons.html?group=dock` |
 | Menu tour shot | `game/tour.ts` (`SHOTS`; a campus shot has a `light` and a camera `move`) and, for a new campus, `game/showcase.ts` |
 | A time of day's look | `KEYS` in `render3d/campus/sky.ts` (by sun altitude: sky, key, fill, haze, exposure) |
 | A lamp that lights its surroundings | `lightPool(parent, x, y, z, r, poolMat(colour))` (kit.ts): it joins the lamp field |
@@ -404,7 +428,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Act II event / chain | `content/events2.ts` (chain with `schedule(s, id, days)`) |
 | Act II briefing | `game/briefings.ts` (+ `data-tut` targets) |
 | Re-tune Act II pacing | `tests/act2.test.ts` + `tests/helpers/act2bot.ts`; `ACT2_ALLOCATION`, `inferPriceTrend`, `MODEL_PLAN` in `sim/model.ts`; rival pace in `sim/ai.ts#tickRivals` |
-| Partner company | `PARTNERS` in `content/charter.ts` (traits, quirk, CEO, colour, pitches) + a CEO look in `render/sprites/portraits.ts` |
+| Partner company | `PARTNERS` in `content/charter.ts` (traits, quirk, CEO, colour, pitches) + a CEO look in `render3d/portraits/looks.ts` |
 | Contract kind | `CONTRACT_KINDS` in `content/charter.ts` (+ its completion effect in `sim/charter.ts#completeProject`, access gain, its pieces in `render3d/campus/plan.ts` + `sets/`) |
 | Megaproject site / HVDC route / launch site | `megaSite(...)` / `launchSite(...)` in `content/sites.ts`; `HVDC_ROUTES` in `content/charter.ts` |
 | Mission | `MISSIONS` (+ `MISSION_MODS`) in `content/charter.ts`, its reward in `sim/charter.ts#completeMission` |
@@ -415,7 +439,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Re-tune Act III pacing | `tests/act3.test.ts` + `tests/helpers/act3bot.ts`; `CHARTER` numbers, contract `value`/`days`, world growth in `sim/world.ts`, world alignment drift in `sim/frontier.ts` |
 | Fusion design | `FUSION_DESIGNS` in `content/planet.ts` (+ a partner in `PARTNERS` with `act: 4`, a CEO look, `DESIGN_BUILDER` in `render3d/campus/planKit.ts`, plant art in `render3d/campus/sets/fusion/`) |
 | Supergrid route | `SUPERGRID_ROUTES` in `content/planet.ts` |
-| AI that can run provinces | `AIS` in `content/planet.ts` + an `AiId`, a face in `portraits.ts` |
+| AI that can run provinces | `AIS` in `content/planet.ts` + an `AiId`, an avatar in `render3d/portraits/avatars.ts` |
 | Act IV event / chain | `content/events4.ts` (first choice = the autopilot default) |
 | Act IV contract kind | `CONTRACT_KINDS` (+ `ACT4_KINDS`) in `content/charter.ts`, rules in `sim/charter.ts` (canPost, contractValue, completeProject), a planner wish in `sim/plans.ts`, a Planet tab poster |
 | Re-tune Act IV pacing | `tests/act4.test.ts` + `tests/helpers/act4bot.ts`; `PLANET` numbers (growth cap, tritium, goals, stageMaxDays), planner limits in `sim/plans.ts` |
@@ -429,12 +453,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.12.0 "All In" (SPEC §30) is built on the local branch `desktop-only`: ship it when the user says so
-(merge, push, tag; the website and the release must go out together, because the website no longer offers the web
-game and the 0.11.0 installers still open the pixel edition by default). The user played 0.11.0 on 2026-11-11 and
-is happy with the look, the speed and the sound. Two questions are still unanswered (SPEC §30): redo the pixel-art
-logo, app icon, portraits and end card in the 3D style or keep them; keep or drop the Chiptune soundtrack, the
-Classic interface look and the Pixel text font.
+**Next:** v0.13.0 "New Faces" (SPEC §31) shipped on 2026-11-11 at the user's word ("ship it and wrap the session"),
+built while they slept. Open the next session by asking how it looks in their app: the new logo, the busts (they have
+not seen any of the new art), the icons, and whether the graphics-card switch works on their Windows boot (it is
+tested on Linux only). SPEC §31 lists the calls I made and the weak spots the helpers named.
 **Versions (the user, 2026-11-11):** keep bumping small versions while the game is being perfected; v1.0.0 only when
 they start the Steam page. Nobody else has the game, so there are no other players' saves or installs to protect.
 They test Windows themselves (dual boot); there is no Mac, so macOS stays unverified.
@@ -444,9 +466,11 @@ Electron/Steamworks wrapper if Tauri can't do the overlay). Later: Type II as an
 (SPEC §20 hooks), the real theme song, code signing (Windows/macOS).
 
 **Still open:**
-- From SPEC §29: a Settings switch to run the app on the discrete GPU on hybrid laptops (today it renders on the
-  integrated one; `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia` works by hand on Linux); Act III's
-  satellite, beam and liftoff on the globe were not
+- The graphics-card switch (v0.13) is tested on one Linux laptop (Intel + RTX 4050, NVIDIA's driver, Wayland): not
+  on Windows, not with Mesa-only hybrids (AMD + Intel), not in the AppImage's own older WebKit.
+- The website's other fifteen screenshots show no interface, so they are current; `ui-campus.webp` was re-shot for
+  v0.13. The trailer kit (~/Videos) still shows the old logo and interface.
+- From SPEC §29: Act III's satellite, beam and liftoff on the globe were not
   exercised; power beams in the ending only show with beam capacity; the cinematic is capped at 16 s by `tickEnding`;
   the 4K-at-150% interface survey was partial.
 - M5 (SPEC §21): steps 1–7 shipped in v0.7.0; v0.8.0 (SPEC §22) is the whole-game audit and its fixes. Waiting for the

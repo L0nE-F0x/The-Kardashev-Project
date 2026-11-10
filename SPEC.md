@@ -1,6 +1,6 @@
 # The Kardashev Project — Game Spec v0.1
 
-> **Read section 30 first (2026-11-11):** the game is 3D and desktop only now (Windows, macOS, Linux; Steam is the
+> **Read sections 30 and 31 first (2026-11-11):** the game is 3D and desktop only now (Windows, macOS, Linux; Steam is the
 > goal). The pixel-art edition, the browser game, the installable web app and the Android app described in the
 > sections below were removed; where an older section speaks of pixel dioramas, the pixel map, phones or the PWA, it
 > is history. The sim, the acts and the interface are unchanged.
@@ -2305,3 +2305,67 @@ deployed; Windows and macOS.
 - Redo the logo, the app icon, the portraits and the end card in the 3D style, or keep the pixel art as the game's
   signature?
 - Drop the Chiptune soundtrack, the Classic look and the Pixel font too?
+
+## 31. v0.13.0 "New Faces": no pixel art, no retro options, a graphics-card switch (built and shipped 2026-11-11)
+
+**The decision (the user, 2026-11-11, after v0.12.0):** "change all the remaining pixel art to 3D style, you can use
+my Meshy credits without asking should you need to generate any more models. and drop all the other retro options.
+also build the switch to run the game on the stronger GPU". Later that night: "when you and all the [sub] agents are
+finished, ship it and wrap the session". They had seen none of the new art when it shipped.
+
+**How it was run:** one shared direction (`art3d/INTERFACE.md`), then three helpers in git worktrees on disjoint files
+(portraits, icons, the logo / app icon / end card / site previews) while the lead built the graphics-card switch and
+removed the retro options. The art sizing styles were split into three files first so nobody shared one. All three
+merged with two expected conflicts. No Meshy credits were spent: about 70 characters in five moods and four ages
+can only be made in code.
+
+**What replaced what**
+- **Portraits** (`src/render3d/portraits/`): every face is a 3D bust rendered live from the same look data as the
+  pixel portraits (hair style, skin, clothes, extras, backdrop), with the five moods and the four ages; Bit in each
+  generation; the four AIs as abstract forms. One extra WebGL renderer, 240 px pictures, cached. A new face costs
+  10–50 ms, so past 16 ms in one render pass the rest get a stand-in and are swapped in as they finish; the
+  one-off shader compile (about half a second) is paid behind the loading screen (`warmPortraits`).
+- **Icons** (`src/ui/icons.ts`, `dockIcons.ts`, `medals.ts`, `iconKit.ts`): 123 interface icons, 19 dock icons and
+  four medals, each drawn by hand as SVG in two or three tones of the colour players already know. Contact sheet:
+  `/play/icons.html`.
+- **Logo** (`public/logo.png`, `tools/brand/`): the same composition as an extruded 3D wordmark in Inter Black with
+  the sunrise ramp in seven bands. **App icon**: the game's globe on a dark tile; plainer masters at 64 px and under.
+- **End card** (`src/render/endcard.ts`): 1920×1080, a capture of the ending's scene at its held frame with the
+  run's numbers. **Site previews**: relief maps from the globe's textures.
+- **Removed:** PixelCanvas, the pixel font drawer, the pixel globe, the terrain painter, their preview tests; the
+  whole-device-pixel sizing (`--ps`, `--dpr`, `round()`); the Classic look (`html.ui-classic`, `settings.uiStyle`,
+  `is3d()`), the Pixel font (Pixelify Sans and Silkscreen are no longer shipped), the CRT filter, the Chiptune
+  soundtrack (`audio/chiptune.ts`, `settings.soundtrack`). Old settings migrate.
+
+**The graphics-card switch** (`src-tauri/src/gpu.rs`, `platform.ts`, `GpuNotice`): Settings → Display → Graphics card
+(Automatic / Stronger), shown on Linux when two cards are found, always on Windows, never on macOS. The webview picks
+its card when its processes start, so the choice is a small file read first thing at launch. Choosing Stronger
+restarts the game; the new start is a trial, and only "Keep it" within 20 seconds makes it stick. A start that finds
+an unconfirmed trial reverts to Automatic and says so. Found on the way: on NVIDIA's driver under Wayland, plain PRIME
+offload kills WebKitGTK 2.54 at start (a Wayland protocol error), which is exactly the case the trial exists for;
+turning explicit sync off fixes it, turning WebKit's DMABUF renderer off does not (one frame a second). Measured on
+the dev laptop, a campus at High: 17 frames/s on the Intel card, 30 (the app's cap) on the RTX 4050.
+
+**Calls I made (easy to change)**
+- Dropped the CRT filter along with the three retro options the user had been asked about: it is one too.
+- Kept the `html.edition-3d:not(.ui-classic)` selectors in the styles (always true now): stripping them lowers the
+  rules' weight and could change the look in places nobody would check.
+- Portraits are JPEG at quality 0.95 (three times faster to encode than PNG at this size).
+- The logo's face is seven hard bands, echoing the old logo's stripes (`rampSoft` in tools/brand/logo.ts smooths it).
+- Re-shot the website's one screenshot that shows the interface (`ui-campus.webp`: a Mojave campus at golden hour).
+
+**Weak spots the helpers named** (none blocking)
+- Everyone shares one skull: faces differ by hair, skin, clothes and backdrop more than by features. Fine detail
+  (crow's feet, freckles, the scar) shows at 120 px, not at 40. Chorus is the least readable avatar at 40 px;
+  Bit-0 is dark in the tutorial's first bubble.
+- Icons the author liked least: debris, partner and the dock's handshake, train, sps, mega, dac, desk, foundry, co2.
+- Event cards and goal hints still carry emoji from the content text (🧮, 🔬, ☀, 🌡).
+- `arrow` (a left arrow) is the icon on "Save the picture".
+
+**Checked:** type check; 22 test files (84 tests); both builds; the game in headless Chrome on the RTX (loading
+screen, title, credits, an Act III card, the partners list, a campus, the ending's card) and the website; a debug
+build of the desktop app on WebKitGTK (the logo, the icons and the busts draw; the graphics-card switch end to end:
+Stronger, restart, trial, keep, back to Automatic, a crashed trial undone).
+**Not checked:** Windows and macOS (the icons there, the graphics-card switch on Windows); the AppImage's own WebKit
+with the switch; frame times on the Intel card with the portrait renderer; the trailer kit still shows the old look.
+
