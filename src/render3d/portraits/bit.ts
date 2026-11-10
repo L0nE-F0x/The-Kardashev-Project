@@ -84,7 +84,7 @@ function classic(root: THREE.Group, fig: THREE.Group, gen: number, mood: Mood) {
   wall(root, gen >= 2 ? [blend(C.ink2, C.blu0, 0.35), blend(C.ink3, C.blu2, 0.3)] : [C.ink2, C.ink3], 0.4);
   const shell = gen >= 2 ? blend(C.blu5, C.blu4, 0.2) : blend(C.ink7, C.ink8, 0.4);
   const dark = gen >= 2 ? C.blu3 : C.ink5;
-  const glowC = gen === 0 ? C.ink4 : gen >= 3 ? C.yel1 : C.cyn5;
+  const glowC = gen === 0 ? C.ink6 : gen >= 3 ? C.yel1 : C.cyn5;
   const body = gloss(shell, gen >= 2 ? 0.45 : 0.6);
   const trim = matte(dark, 0.6);
   const round = gen >= 2 ? 0.34 : 0.14;

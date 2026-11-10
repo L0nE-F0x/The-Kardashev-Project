@@ -14,6 +14,8 @@ import type { Look } from './looks';
 
 /** The figure's turn: the face looks a little to the viewer's left, into the key. */
 export const TURN = -0.3;
+/** How much larger a person is drawn than the studio's frame was laid out for (the frame is 3.4 head-radii tall). */
+const CLOSER = 1.08;
 /** Where the head nods and tilts from: the top of the neck. */
 const NECK_Y = -0.82;
 
@@ -37,6 +39,9 @@ function goggles(head: THREE.Object3D, lens: number) {
 
 export function personShot(L: Look, mood: Mood): Shot {
   const root = new THREE.Group();
+  // people stand a little closer to the camera than Bit and the avatars: a face has to read at 40 pixels
+  root.scale.setScalar(CLOSER);
+  root.position.y = -0.08;
   wall(root, L.bg);
   motifs(root, L);
 

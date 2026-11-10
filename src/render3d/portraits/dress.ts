@@ -220,14 +220,14 @@ export function dress(fig: THREE.Object3D, L: Look) {
   }
   if (L.patch !== undefined) {
     // a mission patch on the chest
-    const at = chest(-0.72, -1.9, 0.045);
-    const tilt: V3 = [-0.25, -0.5, 0];
+    const at = chest(-0.68, -1.62, 0.045);
+    const tilt: V3 = [-0.42, -0.5, 0];
     part(geo.plate(), matte(L.patch, 0.8), at, { s: 0.16, r: tilt, ghost: true });
     part(geo.torus(0.12), matte(C.white, 0.8), at, { s: [0.15, 0.15, 0.05], r: tilt, ghost: true });
     part(geo.gem(), matte(C.white, 0.8), [at[0], at[1], at[2] + 0.012], { s: [0.035, 0.085, 0.01], r: [tilt[0], tilt[1], 0.5], ghost: true });
   }
   if (L.pin !== undefined) {
-    const at = chest(-0.47, -1.76, 0.065);
+    const at = chest(-0.47, -1.6, 0.065);
     part(geo.ball(), gloss(L.pin, 0.25), at, { s: [0.07, 0.07, 0.04] });
     put(fig, geo.ball(), lit(C.white, 0.9), [at[0] - 0.02, at[1] + 0.025, at[2] + 0.035], { s: 0.014, ghost: true });
   }
