@@ -72,7 +72,7 @@ export const BACKDROPS: Record<Backdrop, BackdropDef> = {
     plants: [{ kind: 'shrub', n: 900, s: [0.4, 1.0] }, { kind: 'tuft', n: 900, s: [0.8, 1.2] }, { kind: 'rock', n: 900, s: [0.6, 1.8] }, { kind: 'boulder', n: 200, s: [0.6, 1.8] }],
   },
   lunar: {
-    ground: ['#9d95a6', '#8a8490', '#7a7186'], rock: '#66575a', snowLine: null, relief: 3, far: 'flat', water: null,
+    ground: ['#a19c9f', '#8d898c', '#7b7680'], rock: '#66575a', snowLine: null, relief: 3, far: 'flat', water: null,
     plants: [{ kind: 'rock', n: 900, s: [0.5, 2] }, { kind: 'boulder', n: 160, s: [0.6, 2.2] }],
   },
 };

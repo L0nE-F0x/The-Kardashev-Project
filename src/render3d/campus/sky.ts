@@ -375,7 +375,7 @@ export class CampusSky {
     this.sun.color.set(0xfff8ee);
     this.sun.intensity = 3.6;
     // earthshine and the ground's own bounce are all that fill the shadows
-    this.hemi.color.set(0x7888a8);
+    this.hemi.color.set(0x8a90a0);
     this.hemi.groundColor.set(0x3a3840);
     this.hemi.intensity = 0.2;
     cloudUniforms.uCloudK.value = 0;
