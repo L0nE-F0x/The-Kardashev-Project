@@ -65,7 +65,6 @@
         width: var(--boot-w, 484px);
         height: auto;
         margin: calc(var(--boot-h, 164px) / -2 - 12px) 0 0 calc(var(--boot-w, 484px) / -2);
-        image-rendering: pixelated;
         transform-origin: 0 0;
         filter: drop-shadow(0 10px 28px rgb(0 0 0 / 0.6));
         animation: bvIn 0.5s ease-out both;
@@ -147,19 +146,17 @@
         };
         scale();
         addEventListener('resize', scale);
-        // the logo (121×41 art pixels) at a whole number of device pixels per art pixel, the size the menu's will be:
-        // the HUD's automatic size on big screens (ui/tokens.css) times the player's Interface size
-        const dpr = window.devicePixelRatio || 1;
+        // the logo (121:41) at the size the menu's will be: the HUD's automatic size on big screens (ui/tokens.css)
+        // times the player's Interface size
         let ui = innerWidth >= 3600 && innerHeight >= 2000 ? 2 : innerWidth >= 3000 && innerHeight >= 1700 ? 1.6 : innerWidth >= 2200 && innerHeight >= 1300 ? 1.2 : 1;
         try {
           ui *= JSON.parse(localStorage.getItem('kardashev.settings.v1') ?? '{}').uiScale || 1;
         } catch {
           /* storage blocked */
         }
-        const aim = (innerHeight <= 520 ? 242 : innerHeight <= 900 || innerWidth < 1000 ? 363 : 484) * ui;
-        const k = Math.max(1, Math.round((aim * dpr) / 121));
-        root.style.setProperty('--boot-w', `${(k * 121) / dpr}px`);
-        root.style.setProperty('--boot-h', `${(k * 41) / dpr}px`);
+        const w = (innerHeight <= 520 ? 242 : innerHeight <= 900 || innerWidth < 1000 ? 363 : 484) * ui;
+        root.style.setProperty('--boot-w', `${w}px`);
+        root.style.setProperty('--boot-h', `${(w * 41) / 121}px`);
         // progress: the world map and the models as they arrive, against how many the last start loaded
         const KEY = 'kardashev.boot3d';
         let want = 24;
@@ -189,7 +186,7 @@
             /* storage blocked */
           }
           show(1);
-          // fly the logo to the menu's (same art, so the swap is invisible) once the text font has settled the
+          // fly the logo to the menu's (the same picture, so the swap is invisible) once the text font has settled the
           // menu's layout; no menu logo: it just lifts with the black
           const to = document.querySelector('.menu-logo');
           to?.getBoundingClientRect();

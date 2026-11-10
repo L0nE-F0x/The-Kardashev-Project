@@ -1,8 +1,10 @@
-/* The logo on the title screen (see art.css for how the whole-pixel sizes work; art3d/INTERFACE.md for what replaces this). */
-@supports (width: round(nearest, 1px, 1px)) {
-  @media (min-width: 821px) and (min-height: 521px) {
-    html.edition-3d:not(.ui-classic) .menu-logo {
-      width: calc(max(121px, round(nearest, var(--p) * var(--ps), 121px)) / var(--ps));
-    }
-  }
+/*
+ * The logo on the title screen: a 3D-rendered picture (public/logo.png, 121:41), scaled smoothly to the width the
+ * menu asks for (`--logo-w` in menu.css). The box keeps its shape before the picture has loaded, so the loading
+ * screen's logo can land on it (play/index.html).
+ */
+html.edition-3d .menu-logo {
+  image-rendering: auto;
+  aspect-ratio: 121 / 41;
+  height: auto;
 }

@@ -393,11 +393,11 @@ html.edition-3d:not(.ui-classic) {
       overflow-x: hidden;
     }
     .menu-logo {
-      --p: 484px;
-      width: 484px;
+      --logo-w: 484px;
+      width: var(--logo-w);
       max-width: none;
-      /* the art has 8 empty pixels at its left: pull it so the letters stand on the menu's left edge */
-      margin: auto 0 6px calc(var(--p) * -8 / 121 + 2px);
+      /* the picture is empty for 8/121 of its width at the left: pull it so the letters stand on the menu's left edge */
+      margin: auto 0 6px calc(var(--logo-w) * -8 / 121 + 2px);
     }
     .menu-tag {
       display: block;
@@ -604,8 +604,7 @@ html.edition-3d:not(.ui-classic) {
 @media (min-width: 821px) and (min-height: 521px) and (max-height: 900px) {
   html.edition-3d:not(.ui-classic) {
     .menu-logo {
-      --p: 363px;
-      width: 363px;
+      --logo-w: 363px;
     }
     .menu-tag {
       font-size: 11.5px;
