@@ -9,6 +9,7 @@ import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { FXAAPass } from 'three/examples/jsm/postprocessing/FXAAPass.js';
+import { quality } from './quality';
 
 /** What a scene wants from the post pipeline (it may change these every frame). */
 export interface Look {
@@ -72,13 +73,17 @@ void main() {
     float r0 = coc(z0);
     if (r0 > 0.4) {
       vec3 sum = c.rgb; float ws = 1.0;
-      for (int i = 1; i <= 6; i++) {
-        float w0 = exp(-float(i * i) / 9.0);
+      for (int i = 1; i <= TAPS; i++) {
+        float w0 = exp(-float(i * i) / (float(TAPS * TAPS) * 0.25));
         for (int s = -1; s <= 1; s += 2) {
-          vec2 uv = vUv + dir * (float(i * s) * r0 / 6.0) / res;
-          float zs = viewDist(uv);
-          // something sharp in front keeps its edge: it doesn't smear over the blur behind it
-          float w = w0 * (zs < z0 ? clamp(coc(zs) / r0, 0.0, 1.0) : 1.0);
+          vec2 uv = vUv + dir * (float(i * s) * r0 / float(TAPS)) / res;
+          #if GUARD == 1
+            // something sharp in front keeps its edge: it doesn't smear over the blur behind it
+            float zs = viewDist(uv);
+            float w = w0 * (zs < z0 ? clamp(coc(zs) / r0, 0.0, 1.0) : 1.0);
+          #else
+            float w = w0;
+          #endif
           sum += texture2D(tColor, uv).rgb * w; ws += w;
         }
       }
@@ -121,15 +126,19 @@ vec3 develop(vec3 hdr) {
   return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
 }
 void main(){
-  vec3 c = develop(texture2D(tColor, vUv).rgb);
+  vec3 hdr = texture2D(tColor, vUv).rgb;
   if (sharpen > 0.0) {
+    // sharpen the brightness before the picture is developed, never past the neighbourhood's own range (crisp
+    // edges, no halos)
     vec2 px = 1.0 / res;
-    vec3 a = develop(texture2D(tColor, vUv + vec2(px.x, 0.0)).rgb), b = develop(texture2D(tColor, vUv - vec2(px.x, 0.0)).rgb);
-    vec3 u = develop(texture2D(tColor, vUv + vec2(0.0, px.y)).rgb), d = develop(texture2D(tColor, vUv - vec2(0.0, px.y)).rgb);
-    // never past the neighbourhood's own range: crisp edges, no halos
-    vec3 lo = min(c, min(min(a, b), min(u, d))), hi = max(c, max(max(a, b), max(u, d)));
-    c = clamp(c + (c - (a + b + u + d) * 0.25) * sharpen, lo, hi);
+    const vec3 W = vec3(0.299, 0.587, 0.114);
+    float l0 = dot(hdr, W);
+    float a = dot(texture2D(tColor, vUv + vec2(px.x, 0.0)).rgb, W), b = dot(texture2D(tColor, vUv - vec2(px.x, 0.0)).rgb, W);
+    float u = dot(texture2D(tColor, vUv + vec2(0.0, px.y)).rgb, W), d = dot(texture2D(tColor, vUv - vec2(0.0, px.y)).rgb, W);
+    float lo = min(l0, min(min(a, b), min(u, d))), hi = max(l0, max(max(a, b), max(u, d)));
+    hdr *= clamp(l0 + (l0 - (a + b + u + d) * 0.25) * sharpen * 1.6, lo, hi) / max(l0, 1e-4);
   }
+  vec3 c = develop(hdr);
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   c = mix(vec3(l), c, sat) * tint + lift;
   c = mix(c, c * c * (3.0 - 2.0 * c), contrast);
@@ -174,6 +183,8 @@ export class Post {
         tColor: { value: null }, tDepth: { value: this.rtScene.depthTexture }, tAO: { value: null }, aoK: { value: 0 }, dir: { value: new THREE.Vector2(1, 0) },
         res: { value: new THREE.Vector2(1, 1) }, clip: { value: new THREE.Vector2(1, 1000) }, dof: { value: new THREE.Vector4() }, tilt: { value: new THREE.Vector2() },
       },
+      // high: six taps a side, each checked against the depth; below it four, unchecked (half the texture reads)
+      defines: { TAPS: quality.level === 'high' ? 6 : 4, GUARD: quality.level === 'high' ? 1 : 0 },
       vertexShader: quadVS, fragmentShader: BLUR_FS, depthTest: false, depthWrite: false,
     });
     this.film = new THREE.ShaderMaterial({
@@ -224,7 +235,8 @@ export class Post {
     // the blur: by depth where the scene gives a focus distance, else the screen band (if it wants one)
     const bu = this.blur.uniforms;
     const dof = look.dof && look.dof.max > 0.01 ? look.dof : null;
-    const blurry = !!dof || look.tilt > 0.01;
+    // (the low preset skips the blur and the sharpen: two full-screen passes fewer)
+    const blurry = quality.level !== 'low' && (!!dof || look.tilt > 0.01);
     if (ao || blurry || this.samples > 0) {
       const h = this.film.uniforms.res.value.y;
       bu.clip.value.set(this.camera.near, this.camera.far);
@@ -256,7 +268,7 @@ export class Post {
     fu.tColor.value = src.texture;
     fu.exposure.value = look.exposure ?? 1;
     fu.tone.value = look.tone === 'filmic' ? 1 : 0;
-    fu.sharpen.value = look.sharpen ?? 0;
+    fu.sharpen.value = quality.level === 'low' ? 0 : look.sharpen ?? 0;
     fu.contrast.value = look.contrast ?? 0;
     fu.tint.value.set(...gr.tint);
     fu.sat.value = gr.sat * (look.saturation ?? 1);

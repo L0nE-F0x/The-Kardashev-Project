@@ -1075,9 +1075,10 @@ export class CampusScene implements Scene3D {
       (f.m.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 - f.t * 0.9);
       if (f.t > 1) { this.scene.remove(f.m); this.flashes.splice(this.flashes.indexOf(f), 1); }
     }
-    // the lamp field (a few hundred quads): redrawn every other frame, so headlights sweep along the road smoothly
+    // the lamp field (a few hundred quads): redrawn every other frame on high (every fourth below it), so headlights
+    // sweep along the road smoothly
     if (atmo.uLampK.value.x > 0 && (this.lampAge -= 1) <= 0) {
-      this.lampAge = 2;
+      this.lampAge = quality.level === 'high' ? 2 : 4;
       this.lamps.render((this.game.stage as unknown as { renderer: THREE.WebGLRenderer }).renderer, this.scene);
     }
     // the picture is developed for the hour; at night the lamps and windows bloom

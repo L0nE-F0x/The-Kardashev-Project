@@ -252,6 +252,8 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const strata = def.strata?.map((p) => col(p));
   rockUniforms.uStrata.value.forEach((c, i) => c.copy(strata ? strata[i % strata.length] : col(def.rock)).multiplyScalar(strata ? 1 : 0.86 + (i % 3) * 0.09));
   rockUniforms.uStrataStep.value = strata ? 7 : 4;
+  // the bump costs six texture reads a pixel over most of the screen: the high preset only
+  rockUniforms.uBump.value = quality.level === 'high' ? 1 : 0;
   const heights = new Float32Array(nx * nz);
   const h = hExact;
   for (let j = 0; j < nz; j++)
@@ -434,12 +436,12 @@ function meshHeight(xs: number[], zs: number[], hs: Float32Array, exact: (x: num
 }
 
 /** The cliffs' colours for the ground in view (one campus is drawn at a time): the backdrop's strata, or its rock. */
-const rockUniforms = { uStrata: { value: Array.from({ length: 6 }, () => new THREE.Color()) }, uStrataStep: { value: 7 } };
+const rockUniforms = { uStrata: { value: Array.from({ length: 6 }, () => new THREE.Color()) }, uStrataStep: { value: 7 }, uBump: { value: 1 } };
 
 /**
  * Steep ground shows its rock, drawn per pixel from the height: level strata with ledges and weathering streaks
  * (mesas and canyon walls), where the mesh's own corner colours would smear down a cliff. Also a fine bump from the
- * grain, so low sun rakes across the land instead of lying flat on it.
+ * grain, so low sun rakes across the land instead of lying flat on it (the high preset).
  */
 function withRock<M extends THREE.MeshStandardMaterial>(m: M): M {
   const prev = m.onBeforeCompile;
@@ -447,7 +449,7 @@ function withRock<M extends THREE.MeshStandardMaterial>(m: M): M {
     prev.call(m, sh, r);
     Object.assign(sh.uniforms, rockUniforms);
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uStrata[6]; uniform float uStrataStep;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uStrata[6]; uniform float uStrataStep; uniform float uBump;')
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
           vec3 wn = inverseTransformDirection(normalize(vNormal), viewMatrix);
@@ -471,7 +473,7 @@ function withRock<M extends THREE.MeshStandardMaterial>(m: M): M {
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         {
           // a bump from the grain (finite differences), fading out with distance
-          float bk = (1.0 - smoothstep(60.0, 420.0, distance(vGrainW, cameraPosition))) * 0.55;
+          float bk = (1.0 - smoothstep(60.0, 420.0, distance(vGrainW, cameraPosition))) * 0.55 * uBump;
           if (bk > 0.01) {
             vec2 buv = vGrainW.xz * 0.045; float e = 0.004;
             float h0 = texture2D(uGrain, buv).r + texture2D(uGrain, buv * 4.3).b * 0.4;
