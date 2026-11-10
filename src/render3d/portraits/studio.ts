@@ -16,6 +16,12 @@ import type { Shot } from './parts';
 
 /** The picture's size in pixels (shown at 40–120 CSS px, so twice the largest at 1×). */
 export const PORTRAIT_PX = 240;
+/**
+ * How the picture is packed into its URL. JPEG at high quality: a 240 px PNG takes Chrome about 9 ms to encode, the
+ * JPEG under 3, and at the sizes the interface shows them the two cannot be told apart.
+ */
+const FORMAT = 'image/jpeg';
+const QUALITY = 0.95;
 /** The scene is rendered this many times larger and filtered down (the antialiasing). */
 const SUPER = 2;
 
@@ -152,38 +158,27 @@ function open(): Studio | null {
 export function shoot(make: () => Shot): string {
   const s = open();
   if (!s || s.lost || s.renderer.getContext().isContextLost()) return '';
-  const t0 = performance.now();
   const shot = make();
   s.scene.add(shot.root);
   try {
     const r = s.renderer;
-    const t1 = performance.now();
     r.setRenderTarget(s.raw);
     r.clear();
     r.render(s.scene, s.camera);
-    const t2 = performance.now();
     r.setRenderTarget(s.print);
     r.render(s.develop, s.developCam);
     r.readRenderTargetPixels(s.print, 0, 0, PORTRAIT_PX, PORTRAIT_PX, s.pixels);
     r.setRenderTarget(null);
-    const t3 = performance.now();
     const img = s.ink.createImageData(PORTRAIT_PX, PORTRAIT_PX);
     img.data.set(s.pixels);
     s.ink.putImageData(img, 0, 0);
-    const url = s.paper.toDataURL(location.search.includes('png') ? 'image/png' : 'image/jpeg', 0.95);
-    const t4 = performance.now();
-    T.n++; T.build += t1 - t0; T.render += t2 - t1; T.read += t3 - t2; T.encode += t4 - t3;
-    return url;
+    return s.paper.toDataURL(FORMAT, QUALITY);
   } catch {
     return '';
   } finally {
     s.scene.remove(shot.root);
   }
 }
-
-const T = { n: 0, build: 0, render: 0, read: 0, encode: 0 };
-(globalThis as unknown as { __pt: typeof T }).__pt = T;
-export const studioTimes = () => ({ n: T.n, build: T.build / T.n, render: T.render / T.n, read: T.read / T.n, encode: T.encode / T.n });
 
 /** Whether a studio can be opened here (false in Node and where WebGL is off). */
 export function studioReady(): boolean {

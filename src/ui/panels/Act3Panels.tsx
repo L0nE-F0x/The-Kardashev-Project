@@ -1,7 +1,7 @@
 /** Act III panels: the Charter (overview · contracts · missions · partners · world), the Council, the Charter desk and the Threshold tracker. */
 import { useEffect, useState } from 'preact/hooks';
 import { Bar, Choice, Icon, KV, Panel, Portrait, Slider, Toggle, useGame } from '../components';
-import { ceoPortraitUrl } from '../../render/sprites/portraits';
+import { ceoPortraitUrl } from '../../render3d/portraits/portraits';
 import {
   CAT_NAMES,
   CHARTER_PHASES,

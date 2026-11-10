@@ -40,12 +40,16 @@ function picture(key: string, make: () => Shot): string {
  */
 export function portraitUrl(id: AdvisorId, mood: Mood = 'neutral', bitGen = 1, age: PortraitAge | number = 0): string {
   const m = moodOf(mood);
-  if (id === 'bit') {
-    const bit = bitModel(bitGen);
-    return picture(`bit:${bit.gen}:${m}`, () => bitShot(bit, m));
-  }
-  const a = age === 1 || age === 2 || age === 3 ? age : 0;
-  return picture(`adv:${id}:${m}:${a}`, () => personShot(lookAt(id, a), m));
+  const key = portraitKey(id, m, bitGen, age);
+  if (id === 'bit') return picture(key, () => bitShot(bitModel(bitGen), m));
+  return picture(key, () => personShot(lookAt(id, ageOf(age)), m));
+}
+
+const ageOf = (age: number): PortraitAge => (age === 1 || age === 2 || age === 3 ? age : 0);
+/** What an advisor's picture is remembered under: Bit by its body (it does not age), the others by their age. */
+export function portraitKey(id: AdvisorId, mood: Mood, bitGen: number, age: number): string {
+  const m = moodOf(mood);
+  return id === 'bit' ? `bit:${bitModel(bitGen).gen}:${m}` : `adv:${id}:${m}:${ageOf(age)}`;
 }
 
 /** A partner CEO's, delegate's, cast member's or rival AI's portrait (`ceo:<id>` speakers); unknown ids get a generic executive. */

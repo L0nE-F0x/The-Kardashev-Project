@@ -272,7 +272,6 @@ canvas.dock-ic {
 }
 
 img.portrait {
-  image-rendering: pixelated;
   width: 64px;
   height: 64px;
   flex: none;
@@ -1828,7 +1827,6 @@ ol.steps li {
 .project img.portrait,
 .partner img.portrait,
 .mission img.portrait {
-  image-rendering: pixelated;
   flex: none;
 }
 .project {

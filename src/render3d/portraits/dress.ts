@@ -123,7 +123,7 @@ export function dress(fig: THREE.Object3D, L: Look) {
 
   // the neck
   part(geo.cyl(), matte(blend(skin.base, skin.shadow, 0.25), 0.75), [0, -1.08, -0.04], { s: [0.36, 0.7, 0.36] });
-  if (L.age === 2) part(geo.torus(0.05, PI * 0.6), matte(skin.crease, 0.8), [0, -1.02, -0.04], { s: [0.355, 1, 0.355], r: [PI / 2, 0, PI * 0.2], ghost: true });
+  if (L.age === 2) part(geo.torus(0.05, PI * 0.6), matte(skin.crease, 0.8), [0, -1.02, -0.04], { s: [0.355, 0.355, 1], r: [PI / 2, 0, PI * 0.2], ghost: true });
   // the shoulders
   part(bell(), body, [0, 0, 0]);
 
@@ -154,7 +154,7 @@ export function dress(fig: THREE.Object3D, L: Look) {
       part(panel('tie', (t) => [-0.065 - 0.05 * Math.sin(t * PI * 0.9), -1.46 - t * 0.9], (t) => [0.065 + 0.05 * Math.sin(t * PI * 0.9), -1.46 - t * 0.9], 0.03, 6, 2), tie, [0, 0, 0], { ghost: true });
     }
     // the collar standing at the neck
-    part(geo.torus(0.07, PI * 1.5), matte(L.suit ? clothLight : lapelC, 0.88), [0, -1.3, -0.05], { s: [0.47, 0.47, 0.5], r: [PI / 2, 0, -PI * 0.25] });
+    part(geo.torus(0.07, PI * 1.5), matte(L.suit ? clothLight : lapelC, 0.88), [0, -1.3, -0.05], { s: [0.47, 0.47, 0.5], r: [PI / 2, 0, PI * 0.75] });
   }
   if (L.turtleneck) {
     part(geo.cyl(), matte(cloth, 0.95), [0, -1.14, -0.04], { s: [0.42, 0.5, 0.42] });
@@ -260,7 +260,7 @@ export function dress(fig: THREE.Object3D, L: Look) {
   if (L.stethoscope !== undefined) {
     // round the neck, the chest piece hanging on one side
     const tubeM = matte(L.stethoscope, 0.5);
-    part(geo.torus(0.07, PI * 1.3), tubeM, [0, -1.33, -0.02], { s: [0.52, 0.5, 0.5], r: [PI / 2 + 0.25, 0, -PI * 0.15] });
+    part(geo.torus(0.07, PI * 1.3), tubeM, [0, -1.33, -0.02], { s: [0.52, 0.5, 0.5], r: [PI / 2 + 0.25, 0, PI * 0.85] });
     stick(fig, tubeM, chest(-0.4, -1.42, 0.04), chest(-0.3, -2.02, 0.05), 0.035);
     stick(fig, tubeM, chest(0.4, -1.42, 0.04), chest(0.36, -1.9, 0.05), 0.035);
     part(geo.cyl(), gloss(C.ink8, 0.3), chest(0.36, -1.97, 0.07), { s: [0.1, 0.05, 0.1], r: [PI / 2 - 0.3, 0, 0] });
@@ -269,12 +269,12 @@ export function dress(fig: THREE.Object3D, L: Look) {
   if (L.pillow) {
     // a travel pillow round the neck, open under the chin
     const [dark, light] = L.pillow;
-    part(geo.torus(0.4, PI * 1.56), matte(blend(dark, light, 0.6), 0.95), [0, -1.14, -0.06], { s: [0.56, 0.56, 0.52], r: [PI / 2 + 0.06, 0, -PI * 0.28] });
+    part(geo.torus(0.4, PI * 1.56), matte(blend(dark, light, 0.6), 0.95), [0, -1.14, -0.06], { s: [0.56, 0.56, 0.52], r: [PI / 2 + 0.06, 0, PI * 0.72] });
   }
   if (L.mask !== undefined) {
     // a face mask (or a bandana) pulled down under the chin
     part(geo.ball(), matte(L.mask, 0.9), [0, -0.98, 0.3], { s: [0.38, 0.17, 0.3] });
-    part(geo.torus(0.06, PI), matte(blend(L.mask, C.white, 0.6), 0.9), [0, -0.9, 0.3], { s: [0.36, 0.3, 0.3], r: [PI / 2, 0, PI] });
+    part(geo.torus(0.06, PI), matte(blend(L.mask, C.white, 0.6), 0.9), [0, -0.9, 0.3], { s: [0.36, 0.3, 0.3], r: [PI / 2, 0, 0] });
   }
   if (L.dust !== undefined) {
     // dust on the shoulders

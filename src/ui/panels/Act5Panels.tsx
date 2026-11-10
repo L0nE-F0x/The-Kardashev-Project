@@ -24,7 +24,7 @@ import { gardenTarget } from '../../sim/earth';
 import { avgTreated, lifeRateTarget } from '../../sim/longevity';
 import { mindsTarget } from '../../sim/minds';
 import { maxRise, mindsAiName, openOnFront } from '../../sim/solarmax';
-import { portraitUrl } from '../../render/sprites/portraits';
+import { portraitUrl } from '../../render3d/portraits/portraits';
 import { warming } from '../../sim/climate';
 import { avgWellbeing } from '../../sim/provinces';
 import { pickEpilogues, campaignStats } from '../../sim/ending';

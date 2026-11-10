@@ -26,7 +26,7 @@ import { bitPlanBlocked, defaultPlan, priorityBlocked } from '../../sim/plans';
 import { heatRise } from '../../sim/heatwall';
 import { worldClean } from '../../sim/world';
 import { Face, ProjectRow, TenderCard, whereOptions } from './Act3Panels';
-import { governorPortraitUrl } from '../../render/sprites/portraits';
+import { governorPortraitUrl } from '../../render3d/portraits/portraits';
 
 /** What the stage is about, and what ends it (the "Next" box under it has the details). */
 const STAGE_BLURB = [

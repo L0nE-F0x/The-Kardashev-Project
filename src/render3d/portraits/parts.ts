@@ -114,15 +114,7 @@ const geos = new Map<string, THREE.BufferGeometry>();
 /** A geometry made once and shared by every bust that asks for the same key. */
 export function shared<G extends THREE.BufferGeometry>(key: string, make: () => G): G {
   let g = geos.get(key) as G | undefined;
-  if (!g) {
-    const t = performance.now();
-    geos.set(key, (g = make()));
-    const G = globalThis as unknown as { __pg?: Record<string, [number, number]> };
-    const kind = key.split(':').slice(0, 2).join(':').replace(/[-.\d]+$/, '');
-    const e = ((G.__pg ??= {})[kind] ??= [0, 0]);
-    e[0]++;
-    e[1] += performance.now() - t;
-  }
+  if (!g) geos.set(key, (g = make()));
   return g;
 }
 export const geo = {

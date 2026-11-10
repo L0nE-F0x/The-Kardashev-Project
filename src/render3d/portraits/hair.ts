@@ -437,8 +437,8 @@ export function hair(head: THREE.Object3D, L: Look) {
       // one thick braid over the shoulder
       chain(head, [[-0.8, -0.1, -0.5], [-0.98, -0.62, 0.0], [-0.86, -1.2, 0.46], [-0.66, -1.72, 0.66], [-0.56, -2.1, 0.72]], 0.25, 0.17, [main, high]);
       const [b0, b1] = L.band ?? [C.yel0, C.yel1];
-      put(head, geo.torus(0.3), gloss(b0, 0.4), [-0.57, -2.06, 0.72], { s: 0.16, r: [PI / 2, 0, 0] });
-      void b1;
+      put(head, geo.torus(0.3), gloss(b0, 0.4), [-0.58, -2.02, 0.72], { s: 0.16, r: [PI / 2, 0, 0] });
+      put(head, geo.torus(0.3), gloss(b1, 0.4), [-0.56, -2.1, 0.72], { s: 0.15, r: [PI / 2, 0, 0] });
       break;
     }
   }
