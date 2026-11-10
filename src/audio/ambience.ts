@@ -4,7 +4,7 @@
  * now and then, each a little different every time: birds, a far car, an owl, thunder, a wave, a voice on the suit
  * radio. Beds cross-fade when the place changes. It has its own bus (Settings → Audio → Ambience).
  */
-import { audioCtx, audioRunning, freeWhenDone, glide, mixBus, noiseBuffer, onPump } from './engine';
+import { audioCtx, audioRunning, freeWhenDone, glide, mixBus, noiseBuffer, onPump, voiceFilter } from './engine';
 import { seeded } from './score';
 
 export type Ambience = 'none' | 'map' | 'campus' | 'night' | 'rain' | 'coast' | 'lake' | 'moon' | 'space' | 'habitat';
@@ -73,7 +73,7 @@ function wash(b: Bed, kind: 'white' | 'pink' | 'brown', type: BiquadFilterType, 
   const src = ctx.createBufferSource();
   src.buffer = noiseBuffer(kind);
   src.loop = true;
-  const f = ctx.createBiquadFilter();
+  const f = voiceFilter(ctx);
   f.type = type;
   f.frequency.value = freq;
   f.Q.value = q;
@@ -161,7 +161,7 @@ function baked(ctx: BaseAudioContext, name: 'crickets' | 'drops' | 'stream'): Au
     }
   } else {
     // a brook: a crowd of little rising bloops
-    for (let k = 0; k < 1100; k++) {
+    for (let k = 0; k < 700; k++) {
       const f = 420 + r() ** 2 * 1700;
       blip(r() * 5.95, 0.018 + r() * 0.04, f, f * (1.15 + r() * 0.5), 0.05 + 0.2 * r() ** 3, r() * 1.2 - 0.6);
     }
@@ -209,7 +209,7 @@ function shot(b: Bed, t: number, dur: number, shape: Float32Array, o: { wave?: O
   const nodes: AudioNode[] = [g];
   let tail: AudioNode = src;
   if (o.filter) {
-    const f = ctx.createBiquadFilter();
+    const f = voiceFilter(ctx);
     f.type = o.filter[0];
     f.frequency.setValueAtTime(o.filter[1], t);
     if (o.sweep) f.frequency.exponentialRampToValueAtTime(o.sweep, t + dur);
@@ -452,7 +452,7 @@ export function setAmbience(kind: Ambience): void {
     farDry.gain.value = 0.55;
     nearWet.gain.value = 0.12;
     // nothing outdoors needs the bottom octave: it only eats headroom (thunder, surf and the void keep more of it)
-    const floor = ctx.createBiquadFilter();
+    const floor = voiceFilter(ctx);
     floor.type = 'highpass';
     floor.frequency.value = FLOOR[kind] ?? 110;
     floor.Q.value = 0.5;

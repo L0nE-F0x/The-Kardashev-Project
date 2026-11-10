@@ -4,7 +4,7 @@
  * the key of whatever music is on, so a chime never clashes with the score; the big stings quote the main theme's four
  * notes (so–do–re–mi). Repeats vary a little in pitch and timing so nothing machine-guns.
  */
-import { audioCtx, audioRunning, duckMusic, freeWhenDone, mixBus, noiseBuffer } from './engine';
+import { audioCtx, audioRunning, duckMusic, freeWhenDone, mixBus, noiseBuffer, voiceFilter } from './engine';
 import { musicKey } from './music';
 import { MAJOR } from './score';
 import { makeBell, makeChoir, makeKit, makeMallet, makePad, makePiano, makePluck, strip, wave, type Strip, type Wave } from './synth';
@@ -68,7 +68,7 @@ function air(v: Voice, t: number, kind: 'white' | 'pink' | 'brown', type: Biquad
   const src = ctx.createBufferSource();
   src.buffer = noiseBuffer(kind);
   src.loop = true;
-  const f = ctx.createBiquadFilter();
+  const f = voiceFilter(ctx);
   f.type = type;
   f.Q.value = q;
   f.frequency.setValueAtTime(f0, t);
@@ -375,7 +375,7 @@ const SOUNDS: Record<SoundId, Sound> = {
       const shake = ctx.createBufferSource();
       shake.buffer = noiseBuffer('white');
       shake.loop = true;
-      const slow = ctx.createBiquadFilter();
+      const slow = voiceFilter(ctx);
       slow.type = 'lowpass';
       slow.frequency.value = 38;
       const depth = ctx.createGain();
@@ -387,7 +387,7 @@ const SOUNDS: Record<SoundId, Sound> = {
         const src = ctx.createBufferSource();
         src.buffer = noiseBuffer(kind);
         src.loop = true;
-        const f = ctx.createBiquadFilter();
+        const f = voiceFilter(ctx);
         f.type = type;
         f.Q.value = 0.6;
         f.frequency.setValueAtTime(f0, t);

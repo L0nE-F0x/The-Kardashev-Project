@@ -56,38 +56,43 @@ let suspendedByApp = false;
 let delayTime = 0.5;
 
 /**
- * The hall: three seconds of decaying noise, darker as it dies (air and walls eat the highs first), a few early
- * reflections up front, left and right different so it is wide. Made once, in a few milliseconds.
+ * The hall's impulse: two and a half seconds of decaying noise, darker as it dies (air and walls eat the highs
+ * first), a few early reflections up front. One channel: a convolution is the dearest thing in the mix (measured:
+ * a stereo one of this length costs as much as everything else on the idle bus put together), so the hall is
+ * convolved once and widened afterwards (see `build`). Made once, in a few milliseconds.
  */
 function impulse(ctx: BaseAudioContext): AudioBuffer {
-  const sr = ctx.sampleRate, len = Math.floor(sr * 3.2);
-  const buf = ctx.createBuffer(2, len, sr);
+  const sr = ctx.sampleRate, len = Math.floor(sr * 2.6);
+  const buf = ctx.createBuffer(1, len, sr);
   const r = seeded(1977);
   const pre = Math.floor(sr * 0.018);
-  // left and right share a third of the tail (a common "middle"), so the hall is wide but still there in mono
-  const tail = () => {
-    const d = new Float32Array(len);
-    let lp = 0;
-    for (let i = pre; i < len; i++) {
-      const t = (i - pre) / sr;
-      // the low-pass closes from ~11 kHz to ~2 kHz across the tail
-      const a = Math.exp((-2 * Math.PI * (2000 + 9000 * Math.exp(-t * 2))) / sr);
-      lp = lp * a + (r() * 2 - 1) * (1 - a);
-      // a quick build (diffusion), then -60 dB in about 2.8 s
-      d[i] = lp * Math.min(1, t / 0.035) * Math.exp(-t * 2.45);
-    }
-    return d;
-  };
-  const mid = tail();
-  for (let ch = 0; ch < 2; ch++) {
-    const d = buf.getChannelData(ch), own = tail();
-    for (let i = pre; i < len; i++) d[i] = own[i] * 0.82 + mid[i] * 0.58;
-    for (let k = 0; k < 7; k++) {
-      const at = pre + Math.floor(sr * (0.007 + r() * 0.07));
-      d[at] += (r() > 0.5 ? 1 : -1) * 0.5 * (1 - k / 9);
-    }
+  const d = buf.getChannelData(0);
+  // -60 dB in about 2.6 s, as a running product (no exponential per sample: this runs on the main thread)
+  const fall = Math.exp(-2.65 / sr);
+  let lp = 0, a = 0, env = 1;
+  for (let i = pre; i < len; i++) {
+    const n = i - pre;
+    // the low-pass closes from ~11 kHz to ~2 kHz across the tail
+    if (n % 64 === 0) a = Math.exp((-2 * Math.PI * (2000 + 9000 * Math.exp((-n / sr) * 2))) / sr);
+    lp = lp * a + (r() * 2 - 1) * (1 - a);
+    // a quick build (diffusion), then the decay
+    d[i] = lp * Math.min(1, n / (0.035 * sr)) * env;
+    env *= fall;
   }
+  for (let k = 0; k < 7; k++) d[pre + Math.floor(sr * (0.007 + r() * 0.07))] += (r() > 0.5 ? 1 : -1) * 0.5 * (1 - k / 9);
   return buf;
+}
+
+/**
+ * A filter for a voice. Its frequency is read once per render block (2.7 ms), not per sample: a biquad whose
+ * frequency moves recomputes its coefficients as often as it reads it, and per sample that costs ten times as much
+ * (measured) for a difference no ear can tell.
+ */
+export function voiceFilter(ctx: BaseAudioContext): BiquadFilterNode {
+  const f = ctx.createBiquadFilter();
+  f.frequency.automationRate = 'k-rate';
+  f.detune.automationRate = 'k-rate';
+  return f;
 }
 
 function build(ctx: AudioContext): Graph {
@@ -137,11 +142,35 @@ function build(ctx: AudioContext): Graph {
   revIn.frequency.value = 220;
   revIn.Q.value = 0.5;
   const hall = ctx.createConvolver();
+  // one convolution: the sends are summed to mono on the way in
+  hall.channelCount = 1;
+  hall.channelCountMode = 'explicit';
   hall.buffer = impulse(ctx);
+  // width: the right side is the same hall a moment later with its phases scrambled (three all-passes), so the two
+  // sides are different rooms to the ear; a third of the left is mixed back in so the tail still adds up in mono
+  const wide = ctx.createChannelMerger(2);
+  let right: AudioNode = hall;
+  for (const freq of [420, 1600, 5200]) {
+    const ap = ctx.createBiquadFilter();
+    ap.type = 'allpass';
+    ap.frequency.value = freq;
+    ap.Q.value = 0.6;
+    right.connect(ap);
+    right = ap;
+  }
+  const late = ctx.createDelay(0.1);
+  late.delayTime.value = 0.019;
+  const shared = ctx.createGain();
+  shared.gain.value = 0.35;
+  right.connect(late);
+  hall.connect(wide, 0, 0);
+  late.connect(wide, 0, 1);
+  hall.connect(shared);
+  shared.connect(wide, 0, 1);
   const revOut = ctx.createGain();
   revOut.gain.value = 0.9;
   revIn.connect(hall);
-  hall.connect(revOut);
+  wide.connect(revOut);
   revOut.connect(mix);
 
   // the delay: left and right feed each other (ping-pong), each echo darker and thinner than the last
@@ -210,6 +239,8 @@ export function audioCtx(): AudioContext | null {
     if (!live) {
       live = g = build(new AudioContext());
       applyVolumes(0);
+      // make the noise the kits, beds and whooshes will ask for now, a piece at a time, so none of it lands in a busy frame
+      (['white', 'pink', 'brown'] as const).forEach((kind, i) => window.setTimeout(() => !offline && noiseBuffer(kind), 150 * (i + 1)));
     }
     if (live.ctx.state === 'suspended' && !suspendedByApp) void live.ctx.resume();
     return live.ctx;

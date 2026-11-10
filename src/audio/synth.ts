@@ -3,7 +3,7 @@
  * bass and a soft kit, all from standard WebAudio nodes (oscillators with band-limited wave tables, biquads, gains).
  * Every voice starts and ends at zero gain (no clicks) and frees its nodes when its last source ends.
  */
-import { freeWhenDone, noiseBuffer } from './engine';
+import { freeWhenDone, noiseBuffer, voiceFilter } from './engine';
 
 export const mtof = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -35,7 +35,7 @@ export function strip(ctx: BaseAudioContext, outs: Outs, o: { gain: number; grou
   let tail: AudioNode = input;
   for (const [type, freq] of [['highpass', o.hp], ['lowpass', o.lp]] as const) {
     if (!freq) continue;
-    const f = ctx.createBiquadFilter();
+    const f = voiceFilter(ctx);
     f.type = type;
     f.frequency.value = freq;
     f.Q.value = 0.5;
@@ -170,7 +170,7 @@ export interface PadOpts {
 export function makePad(ctx: BaseAudioContext, s: Strip, r: Rnd, o: PadOpts = {}) {
   const { detune = 9, cut = 1400, q = 0.6, attack = 1.2, release = 2.4, width = 0.6 } = o;
   return (t: number, notes: number[], dur: number, vel: number, bright = 1, pump?: { every: number; depth: number }) => {
-    const f = ctx.createBiquadFilter();
+    const f = voiceFilter(ctx);
     f.type = 'lowpass';
     f.Q.value = q;
     const c = cut * bright;
@@ -227,7 +227,7 @@ export function makeChoir(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { attack?:
     const nodes: AudioNode[] = [vca, mix];
     const a = VOWELS[from], b = VOWELS[to];
     for (let i = 0; i < 3; i++) {
-      const bp = ctx.createBiquadFilter();
+      const bp = voiceFilter(ctx);
       bp.type = 'bandpass';
       bp.Q.value = 4.5 + i * 2;
       bp.frequency.setValueAtTime(a[i][0], t);
@@ -251,6 +251,8 @@ export function makeChoir(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { attack?:
     for (const m of notes)
       for (let k = 0; k < 2; k++) {
         const x = osc(ctx, 'voice', mtof(m), (k ? 1 : -1) * (7 + r() * 9));
+        // the vibrato is slow: read it once a block, not once a sample (a third of the choir's cost)
+        x.detune.automationRate = 'k-rate';
         depth.connect(x.detune);
         x.connect(banks[k]);
         oscs.push(x);
@@ -301,7 +303,7 @@ export function makePiano(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { decay?: 
   return (t: number, m: number, dur: number, vel: number, p = 0) => {
     const f = mtof(m);
     const a = osc(ctx, 'piano', f, -2.5 - r() * 2), b = osc(ctx, 'piano', f, 2.5 + r() * 2);
-    const lp = ctx.createBiquadFilter();
+    const lp = voiceFilter(ctx);
     lp.type = 'lowpass';
     lp.Q.value = 0.4;
     const open = Math.min(9000, f * (3 + 9 * vel) * bright);
@@ -375,7 +377,7 @@ export function makePluck(ctx: BaseAudioContext, s: Strip, o: { wave?: Wave; cut
   return (t: number, m: number, vel: number, p = 0, bright = 1, len = 1) => {
     const f = mtof(m);
     const x = osc(ctx, o.wave ?? 'warm', f);
-    const lp = ctx.createBiquadFilter();
+    const lp = voiceFilter(ctx);
     lp.type = 'lowpass';
     lp.Q.value = q;
     const top = Math.min(11000, cut * bright * (0.6 + vel * 0.8));
@@ -398,7 +400,7 @@ export function makeLead(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { wave?: Wa
   return (t: number, m: number, dur: number, vel: number) => {
     const f = mtof(m);
     const a = osc(ctx, o.wave ?? 'warm', f, -detune * (0.7 + r() * 0.6)), b = osc(ctx, o.wave ?? 'warm', f, detune * (0.7 + r() * 0.6));
-    const lp = ctx.createBiquadFilter();
+    const lp = voiceFilter(ctx);
     lp.type = 'lowpass';
     lp.Q.value = 0.7;
     lp.frequency.setValueAtTime(Math.min(9000, cut * (0.7 + vel * 0.6)), t);
@@ -419,7 +421,7 @@ export function makeBass(ctx: BaseAudioContext, s: Strip, o: { cut?: number; gri
   return (t: number, m: number, dur: number, vel: number) => {
     const f = mtof(m);
     const sub = osc(ctx, 'sine', f), top = osc(ctx, 'soft', f);
-    const lp = ctx.createBiquadFilter();
+    const lp = voiceFilter(ctx);
     lp.type = 'lowpass';
     lp.Q.value = 0.8;
     lp.frequency.setValueAtTime(cut * (1 + vel), t);
@@ -451,7 +453,7 @@ function burst(ctx: BaseAudioContext, r: Rnd, kind: 'white' | 'pink' = 'white'):
 export function makeKit(ctx: BaseAudioContext, s: Strip, r: Rnd) {
   const noise = (t: number, type: BiquadFilterType, freq: number, q: number, a: number, peak: number, d: number, sweepTo = 0) => {
     const src = burst(ctx, r);
-    const f = ctx.createBiquadFilter();
+    const f = voiceFilter(ctx);
     f.type = type;
     f.frequency.setValueAtTime(freq, t);
     if (sweepTo) f.frequency.exponentialRampToValueAtTime(sweepTo, t + a + d);
@@ -515,7 +517,7 @@ export function makeKit(ctx: BaseAudioContext, s: Strip, r: Rnd) {
     /** A cymbal swell: bright noise rising for `dur`, then washing out. */
     swell(t: number, dur: number, vel: number, low = 4500) {
       const src = burst(ctx, r);
-      const f = ctx.createBiquadFilter();
+      const f = voiceFilter(ctx);
       f.type = 'highpass';
       f.frequency.value = low;
       const g = ctx.createGain();
@@ -564,7 +566,7 @@ export function crackle(ctx: BaseAudioContext, s: Strip, r: Rnd): AudioScheduled
   const src = ctx.createBufferSource();
   src.buffer = buf;
   src.loop = true;
-  const hp = ctx.createBiquadFilter();
+  const hp = voiceFilter(ctx);
   hp.type = 'bandpass';
   hp.frequency.value = 2600;
   hp.Q.value = 0.35;
