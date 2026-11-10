@@ -581,11 +581,11 @@ html.edition-3d:not(.ui-classic) input[type='range']::-webkit-slider-thumb {
   html.edition-3d:not(.ui-classic) {
     --ui-auto: 1.2;
     .tooltip {
-      max-width: 350px;
-      font-size: 15.5px;
+      max-width: 370px;
+      font-size: 16.5px;
     }
     .tooltip h3 {
-      font-size: 16.5px;
+      font-size: 17.5px;
     }
     .tut-bubble {
       width: min(480px, calc(100vw - 16px));

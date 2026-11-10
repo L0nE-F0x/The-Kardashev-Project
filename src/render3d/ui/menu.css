@@ -250,6 +250,11 @@
 }
 
 html.edition-3d:not(.ui-classic) {
+  /* the tagline belongs to the desktop title screen (a phone's two-column menu has no room for it) */
+  .menu-tag {
+    display: none;
+  }
+
   /* ── the windows the menu opens (and the same pages in play) ─────────────────── */
   .menu-scrim {
     background: radial-gradient(ellipse at 50% 45%, rgb(6 6 14 / 0.55), rgb(6 6 14 / 0.86));
@@ -395,6 +400,7 @@ html.edition-3d:not(.ui-classic) {
       margin: auto 0 6px calc(var(--p) * -8 / 121 + 2px);
     }
     .menu-tag {
+      display: block;
       font-size: 13px;
       margin: 0 0 28px 2px;
     }

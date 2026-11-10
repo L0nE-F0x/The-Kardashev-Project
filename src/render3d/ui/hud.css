@@ -408,6 +408,18 @@ html.edition-3d:not(.ui-classic) {
   }
 }
 
+/* a phone's top bar has no room for the K meter's label */
+@media (max-width: 820px), (max-height: 520px) {
+  html.edition-3d:not(.ui-classic) {
+    .kmeter .col::before {
+      content: none;
+    }
+    .kmeter .kv {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
 /* ── desktop sizes and places (phones keep styles.css's compact layout) ──────────── */
 @media (min-width: 821px) and (min-height: 521px) {
   html.edition-3d:not(.ui-classic) {
