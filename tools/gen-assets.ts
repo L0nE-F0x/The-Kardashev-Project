@@ -1,22 +1,23 @@
 /**
- * Renders the brand assets from the game's own pixel-art code:
- *   public/favicon.ico, public/icons/*.png (the pixel Earth app icon), public/logo.png and the desktop app icons in
- *   src-tauri/icons/. (The website's social card and its still globe are 3D renders: tools/og3d.mjs.)
- * Every size is drawn natively (or scaled by a whole number) so the pixels stay crisp —
- * `tauri icon` would resample with a smoothing filter.
+ * Renders the brand pictures in 3D, in headless Chrome:
+ *   public/logo.png                          the 3D wordmark (tools/brand/logo.ts)
+ *   public/favicon.ico, public/icons/*.png   the app icon: the game's own globe on a space tile (tools/brand/icon.ts)
+ *   src-tauri/icons/*                        the desktop app's icons (PNG sizes, icon.ico, icon.icns)
+ *   public/og-image.png                      the website's social card (tools/og3d.mjs, which sets the logo on it)
  *
- *   npm run gen:assets
+ *   npm run gen:assets                 everything
+ *   npm run gen:assets -- logo icons   only some of: logo, icons, og
+ *
+ * Needs Playwright and Chrome, like the QA scripts: PLAYWRIGHT=<path to playwright's index.mjs> if it isn't
+ * installed here, CHROME=<binary> (default google-chrome-stable). It starts its own Vite server for the two tool
+ * pages (BASE=http://127.0.0.1:5317/ uses a running one) and its own Chrome with the software renderer, so the
+ * result doesn't depend on the machine's GPU (CDP=http://127.0.0.1:9222 uses a running Chrome instead: faster).
  */
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { decodeWorldMap } from '../src/world/mapData';
-import { terrainCanvas } from '../src/render/worldMap/terrain';
-import { drawGlobe, drawStars } from '../src/render/globe';
-import { C, paletteTable } from '../src/render/palette';
-import { bayer, PixelCanvas } from '../src/render/pixels';
-import { logoCanvas } from '../src/ui/logo';
-import { encodePngRgba } from './lib/png';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -24,40 +25,15 @@ const TAURI_ICONS = path.join(ROOT, 'src-tauri/icons');
 fs.mkdirSync(path.join(PUBLIC, 'icons'), { recursive: true });
 fs.mkdirSync(TAURI_ICONS, { recursive: true });
 
-const buf = fs.readFileSync(path.join(ROOT, 'src/content/generated/worldmap.bin'));
-const lods = decodeWorldMap(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
-const T0 = terrainCanvas(lods[0]);
+const want = process.argv.slice(2).filter((a) => ['logo', 'icons', 'og'].includes(a));
+const doing = (what: string) => want.length === 0 || want.includes(what);
 
-/** Indexed canvas → RGBA, scaled by an integer, transparent where empty (or filled with bg). */
-function rgba(pc: PixelCanvas, scale: number): { w: number; h: number; data: Uint8Array } {
-  const pal = paletteTable();
-  const w = pc.w * scale;
-  const h = pc.h * scale;
-  const out = new Uint8Array(w * h * 4);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const c = pc.data[Math.floor(y / scale) * pc.w + Math.floor(x / scale)];
-      if (!c) continue;
-      const o = (y * w + x) * 4;
-      out[o] = pal[c * 4];
-      out[o + 1] = pal[c * 4 + 1];
-      out[o + 2] = pal[c * 4 + 2];
-      out[o + 3] = 255;
-    }
-  }
-  return { w, h, data: out };
-}
+const pngOf = (dataUrl: string): Buffer => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+const sizeOf = (png: Buffer) => `${png.readUInt32BE(16)}×${png.readUInt32BE(20)}`;
 
-function pngOf(pc: PixelCanvas, scale: number): Buffer {
-  const img = rgba(pc, scale);
-  return Buffer.from(encodePngRgba(img.w, img.h, img.data));
-}
-
-function writePng(file: string, pc: PixelCanvas, scale: number, dir = PUBLIC): Buffer {
-  const png = pngOf(pc, scale);
-  fs.writeFileSync(path.join(dir, file), png);
-  console.log(`  ${path.relative(ROOT, path.join(dir, file))}  ${pc.w * scale}×${pc.h * scale}`);
-  return png;
+function write(file: string, data: Buffer, note = ''): void {
+  fs.writeFileSync(file, data);
+  console.log(`  ${path.relative(ROOT, file)}  ${note}`);
 }
 
 /** Windows .ico holding PNG images (Vista and later). */
@@ -95,114 +71,89 @@ function icnsOf(entries: [type: string, png: Buffer][]): Buffer {
   return Buffer.concat([h, body]);
 }
 
-/** Deep-space background with a dithered gradient and stars. */
-function space(pc: PixelCanvas, x0: number, y0: number, w: number, h: number, rounded = 0) {
-  const cols = [C.night1, C.night2, C.night3, C.vio0];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      if (rounded) {
-        const cx = x < rounded ? rounded - x - 0.5 : x >= w - rounded ? x - (w - rounded) + 0.5 : 0;
-        const cy = y < rounded ? rounded - y - 0.5 : y >= h - rounded ? y - (h - rounded) + 0.5 : 0;
-        if (cx && cy && cx * cx + cy * cy > rounded * rounded) continue;
-      }
-      const t = (y / Math.max(1, h - 1)) * (cols.length - 1);
-      const i = Math.min(cols.length - 2, Math.floor(t));
-      const f = t - i;
-      pc.set(x0 + x, y0 + y, bayer(x, y) < f * 16 ? cols[i + 1] : cols[i]);
+if (doing('logo') || doing('icons')) {
+  const { chromium } = (await import(process.env.PLAYWRIGHT ?? 'playwright')) as typeof import('playwright');
+  // the tool pages are TypeScript that imports the game's own code: Vite serves them
+  let base = process.env.BASE;
+  let server: import('vite').ViteDevServer | null = null;
+  if (!base) {
+    const { createServer } = await import('vite');
+    server = await createServer({
+      root: ROOT,
+      logLevel: 'error',
+      cacheDir: process.env.VITE_CACHE_DIR || path.join(os.tmpdir(), 'kp-vite-gen-assets'),
+      server: { port: 5391, strictPort: false, host: '127.0.0.1' },
+    });
+    await server.listen();
+    base = server.resolvedUrls!.local[0];
+  }
+  const browser = process.env.CDP
+    ? await chromium.connectOverCDP(process.env.CDP)
+    : await chromium.launch({ executablePath: process.env.CHROME ?? '/usr/bin/google-chrome-stable', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const page = await (process.env.CDP ? browser.contexts()[0] : await browser.newContext()).newPage();
+  page.on('pageerror', (e) => console.error('page error:', e.message));
+  try {
+    if (doing('logo')) {
+      console.log('logo');
+      await page.goto(new URL('tools/brand/logo.html', base).href);
+      await page.waitForFunction('typeof window.renderLogo === "function"', null, { timeout: 120_000 });
+      const png = pngOf((await page.evaluate('window.renderLogo()')) as string);
+      write(path.join(PUBLIC, 'logo.png'), png, sizeOf(png));
     }
+    if (doing('icons')) {
+      console.log('icons');
+      await page.goto(new URL('tools/brand/icon.html', base).href);
+      await page.waitForFunction('typeof window.renderIcons === "function"', null, { timeout: 120_000 });
+      const urls = (await page.evaluate('window.renderIcons()')) as Record<string, string>;
+      const p = Object.fromEntries(Object.entries(urls).map(([k, v]) => [k, pngOf(v)]));
+      const out = (dir: string, file: string, key: string) => write(path.join(dir, file), p[key], sizeOf(p[key]));
+      // the website and the game page: the bare globe when small (it reads in a tab), the tile when large
+      out(PUBLIC, 'icons/icon-16.png', 'globe16');
+      out(PUBLIC, 'icons/icon-32.png', 'globe32');
+      out(PUBLIC, 'icons/icon-48.png', 'globe48');
+      out(PUBLIC, 'icons/apple-touch-icon.png', 'square180');
+      out(PUBLIC, 'icons/icon-192.png', 'tile192');
+      out(PUBLIC, 'icons/icon-512.png', 'tile512');
+      out(PUBLIC, 'icons/icon-maskable-512.png', 'maskable512');
+      write(path.join(PUBLIC, 'favicon.ico'), icoOf([[16, p.globe16], [32, p.globe32], [48, p.globe48]]), '16, 32, 48');
+      // the desktop app (Tauri): the bare globe up to 64 px (taskbars, lists), the tile above; macOS gets its own
+      // tile with the standard margin
+      console.log('desktop icons');
+      out(TAURI_ICONS, '32x32.png', 'globe32');
+      out(TAURI_ICONS, '64x64.png', 'globe64');
+      out(TAURI_ICONS, '128x128.png', 'tile128');
+      out(TAURI_ICONS, '128x128@2x.png', 'tile256');
+      out(TAURI_ICONS, 'icon.png', 'tile512');
+      write(path.join(TAURI_ICONS, 'icon.ico'), icoOf([[16, p.globe16], [24, p.globe24], [32, p.globe32], [48, p.globe48], [64, p.globe64], [256, p.tile256]]), '16, 24, 32, 48, 64, 256');
+      write(
+        path.join(TAURI_ICONS, 'icon.icns'),
+        icnsOf([
+          ['icp4', p.globe16],
+          ['ic11', p.globe32],
+          ['icp5', p.globe32],
+          ['ic12', p.globe64],
+          ['icp6', p.globe64],
+          ['ic07', p.mac128],
+          ['ic13', p.mac256],
+          ['ic08', p.mac256],
+          ['ic14', p.mac512],
+          ['ic09', p.mac512],
+          ['ic10', p.mac1024],
+        ]),
+        '16 to 1024',
+      );
+    }
+  } finally {
+    await page.close();
+    if (!process.env.CDP) await browser.close();
+    await server?.close();
   }
 }
 
-// ── Pixel Earth icon ──────────────────────────────────────────────────────────────────────
-const VIEW = { lon0: 12, lat0: 16 };
-const SUN = { lat: 12, lon: VIEW.lon0 - 48 };
-
-/**
- * bg 'rounded' = full-bleed rounded tile (web/Android), 'mac' = Big Sur-style tile with the
- * standard transparent margin (824/1024), 'square' = full bleed, 'none' = just the globe.
- */
-function icon(base: number, opts: { bg: 'rounded' | 'mac' | 'square' | 'none'; r: number }): PixelCanvas {
-  const pc = new PixelCanvas(base, base);
-  if (opts.bg !== 'none') {
-    const inset = opts.bg === 'mac' ? Math.round(base * 0.1) : 0;
-    const side = base - inset * 2;
-    const radius = opts.bg === 'mac' ? Math.round(side * 0.225) : opts.bg === 'rounded' ? Math.round(base * 0.16) : 0;
-    space(pc, inset, inset, side, side, radius);
-    const stars = new PixelCanvas(base, base);
-    drawStars(stars, 7, Math.round(base * base * 0.006));
-    for (let i = 0; i < stars.data.length; i++) if (stars.data[i] && pc.data[i]) pc.data[i] = stars.data[i];
-  }
-  drawGlobe(pc, { terrain: T0, res: lods[0].res, ...VIEW, cx: base / 2, cy: base / 2, r: opts.r, sun: SUN, lights: true, atmosphere: opts.r >= 8, smooth: true });
-  return pc;
+if (doing('og')) {
+  console.log('social card');
+  const r = spawnSync(process.execPath, [path.join(ROOT, 'tools/og3d.mjs')], { cwd: ROOT, stdio: 'inherit' });
+  if (r.status !== 0) process.exitCode = r.status ?? 1;
 }
-
-console.log('icons');
-const i16 = icon(16, { bg: 'none', r: 7.5 });
-const i32 = icon(32, { bg: 'none', r: 15 });
-const i48 = icon(48, { bg: 'none', r: 22.5 });
-const png16 = writePng('icons/icon-16.png', i16, 1);
-const png32 = writePng('icons/icon-32.png', i32, 1);
-const png48 = writePng('icons/icon-48.png', i48, 1);
-writePng('icons/apple-touch-icon.png', icon(60, { bg: 'square', r: 23 }), 3);
-writePng('icons/icon-192.png', icon(64, { bg: 'rounded', r: 25 }), 3);
-writePng('icons/icon-512.png', icon(64, { bg: 'rounded', r: 25 }), 8);
-writePng('icons/icon-maskable-512.png', icon(64, { bg: 'square', r: 19 }), 8);
-
-fs.writeFileSync(
-  path.join(PUBLIC, 'favicon.ico'),
-  icoOf([
-    [16, png16],
-    [32, png32],
-    [48, png48],
-  ]),
-);
-console.log('  public/favicon.ico');
-
-// ── desktop app icons (Tauri) ─────────────────────────────────────────────────────────────
-// Small sizes are the bare globe (legible in taskbars and lists); big ones get the space tile.
-console.log('desktop icons');
-{
-  const i24 = icon(24, { bg: 'none', r: 11 });
-  const i64 = icon(64, { bg: 'none', r: 30 });
-  const tile = icon(64, { bg: 'rounded', r: 25 });
-  const mac = icon(64, { bg: 'mac', r: 20 });
-  writePng('32x32.png', i32, 1, TAURI_ICONS);
-  writePng('64x64.png', i64, 1, TAURI_ICONS);
-  writePng('128x128.png', tile, 2, TAURI_ICONS);
-  writePng('128x128@2x.png', tile, 4, TAURI_ICONS);
-  writePng('icon.png', tile, 8, TAURI_ICONS);
-  fs.writeFileSync(
-    path.join(TAURI_ICONS, 'icon.ico'),
-    icoOf([
-      [16, png16],
-      [24, pngOf(i24, 1)],
-      [32, png32],
-      [48, png48],
-      [64, pngOf(i64, 1)],
-      [256, pngOf(tile, 4)],
-    ]),
-  );
-  console.log('  src-tauri/icons/icon.ico');
-  fs.writeFileSync(
-    path.join(TAURI_ICONS, 'icon.icns'),
-    icnsOf([
-      ['icp4', png16],
-      ['ic11', png32],
-      ['icp5', png32],
-      ['ic12', pngOf(i64, 1)],
-      ['icp6', pngOf(i64, 1)],
-      ['ic07', pngOf(mac, 2)],
-      ['ic13', pngOf(mac, 4)],
-      ['ic08', pngOf(mac, 4)],
-      ['ic14', pngOf(mac, 8)],
-      ['ic09', pngOf(mac, 8)],
-      ['ic10', pngOf(mac, 16)],
-    ]),
-  );
-  console.log('  src-tauri/icons/icon.icns');
-}
-
-// ── logo ──────────────────────────────────────────────────────────────────────────────────
-console.log('logo');
-writePng('logo.png', logoCanvas(), 4);
 console.log('done');
+process.exit(process.exitCode ?? 0);
