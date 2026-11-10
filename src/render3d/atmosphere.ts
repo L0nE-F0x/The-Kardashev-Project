@@ -4,7 +4,8 @@
  * - aerial haze in place of the linear fog: an exponential height fog integrated along the view ray, tinted toward
  *   the sun (warm in-scatter when you look sunward, the cool sky colour away from it);
  * - the lamp field: the campus's lamps drawn from straight above into a texture, which lights the ground, walls,
- *   cars and people near them at night (hundreds of lamps for the price of one texture read).
+ *   cars and people near them at night (hundreds of lamps for the price of one texture read);
+ * - the sky mirrored in anything smooth (glass, solar panels, water).
  * Both only act in scenes with `scene.fog` set (the campuses); the globe, orbit and system views compile them out.
  */
 import * as THREE from 'three';
@@ -55,6 +56,8 @@ export const LAMP_LAYER = 5;
   uniform vec3 uAtmoSun;
   uniform vec3 uAtmoGlow;
   uniform vec4 uAtmoHaze;
+  uniform vec3 uAtmoSkyTop;
+  uniform vec3 uAtmoSkyHor;
   uniform sampler2D uLampTex;
   uniform vec4 uLampBox;
   uniform vec3 uLampK;
@@ -86,6 +89,19 @@ export const LAMP_LAYER = 5;
     // lamp on grass reads as lamplight, not as lime green)
     vec3 lampAlbedo = mix( material.diffuseColor, vec3( dot( material.diffuseColor, vec3( 0.3333 ) ) ), 0.5 );
     reflectedLight.indirectDiffuse += lamp * lampAlbedo * ( RECIPROCAL_PI * uLampK.x * lampH * smoothstep( -0.3, 0.15, lampN.y ) * mix( 0.6, 1.0, max( lampN.y, 0.0 ) ) );
+  }
+#endif
+#if defined( USE_FOG ) && defined( STANDARD )
+  // smooth things mirror the sky (glass, solar panels, water, polished metal): the dome's own gradient along the
+  // reflected ray, by the surface's Fresnel; it fades out as the surface gets rougher
+  if ( material.roughness < 0.6 ) {
+    vec3 skyV = normalize( cameraPosition - vFogWorld );
+    vec3 skyN = inverseTransformDirection( geometryNormal, viewMatrix );
+    vec3 skyR = reflect( - skyV, skyN );
+    vec3 sky = mix( uAtmoSkyHor, uAtmoSkyTop, 1.0 - pow( 1.0 - clamp( skyR.y, 0.0, 1.0 ), 5.0 ) );
+    // a ray that dips under the horizon meets the land, not the sky
+    sky *= mix( 0.3, 1.0, smoothstep( -0.25, 0.04, skyR.y ) );
+    reflectedLight.indirectSpecular += sky * F_Schlick( material.specularColor, material.specularF90, max( dot( skyN, skyV ), 0.0 ) ) * ( 1.0 - material.roughness / 0.6 );
   }
 #endif
 ` + C.lights_fragment_end;

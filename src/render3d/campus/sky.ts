@@ -125,13 +125,13 @@ void main() {
         + 0.02 * sin(az * (4.0 + fi * 2.0) + time * 0.17 + fi * 2.1);
       float e = y - hem;
       float rays = texture2D(tNoise, vec2(az * (2.1 + fi * 0.9) + fi * 0.37, time * 0.012)).r * texture2D(tNoise, vec2(az * (6.3 + fi) + 0.5, time * 0.02 + fi * 0.3)).g;
-      rays = pow(clamp(rays * 3.6, 0.0, 1.0), 1.6);
+      rays = pow(clamp(rays * 2.4, 0.0, 1.0), 2.6);
       // a bright hem, and rays standing on it: the brighter the ray, the higher it reaches
       float up2 = max(e, 0.0);
-      float cur = smoothstep(-0.006, 0.002, e) * (exp(-up2 * 34.0) * 0.5 + rays * exp(-up2 * (5.0 + 9.0 * (1.0 - rays)))) * (1.0 - fi * 0.28);
+      float cur = smoothstep(-0.006, 0.002, e) * (exp(-up2 * 34.0) * 0.22 + rays * exp(-up2 * (4.0 + 10.0 * (1.0 - rays)))) * (1.0 - fi * 0.28);
       acc += mix(vec3(0.14, 1.0, 0.48), vec3(0.62, 0.26, 1.0), smoothstep(0.03, 0.3, e)) * cur;
     }
-    c += acc * aurora * clear * smoothstep(0.4, -0.25, d.z) * 0.2;
+    c += acc * aurora * clear * smoothstep(0.4, -0.25, d.z) * 0.3;
   }
   if (moonK > 0.01) {
     float cm = dot(d, moonDir);
