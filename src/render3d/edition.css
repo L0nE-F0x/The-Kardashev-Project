@@ -1,11 +1,12 @@
 /*
- * The 3D edition: a smooth (not pixelated) WebGL canvas under the shared UI, and the edition's own interface look
- * (ui/*.css: every rule scoped to html.edition-3d:not(.ui-classic), so the pixel edition and the Classic look never
- * see it). tokens = the system and its primitives, art = pixel art at whole device pixels, hud = the screen in
- * play, cards = modals and the tutorial, menu = the title screen and its windows, acts = plans, jumps, Type I.
+ * The interface's look over the WebGL canvas (ui/*.css). Every rule is scoped to html.edition-3d:not(.ui-classic):
+ * a leftover from when a pixel edition and a Classic look shared the page. main.ts always sets edition-3d and
+ * nothing sets ui-classic any more; the selectors stay because removing them would change which rules win.
+ * tokens = the system and its primitives, art-* = portraits, icons and the logo (art3d/INTERFACE.md), hud = the
+ * screen in play, cards = modals and the tutorial, menu = the title screen and its windows, acts = plans, jumps,
+ * Type I.
  */
 @import './ui/tokens.css';
-@import './ui/art.css';
 @import './ui/art-portraits.css';
 @import './ui/art-icons.css';
 @import './ui/art-logo.css';

@@ -5,17 +5,14 @@
  *  - Surfaces are dark glass: a translucent ink gradient, a 1px light hairline, a soft shadow. No backdrop blur
  *    (it costs integrated GPUs real time over a WebGL canvas); `html.e-blur` opts in for whoever wants it.
  *  - Type is Atkinson Hyperlegible Next everywhere: 700–800 for titles and numbers, small capitals for labels.
- *    The pixel face stays in the pixel art only (the logo, the portraits, the icons).
  *  - Colour: cyan = things you can press or have picked; gold = the story and the score (titles, goals, money, K);
  *    green / orange / red = good / careful / bad; violet = research under way.
  *  - Motion: 120–260 ms eases on opacity and transform only. Reduced motion (the setting or the system's) turns
  *    it all off through styles.css.
- *  - Pixel art (portraits, icons, the logo) sits in clean square plates at whole multiples of a device pixel:
- *    `--ps` is device pixels per CSS pixel here (screen scale × interface size; play/index.html sets --dpr).
+ *  - Art (portraits, icons, the logo) is smooth: 3D renders and vector drawings (art3d/INTERFACE.md, art-*.css).
  *
- * Everything is scoped to html.edition-3d:not(.ui-classic): the pixel edition never sees it, and Settings →
- * Display → Interface look → Classic turns it off here too (back to the pixel frames).
- * Layout and sizes live under the desktop media query; phones keep styles.css's compact layout with this skin.
+ * Everything is scoped to html.edition-3d:not(.ui-classic) (see edition.css: always true now).
+ * Layout and sizes live under the desktop media query; a small window keeps styles.css's compact layout with this skin.
  */
 
 html.edition-3d:not(.ui-classic) {
@@ -47,9 +44,6 @@ html.edition-3d:not(.ui-classic) {
   /* the logo's ramp: the K meter and the big moments wear it */
   --e-sun: linear-gradient(180deg, var(--c-yel2, #fff6d8), var(--c-yel0, #fbd46e) 45%, var(--c-org1, #f08a46));
   --e-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  /* device pixels per CSS pixel inside a zoomed HUD box; boxes outside the zoom list reset --ps to --dpr (art.css) */
-  --ps-z: calc(var(--dpr, 1) * var(--z));
-  --ps: var(--ps-z);
   /* the shared frame (base.css reads these) */
   --frame-bg: var(--e-glass);
   --frame-edge: var(--e-line);

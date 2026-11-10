@@ -24,6 +24,7 @@ import { loadModels, PEOPLE, SCENERY } from './render3d/models';
 import { loadSettings } from './save/settings';
 import { quality, resolveQuality, setOnStrongGpu, setQuality } from './render3d/quality';
 import { gpuStatus } from './platform/platform';
+import { warmPortraits } from './render3d/portraits/portraits';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
 const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
@@ -62,6 +63,8 @@ async function boot() {
   });
   game.showMenu();
   render(h(App, { game }), document.getElementById('ui')!);
+  // the portrait studio compiles its shaders once (about half a second): pay that while the loading screen is up
+  warmPortraits();
   status?.remove();
   startShell(game);
 }
