@@ -275,9 +275,10 @@ export class CampusScene implements Scene3D {
     const far = maxCols ? cellRect(maxCols, maxCols * 2 - 1) : this.layout.bounds;
     const flat: Rect = { x0: this.layout.bounds.x0, z0: this.layout.bounds.z0, x1: Math.max(this.layout.bounds.x1, far.x1 + 10), z1: this.layout.bounds.z1 };
     const seed = hashStr(this.siteId);
-    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('mesquite'); return p ? instanced(p.parts, p.size, at, 6.5) : null; };
-    // the leafy broadleaf (it reads as a real tree beside the figures) stands in for the old chunky oak
-    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('broadleaf_a') ?? modelParts('oak'); return p ? instanced(p.parts, p.size, at.map((a) => ({ ...a, s: a.s * 1.1, y: a.y - 0.1 })), 6.2) : null; };
+    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('mesquite'); return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, 1.25) })), p.size, at, 6.5) : null; };
+    // the leafy broadleaf (it reads as a real tree beside the figures) stands in for the old chunky oak; foliage
+    // models are lifted a little (their crowns shade themselves nearly black under the filmic curve otherwise)
+    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('broadleaf_a') ?? modelParts('oak'); return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, 1.5) })), p.size, at.map((a) => ({ ...a, s: a.s * 1.1, y: a.y - 0.1 })), 6.2) : null; };
     const roadless = this.scenery !== 'campus' && this.scenery !== 'geneva' && this.scenery !== 'launch' && this.scenery !== 'mega';
     const ex = this.sceneExtra as { km?: number; type?: string; place?: string; swarm?: number; habitats?: number; lived?: number };
     if (this.scenery === 'space') {
@@ -300,7 +301,7 @@ export class CampusScene implements Scene3D {
         const p = sceneryParts(n);
         return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
       };
-      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.05), pine: meshy('pine_a', 2.5, 1.05) };
+      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.5), pine: meshy('pine_a', 2.5, 1.3) };
       if (this.scenery === 'campus' || this.scenery === 'mega') this.groundOpts.farms = { highwayZ: HIGHWAY_Z };
       this.ground = buildGround(this.groundOpts, this.groundModels);
       if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
