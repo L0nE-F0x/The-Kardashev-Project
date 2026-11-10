@@ -496,23 +496,13 @@ export function restartAmbience(): void {
 let lastLook = 0;
 
 /**
- * The 3D campus doesn't choose its own bed (the pixel diorama does): read the place, the weather and the hour off
- * the scene, once a second. Anything that isn't the 3D campus is left alone.
+ * The 3D campus doesn't choose its own bed (the pixel diorama does): ask the scene which one its place, weather and
+ * hour call for, once a second. A scene with no `ambience()` is left alone.
  */
 export function ambienceForScene(scene: unknown): void {
   const t = performance.now();
   if (t - lastLook < 1000) return;
   lastLook = t;
-  const sc = scene as { scenery?: unknown; sky?: { night?: unknown }; precip?: { kind?: unknown }; site?: { backdrop?: unknown } } | null;
-  if (!sc || typeof sc.scenery !== 'string' || typeof sc.sky?.night !== 'number') return;
-  const place = sc.scenery, wet = sc.precip?.kind;
-  setAmbience(
-    place === 'moon' ? 'moon'
-    : place === 'space' || place === 'asteroid' ? 'space'
-    : place === 'habitat' ? 'habitat'
-    : wet === 'rain' || wet === 'snow' ? 'rain'
-    : place === 'offshore' || place === 'launch' || sc.site?.backdrop === 'coast' ? 'coast'
-    : place === 'geneva' ? 'lake'
-    : sc.sky.night > 0.55 ? 'night' : 'campus',
-  );
+  const bed = (scene as { ambience?: () => Ambience } | null)?.ambience?.();
+  if (bed) setAmbience(bed);
 }

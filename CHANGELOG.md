@@ -41,6 +41,12 @@ The 3D edition, filmed properly: real skies and light at every hour, a living gl
 **Photo mode**
 - On any campus, press Photo: the interface steps aside and the game waits. Choose the hour, the weather, the lens and the blur, and save a 4K picture with no interface in it. Esc goes back.
 
+**Sound**
+- A new soundtrack for the 3D edition: seven pieces built on one theme, from the menu through each era to the ending, with warm pads, plucks, bass and gentle drums. The music rests when you pause, picks up when time runs fast and tightens in a finale. The chiptune is still there: Settings → Audio → Soundtrack (it stays the pixel edition's default).
+- Every sound effect remade, and new ones for finished buildings, trained models, achievements and act endings. Buttons click, and effects play in the music's key.
+- Places sound alive: wind that comes and goes, birds by day, crickets at night, rain with far thunder, surf, the lake, the hush of the Moon. The 3D campuses had no background sound before.
+- A proper mix: reverb and echo, a limiter so nothing clips, and stereo. Music is much louder than it was at the same slider (it was very quiet). A separate Ambience volume slider.
+
 **Smoother**
 - Medium and low detail do less work per picture than before the new effects went in; high detail no longer draws the scene twice for its shading.
 

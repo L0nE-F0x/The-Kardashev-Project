@@ -944,6 +944,18 @@ export class CampusScene implements Scene3D {
     return picked;
   }
 
+  /** The sound bed this place calls for now: by where it is, the weather and the hour (audio/ambience.ts asks once a second). */
+  ambience(): 'campus' | 'night' | 'rain' | 'coast' | 'lake' | 'moon' | 'space' | 'habitat' {
+    const p = this.scenery, wet = this.precip.kind;
+    if (p === 'moon') return 'moon';
+    if (p === 'space' || p === 'asteroid') return 'space';
+    if (p === 'habitat') return 'habitat';
+    if (wet === 'rain' || wet === 'snow') return 'rain';
+    if (p === 'offshore' || p === 'launch' || this.site.backdrop === 'coast') return 'coast';
+    if (p === 'geneva') return 'lake';
+    return this.sky.night > 0.55 ? 'night' : 'campus';
+  }
+
   /** Photo mode and QA: film in this weather (rebuilds the scene); null = the site's own again. */
   setWeather(w: Weather | null) {
     if (w === this.forceWeather) return;

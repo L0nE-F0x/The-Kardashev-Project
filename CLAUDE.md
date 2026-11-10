@@ -256,9 +256,17 @@ src/
   platform/   platform.ts: browser vs installed PWA vs desktop app (quit, fullscreen, install prompt, service worker)
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
               achievements.ts (per-device achievement store: unlocked, advisors met, places visited)
-  audio/      engine.ts (context + master/music/sfx buses), sfx.ts (blips, noise bursts: launches, the mass driver, jumps,
-              stings), music.ts (menu theme MP3 or chiptune fallback; a chiptune track per era in sections, following the
-              palette), ambience.ts (a sound bed per place: map, campus, night, rain, coast, lake, Moon, space, habitat)
+  audio/      All synthesised in WebAudio (v0.11: SPEC §29). engine.ts (the mix: sfx / music / ambience buses, each
+              with a dry path and two shared sends (a generated hall, a tempo-synced echo), then sub filter → glue
+              compressor → limiter → ceiling; one look-ahead timer for every sequencer; `renderOffline` for
+              measurements), music.ts (which track plays, the `soundtrack` setting: auto = cinematic in 3D, chiptune
+              in the pixel edition; `setMusicMood`; the menu's theme.mp3 override), the cinematic score = score.ts
+              (sequencer, voice-leading) + synth.ts (instruments) + cinematic.ts + tracks.ts (seven pieces on one
+              theme: menu, era0–4, ending), chiptune.ts (the pixel edition's tracks), sfx.ts (layered effects in the
+              music's key) + ui.ts (clicks and hover ticks on every button), ambience.ts (a living bed per place: map,
+              campus, night, rain, coast, lake, Moon, space, habitat; the 3D campus says which through `ambience()`).
+              Nobody can listen in QA: measure instead (the harness and rendered WAVs lived in the session's scratchpad;
+              `renderOffline` + ffmpeg `ebur128` reproduce it: music −16 LUFS at full sliders, peaks under −1.5 dBFS).
 src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the game bundled; capabilities = close, fullscreen,
               updater, restart, opener scoped to the ApexForge page). The AppImage bundles GStreamer plugins
               (`bundleMediaFramework`, plugin packages installed in CI): without them Ubuntu's bundled GStreamer finds
@@ -391,7 +399,7 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
    `~/.config/kardashev-project/tauri/` (kardashev-updater.key + updater-password.txt). **Never lose or change it
    either**: installed desktop apps only accept updates signed with it.
 
-The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the chiptune is the fallback).
+The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the game's own menu theme is the fallback).
 
 ## Adding things (cheat sheet)
 
@@ -407,7 +415,8 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Achievement | `content/achievements.ts` (`done(s)` check, or `done: null` + `game.achieve(id)`; ids are for Steam later) |
 | Sandbox switch or slider | `SandboxOpts` in `sim/types.ts`, read it in the sim formula, add the control in `ui/menu/SandboxControls.tsx` |
 | Province governor | `GOVERNORS` in `content/planet.ts` + a look in `GOVERNOR_LOOKS` (`render/sprites/portraits.ts`) |
-| Era music / place ambience | `ERA_SONGS` in `audio/music.ts` (sections, instruments) · `build()` in `audio/ambience.ts` |
+| Era music / place ambience | cinematic: `audio/tracks.ts` (a `TrackDef` per piece: key, tempo, sections, instruments) · chiptune: `audio/chiptune.ts` · beds: `audio/ambience.ts` |
+| Sound effect | a `SoundId` + its recipe in `audio/sfx.ts` (layers: transient, body, tail), then `sfx(id)` where it happens |
 | Person look, pose, outfit | `render/diorama/people.ts` (`tests/people-preview.test.ts` checks sizes and the closed outline) |
 | Campus behaviour, critter, vehicle | `render/diorama/life.ts` (the scene feeds it `Spot`s and a `LifeEnv` each frame) |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |

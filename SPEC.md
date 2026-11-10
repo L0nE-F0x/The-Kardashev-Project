@@ -2172,8 +2172,18 @@ on whole device pixels), a loading screen whose logo flies to the menu, a title 
 and every panel, card and late-game screen restyled, automatic scale on big screens. Classic look falls back to the
 old frames.
 
-**Sound (`src/audio/`)**: see the changelog; a mix bus with reverb and delay sends and a limiter, a cinematic score
-beside the chiptune (`soundtrack` setting: auto = cinematic in 3D), layered effects, living ambience.
+**Sound (`src/audio/`)**: a mix with three buses (sfx, music, ambience), a generated hall and a tempo-synced echo as
+shared sends, then a sub filter, a glue compressor, a limiter and a ceiling at −1.5 dBFS; a cinematic score of seven
+pieces on one theme (so–do–re–mi answered by a fall; menu D major 76 bpm, era 0 C/A minor swung, era 1 G 112, era 2 F
+in 12/8, era 3 E Lydian without drums, era 4 B with a formant choir, the ending D rising to E) with voice-led chords,
+seeded section orders and a mood (rests when paused, a drive layer at speed, a tension layer in finales); the chiptune
+kept as its own soundtrack (`soundtrack`: auto = cinematic in 3D, chiptune in the pixel edition); all 21 effects
+redesigned in layers plus 7 new ones, in the music's key; nine living ambience beds (the 3D campus had none).
+**Nobody has heard any of it**: it was built and judged by measurement (offline renders of the real mix: music
+−16 LUFS integrated at full sliders, about −22 at the default ones against −39 to −42 before; true peak never over
+−1.8 dBFS; no clicks apart from era 0's deliberate vinyl crackle; live node count bounded). The mix is warm to dark
+(little above 5 kHz): one shelf in `engine.ts` brightens it. Taste calls to audition: the crackle, the universal
+button clicks and hover ticks (`installUiSounds` in game.ts), effects that shift with the music's key.
 
 **Calls you may want to change**
 - Version and name are mine: 0.11.0 "Golden Hour". Nothing is merged to `main`, pushed or tagged.
