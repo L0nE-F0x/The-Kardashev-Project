@@ -43,8 +43,8 @@ import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio
 import { musicUnlocked, playMusic, setMusicMood, setSoundtrack, type Track } from '../audio/music';
 import { ambienceForScene, restartAmbience, setAmbience } from '../audio/ambience';
 import { installUiSounds } from '../audio/ui';
-import { checkAppUpdate } from '../platform/platform';
-import type { AppUpdate, AppUpdateStatus } from '../platform/platform';
+import { checkAppUpdate, gpuStatus, keepGpu, restartApp, setGpuPreference } from '../platform/platform';
+import type { AppUpdate, AppUpdateStatus, GpuStatus } from '../platform/platform';
 import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
 import { BRIEFINGS } from './briefings';
@@ -155,6 +155,11 @@ export class Game {
   eraOverride: Era | null = null;
   /** The app has a newer release; `hidden` after "Later" until the next start. */
   appUpdate: { version: string; install: AppUpdate['install']; status: AppUpdateStatus; hidden: boolean } | null = null;
+  /** The app's graphics-card choice (Settings → Display); null in a browser tab or while it loads. */
+  gpu: GpuStatus | null = null;
+  /** What the graphics-card dialog shows: a choice waiting for a yes, a new choice on trial (seconds left), or a trial that was undone. */
+  gpuNotice: { kind: 'ask'; prefer: 'auto' | 'strong' } | { kind: 'trial'; left: number } | { kind: 'failed' } | null = null;
+  private gpuTimer = 0;
   /** Demo world shown behind the main menu. */
   showcase: GameState | null = null;
   tour: TourDirector | null = null;
@@ -200,6 +205,7 @@ export class Game {
       if (this.mode !== 'title' && this.state && !this.ending) playMusic(this.eraTrack());
     });
     this.watchAppUpdates();
+    void this.watchGpu();
   }
 
   get ctx() {
@@ -465,6 +471,75 @@ export class Game {
   }
 
   /** The installed apps look for a newer release a few seconds after starting, then every six hours. */
+  // ── which graphics card (laptops with two; src-tauri/src/gpu.rs) ────────────────────────────
+  /** How long a new choice waits for "Keep it" before the game goes back by itself (a black window can't click). */
+  static readonly GPU_TRIAL_SECONDS = 20;
+
+  private async watchGpu(): Promise<void> {
+    this.gpu = await gpuStatus();
+    if (!this.gpu) return;
+    if (this.gpu.state === 'failed') {
+      // the last start tried the stronger card and nobody confirmed the picture: the app already went back
+      this.gpuNotice = { kind: 'failed' };
+      void setGpuPreference('auto');
+      this.gpu = { ...this.gpu, prefer: 'auto', state: 'ok' };
+    } else if (this.gpu.state === 'trying' && this.gpu.active) {
+      this.gpuNotice = { kind: 'trial', left: Game.GPU_TRIAL_SECONDS };
+      // real seconds, not frames: a hidden or struggling window still counts down
+      this.gpuTimer = window.setInterval(() => {
+        const n = this.gpuNotice;
+        if (n?.kind !== 'trial') return window.clearInterval(this.gpuTimer);
+        if (n.left <= 1) return this.gpuRevert();
+        this.gpuNotice = { kind: 'trial', left: n.left - 1 };
+        this.notify();
+      }, 1000);
+    }
+    this.notify();
+  }
+
+  /** Settings → Display → Graphics card: ask first, since the game restarts to switch. */
+  gpuAsk(prefer: 'auto' | 'strong'): void {
+    if (!this.gpu || prefer === this.gpu.prefer) return;
+    this.gpuNotice = { kind: 'ask', prefer };
+    this.notify();
+  }
+
+  /** Yes to the question: save the company, note the choice and restart into it. */
+  gpuSwitch(): void {
+    const n = this.gpuNotice;
+    if (n?.kind !== 'ask') return;
+    this.gpuNotice = null;
+    this.save();
+    void setGpuPreference(n.prefer).then((ok) => {
+      if (ok) return restartApp();
+      this.toast('Couldn’t save the graphics-card choice.', 'bad');
+    });
+    this.notify();
+  }
+
+  /** The picture on the stronger card is fine. */
+  gpuKeep(): void {
+    window.clearInterval(this.gpuTimer);
+    this.gpuNotice = null;
+    if (this.gpu) this.gpu = { ...this.gpu, state: 'ok' };
+    void keepGpu();
+    this.notify();
+  }
+
+  /** Back to the automatic card (the player said so, or the trial ran out), with a restart. */
+  gpuRevert(): void {
+    window.clearInterval(this.gpuTimer);
+    this.gpuNotice = null;
+    this.save();
+    void setGpuPreference('auto').then(() => restartApp());
+    this.notify();
+  }
+
+  gpuDismiss(): void {
+    this.gpuNotice = null;
+    this.notify();
+  }
+
   private watchAppUpdates(): void {
     const look = async () => {
       if (this.appUpdate) return;

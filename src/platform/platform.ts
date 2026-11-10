@@ -192,6 +192,61 @@ async function checkDesktopUpdate(): Promise<AppUpdate | null> {
   };
 }
 
+// ── which graphics card (laptops with two) ───────────────────────────────────────────────────
+// The webview picks its GPU when it starts, so the choice is kept by the app (src-tauri/src/gpu.rs) and takes
+// effect on a restart. A new choice is on trial until `keepGpu`: a start that finds the last trial unconfirmed
+// goes back to automatic, so a setup that shows a black window undoes itself.
+
+export interface GpuStatus {
+  os: 'linux' | 'windows' | 'macos' | 'other';
+  /** Graphics cards found (Linux only; null where the app can't count them). */
+  gpus: number | null;
+  prefer: 'auto' | 'strong';
+  /** ok · new (chosen, restart pending) · trying (running on it, not confirmed yet) · failed (a trial was undone). */
+  state: 'ok' | 'new' | 'trying' | 'failed';
+  /** This run was started on the stronger card. */
+  active: boolean;
+}
+
+/** The app's graphics-card choice; null in a browser tab (development) or when the app can't say. */
+export async function gpuStatus(): Promise<GpuStatus | null> {
+  if (!isDesktopApp) return null;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<GpuStatus>('gpu_get');
+  } catch {
+    return null;
+  }
+}
+
+/** Choose the card for the next start. False when it couldn't be saved. */
+export async function setGpuPreference(prefer: 'auto' | 'strong'): Promise<boolean> {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('gpu_set', { prefer });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The picture on the stronger card is fine: keep it. */
+export async function keepGpu(): Promise<void> {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('gpu_keep');
+  } catch {
+    /* the next start undoes the trial, which is the safe side */
+  }
+}
+
+/** Close the app and start it again (after a graphics-card change). */
+export async function restartApp(): Promise<void> {
+  if (!isDesktopApp) return window.location.reload();
+  const { relaunch } = await import('@tauri-apps/plugin-process');
+  await relaunch();
+}
+
 export async function quitApp(): Promise<void> {
   const w = window.__TAURI__?.window?.getCurrentWindow();
   if (w) await w.close();

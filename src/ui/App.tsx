@@ -15,7 +15,7 @@ import { CharterPanel, CouncilPanel, ThresholdTracker } from './panels/Act3Panel
 import { HeatWallTracker, JumpOverlay, JumpReportModal, PlanModal, PlanetPanel } from './panels/Act4Panels';
 import { EndingOverlay, EraOverlay, EraPlanModal, EraReportModal, SolarMaxTracker, SystemPanel } from './panels/Act5Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
-import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, NoteModal, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
+import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, GpuNotice, LinkHint, MapTooltip, NoteModal, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
 import { PhotoBar, PhotoButton } from './PhotoMode';
 import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
@@ -116,6 +116,7 @@ export function App({ game }: { game: Game }) {
       <Hud />
       <TipLayer />
       <UpdateToast />
+      <GpuNotice />
       <FpsCounter />
     </GameCtx.Provider>
   );

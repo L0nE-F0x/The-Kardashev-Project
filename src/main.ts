@@ -22,7 +22,8 @@ import { OrbitScene3D } from './render3d/orbit/orbitScene';
 import { SystemScene3D } from './render3d/system/systemScene';
 import { loadModels, PEOPLE, SCENERY } from './render3d/models';
 import { loadSettings } from './save/settings';
-import { quality, resolveQuality, setQuality } from './render3d/quality';
+import { quality, resolveQuality, setOnStrongGpu, setQuality } from './render3d/quality';
+import { gpuStatus } from './platform/platform';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
 const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
@@ -33,6 +34,8 @@ async function boot() {
   const host = document.getElementById('game')!;
   const status = document.getElementById('boot');
   if (status) status.textContent = 'BUILDING THE WORLD…';
+  // the app may have been started on the stronger graphics card: Auto detail then means High
+  setOnStrongGpu(!!(await gpuStatus())?.active);
   const q0 = loadSettings().quality3d;
   setQuality(resolveQuality(q0), (q0 ?? 'auto') === 'auto');
   // handy in the console while tuning (the live detail level the stage and scenes read)

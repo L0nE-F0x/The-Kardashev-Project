@@ -171,6 +171,18 @@ function Display() {
         ]}
         onChange={(v) => game.updateSettings({ quality3d: v })}
       />
+      {game.gpu && game.gpu.os !== 'macos' && (game.gpu.gpus === null || game.gpu.gpus > 1 || game.gpu.prefer === 'strong') && (
+        <Choice
+          label="Graphics card"
+          hint="For laptops with two graphics cards. Automatic: the one the system picks, usually the power-saving one. Stronger: the fast one (better picture, more battery). The game restarts to switch."
+          value={game.gpu.prefer}
+          options={[
+            ['auto', 'Automatic'],
+            ['strong', 'Stronger'],
+          ]}
+          onChange={(v) => game.gpuAsk(v)}
+        />
+      )}
       <Toggle label="FPS counter" value={st.fps} onChange={(v) => game.updateSettings({ fps: v })} />
       <div class="setting opt">
         <span class="txt">

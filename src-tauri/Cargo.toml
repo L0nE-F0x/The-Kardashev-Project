@@ -20,6 +20,8 @@ tauri = { version = "2.12.5", features = [] }
 tauri-plugin-opener = "2.7.2"
 tauri-plugin-process = "2.4.0"
 tauri-plugin-updater = "2.14.1"
+# where the graphics-card choice is kept (src/gpu.rs): the same crate Tauri resolves its own folders with
+dirs = "7"
 # the update download (src/fastdl.rs): the same reqwest, rustls and tokio the updater already brings in
 futures-util = "0.3"
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "stream"] }

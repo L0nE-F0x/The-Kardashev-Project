@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { Game } from '../game/game';
 import { Icon, Portrait, pct, useGame } from './components';
 import { linkMaxKm } from '../sim/model';
 import { ASTEROID_BY_ID } from '../content/system';
@@ -286,6 +287,67 @@ function AppUpdateToast() {
 export function UpdateToast() {
   const game = useGame();
   return game.appUpdate && !game.appUpdate.hidden ? <AppUpdateToast /> : null;
+}
+
+/** Settings → Display → Graphics card: the question before the restart, the trial after it, and a trial that was undone. */
+export function GpuNotice() {
+  const game = useGame();
+  const n = game.gpuNotice;
+  if (!n) return null;
+  const strong = n.kind === 'ask' && n.prefer === 'strong';
+  return (
+    <div class="scrim">
+      <div class="modal frame" role="alertdialog" aria-label="Graphics card" style={{ width: 'min(460px, 100%)' }}>
+        <div class="head">
+          <Icon name="settings" size="lg" />
+          <h2 class="grow">Graphics card</h2>
+        </div>
+        <div class="body">
+          {n.kind === 'ask' && (
+            <>
+              <p>{strong ? 'Run the game on this computer’s stronger graphics card? It looks and runs better, and uses more battery.' : 'Go back to the graphics card the system picks?'}</p>
+              <p class="small muted">
+                The game saves and restarts to switch.{strong ? ` You then get ${Game.GPU_TRIAL_SECONDS} seconds to confirm the picture: if something is wrong, it switches back by itself.` : ''}
+              </p>
+              <div class="row between">
+                <button class="btn" onClick={() => game.gpuDismiss()}>
+                  Cancel
+                </button>
+                <button class="btn primary" onClick={() => game.gpuSwitch()}>
+                  Restart and switch
+                </button>
+              </div>
+            </>
+          )}
+          {n.kind === 'trial' && (
+            <>
+              <p>The game is now running on the stronger graphics card. Does everything look right?</p>
+              <p class="small muted">Going back to the automatic card in {n.left} s unless you keep it.</p>
+              <div class="row between">
+                <button class="btn" onClick={() => game.gpuRevert()}>
+                  Go back
+                </button>
+                <button class="btn primary" onClick={() => game.gpuKeep()}>
+                  Keep it
+                </button>
+              </div>
+            </>
+          )}
+          {n.kind === 'failed' && (
+            <>
+              <p>The stronger graphics card wasn’t confirmed last time, so the game went back to the automatic one.</p>
+              <div class="row between">
+                <span />
+                <button class="btn primary" onClick={() => game.gpuDismiss()}>
+                  OK
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** With auto-pause off, a waiting decision sits here until opened. */

@@ -52,13 +52,19 @@ function gpuName(): string {
 /** A discrete or otherwise strong GPU by its name (anything else, or no name, counts as integrated). */
 export const strongGpu = (name: string) => /nvidia|geforce|quadro|rtx|radeon (rx|pro)|radeon\(tm\) rx|arc\(tm\) a|arc a\d|apple m\d (pro|max|ultra)/i.test(name);
 
+let onStrongGpu = false;
+/** The app was started on the stronger graphics card (Settings → Display → Graphics card): Auto then means High. */
+export function setOnStrongGpu(v: boolean) {
+  onStrongGpu = v;
+}
+
 /**
  * The level for a setting: 'auto' is high with a discrete GPU, medium otherwise (integrated GPUs, or a webview
  * that won't say), and the resolution adapts on top of it.
  */
 export function resolveQuality(setting: 'auto' | QualityLevel | undefined): QualityLevel {
   if (setting && setting !== 'auto') return setting;
-  return strongGpu(gpuName()) ? 'high' : 'medium';
+  return onStrongGpu || strongGpu(gpuName()) ? 'high' : 'medium';
 }
 
 export function setQuality(level: QualityLevel, adaptive = false) {
