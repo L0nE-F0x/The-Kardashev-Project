@@ -38,6 +38,10 @@ export interface Settings {
   master: number;
   music: number;
   sfx: number;
+  /** The sound of the place under the music: wind, birds, rain, the halls' hum. */
+  ambience: number;
+  /** Which score plays: 'auto' is the cinematic one in the 3D edition and the chiptune in the pixel edition. */
+  soundtrack: 'auto' | 'cinematic' | 'chiptune';
   muteInBackground: boolean;
   // accessibility
   /** Text font: smooth Atkinson Hyperlegible (default), the classic pixel fonts, or the device's own. */
@@ -90,6 +94,8 @@ export function defaultSettings(): Settings {
     master: 0.8,
     music: 0.6,
     sfx: 0.8,
+    ambience: 0.7,
+    soundtrack: 'auto',
     muteInBackground: true,
     textFont: 'clean',
     colorblind: 'off',
