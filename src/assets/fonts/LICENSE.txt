@@ -1,6 +1,4 @@
 Atkinson Hyperlegible Next — Copyright 2020 Braille Institute of America, Inc. (https://www.brailleinstitute.org/freefont)
-Pixelify Sans — Copyright 2021 The Pixelify Sans Project Authors (https://github.com/eifetx/Pixelify-Sans)
-Silkscreen — Copyright 2001 The Silkscreen Project Authors (https://github.com/googlefonts/silkscreen)
 
-All three fonts are licensed under the SIL Open Font License, Version 1.1.
+Licensed under the SIL Open Font License, Version 1.1.
 https://openfontlicense.org

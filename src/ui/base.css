@@ -1,6 +1,5 @@
 /* Shared look for the game UI and the website: fonts, palette vars, frames, buttons. */
-/* Text: Atkinson Hyperlegible Next (smooth and very legible). Pixel fonts stay for the big titles
-   (Silkscreen) and as the "Classic pixel" text option in Settings (Pixelify Sans + Silkscreen). */
+/* Text: Atkinson Hyperlegible Next (smooth and very legible), or the system's own font (Settings → Accessibility). */
 @font-face {
   font-family: 'Atkinson Hyperlegible Next';
   src: url('../assets/fonts/atkinson-hyperlegible-next-latin.woff2') format('woff2');
@@ -14,24 +13,6 @@
   font-weight: 200 800;
   font-display: swap;
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
-}
-@font-face {
-  font-family: 'Pixelify Sans';
-  src: url('../assets/fonts/pixelify-sans-latin.woff2') format('woff2');
-  font-weight: 400 700;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Silkscreen';
-  src: url('../assets/fonts/silkscreen-400-latin.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Silkscreen';
-  src: url('../assets/fonts/silkscreen-700-latin.woff2') format('woff2');
-  font-weight: 700;
-  font-display: swap;
 }
 
 :root {
@@ -55,21 +36,13 @@
   --font: 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   /* small labels (set in capitals by their own rules) */
   --font-label: var(--font);
-  /* big titles only: panel and card headings, the website's section titles */
-  --font-pixel: 'Silkscreen', 'Pixelify Sans', monospace;
+  /* big titles (panel and card headings). The name is from the days these were set in a pixel face. */
+  --font-pixel: var(--font);
   /* letter-spacing for small capitals labels */
   --caps-track: 0.08em;
   color-scheme: dark;
 }
 /* Settings → Accessibility → Text font */
-html.font-pixel {
-  --font: 'Pixelify Sans', ui-monospace, monospace;
-  --font-label: 'Silkscreen', 'Pixelify Sans', monospace;
-  --caps-track: 0.5px;
-}
-html.font-pixel body {
-  -webkit-font-smoothing: none;
-}
 html.font-system {
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-label: var(--font);

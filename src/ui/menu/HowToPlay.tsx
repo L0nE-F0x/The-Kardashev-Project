@@ -155,7 +155,7 @@ function Screen() {
 
 function Panels({ act }: { act: number }) {
   // the same icons as the dock buttons
-  const classic = useGame().settings.uiStyle === 'classic';
+  const classic = false;
   return (
     <div class="ht-panels">
       {PANEL_GUIDE.filter((p) => p.act <= act).map((p) => (

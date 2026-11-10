@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
-import { Eased, Icon, is3d, useGame } from './components';
+import { Eased, Icon, useGame } from './components';
 import { warming } from '../sim/climate';
 import { overLine, surfaceTW } from '../sim/swarm';
 import { lineTW } from '../sim/systemView';
@@ -142,11 +142,9 @@ Click to open the System (X).`}>
           <div class="kbar">
             <i style={{ width: `${Math.max(1, Math.min(100, kProgress * 100))}%` }} />
           </div>
-          {is3d() && (
-            <span class="knext" aria-hidden="true">
-              {next.k.toFixed(2)}
-            </span>
-          )}
+          <span class="knext" aria-hidden="true">
+            {next.k.toFixed(2)}
+          </span>
         </div>
       </div>
     </div>

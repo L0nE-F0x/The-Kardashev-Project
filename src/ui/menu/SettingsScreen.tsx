@@ -145,19 +145,8 @@ function Display() {
         ]}
         onChange={(v) => game.updateSettings({ uiScale: v })}
       />
-      <Choice
-        label="Interface look"
-        hint="Modern: softer panels, accent lines and smooth motion. Classic: the original chunky pixel frames."
-        value={st.uiStyle}
-        options={[
-          ['modern', 'Modern'],
-          ['classic', 'Classic'],
-        ]}
-        onChange={(v) => game.updateSettings({ uiStyle: v })}
-      />
       <Toggle label="Weather" hint="Rain, snow and dust storms in campus views." value={st.weather} onChange={(v) => game.updateSettings({ weather: v })} />
       <Toggle label="Day & night" hint="Local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
-      <Toggle label="CRT filter" hint="Scanlines and a soft vignette, for that old-monitor glow." value={st.crt} onChange={(v) => game.updateSettings({ crt: v })} />
       <Toggle label="Battery saver" hint="Draw at ~30 fps with fewer particles." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
       <Choice
         label="3D detail"
@@ -214,13 +203,6 @@ function Audio() {
     <>
       <Slider label="Master volume" value={st.master} onChange={(v) => game.updateSettings({ master: v })} />
       <Slider label="Music" hint="A theme on the menu, a piece for each era in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
-      <Choice
-        label="Soundtrack"
-        hint="Cinematic: pads, piano, bells, a choir. Chiptune: the retro score from the game's early days."
-        value={st.soundtrack}
-        options={[['cinematic', 'Cinematic'], ['chiptune', 'Chiptune']]}
-        onChange={(v) => game.updateSettings({ soundtrack: v })}
-      />
       <Slider label="Sound effects" value={st.sfx} onChange={(v) => game.updateSettings({ sfx: v })} />
       <Slider label="Ambience" hint="The sound of the place: wind, birds, rain, the halls." value={st.ambience} onChange={(v) => game.updateSettings({ ambience: v })} />
       <Toggle label="Mute in the background" hint="Silence when you switch tabs or apps." value={st.muteInBackground} onChange={(v) => game.updateSettings({ muteInBackground: v })} />
@@ -235,11 +217,10 @@ function Access() {
     <>
       <Choice
         label="Text font"
-        hint="Clean is built for easy reading. Pixel is the original retro look. Device uses your system's own font."
+        hint="Clean is built for easy reading. Device uses your system's own font."
         value={st.textFont}
         options={[
           ['clean', 'Clean'],
-          ['pixel', 'Pixel'],
           ['system', 'Device'],
         ]}
         onChange={(v) => game.updateSettings({ textFont: v })}

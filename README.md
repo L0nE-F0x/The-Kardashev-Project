@@ -54,6 +54,6 @@ Drag to turn the globe · scroll to zoom · click a site to inspect, double-clic
 
 ## Credits
 
-Made by Lone Fox, built with Claude. Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next,
-Silkscreen and Pixelify Sans (SIL OFL). Built with three.js, Preact, Vite and Tauri. The people, trees and rocks
+Made by Lone Fox, built with Claude. Map data: Natural Earth (public domain). Typeface: Atkinson Hyperlegible Next
+(SIL OFL). Built with three.js, Preact, Vite and Tauri. The people, trees and rocks
 were modelled with Meshy; the rest of the world, the interface art and the sound are generated in code.

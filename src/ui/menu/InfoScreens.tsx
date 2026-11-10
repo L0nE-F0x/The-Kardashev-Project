@@ -46,7 +46,7 @@ export function Credits() {
       <h4 class="section">Thanks to</h4>
       <ul class="credits">
         <li>Natural Earth — public-domain map data (coastlines, regions, rivers, lakes).</li>
-        <li>Atkinson Hyperlegible Next (Braille Institute), Silkscreen and Pixelify Sans — fonts under the SIL Open Font License.</li>
+        <li>Atkinson Hyperlegible Next (Braille Institute) — the typeface, under the SIL Open Font License.</li>
         <li>three.js, Preact, Vite and Tauri — the open-source tools underneath.</li>
         <li>Nikolai Kardashev and Carl Sagan — for the scale that gives the game its goal.</li>
       </ul>

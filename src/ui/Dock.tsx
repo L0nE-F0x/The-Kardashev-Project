@@ -33,7 +33,7 @@ function useScrollHint(n: number) {
 export function Dock() {
   const game = useGame();
   const s = game.state!;
-  const classic = game.settings.uiStyle === 'classic';
+  const classic = false;
   const items: [PanelId, IconName, string, number?][] = [
     ['compute', 'compute', 'Compute & models (C)', s.training ? undefined : s.models.length < 2 ? 1 : undefined],
     ['orders', 'orders', 'Chip orders & shipping (O)', s.shipments.length || undefined],

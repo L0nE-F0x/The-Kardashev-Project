@@ -15,10 +15,7 @@ export interface Settings {
   tips: boolean;
   // display
   uiScale: number;
-  /** Interface look: the modern HUD or the classic pixel frames. */
-  uiStyle: 'modern' | 'classic';
   weather: boolean;
-  crt: boolean;
   dayNight: boolean;
   batterySaver: boolean;
   /** 3D detail (shadows, ambient occlusion, resolution, plants); 'auto' picks by the machine. */
@@ -30,12 +27,10 @@ export interface Settings {
   sfx: number;
   /** The sound of the place under the music: wind, birds, rain, the halls' hum. */
   ambience: number;
-  /** Which score plays: the cinematic one, or the chiptune from the game's pixel-art days. */
-  soundtrack: 'cinematic' | 'chiptune';
   muteInBackground: boolean;
   // accessibility
-  /** Text font: smooth Atkinson Hyperlegible (default), the classic pixel fonts, or the device's own. */
-  textFont: 'clean' | 'pixel' | 'system';
+  /** Text font: smooth Atkinson Hyperlegible (default), or the system's own. */
+  textFont: 'clean' | 'system';
   colorblind: 'off' | 'deutan' | 'tritan';
   reducedMotion: boolean;
   highContrast: boolean;
@@ -70,9 +65,7 @@ export function defaultSettings(): Settings {
     goalTracker: true,
     tips: true,
     uiScale: 1,
-    uiStyle: 'modern',
     weather: true,
-    crt: false,
     dayNight: true,
     batterySaver: false,
     quality3d: 'auto',
@@ -81,7 +74,6 @@ export function defaultSettings(): Settings {
     music: 0.6,
     sfx: 0.8,
     ambience: 0.7,
-    soundtrack: 'cinematic',
     muteInBackground: true,
     textFont: 'clean',
     colorblind: 'off',
@@ -107,10 +99,10 @@ export function loadSettings(): Settings {
     delete raw.sound;
     delete raw.tutorialHints;
     delete raw.readableFont;
-    // v0.11 and earlier: the pixel edition's settings (its zoom, its map clouds, which edition opens, phones) and
-    // a soundtrack that followed the edition
-    for (const k of ['zoom', 'clouds', 'edition', 'phoneFullscreen']) delete raw[k];
-    if (raw.soundtrack !== 'chiptune') raw.soundtrack = 'cinematic';
+    // v0.12 and earlier: the pixel edition's settings (its zoom, its map clouds, which edition opens, phones) and
+    // the retro options (the Classic look, the CRT filter, the Chiptune soundtrack, the Pixel text font)
+    for (const k of ['zoom', 'clouds', 'edition', 'phoneFullscreen', 'uiStyle', 'crt', 'soundtrack']) delete raw[k];
+    if (raw.textFont !== 'system') raw.textFont = 'clean';
     return { ...base, ...raw };
   } catch {
     return base;
@@ -125,16 +117,13 @@ export function saveSettings(s: Settings): void {
   }
 }
 
-/** Apply the settings that live in CSS (fonts, contrast, colour-blind palette, UI scale, CRT). */
+/** Apply the settings that live in CSS (font, contrast, colour-blind palette, UI scale). */
 export function applyCssSettings(s: Settings): void {
   const root = document.documentElement;
-  root.classList.toggle('font-pixel', s.textFont === 'pixel');
   root.classList.toggle('font-system', s.textFont === 'system');
   root.classList.toggle('contrast', s.highContrast);
   root.classList.toggle('reduced-motion', s.reducedMotion);
   root.classList.toggle('cb-deutan', s.colorblind === 'deutan');
   root.classList.toggle('cb-tritan', s.colorblind === 'tritan');
-  root.classList.toggle('crt', s.crt);
-  root.classList.toggle('ui-classic', s.uiStyle === 'classic');
   root.style.setProperty('--ui-zoom', String(s.uiScale));
 }

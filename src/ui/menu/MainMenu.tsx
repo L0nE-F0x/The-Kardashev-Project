@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { BuiltBy, Icon, Window, fmtPlaytime, is3d, useGame } from '../components';
+import { BuiltBy, Icon, Window, fmtPlaytime, useGame } from '../components';
 import { logoUrl } from '../logo';
 import { SITE_BY_ID } from '../../content/sites';
 import { DIFFICULTIES, FOUNDERS } from '../../content/difficulty';
@@ -70,7 +70,7 @@ export function MainMenu() {
     <div class="menu">
       <div class="menu-col frame interactive" ref={col}>
         <img class="menu-logo" src={logoUrl()} alt="The Kardashev Project" draggable={false} />
-        {is3d() && <div class="menu-tag">From a garage to a Type I civilisation</div>}
+        <div class="menu-tag">From a garage to a Type I civilisation</div>
         {latest && !latest.gameOver && (
           <button class="btn primary continue" onClick={() => game.continueSlot(latest.id)}>
             <Icon name="play" />
@@ -108,7 +108,7 @@ export function MainMenu() {
           </div>
         </div>
       </div>
-      {game.tourCaption && (is3d() ? <TourCaption text={game.tourCaption} key={game.tourCaption} /> : <div class="tour-caption frame">{game.tourCaption}</div>)}
+      {game.tourCaption && <TourCaption text={game.tourCaption} key={game.tourCaption} />}
 
       {screen === 'new' && <NewCompany tutorialDefault={tutorialNew ? true : undefined} key={tutorialNew ? 't' : 'n'} />}
       {screen === 'load' && <LoadGame />}

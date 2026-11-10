@@ -40,7 +40,7 @@ import { guideUnseen, unlockGuide } from '../save/guide';
 import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
 import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
-import { musicUnlocked, playMusic, setMusicMood, setSoundtrack, type Track } from '../audio/music';
+import { musicUnlocked, playMusic, setMusicMood, type Track } from '../audio/music';
 import { ambienceForScene, restartAmbience, setAmbience } from '../audio/ambience';
 import { installUiSounds } from '../audio/ui';
 import { checkAppUpdate, gpuStatus, keepGpu, restartApp, setGpuPreference } from '../platform/platform';
@@ -192,7 +192,6 @@ export class Game {
     migrateLegacySave();
     applyCssSettings(this.settings);
     setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
-    setSoundtrack(this.settings.soundtrack);
     installUiSounds();
     document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
@@ -1158,7 +1157,6 @@ export class Game {
     saveSettings(this.settings);
     applyCssSettings(this.settings);
     setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
-    setSoundtrack(this.settings.soundtrack);
     this.notify();
   }
 
