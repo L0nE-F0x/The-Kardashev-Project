@@ -184,7 +184,8 @@ paintMat.userData.shared = true;
 
 /** Glowing bits (windows, beacons, screens): emissive driven by the time of day. */
 export function glowMat(c: Paint, base = 0.15) {
-  const m = new THREE.MeshStandardMaterial({ color: col(c), emissive: col(c), emissiveIntensity: base, roughness: 0.6 });
+  // smooth: by day a window mirrors the sky
+  const m = new THREE.MeshStandardMaterial({ color: col(c), emissive: col(c), emissiveIntensity: base, roughness: 0.28 });
   m.userData.glowBase = base;
   m.userData.scope = scope;
   glowMats.push(m);

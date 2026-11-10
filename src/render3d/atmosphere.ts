@@ -4,7 +4,8 @@
  * - aerial haze in place of the linear fog: an exponential height fog integrated along the view ray, tinted toward
  *   the sun (warm in-scatter when you look sunward, the cool sky colour away from it);
  * - the lamp field: the campus's lamps drawn from straight above into a texture, which lights the ground, walls,
- *   cars and people near them at night (hundreds of lamps for the price of one texture read).
+ *   cars and people near them at night (hundreds of lamps for the price of one texture read);
+ * - the sky mirrored in anything smooth (glass, solar panels, water).
  * Both only act in scenes with `scene.fog` set (the campuses); the globe, orbit and system views compile them out.
  */
 import * as THREE from 'three';
@@ -17,6 +18,8 @@ export const atmo = {
   uAtmoGlow: { value: new THREE.Color(0xffffff) },
   /** x: 1 / the distance the haze takes hold at (at the base height), y: falloff with height (1/m), z: base height, w: the most it may hide. */
   uAtmoHaze: { value: new THREE.Vector4(0, 0.01, 0, 1) },
+  /** How wet the land is (rain: 1): level ground darkens and turns glossy, so it mirrors the sky. */
+  uAtmoWet: { value: 0 },
   /** The sky as water and glass see it: its zenith and horizon colours as lit now. */
   uAtmoSkyTop: { value: new THREE.Color(0x3a7fd8) },
   uAtmoSkyHor: { value: new THREE.Color(0xcfe6f6) },
@@ -55,6 +58,9 @@ export const LAMP_LAYER = 5;
   uniform vec3 uAtmoSun;
   uniform vec3 uAtmoGlow;
   uniform vec4 uAtmoHaze;
+  uniform vec3 uAtmoSkyTop;
+  uniform vec3 uAtmoSkyHor;
+  uniform float uAtmoWet;
   uniform sampler2D uLampTex;
   uniform vec4 uLampBox;
   uniform vec3 uLampK;
@@ -76,6 +82,22 @@ export const LAMP_LAYER = 5;
     gl_FragColor.rgb = mix( gl_FragColor.rgb, hcol, hf );
   }
 #endif`;
+  // rain: whatever lies level is wet (darker, and glossy where the water stands in patches)
+  C.lights_physical_fragment += /* glsl */ `
+#if defined( USE_FOG )
+  if ( uAtmoWet > 0.0 ) {
+    float wetUp = inverseTransformDirection( normal, viewMatrix ).y;
+    float wetK = uAtmoWet * smoothstep( 0.8, 0.97, wetUp );
+    // water only stands on what is truly level (roads, yards, roofs): rough ground and grass just darken
+    float wetPatch = smoothstep( 0.1, 0.6, sin( vFogWorld.x * 0.21 + sin( vFogWorld.z * 0.13 ) * 2.0 ) * sin( vFogWorld.z * 0.17 + sin( vFogWorld.x * 0.09 ) * 2.0 ) );
+    // (and only on made surfaces: asphalt, concrete and roofs are near grey, where grass and soil have colour)
+    float wetHi = max( material.diffuseColor.r, max( material.diffuseColor.g, material.diffuseColor.b ) );
+    float wetLo = min( material.diffuseColor.r, min( material.diffuseColor.g, material.diffuseColor.b ) );
+    float wetMade = 1.0 - smoothstep( 0.14, 0.36, ( wetHi - wetLo ) / max( wetHi, 1e-3 ) );
+    material.diffuseColor *= 1.0 - 0.3 * wetK;
+    material.roughness = mix( material.roughness, 0.16, uAtmoWet * smoothstep( 0.992, 0.9995, wetUp ) * ( 0.25 + 0.75 * wetPatch ) * wetMade );
+  }
+#endif`;
   // the lamps join the indirect light
   C.lights_fragment_end = /* glsl */ `#if defined( USE_FOG ) && defined( RE_IndirectDiffuse )
   if ( uLampK.x > 0.001 ) {
@@ -86,6 +108,19 @@ export const LAMP_LAYER = 5;
     // lamp on grass reads as lamplight, not as lime green)
     vec3 lampAlbedo = mix( material.diffuseColor, vec3( dot( material.diffuseColor, vec3( 0.3333 ) ) ), 0.5 );
     reflectedLight.indirectDiffuse += lamp * lampAlbedo * ( RECIPROCAL_PI * uLampK.x * lampH * smoothstep( -0.3, 0.15, lampN.y ) * mix( 0.6, 1.0, max( lampN.y, 0.0 ) ) );
+  }
+#endif
+#if defined( USE_FOG ) && defined( STANDARD )
+  // smooth things mirror the sky (glass, solar panels, water, polished metal): the dome's own gradient along the
+  // reflected ray, by the surface's Fresnel; it fades out as the surface gets rougher
+  if ( material.roughness < 0.6 ) {
+    vec3 skyV = normalize( cameraPosition - vFogWorld );
+    vec3 skyN = inverseTransformDirection( geometryNormal, viewMatrix );
+    vec3 skyR = reflect( - skyV, skyN );
+    vec3 sky = mix( uAtmoSkyHor, uAtmoSkyTop, 1.0 - pow( 1.0 - clamp( skyR.y, 0.0, 1.0 ), 5.0 ) );
+    // a ray that dips under the horizon meets the land, not the sky
+    sky *= mix( 0.3, 1.0, smoothstep( -0.25, 0.04, skyR.y ) );
+    reflectedLight.indirectSpecular += sky * F_Schlick( material.specularColor, material.specularF90, max( dot( skyN, skyV ), 0.0 ) ) * ( 1.0 - material.roughness / 0.6 );
   }
 #endif
 ` + C.lights_fragment_end;

@@ -6,6 +6,7 @@ import { render, h } from 'preact';
 import './ui/styles.css';
 import './ui/modern.css';
 import './render3d/edition.css';
+import './render3d/photo.css';
 import mapUrl from './content/generated/worldmap.bin?url';
 import { syncCssVars } from './render/palette';
 import { decodeWorldMap } from './world/mapData';

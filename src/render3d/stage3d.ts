@@ -25,6 +25,8 @@ export class Stage3D implements GameStage {
   readonly canvas: HTMLCanvasElement;
   scale = 1;
   fade = 0;
+  /** A new scene fades up from dark (1 → 0), on top of whatever fade the game asks for. */
+  private arrive = 0;
   private scene: Scene3D | null = null;
   private post: Post | null = null;
   private zoom = 1;
@@ -138,6 +140,7 @@ export class Stage3D implements GameStage {
     this.quietUntil = performance.now() + 2500;
     this.costs = [];
     this.scene = scene;
+    this.arrive = 1;
     if (scene) {
       scene.camera.aspect = this.width / this.height;
       scene.camera.updateProjectionMatrix();
@@ -163,12 +166,37 @@ export class Stage3D implements GameStage {
     const gl = this.renderer.getContext();
     if (measure) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
     const t0 = performance.now();
-    this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, this.fade, getEra());
+    // (the first frames of a scene are long: shaders compile. The fade waits for them.)
+    if (this.arrive > 0 && dt < 0.1) this.arrive = Math.max(0, this.arrive - dt / 0.45);
+    this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, Math.max(this.fade, this.arrive * this.arrive), getEra());
     if (measure) {
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
       const t1 = performance.now();
       this.nextMeasure = t1 + 700;
       this.adapt(t1 - t0, t1);
+    }
+  }
+
+  /**
+   * A PNG of the scene alone (the interface is DOM, so it isn't in the picture), drawn for the shot at up to twice
+   * the screen's resolution (4K at most), then the stage goes back to its own.
+   */
+  capture(): string | null {
+    if (!this.scene || !this.post) return null;
+    const was = this.renderer.getPixelRatio();
+    const want = Math.min(Math.max(was, 2), 3840 / this.width, 2160 / this.height);
+    try {
+      if (want > was) {
+        this.renderer.setPixelRatio(want);
+        this.renderer.setSize(this.width, this.height);
+        this.post.resize();
+      }
+      this.post.render(0, this.scene.look ?? defaultLook(), 0, getEra());
+      return this.canvas.toDataURL('image/png');
+    } catch {
+      return null;
+    } finally {
+      if (want > was) this.layout();
     }
   }
 

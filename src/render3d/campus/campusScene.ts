@@ -38,7 +38,7 @@ import { Precip } from './weather';
 import { Crowd, makeBit } from './life';
 import { Traffic } from './vehicles';
 import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
-import { GrassPatch, grassColours } from './grass';
+import { GrassPatch, grassColours, grassMaterial, sharedClump } from './grass';
 import { fieldMesh, hedgePoints, inField } from './fields';
 import { CampusPeople, shapeOf, type CarObj } from './people';
 import { FENCED, placeKind, placeOf, sitePlan, type Place, type Rect as WRect } from './paths';
@@ -157,7 +157,18 @@ export class CampusScene implements Scene3D {
     // a mine's pit floor hides behind its near rim from low down; in space and inside the habitat the camera
     // looks out level, so the Earth hangs behind the station and Aurora's land rises up overhead
     this.pitch = this.site.kind === 'mine' ? 1.0 : this.scenery === 'space' ? 1.3 : this.scenery === 'habitat' ? 1.42 : 1.16;
-    if (this.scenery === 'habitat') this.dist = Math.min(this.dist, 150);
+    if (this.scenery === 'habitat') {
+      // down the cylinder's axis, through a wider lens: the land curving up both sides, the sky windows, the sun-line
+      this.dist = Math.min(this.dist, 130);
+      this.yaw = -1.12;
+      this.pitch = 1.45;
+    }
+    // arriving: the camera comes down from higher up and settles on the view (not in the menu tour, which directs its own)
+    if (this.game.mode !== 'title' && this.scenery !== 'habitat' && this.scenery !== 'space') {
+      this.arrival = { t: 0, dist: this.dist, pitch: this.pitch };
+      this.dist *= 1.4;
+      this.pitch = Math.min(this.pitch, 0.86);
+    }
     // Aurora's town and Geneva's plaza have townsfolk (children, people in everyday clothes): load them, then
     // rebuild with them in place of the stand-ins
     if ((this.scenery === 'habitat' || this.scenery === 'geneva') && !TOWNSFOLK.every(hasModel)) {
@@ -165,6 +176,8 @@ export class CampusScene implements Scene3D {
     }
   }
   private gone = false;
+  /** The arrival move in progress: where the camera is settling to. Any touch of the camera ends it. */
+  private arrival: { t: number; dist: number; pitch: number } | null = null;
 
   /** The planner's key the set pieces were built from (Act III–V sites), null elsewhere. */
   private planKey: string | null = null;
@@ -262,9 +275,10 @@ export class CampusScene implements Scene3D {
     const far = maxCols ? cellRect(maxCols, maxCols * 2 - 1) : this.layout.bounds;
     const flat: Rect = { x0: this.layout.bounds.x0, z0: this.layout.bounds.z0, x1: Math.max(this.layout.bounds.x1, far.x1 + 10), z1: this.layout.bounds.z1 };
     const seed = hashStr(this.siteId);
-    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('mesquite'); return p ? instanced(p.parts, p.size, at, 6.5) : null; };
-    // the leafy broadleaf (it reads as a real tree beside the figures) stands in for the old chunky oak
-    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('broadleaf_a') ?? modelParts('oak'); return p ? instanced(p.parts, p.size, at.map((a) => ({ ...a, s: a.s * 1.1, y: a.y - 0.1 })), 6.2) : null; };
+    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('mesquite'); return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, 1.25) })), p.size, at, 6.5) : null; };
+    // the leafy broadleaf (it reads as a real tree beside the figures) stands in for the old chunky oak; foliage
+    // models are lifted a little (their crowns shade themselves nearly black under the filmic curve otherwise)
+    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('broadleaf_a') ?? modelParts('oak'); return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, 1.5) })), p.size, at.map((a) => ({ ...a, s: a.s * 1.1, y: a.y - 0.1 })), 6.2) : null; };
     const roadless = this.scenery !== 'campus' && this.scenery !== 'geneva' && this.scenery !== 'launch' && this.scenery !== 'mega';
     const ex = this.sceneExtra as { km?: number; type?: string; place?: string; swarm?: number; habitats?: number; lived?: number };
     if (this.scenery === 'space') {
@@ -287,7 +301,7 @@ export class CampusScene implements Scene3D {
         const p = sceneryParts(n);
         return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
       };
-      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.05), pine: meshy('pine_a', 2.5, 1.05) };
+      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.5), pine: meshy('pine_a', 2.5, 1.3) };
       if (this.scenery === 'campus' || this.scenery === 'mega') this.groundOpts.farms = { highwayZ: HIGHWAY_Z };
       this.ground = buildGround(this.groundOpts, this.groundModels);
       if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
@@ -325,6 +339,7 @@ export class CampusScene implements Scene3D {
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
     this.sky.focus(new THREE.Vector3((this.layout.bounds.x0 + this.layout.bounds.x1) / 2, 0, (this.layout.bounds.z0 + this.layout.bounds.z1) / 2), reach);
+    if (!this.game.photo) this.setLens(this.scenery === 'habitat' ? 54 : 30);
     this.lamps.fit(Math.min(this.layout.bounds.x0, -40) - 80, this.layout.bounds.z0, Math.max(this.layout.bounds.x1, flat.x1), Math.max(this.layout.bounds.z1, HIGHWAY_Z + 20));
     this.lampAge = 0;
     this.scene.add(this.world, this.roads, this.hitboxes, this.crowd.group, this.traffic.group);
@@ -425,7 +440,14 @@ export class CampusScene implements Scene3D {
   /** The menu tour directs a shot: the light it's filmed in, and a camera move played over its `secs`. */
   direct(d: { light?: TourLight; move?: TourMove; secs: number }) {
     if (d.light && this.scenery !== 'moon' && this.scenery !== 'space' && this.scenery !== 'asteroid' && this.scenery !== 'habitat') this.setLight(d.light);
-    if (!d.move || this.scenery === 'space' || this.scenery === 'habitat') return;
+    if (this.scenery === 'habitat') {
+      // a slow turn toward the axis: the town first, then the whole drum
+      const f = this.layout.focus;
+      this.shot = { t: 0, secs: d.secs, from: { x: f.x - 10, z: f.z + 4, dist: 105, yaw: -0.8, pitch: 1.45 }, to: { x: f.x + 8, z: f.z + 4, dist: 135, yaw: -1.36, pitch: 1.44 } };
+      this.runShot(0);
+      return;
+    }
+    if (!d.move || this.scenery === 'space') return;
     const f = this.layout.focus, W = this.layout.bounds.x1 - this.layout.bounds.x0, D = this.dist;
     const at = (x: number, z: number, dist: number, yaw: number, pitch: number): Cam => ({ x: f.x + x, z: f.z + z, dist, yaw, pitch });
     const moves: Record<TourMove, [Cam, Cam]> = {
@@ -922,7 +944,32 @@ export class CampusScene implements Scene3D {
     return picked;
   }
 
+  /** Photo mode and QA: film in this weather (rebuilds the scene); null = the site's own again. */
+  setWeather(w: Weather | null) {
+    if (w === this.forceWeather) return;
+    this.forceWeather = w;
+    this.build();
+  }
+  private forceWeather: Weather | null = null;
+  /** The weather chosen in photo mode (null = the site's own). */
+  get weatherChoice() { return this.forceWeather; }
+
+  /** Photo mode: the lens (field of view in degrees; the game's own is a long 30°) and how strong the blur is (1 = the game's). */
+  setLens(fov: number) {
+    this.camera.fov = Math.max(14, Math.min(70, fov));
+    this.camera.updateProjectionMatrix();
+  }
+  get lens() { return this.camera.fov; }
+  blur = 1;
+  /** Leaving photo mode: the game's own lens, blur and weather again (the hour stays: time passes anyway). */
+  photoReset() {
+    this.blur = 1;
+    this.setLens(this.scenery === 'habitat' ? 54 : 30);
+    this.setWeather(null);
+  }
+
   private pickWeather(): Weather {
+    if (this.forceWeather) return this.forceWeather;
     if (!this.game.settings.weather) return 'clear';
     // the menu tour films in fair weather (a few shots under cloud, for variety)
     if (this.game.mode === 'title') return noise(this.site.lon * 0.37 + 0.5, this.site.lat * 0.53 + 0.5, 23) > 0.74 ? 'cloudy' : 'clear';
@@ -1028,9 +1075,9 @@ export class CampusScene implements Scene3D {
       (f.m.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 - f.t * 0.9);
       if (f.t > 1) { this.scene.remove(f.m); this.flashes.splice(this.flashes.indexOf(f), 1); }
     }
-    // the lamp field: lamps come with buildings, so it's redrawn now and then (a few hundred quads)
-    if (atmo.uLampK.value.x > 0 && (this.lampAge -= dt) <= 0) {
-      this.lampAge = 0.5;
+    // the lamp field (a few hundred quads): redrawn every other frame, so headlights sweep along the road smoothly
+    if (atmo.uLampK.value.x > 0 && (this.lampAge -= 1) <= 0) {
+      this.lampAge = 2;
       this.lamps.render((this.game.stage as unknown as { renderer: THREE.WebGLRenderer }).renderer, this.scene);
     }
     // the picture is developed for the hour; at night the lamps and windows bloom
@@ -1038,6 +1085,18 @@ export class CampusScene implements Scene3D {
     this.look.bloom = 0.14 + this.sky.night * 0.3;
     this.look.bloomThreshold = 1.3 - this.sky.night * 0.35;
     // the camera
+    if (this.arrival) {
+      const a = this.arrival;
+      if (this.down || this.goal.dist !== undefined || this.pointers.size) this.arrival = null;
+      else if (dt < 0.1) {
+        a.t += dt;
+        // ease out: quick at first, settling gently
+        const k = 1 - Math.exp(-dt * 3.2);
+        this.dist += (a.dist - this.dist) * k;
+        this.pitch += (a.pitch - this.pitch) * k;
+        if (a.t > 2.2) this.arrival = null;
+      }
+    }
     if (this.shot && this.autoPan && !this.down) this.runShot(dt);
     else if (this.autoPan && !this.down) {
       this.yaw = -0.35 + Math.sin(this.time * 0.05) * 0.3;
@@ -1078,7 +1137,7 @@ export class CampusScene implements Scene3D {
     // the miniature read: sharp where the camera looks, soft before and behind it (strongest from up high; close
     // in, almost none: a close-up should be crisp). Inside the habitat the land overhead must stay sharp.
     const focus = this.camera.position.distanceTo(this.target);
-    this.look.dof = { focus, range: 0.24, max: this.scenery === 'habitat' ? 1.5 : 1.5 + 4.5 * THREE.MathUtils.smoothstep(this.dist, 60, 300) };
+    this.look.dof = { focus, range: 0.24, max: (this.scenery === 'habitat' ? 1.5 : 1.5 + 4.5 * THREE.MathUtils.smoothstep(this.dist, 60, 300)) * this.blur };
   }
 
   resize(w: number, h: number) {
@@ -1239,6 +1298,8 @@ export class CampusScene implements Scene3D {
 
   /** QA: put the camera somewhere (ground point, distance, heading, tilt from straight down). */
   aim(x: number, z: number, dist: number, yaw = this.yaw, pitch = this.pitch) {
+    this.arrival = null;
+    this.shot = null;
     this.target.set(x, 0, z);
     this.dist = dist;
     this.yaw = yaw;
@@ -1295,7 +1356,23 @@ function habitatMeadow(seed: number, b: Rect, rects: Rect[]): THREE.Group {
     kinds[kind].push({ x, y: habFloor(z) - 0.05, z, s, ry: r() * Math.PI * 2, rx: -Math.asin(Math.max(-0.98, Math.min(0.98, z / HAB_R))), tint: 0.88 + r() * 0.24 });
   }
   const mat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
-  for (const [k, at] of Object.entries(kinds)) if (at.length) g.add(treeField(k as TreeKind, at, mat));
+  for (const [k, at] of Object.entries(kinds)) if (at.length && k !== 'tuft') g.add(treeField(k as TreeKind, at, mat));
+  // the meadow's grass: clumps of blades, swaying, in the land's own greens
+  const tufts = kinds.tuft;
+  if (tufts.length) {
+    const im = new THREE.InstancedMesh(sharedClump(), grassMaterial('carpet'), tufts.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+    tufts.forEach((p, i) => {
+      q.setFromEuler(new THREE.Euler(p.rx ?? 0, p.ry, 0));
+      m.compose(new THREE.Vector3(p.x, p.y, p.z), q, new THREE.Vector3(p.s * 1.5, p.s * 1.3, p.s * 1.5));
+      im.setMatrixAt(i, m);
+      im.setColorAt(i, c.set(r() < 0.5 ? 0x86b84e : 0x6ea544).multiplyScalar(0.9 + r() * 0.2));
+    });
+    im.castShadow = false;
+    im.receiveShadow = true;
+    im.computeBoundingSphere();
+    g.add(im);
+  }
   return g;
 }
 

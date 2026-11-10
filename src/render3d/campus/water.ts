@@ -2,7 +2,7 @@
  * Lakes and seas: a sheet cut from the ground's own grid, so the shore follows the land exactly. Each corner knows
  * how deep the water is under it: turquoise shallows over the sand, deep blue further out, a broken line of foam
  * where it meets the beach. Small waves ruffle the surface (the sun and the moon glint on them), and it mirrors the
- * sky more the lower you look across it.
+ * sky more the lower you look across it (the atmosphere's own sky reflection, as on any smooth surface).
  */
 import * as THREE from 'three';
 import { cloudUniforms, col, grainTexture, withClouds, type Paint } from '../kit';
@@ -59,7 +59,6 @@ export function waterMaterial(shallow: Paint, deep: Paint): THREE.MeshStandardMa
       .replace('#include <common>', `#include <common>
         varying float vWDepth; varying vec3 vWPos;
         uniform vec3 uWShallow; uniform vec3 uWDeep; uniform sampler2D uGrain; uniform float uWTime;
-        uniform vec3 uAtmoSkyTop; uniform vec3 uAtmoSkyHor;
         float wFoam;`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
@@ -84,17 +83,7 @@ export function waterMaterial(shallow: Paint, deep: Paint): THREE.MeshStandardMa
             + (texture2D(uGrain, p3 * 0.293 + vec2(-uWTime * 0.031, uWTime * 0.023)).gr - 0.5) * 0.3;
           normal = normalize((viewMatrix * vec4(normalize(vec3(g.x * amp, 1.0, g.y * amp)), 0.0)).xyz);
         }`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.9, wFoam);')
-      .replace('#include <opaque_fragment>', `{
-          // the sky in the water: little straight down, nearly all of it toward the horizon
-          vec3 wv = normalize(cameraPosition - vWPos);
-          vec3 wn = inverseTransformDirection(normal, viewMatrix);
-          float fres = 0.025 + 0.975 * pow(1.0 - max(dot(wn, wv), 0.0), 5.0);
-          vec3 wr = reflect(-wv, wn);
-          vec3 sky = mix(uAtmoSkyHor, uAtmoSkyTop, 1.0 - pow(1.0 - abs(wr.y), 5.0));
-          outgoingLight = mix(outgoingLight, sky, fres * (1.0 - wFoam) * 0.9);
-        }
-        #include <opaque_fragment>`);
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.9, wFoam);');
   };
   const key = m.customProgramCacheKey.bind(m);
   m.customProgramCacheKey = () => key() + '-water';

@@ -64,6 +64,8 @@ export interface GameStage {
   getScene(): GameScene | null;
   frame(dt: number, now: number): void;
   setZoomBoost(z: number): void;
+  /** A PNG (data URL) of the scene as it stands, without the interface (the 3D edition's photo mode). */
+  capture?(): string | null;
 }
 
 /** Margin (in internal px) rendered around the view so sub-pixel offsets never expose an edge. */

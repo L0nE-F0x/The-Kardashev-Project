@@ -51,7 +51,8 @@ let sky: CampusSky | null = null;
 let scope = 0;
 let sunV = new THREE.Vector3(0, 1, 0);
 let sunAlt = 35;
-const look: Look = { ...defaultLook(), ao: true, tilt: 1.0, focus: 0.45 };
+// the campus's own look, so a piece is judged in the light it will be seen in
+const look: Look = { ...defaultLook(), ao: true, tone: 'filmic', contrast: 0.12, sharpen: 0.35, saturation: 1.14, vignette: 0.26 };
 let t = 0;
 
 async function show(o: LabOpts = {}) {
@@ -141,8 +142,9 @@ function frame(now: number) {
   scene.traverse((ob) => {
     if (ob.userData.beacon !== undefined) ((ob as THREE.Mesh).material as THREE.MeshStandardMaterial).emissiveIntensity = Math.sin(t * 2.2 + ob.userData.beacon) > 0.55 ? 0.6 + env.night * 5 : 0;
   });
-  look.bloom = 0.16 + env.night * 0.42;
-  look.bloomThreshold = 1.5 - env.night * 0.7;
+  look.exposure = sky?.exposure ?? 1;
+  look.bloom = 0.14 + env.night * 0.3;
+  look.bloomThreshold = 1.3 - env.night * 0.35;
   post?.render(dt, look, 0);
   requestAnimationFrame(frame);
 }

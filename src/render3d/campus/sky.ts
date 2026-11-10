@@ -125,13 +125,13 @@ void main() {
         + 0.02 * sin(az * (4.0 + fi * 2.0) + time * 0.17 + fi * 2.1);
       float e = y - hem;
       float rays = texture2D(tNoise, vec2(az * (2.1 + fi * 0.9) + fi * 0.37, time * 0.012)).r * texture2D(tNoise, vec2(az * (6.3 + fi) + 0.5, time * 0.02 + fi * 0.3)).g;
-      rays = pow(clamp(rays * 3.6, 0.0, 1.0), 1.6);
+      rays = pow(clamp(rays * 2.4, 0.0, 1.0), 2.6);
       // a bright hem, and rays standing on it: the brighter the ray, the higher it reaches
       float up2 = max(e, 0.0);
-      float cur = smoothstep(-0.006, 0.002, e) * (exp(-up2 * 34.0) * 0.5 + rays * exp(-up2 * (5.0 + 9.0 * (1.0 - rays)))) * (1.0 - fi * 0.28);
+      float cur = smoothstep(-0.006, 0.002, e) * (exp(-up2 * 34.0) * 0.22 + rays * exp(-up2 * (4.0 + 10.0 * (1.0 - rays)))) * (1.0 - fi * 0.28);
       acc += mix(vec3(0.14, 1.0, 0.48), vec3(0.62, 0.26, 1.0), smoothstep(0.03, 0.3, e)) * cur;
     }
-    c += acc * aurora * clear * smoothstep(0.4, -0.25, d.z) * 0.2;
+    c += acc * aurora * clear * smoothstep(0.4, -0.25, d.z) * 0.3;
   }
   if (moonK > 0.01) {
     float cm = dot(d, moonDir);
@@ -300,6 +300,7 @@ export class CampusSky {
     this.hemi.color.copy(g(k.hemiSky, '#9a9aa6'));
     this.hemi.groundColor.copy(k.hemiGround);
     this.hemi.intensity = k.hemiI * (1 + grey * 1.1);
+    atmo.uAtmoWet.value = this.weather === 'rain' ? 1 : this.weather === 'snow' ? 0.3 : 0;
     cloudUniforms.uCloudTime.value += dt;
     cloudUniforms.uCloudK.value = (this.weather === 'clear' ? 0.34 : 0.45) * (1 - k.night);
     this.lamps(Math.max(0, k.night - 0.2) * 1.25);
@@ -327,17 +328,19 @@ export class CampusSky {
     u.sunDisc.value = 0;
     u.moonK.value = 0;
     u.stars.value = 0;
-    this.fog.color.set(0xd6e6f0);
+    // the air of a closed world: the far end stands a couple of kilometres off in blue
+    this.fog.color.set(0x9fc2ea);
     atmo.uAtmoGlow.value.set(0x000000);
     atmo.uAtmoSkyTop.value.copy(u.top.value);
     atmo.uAtmoSkyHor.value.copy(u.hor.value);
-    atmo.uAtmoHaze.value.set(1 / 1500, 0, 0, 0.9);
+    atmo.uAtmoHaze.value.set(1 / 2100, 0, 0, 0.78);
+    atmo.uAtmoWet.value = 0;
     this.sun.position.copy(this.sun.target.position).add(new THREE.Vector3(60, 500, 80));
-    this.sun.color.set(0xfff4e0);
-    this.sun.intensity = 2.4;
+    this.sun.color.set(0xfff0d8);
+    this.sun.intensity = 3.0;
     this.hemi.color.set(0xcfe8c8);
     this.hemi.groundColor.set(0x5a8a4a);
-    this.hemi.intensity = 1.5;
+    this.hemi.intensity = 1.15;
     cloudUniforms.uCloudTime.value += dt;
     cloudUniforms.uCloudK.value = 0.18;
     this.lamps(0);
@@ -367,6 +370,7 @@ export class CampusSky {
     atmo.uAtmoSkyTop.value.set(0x000000);
     atmo.uAtmoSkyHor.value.set(0x000000);
     atmo.uAtmoHaze.value.set(0, 0, 0, 0);
+    atmo.uAtmoWet.value = 0;
     this.sun.position.copy(this.sun.target.position).addScaledVector(sunLocal, 500);
     this.sun.color.set(0xfff8ee);
     this.sun.intensity = 3.6;
