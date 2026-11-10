@@ -138,7 +138,7 @@ Click to open the System (X).`}>
         <Icon name="k" />
         <div class="col" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
           <span class={`kv ${st.K >= 0.99 ? 'gold' : ''}`}>
-            <Eased value={st.K} format={(k) => `K ${k.toFixed(st.K >= 0.95 ? 4 : 5)}`} />
+            K <Eased value={st.K} format={(k) => k.toFixed(st.K >= 0.95 ? 4 : 5)} />
           </span>
           <div class="kbar">
             <i style={{ width: `${Math.max(1, Math.min(100, kProgress * 100))}%` }} />
