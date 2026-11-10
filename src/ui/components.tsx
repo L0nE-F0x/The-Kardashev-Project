@@ -1,5 +1,5 @@
 import { createContext, type ComponentChildren } from 'preact';
-import { useContext, useEffect, useState } from 'preact/hooks';
+import { useContext, useEffect, useRef, useState } from 'preact/hooks';
 import type { Game } from '../game/game';
 import type { AdvisorId } from '../sim/types';
 import type { Mood } from '../content/events';
@@ -15,12 +15,45 @@ import { isAndroidApp, openExternal } from '../platform/platform';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
 
+/**
+ * The 3D edition wearing its own interface look (render3d/ui/*.css; main3d.ts marks the page before the UI renders,
+ * and the Classic look turns it off): a few screens carry extra markup for it.
+ */
+export const is3d = (): boolean => {
+  const c = document.documentElement.classList;
+  return c.contains('edition-3d') && !c.contains('ui-classic');
+};
+
 /** Subscribe to game updates; returns the game. */
 export function useGame(): Game {
   const game = useContext(GameCtx);
   const [, set] = useState(0);
   useEffect(() => game.subscribe(() => set((v) => v + 1)), [game]);
   return game;
+}
+
+/**
+ * A number that glides to its new value instead of stepping (the 3D edition's money and K meter). Text only, so the
+ * markup is the same in both editions; the pixel edition and reduced motion show the value as it is.
+ */
+export function Eased({ value, format }: { value: number; format: (v: number) => string }) {
+  const game = useContext(GameCtx);
+  const on = is3d() && !game.settings.reducedMotion;
+  const [shown, setShown] = useState(value);
+  const from = useRef(value);
+  from.current = shown;
+  useEffect(() => {
+    if (!on || from.current === value) return;
+    const a = from.current;
+    const t0 = performance.now();
+    let raf = requestAnimationFrame(function step(t) {
+      const k = Math.min(1, (t - t0) / 420);
+      setShown(a + (value - a) * (1 - (1 - k) ** 3));
+      if (k < 1) raf = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [value, on]);
+  return <>{format(on ? shown : value)}</>;
 }
 
 export function Icon({ name, size, title }: { name: IconName; size?: 'sm' | 'lg'; title?: string }) {

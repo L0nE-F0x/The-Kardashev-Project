@@ -1,0 +1,872 @@
+/* The 3D edition's HUD in play: top bar, dock, goals, inspector and panels, ticker, toasts, tooltips, campus bar. */
+
+html.edition-3d:not(.ui-classic) {
+  /* ── top bar ─────────────────────────────────────────────────────────────────── */
+  /* a soft shade behind the bar, so it reads over a bright sky or a lit campus */
+  .topbar::before {
+    content: '';
+    position: absolute;
+    inset: -12px -12px auto;
+    height: 120px;
+    background: linear-gradient(180deg, rgb(6 6 14 / 0.5), rgb(6 6 14 / 0.18) 55%, transparent);
+    pointer-events: none;
+    z-index: -1;
+  }
+  .topbar > .frame {
+    background: var(--e-glass-hud);
+    box-shadow: var(--e-shadow-hud);
+  }
+  .speed .btn {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    justify-content: center;
+  }
+  .speed .btn:hover:not(:disabled) {
+    background: var(--e-raise-hi);
+    border-color: transparent;
+  }
+  .speed .btn.active {
+    background: var(--e-accent-fill);
+    border-color: color-mix(in srgb, var(--c-cyn5, #5fd3b5) 62%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.24),
+      0 0 14px -3px color-mix(in srgb, var(--cyan) 70%, transparent);
+  }
+  /* paused is a state worth noticing: the pause button turns amber */
+  .speed .btn.active:first-child {
+    background: linear-gradient(180deg, var(--c-org2, #f7b258), var(--c-org0, #df5f3e));
+    border-color: color-mix(in srgb, var(--c-yel1, #fde9a4) 60%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      0 0 14px -3px color-mix(in srgb, var(--c-org1, #f08a46) 80%, transparent);
+  }
+  .date .label {
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .date .d {
+    font-family: var(--font);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .stats {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .stats::-webkit-scrollbar {
+    display: none;
+  }
+  .stats.more {
+    mask-image: linear-gradient(90deg, #000 calc(100% - 30px), transparent);
+  }
+  .stat {
+    border-right: 1px solid var(--e-line-soft);
+    flex: none;
+  }
+  .stat.btnless {
+    transition: background-color 0.14s;
+  }
+  .stat.btnless:hover {
+    background: var(--e-raise-hi);
+  }
+  .stat .v {
+    font-weight: 750;
+    letter-spacing: 0.003em;
+  }
+  .stat .v:not(.gold, .cyan, .good, .bad, .warn) {
+    color: var(--c-white, #fbf7f0);
+  }
+  /* each stat's pixel icon on a small plate */
+  .stat > img.px,
+  .kmeter > img.px {
+    border-radius: 2px;
+    background: rgb(255 255 255 / 0.07);
+    box-shadow: 0 0 0 6px rgb(255 255 255 / 0.07);
+    margin: 0 7px;
+    filter: none;
+  }
+  /* the K meter is the score: the logo's sunrise ramp, a warm edge, a bar that glows where it ends */
+  .topbar > .kmeter {
+    position: relative;
+    border-color: color-mix(in srgb, var(--gold) 34%, transparent);
+    background:
+      radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--c-org1, #f08a46) 16%, transparent), transparent 60%),
+      var(--e-glass-hud);
+    box-shadow:
+      var(--e-shadow-hud),
+      0 0 26px -10px color-mix(in srgb, var(--gold) 70%, transparent);
+  }
+  .kmeter > img.px {
+    background: color-mix(in srgb, var(--gold) 16%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 16%, transparent);
+  }
+  /* label and value on one line, then the climb to the next milestone with its number at the end
+     (the column's own layout is an inline style, hence !important) */
+  .kmeter .col {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    column-gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+  .kmeter .col::before {
+    content: 'Kardashev';
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--gold) 70%, var(--muted));
+  }
+  .kmeter .kv {
+    font-family: var(--font);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--gold);
+  }
+  .kmeter .knext {
+    position: absolute;
+    right: 0;
+    bottom: -3px;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: color-mix(in srgb, var(--gold) 70%, var(--muted));
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .kmeter .kv {
+      background: var(--e-sun);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  }
+  .kmeter .kbar {
+    grid-column: 1 / -1;
+    width: auto;
+    margin-right: 32px; /* room for the next milestone's number */
+    overflow: visible;
+  }
+  .kmeter .kbar i {
+    min-width: 6px;
+    background: linear-gradient(90deg, var(--c-cyn4, #2fae9b), var(--c-yel0, #fbd46e) 70%, var(--c-yel2, #fff6d8));
+    box-shadow: 0 0 10px 0 color-mix(in srgb, var(--gold) 65%, transparent);
+    transition: width 0.6s var(--e-ease);
+  }
+
+  /* ── dock ────────────────────────────────────────────────────────────────────── */
+  .dock {
+    background: var(--e-glass-hud);
+    box-shadow: var(--e-shadow-hud);
+  }
+  .dock .btn {
+    background: transparent;
+    border-color: transparent;
+    border-radius: var(--e-r-md);
+    box-shadow: none;
+  }
+  .dock .btn:hover:not(:disabled) {
+    background: var(--e-raise-hi);
+    border-color: var(--e-line);
+  }
+  .dock .btn.active {
+    background: var(--e-accent-soft);
+    border-color: var(--e-accent-line);
+    box-shadow: inset 0 0 12px -4px color-mix(in srgb, var(--cyan) 60%, transparent);
+  }
+  .dock .btn.active::before {
+    left: -5px;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .dock .btn .badge {
+    top: -2px;
+    right: -2px;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 17px;
+    text-align: center;
+    background: linear-gradient(180deg, var(--c-org0, #df5f3e), var(--c-red3, #c23a3f));
+    box-shadow: 0 0 0 2px var(--c-ink1, #16141f);
+  }
+  .dock .sep {
+    height: 1px;
+    background: var(--e-line);
+    margin: 3px 8px;
+  }
+
+  /* ── goals ───────────────────────────────────────────────────────────────────── */
+  .objectives {
+    border-color: var(--e-line);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--gold) 9%, transparent), transparent 64px),
+      var(--e-glass-hud);
+    box-shadow: var(--e-shadow-hud);
+    animation: eSlideRight 0.26s var(--e-ease);
+  }
+  .objectives > .row .label {
+    color: var(--gold);
+  }
+  .objective .t {
+    font-weight: 600;
+  }
+  .comingup {
+    border-top: 1px solid var(--e-line-soft);
+  }
+  .comingup .uw {
+    font-weight: 600;
+  }
+  .skipbar {
+    border-color: var(--e-accent-line) !important;
+    box-shadow:
+      var(--e-shadow-hud),
+      0 0 22px -8px var(--cyan);
+  }
+
+  /* ── inspector + panels ──────────────────────────────────────────────────────── */
+  .side > .panel {
+    animation: eSlideLeft 0.24s var(--e-ease);
+  }
+  /* a wide panel is a page of text: nearly solid, so map labels don't ghost through it */
+  .panel.wide {
+    background: var(--e-glass-solid);
+    box-shadow: var(--e-shadow-pop);
+    animation: ePop 0.22s var(--e-ease);
+  }
+  .panel > .head h2 {
+    font-family: var(--font);
+  }
+  .fac .name {
+    font-weight: 600;
+  }
+  .buildcard .t {
+    font-weight: 600;
+  }
+  .tech .t {
+    font-weight: 650;
+  }
+  .tech.done {
+    color: color-mix(in srgb, var(--c-grn8, #cfe07a) 70%, var(--text));
+    background: color-mix(in srgb, var(--good) 13%, transparent);
+    border-color: color-mix(in srgb, var(--good) 34%, transparent);
+    box-shadow: none;
+  }
+  .tech.current {
+    background: color-mix(in srgb, var(--violet) 22%, transparent);
+    border-color: color-mix(in srgb, var(--violet) 70%, transparent);
+    box-shadow: 0 0 18px -6px var(--violet);
+  }
+  .tech.locked {
+    opacity: 0.4;
+  }
+  .techcol h4 {
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--e-line-soft);
+  }
+  .bigv {
+    font-family: var(--font);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .bid.you {
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    border-radius: var(--e-r-sm);
+  }
+  .mission.done {
+    border-color: var(--e-gold-line);
+    box-shadow: inset 0 0 22px -10px var(--gold);
+  }
+  .chart-svg {
+    background: var(--e-sunk);
+    border: 1px solid var(--e-line-soft);
+    border-radius: var(--e-r-sm);
+  }
+  .ledger th {
+    font-size: 0.82em;
+    font-weight: 700;
+    letter-spacing: var(--caps-track);
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── ticker, toasts, tooltip, campus bar ─────────────────────────────────────── */
+  .ticker {
+    background: var(--e-glass-hud);
+    box-shadow: var(--e-shadow-hud);
+    transition: border-color 0.14s;
+  }
+  .ticker:hover {
+    border-color: var(--e-line-strong);
+  }
+  .toast {
+    position: relative;
+    border-left: 1px solid var(--e-line);
+    background: var(--e-glass-solid);
+    box-shadow: var(--e-shadow);
+    animation: eSlideLeft 0.28s var(--e-ease);
+  }
+  .toast::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--blue);
+  }
+  .toast.good {
+    border-left-color: var(--e-line);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--good) 20%, transparent), transparent 70%),
+      var(--e-glass-solid);
+  }
+  .toast.good::before {
+    background: var(--good);
+  }
+  .toast.bad {
+    border-left-color: var(--e-line);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--bad) 30%, transparent), transparent 70%),
+      var(--e-glass-solid);
+  }
+  .toast.bad::before {
+    background: var(--warn);
+  }
+  .tooltip {
+    border: 1px solid var(--e-line-strong);
+    border-radius: var(--e-r-md);
+    background: var(--e-glass-solid);
+    box-shadow: var(--e-shadow-pop);
+    animation: eFade 0.12s ease-out;
+  }
+  .tooltip h3 {
+    color: var(--gold);
+  }
+  .dioramabar,
+  .jump,
+  .crunch,
+  .decision,
+  .update,
+  .advisor-tip,
+  .appbanner {
+    background: var(--e-glass-hud);
+    box-shadow: var(--e-shadow-hud);
+  }
+  .dioramabar {
+    animation: eRise 0.3s var(--e-ease);
+  }
+  .advisor-tip {
+    border-color: var(--e-gold-line) !important;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--gold) 8%, transparent), transparent 70px),
+      var(--e-glass-solid);
+    box-shadow: var(--e-shadow);
+  }
+  .decision {
+    border: 1px solid var(--e-gold-line);
+    font-weight: 600;
+    animation: eDecision 1.6s ease-in-out infinite;
+  }
+  .jumpyear {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: var(--gold);
+  }
+  .fps {
+    font-family: var(--font);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px #000;
+  }
+}
+
+/* a waiting decision breathes (opacity only), instead of the pixel look's two-step flash */
+@keyframes eDecision {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+/* a phone's top bar has no room for the K meter's label */
+@media (max-width: 820px), (max-height: 520px) {
+  html.edition-3d:not(.ui-classic) {
+    .kmeter .col::before {
+      content: none;
+    }
+    .kmeter .kv {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+/* ── desktop sizes and places (phones keep styles.css's compact layout) ──────────── */
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    --e-side: 392px;
+    --e-goals: 344px;
+    --e-top: 74px; /* where the dock, the goals and the panels start, under the top bar */
+    --e-foot: 58px; /* what the ticker takes at the bottom */
+
+    /* top bar */
+    .topbar {
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      gap: 8px;
+    }
+    .topbar > .frame {
+      min-height: 54px;
+    }
+    .speed {
+      padding: 0 8px;
+      gap: 3px;
+    }
+    .speed .btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 8px;
+    }
+    .date {
+      flex: none;
+      padding: 4px 16px;
+      min-width: 132px;
+      max-width: 220px;
+    }
+    .date .d {
+      font-size: 16px;
+    }
+    .stats {
+      flex: 0 1 auto;
+    }
+    .stat {
+      padding: 4px 16px 4px 8px;
+      gap: 6px;
+    }
+    .stat .v {
+      font-size: 18px;
+    }
+    .stat .s {
+      font-size: 12.5px;
+    }
+    .stat .col {
+      line-height: 1.16;
+      gap: 1px;
+    }
+    .kmeter {
+      margin-left: auto;
+      width: 268px;
+      flex: none;
+      padding: 4px 16px 4px 8px;
+      gap: 6px;
+    }
+    .kmeter .col {
+      row-gap: 5px !important;
+    }
+    .kmeter .kv {
+      font-size: 21px;
+      line-height: 1;
+    }
+    .kmeter .kbar {
+      height: 5px;
+    }
+
+    /* dock */
+    .dock {
+      left: 10px;
+      top: var(--e-top);
+      padding: 6px;
+      gap: 4px;
+      border-radius: 14px;
+      --dock-b: clamp(32px, calc((100dvh / var(--z) - 164px) / var(--dock-n, 10) - 4px), 48px);
+      max-height: calc(100% - var(--e-top) - var(--e-foot));
+    }
+    @supports (width: round(down, 10.5px, 1px)) {
+      .dock {
+        --dock-b: round(down, clamp(32px, calc((100dvh / var(--z) - 164px) / var(--dock-n, 10) - 4px), 48px), 1px);
+      }
+    }
+
+    /* goals */
+    .objectives {
+      left: 82px;
+      top: var(--e-top);
+      width: var(--e-goals);
+      padding: 12px 14px 12px 16px;
+    }
+    .objectives > .row .label {
+      font-size: 12px;
+    }
+    .objective {
+      gap: 12px;
+      padding: 10px 0;
+    }
+    .objective .t {
+      font-size: 15px;
+      line-height: 1.28;
+    }
+    .objective .h {
+      font-size: 13px;
+      line-height: 1.38;
+      margin-top: 2px;
+    }
+    .oprog {
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .oprog .small {
+      font-size: 12.5px;
+    }
+    .oprog .bar {
+      height: 5px;
+    }
+    .comingup {
+      margin-top: 4px;
+      padding-top: 10px;
+    }
+    .comingup > .row {
+      margin-bottom: 6px;
+    }
+    .comingup .up {
+      font-size: 13.5px;
+      min-height: 26px;
+      gap: 8px;
+    }
+    .btn.skipnext {
+      font-size: 12.5px;
+      padding: 3px 9px 4px;
+    }
+    .skipbar,
+    .decision,
+    .update {
+      top: var(--e-top);
+    }
+    .skipbar {
+      padding: 9px 12px 9px 14px;
+      width: min(460px, calc(100% - 24px));
+    }
+    .skipbar .st {
+      font-size: 14px;
+    }
+    .decision {
+      padding: 9px 16px;
+      font-size: 15px;
+    }
+    .crunch {
+      top: calc(var(--e-top) + 48px);
+      width: min(400px, calc(100% - 32px));
+      padding: 12px 14px;
+      gap: 6px;
+    }
+
+    /* inspector + panels */
+    .side {
+      right: 10px;
+      top: var(--e-top);
+      bottom: var(--e-foot);
+      width: var(--e-side);
+      gap: 8px;
+    }
+    .panel > .head {
+      padding: 12px 10px 11px 16px;
+      gap: 10px;
+    }
+    .panel > .head h2 {
+      font-size: 17.5px;
+    }
+    .panel > .body {
+      padding: 14px 16px 16px;
+    }
+    .panel.wide {
+      top: var(--e-top);
+      width: min(780px, calc(100% - 2 * (var(--e-goals) + 100px)));
+      max-height: calc(100% - var(--e-top) - var(--e-foot));
+    }
+    .panel.wide.research {
+      width: min(1000px, calc(100% - 2 * (var(--e-goals) + 100px)));
+    }
+    .panel.wide > .head {
+      padding: 14px 12px 13px 20px;
+    }
+    .panel.wide > .head h2 {
+      font-size: 20px;
+    }
+    .panel.wide > .body {
+      padding: 16px 20px 20px;
+    }
+    .fac {
+      gap: 3px 10px;
+      padding: 9px 0;
+    }
+    .fac .name {
+      font-size: 15px;
+    }
+    .fac .sub {
+      font-size: 13px;
+    }
+    .buildgrid {
+      gap: 7px;
+    }
+    .buildcard {
+      padding: 9px 11px;
+      gap: 3px;
+    }
+    .buildcard .t {
+      font-size: 14.5px;
+      gap: 7px;
+    }
+    .buildcard .m {
+      font-size: 12.5px;
+    }
+    .techgrid {
+      gap: 12px;
+    }
+    .tech {
+      padding: 9px 10px;
+      gap: 4px;
+      margin-bottom: 7px;
+    }
+    .tech .t {
+      font-size: 14px;
+      line-height: 1.25;
+    }
+    .tech .e {
+      font-size: 12.5px;
+      line-height: 1.32;
+    }
+    .alloc {
+      grid-template-columns: 26px 104px 1fr 52px;
+      gap: 9px 10px;
+    }
+    .bigv {
+      font-size: 26px;
+    }
+    .tender {
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .bid {
+      padding: 8px 6px;
+    }
+    .project {
+      padding: 7px 0;
+    }
+    .ledger th,
+    .ledger td {
+      padding: 4px 8px;
+    }
+    .chart {
+      padding: 11px 13px 9px;
+    }
+    .chart-vals {
+      font-size: 14.5px;
+    }
+    .chart-foot {
+      font-size: 12px;
+    }
+    .msg {
+      font-size: 14.5px;
+      padding: 7px 0;
+      gap: 10px;
+    }
+    .msgday {
+      font-size: 12.5px;
+      min-width: 92px;
+    }
+
+    /* ticker, toasts, tooltip, campus bar */
+    .ticker {
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      height: 38px;
+      padding: 0 14px;
+      gap: 12px;
+      border-radius: 10px;
+    }
+    .ticker .feed {
+      font-size: 14.5px;
+    }
+    .ticker .feed span {
+      margin-right: 34px;
+    }
+    .toasts {
+      right: calc(var(--e-side) + 22px);
+      bottom: var(--e-foot);
+      gap: 8px;
+    }
+    /* the campus bar and the time-lapse bar sit in the middle of the foot: toasts stack above their line,
+       and a tall panel stops short of the time-lapse bar */
+    #ui:has(> .dioramabar) .toasts {
+      bottom: calc(var(--e-foot) + 60px);
+    }
+    #ui:has(> .jump) .toasts {
+      bottom: calc(var(--e-foot) + 104px);
+    }
+    #ui:has(> .jump) .panel.wide {
+      max-height: calc(100% - var(--e-top) - var(--e-foot) - 100px);
+    }
+    .toast {
+      gap: 12px;
+      padding: 9px 16px 9px 12px;
+      max-width: 430px;
+      font-size: 15px;
+      line-height: 1.34;
+    }
+    .tooltip {
+      padding: 8px 12px 9px;
+      font-size: 13.5px;
+      line-height: 1.4;
+    }
+    .tooltip h3 {
+      font-size: 14.5px;
+      margin-bottom: 3px;
+    }
+    .dioramabar {
+      bottom: calc(var(--e-foot) + 2px);
+      padding: 7px;
+      gap: 14px;
+      border-radius: 14px;
+      font-size: 16px;
+    }
+    /* photo mode's button (photo.css) stands on the same line as the campus bar, clear of the ticker */
+    .photo-open {
+      left: 82px;
+      bottom: calc(var(--e-foot) + 2px);
+    }
+    #ui:has(> .photo-open) .advisor-tip {
+      bottom: calc(var(--e-foot) + 46px);
+    }
+    .advisor-tip {
+      left: 82px;
+      bottom: calc(var(--e-foot) + 2px);
+      width: min(430px, calc(100% - 100px));
+      gap: 14px;
+      padding: 13px 15px;
+    }
+    .tip-text {
+      font-size: 15px;
+      line-height: 1.42;
+      margin: 3px 0 9px;
+    }
+    .jump {
+      bottom: calc(var(--e-foot) + 8px);
+      width: min(480px, calc(100% - 32px));
+      padding: 12px 16px;
+      gap: 7px;
+    }
+    .jumpyear {
+      font-size: 34px;
+      line-height: 1;
+    }
+    .fps {
+      top: calc(var(--e-top) + 2px);
+      right: 16px;
+      font-size: 12px;
+    }
+  }
+}
+
+/* a narrower desktop (a Steam Deck, a small window): a slimmer inspector, and an open panel takes the goals' room */
+@media (min-width: 821px) and (max-width: 1699px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    --e-side: 348px;
+    --e-goals: 308px;
+    #ui:has(> .panel.wide) .objectives {
+      display: none;
+    }
+    .panel.wide,
+    .panel.wide.research {
+      left: 82px;
+      right: calc(var(--e-side) + 18px);
+      width: auto;
+      transform: none;
+    }
+    .stat {
+      padding: 4px 11px 4px 5px;
+    }
+    .stat > img.px,
+    .kmeter > img.px {
+      margin: 0 6px;
+      box-shadow: 0 0 0 5px rgb(255 255 255 / 0.07);
+    }
+    .kmeter {
+      width: 232px;
+    }
+    .kmeter .kv {
+      font-size: 19px;
+    }
+  }
+}
+@media (min-width: 821px) and (max-width: 1420px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    /* a Steam Deck's width: the icons lose their plates and the K meter its label, so Act V's eight stats nearly fit
+       (what doesn't scrolls sideways under a fade, as on a phone) */
+    .stat .v {
+      font-size: 16.5px;
+    }
+    .stat .s {
+      font-size: 12px;
+    }
+    .stat {
+      padding: 4px 7px 4px 4px;
+      gap: 4px;
+    }
+    .stat > img.px,
+    .kmeter > img.px {
+      margin: 0 1px;
+      background: none;
+      box-shadow: none;
+    }
+    .date {
+      min-width: 0;
+      padding: 4px 10px;
+    }
+    .topbar {
+      gap: 6px;
+    }
+    .speed {
+      padding: 0 5px;
+      gap: 1px;
+    }
+    .speed .btn {
+      width: 32px;
+      height: 34px;
+    }
+    .kmeter {
+      width: 158px;
+      padding: 4px 11px 4px 8px;
+    }
+    .kmeter .col::before {
+      content: none;
+    }
+    .kmeter .kv {
+      grid-column: 1 / -1;
+    }
+    /* Acts IV–V add two stats: the two a phone already drops (the Charter's treasury, the safety margin) go */
+    .stats:has([data-tut='planet-stat']) .stat.hide-mobile {
+      display: none;
+    }
+  }
+}

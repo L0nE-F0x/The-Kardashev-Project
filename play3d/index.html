@@ -27,17 +27,111 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Kardashev" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="preload" href="/src/assets/fonts/atkinson-hyperlegible-next-latin.woff2" as="font" type="font/woff2" crossorigin />
     <style>
+      /* The first second: the logo on black with a thin progress line, then a hand-off with no cut. main3d.ts writes
+         the status into #boot and removes it when the title screen is up; the script below then flies the logo to the
+         menu's own logo while the black lifts off the first shot. */
+      @font-face {
+        font-family: 'Atkinson Hyperlegible Next';
+        src: url('/src/assets/fonts/atkinson-hyperlegible-next-latin.woff2') format('woff2');
+        font-weight: 200 800;
+        font-display: block;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #0b0a12;
+      }
       #boot {
         position: fixed;
+        left: 0;
+        right: 0;
+        top: calc(50% + var(--boot-h, 164px) / 2 + 44px);
+        z-index: 12;
+        padding: 0 24px;
+        text-align: center;
+        color: #8d8598;
+        font: 600 11.5px/1.5 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+        letter-spacing: 0.34em;
+        text-indent: 0.34em;
+        pointer-events: none;
+      }
+      #bootveil:not(.go) {
+        display: none;
+      }
+      #boot ~ #bootveil,
+      #bootveil.go {
+        display: block;
+        position: fixed;
         inset: 0;
-        display: grid;
-        place-items: center;
-        color: #9d95a6;
-        background: #0b0a12;
-        font: 14px ui-monospace, monospace;
-        letter-spacing: 1px;
-        z-index: 10;
+        z-index: 11;
+      }
+      #bootveil.go {
+        pointer-events: none;
+      }
+      .bv-bg {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(58% 46% at 50% 47%, #1b1727 0%, #100e19 46%, #0b0a12 78%);
+        transition: opacity 0.9s ease-out;
+      }
+      .bv-logo {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: var(--boot-w, 484px);
+        height: auto;
+        margin: calc(var(--boot-h, 164px) / -2 - 12px) 0 0 calc(var(--boot-w, 484px) / -2);
+        image-rendering: pixelated;
+        transform-origin: 0 0;
+        filter: drop-shadow(0 10px 28px rgb(0 0 0 / 0.6));
+        animation: bvIn 0.5s ease-out both;
+        transition:
+          transform 0.85s cubic-bezier(0.3, 0, 0.1, 1),
+          opacity 0.5s;
+      }
+      .bv-bar {
+        position: absolute;
+        left: 50%;
+        top: calc(50% + var(--boot-h, 164px) / 2 + 14px);
+        width: min(240px, 60%);
+        height: 2px;
+        margin-left: max(-120px, -30%);
+        border-radius: 1px;
+        background: rgb(255 255 255 / 0.09);
+        overflow: hidden;
+        transition: opacity 0.25s;
+      }
+      .bv-bar i {
+        display: block;
+        height: 100%;
+        border-radius: 1px;
+        background: linear-gradient(90deg, #2fae9b, #fbd46e);
+        transform: scaleX(0.02);
+        transform-origin: 0 50%;
+        transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+      #bootveil.go .bv-bg,
+      #bootveil.go .bv-bar {
+        opacity: 0;
+      }
+      #bootveil.failed .bv-bar {
+        opacity: 0;
+      }
+      @keyframes bvIn {
+        from {
+          opacity: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bv-bg,
+        .bv-logo,
+        .bv-bar,
+        .bv-bar i {
+          transition: none;
+          animation: none;
+        }
       }
     </style>
   </head>
@@ -45,6 +139,106 @@
     <div id="game"></div>
     <div id="ui"></div>
     <div id="boot">BOOTING THE KARDASHEV PROJECT…</div>
+    <div id="bootveil" aria-hidden="true">
+      <div class="bv-bg"></div>
+      <img class="bv-logo" src="../logo.png" width="484" height="164" alt="" draggable="false" />
+      <div class="bv-bar"><i></i></div>
+    </div>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        // while this is set the title screen holds its entrance (ui/menu.css): the menu slides in as the logo lands
+        root.classList.add('booting');
+        const boot = document.getElementById('boot');
+        const veil = document.getElementById('bootveil');
+        const logo = veil.querySelector('.bv-logo');
+        const fill = veil.querySelector('.bv-bar i');
+        // device pixels per CSS pixel: the interface keeps its pixel art on whole device pixels with it (ui/art.css);
+        // followed when it changes (another monitor, the browser's zoom)
+        let watchScale = null;
+        const scale = () => {
+          const d = window.devicePixelRatio || 1;
+          root.style.setProperty('--dpr', String(d));
+          watchScale?.removeEventListener('change', scale);
+          watchScale = matchMedia(`(resolution: ${d}dppx)`);
+          watchScale.addEventListener('change', scale);
+        };
+        scale();
+        addEventListener('resize', scale);
+        // the logo (121×41 art pixels) at a whole number of device pixels per art pixel, the size the menu's will be:
+        // the HUD's automatic size on big screens (ui/tokens.css) times the player's Interface size
+        const dpr = window.devicePixelRatio || 1;
+        let ui = innerWidth >= 3600 && innerHeight >= 2000 ? 2 : innerWidth >= 3000 && innerHeight >= 1700 ? 1.6 : innerWidth >= 2200 && innerHeight >= 1300 ? 1.2 : 1;
+        try {
+          ui *= JSON.parse(localStorage.getItem('kardashev.settings.v1') ?? '{}').uiScale || 1;
+        } catch {
+          /* storage blocked */
+        }
+        const aim = (innerHeight <= 520 ? 242 : innerHeight <= 900 || innerWidth < 1000 ? 363 : 484) * ui;
+        const k = Math.max(1, Math.round((aim * dpr) / 121));
+        root.style.setProperty('--boot-w', `${(k * 121) / dpr}px`);
+        root.style.setProperty('--boot-h', `${(k * 41) / dpr}px`);
+        // progress: the world map and the models as they arrive, against how many the last start loaded
+        const KEY = 'kardashev.boot3d';
+        let want = 24;
+        try {
+          want = Math.max(4, Number(localStorage.getItem(KEY)) || want);
+        } catch {
+          /* storage blocked */
+        }
+        let got = 0;
+        const show = (f) => (fill.style.transform = `scaleX(${f})`);
+        let watch = null;
+        try {
+          watch = new PerformanceObserver((list) => {
+            got += list.getEntries().filter((e) => /\.(glb|bin)(\?|$)/.test(e.name)).length;
+            show(Math.min(0.94, 0.1 + (0.84 * got) / want));
+          });
+          watch.observe({ type: 'resource', buffered: true });
+        } catch {
+          /* no resource timing: the line creeps on its own */
+        }
+        requestAnimationFrame(() => show(0.1));
+        const done = () => {
+          watch?.disconnect();
+          try {
+            if (got) localStorage.setItem(KEY, String(got));
+          } catch {
+            /* storage blocked */
+          }
+          show(1);
+          // fly the logo to the menu's (same art, so the swap is invisible) once the text font has settled the
+          // menu's layout; no menu logo: it just lifts with the black
+          const to = document.querySelector('.menu-logo');
+          to?.getBoundingClientRect();
+          const go = () => {
+            veil.classList.add('go');
+            const a = logo.getBoundingClientRect();
+            const b = to?.getBoundingClientRect();
+            if (b && b.width > 0) {
+              to.style.visibility = 'hidden';
+              logo.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width})`;
+            } else logo.style.opacity = '0';
+            setTimeout(() => root.classList.remove('booting'), 420);
+            setTimeout(() => {
+              if (to) to.style.visibility = '';
+              veil.remove();
+            }, 900);
+          };
+          (document.fonts?.ready ?? Promise.resolve()).then(() => requestAnimationFrame(go), go);
+        };
+        new MutationObserver((_, mo) => {
+          if (!boot.isConnected) {
+            mo.disconnect();
+            done();
+          } else if (boot.textContent.startsWith('Failed')) {
+            veil.classList.add('failed');
+            boot.style.letterSpacing = boot.style.textIndent = '0';
+            boot.style.color = '#f08a46';
+          }
+        }).observe(document.body, { childList: true, subtree: true, characterData: true });
+      })();
+    </script>
     <script type="module" src="/src/main3d.ts"></script>
   </body>
 </html>

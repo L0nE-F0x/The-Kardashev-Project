@@ -1,2 +1,14 @@
-/* The 3D edition: the shared UI as it is, over a smooth (not pixelated) WebGL canvas. */
+/*
+ * The 3D edition: a smooth (not pixelated) WebGL canvas under the shared UI, and the edition's own interface look
+ * (ui/*.css: every rule scoped to html.edition-3d:not(.ui-classic), so the pixel edition and the Classic look never
+ * see it). tokens = the system and its primitives, art = pixel art at whole device pixels, hud = the screen in
+ * play, cards = modals and the tutorial, menu = the title screen and its windows, acts = plans, jumps, Type I.
+ */
+@import './ui/tokens.css';
+@import './ui/art.css';
+@import './ui/hud.css';
+@import './ui/cards.css';
+@import './ui/menu.css';
+@import './ui/acts.css';
+
 html.edition-3d #game canvas { position: fixed; inset: 0; display: block; image-rendering: auto; }

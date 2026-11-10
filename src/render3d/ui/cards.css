@@ -1,0 +1,244 @@
+/* The 3D edition's cards: modals and windows, event and story cards with their advisors, Bit's spotlight bubble. */
+
+html.edition-3d:not(.ui-classic) {
+  .modal {
+    background: var(--e-glass-solid);
+    border-color: var(--e-line);
+    box-shadow: var(--e-shadow-pop);
+    animation: ePop 0.26s var(--e-ease);
+  }
+  .modal .head h2 {
+    color: var(--gold);
+  }
+  /* the card's emoji on a plate, like the pixel icons */
+  .modal .head .ico {
+    display: grid;
+    place-items: center;
+    flex: none;
+    border: 1px solid var(--e-line-soft);
+    border-radius: var(--e-r-md);
+    background: var(--e-raise);
+    line-height: 1;
+  }
+  .modal .head > img.px.lg {
+    border-radius: 2px;
+    background: rgb(255 255 255 / 0.07);
+    box-shadow: 0 0 0 9px rgb(255 255 255 / 0.07);
+    margin: 9px;
+    filter: none;
+  }
+  .modal .story {
+    color: color-mix(in srgb, var(--text) 92%, #fff);
+  }
+  /* an advisor speaks: the portrait on its plate, the line in a bubble that points back at it */
+  .quote .bubble {
+    position: relative;
+    border: 1px solid var(--e-line-soft);
+    border-radius: 3px var(--e-r) var(--e-r) var(--e-r);
+    background: var(--e-sunk);
+  }
+  .quote .bubble b {
+    color: color-mix(in srgb, var(--cyan) 62%, var(--muted));
+  }
+  .choice {
+    border-radius: var(--e-r-md);
+  }
+  .choice .t {
+    font-weight: 700;
+  }
+  .choice .d {
+    font-weight: 400;
+    white-space: normal;
+  }
+  .choice.primary .d,
+  .btn.primary .c2 {
+    color: rgb(240 255 251 / 0.84);
+  }
+  .choice .why {
+    color: var(--c-org1, #f08a46);
+    font-weight: 500;
+  }
+  /* a big decision (Act V): a gold edge and a slow halo */
+  .modal.bigdecision {
+    border-color: var(--e-gold-line);
+    box-shadow:
+      var(--e-shadow-pop),
+      0 0 0 1px color-mix(in srgb, var(--gold) 30%, transparent),
+      0 0 90px -20px color-mix(in srgb, var(--gold) 55%, transparent);
+  }
+  .modal.bigdecision .head {
+    background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 12%, transparent), transparent);
+  }
+  .delta .v {
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+  }
+  .away .big {
+    font-family: var(--font);
+    font-weight: 800;
+  }
+  & details > summary {
+    cursor: pointer;
+    color: var(--muted);
+    transition: color 0.14s;
+  }
+  & details > summary:hover {
+    color: var(--text);
+  }
+
+  /* ── Bit's spotlight (the tutorial, the briefings): outside the HUD's zoom ───── */
+  .tut-bubble {
+    border-color: var(--e-gold-line);
+    border-left-color: var(--e-gold-line);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--gold) 9%, transparent), transparent 80px),
+      var(--e-glass-solid);
+    box-shadow: var(--e-shadow-pop);
+    animation: eRise 0.24s var(--e-ease);
+  }
+  .tut-bubble .label {
+    color: var(--gold);
+  }
+  /* the ring pulses on its own layer (opacity and scale), not by repainting a screen-wide shadow every frame */
+  .spot {
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    box-shadow: 0 0 0 9999px rgb(5 5 12 / 0.52);
+    animation: none;
+  }
+  .spot.round {
+    border-radius: 50%;
+  }
+  .spot::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border: 2px solid var(--c-yel1, #fde9a4);
+    border-radius: inherit;
+    opacity: 0;
+    animation: eSpot 1.8s ease-out infinite;
+  }
+  .spot-dim {
+    background: rgb(5 5 12 / 0.4);
+  }
+}
+
+@keyframes eSpot {
+  0% {
+    opacity: 0.85;
+    scale: 1;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    scale: 1.07;
+  }
+}
+
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    .scrim {
+      padding: 20px;
+    }
+    .modal {
+      width: min(680px, 100%);
+      border-radius: 16px;
+    }
+    .modal .head {
+      padding: 16px 20px 15px;
+      gap: 15px;
+    }
+    .modal .head .ico {
+      width: 52px;
+      height: 52px;
+      font-size: 28px;
+    }
+    .modal .head h2 {
+      font-size: 21px;
+    }
+    .modal .head .label {
+      margin-bottom: 4px;
+    }
+    .modal .body {
+      padding: 18px 20px 20px;
+    }
+    .modal .story {
+      font-size: 16.5px;
+      line-height: 1.52;
+      margin-bottom: 14px;
+    }
+    .quote {
+      gap: 14px;
+      margin: 10px 0;
+    }
+    .quote .bubble {
+      padding: 10px 14px 11px;
+      font-size: 15.5px;
+      line-height: 1.42;
+    }
+    .quote .bubble b {
+      font-size: 11.5px;
+      margin-bottom: 4px;
+    }
+    .choices {
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .choice {
+      gap: 3px;
+      padding: 12px 16px 13px;
+    }
+    .choice .t {
+      font-size: 16.5px;
+    }
+    .choice .d,
+    .choice .why {
+      font-size: 13.5px;
+      line-height: 1.36;
+    }
+    .modal.bigdecision {
+      width: min(760px, 100%);
+    }
+    .modal.bigdecision .head h2 {
+      font-size: 25px;
+    }
+    .modal.bigdecision .story {
+      font-size: 17.5px;
+    }
+    .deltas {
+      gap: 8px;
+      margin: 14px 0;
+    }
+    .delta {
+      padding: 10px 13px 11px;
+    }
+    .delta .v {
+      font-size: 20px;
+      line-height: 1.25;
+    }
+    .away .big {
+      font-size: 30px;
+    }
+
+    .tut-bubble {
+      width: min(410px, calc(100vw - 16px));
+      padding: 15px 16px 14px;
+      border-radius: 14px;
+    }
+    .tut-main {
+      gap: 14px;
+    }
+    .tut-text {
+      font-size: 15.5px;
+      line-height: 1.46;
+      margin-top: 4px;
+    }
+    .tut-buttons {
+      margin-top: 12px;
+    }
+    .note-input {
+      font-size: 15.5px;
+      padding: 10px 12px;
+    }
+  }
+}
