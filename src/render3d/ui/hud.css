@@ -750,6 +750,14 @@ html.edition-3d:not(.ui-classic) {
       border-radius: 14px;
       font-size: 16px;
     }
+    /* photo mode's button (photo.css) stands on the same line as the campus bar, clear of the ticker */
+    .photo-open {
+      left: 82px;
+      bottom: calc(var(--e-foot) + 2px);
+    }
+    #ui:has(> .photo-open) .advisor-tip {
+      bottom: calc(var(--e-foot) + 46px);
+    }
     .advisor-tip {
       left: 82px;
       bottom: calc(var(--e-foot) + 2px);
