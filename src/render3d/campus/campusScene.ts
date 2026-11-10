@@ -163,6 +163,12 @@ export class CampusScene implements Scene3D {
       this.yaw = -1.12;
       this.pitch = 1.45;
     }
+    // arriving: the camera comes down from higher up and settles on the view (not in the menu tour, which directs its own)
+    if (this.game.mode !== 'title' && this.scenery !== 'habitat' && this.scenery !== 'space') {
+      this.arrival = { t: 0, dist: this.dist, pitch: this.pitch };
+      this.dist *= 1.4;
+      this.pitch = Math.min(this.pitch, 0.86);
+    }
     // Aurora's town and Geneva's plaza have townsfolk (children, people in everyday clothes): load them, then
     // rebuild with them in place of the stand-ins
     if ((this.scenery === 'habitat' || this.scenery === 'geneva') && !TOWNSFOLK.every(hasModel)) {
@@ -170,6 +176,8 @@ export class CampusScene implements Scene3D {
     }
   }
   private gone = false;
+  /** The arrival move in progress: where the camera is settling to. Any touch of the camera ends it. */
+  private arrival: { t: number; dist: number; pitch: number } | null = null;
 
   /** The planner's key the set pieces were built from (Act III–V sites), null elsewhere. */
   private planKey: string | null = null;
@@ -1060,6 +1068,18 @@ export class CampusScene implements Scene3D {
     this.look.bloom = 0.14 + this.sky.night * 0.3;
     this.look.bloomThreshold = 1.3 - this.sky.night * 0.35;
     // the camera
+    if (this.arrival) {
+      const a = this.arrival;
+      if (this.down || this.goal.dist !== undefined || this.pointers.size) this.arrival = null;
+      else if (dt < 0.1) {
+        a.t += dt;
+        // ease out: quick at first, settling gently
+        const k = 1 - Math.exp(-dt * 3.2);
+        this.dist += (a.dist - this.dist) * k;
+        this.pitch += (a.pitch - this.pitch) * k;
+        if (a.t > 2.2) this.arrival = null;
+      }
+    }
     if (this.shot && this.autoPan && !this.down) this.runShot(dt);
     else if (this.autoPan && !this.down) {
       this.yaw = -0.35 + Math.sin(this.time * 0.05) * 0.3;
@@ -1261,6 +1281,8 @@ export class CampusScene implements Scene3D {
 
   /** QA: put the camera somewhere (ground point, distance, heading, tilt from straight down). */
   aim(x: number, z: number, dist: number, yaw = this.yaw, pitch = this.pitch) {
+    this.arrival = null;
+    this.shot = null;
     this.target.set(x, 0, z);
     this.dist = dist;
     this.yaw = yaw;

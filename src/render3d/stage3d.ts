@@ -25,6 +25,8 @@ export class Stage3D implements GameStage {
   readonly canvas: HTMLCanvasElement;
   scale = 1;
   fade = 0;
+  /** A new scene fades up from dark (1 → 0), on top of whatever fade the game asks for. */
+  private arrive = 0;
   private scene: Scene3D | null = null;
   private post: Post | null = null;
   private zoom = 1;
@@ -138,6 +140,7 @@ export class Stage3D implements GameStage {
     this.quietUntil = performance.now() + 2500;
     this.costs = [];
     this.scene = scene;
+    this.arrive = 1;
     if (scene) {
       scene.camera.aspect = this.width / this.height;
       scene.camera.updateProjectionMatrix();
@@ -163,7 +166,9 @@ export class Stage3D implements GameStage {
     const gl = this.renderer.getContext();
     if (measure) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
     const t0 = performance.now();
-    this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, this.fade, getEra());
+    // (the first frames of a scene are long: shaders compile. The fade waits for them.)
+    if (this.arrive > 0 && dt < 0.1) this.arrive = Math.max(0, this.arrive - dt / 0.45);
+    this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, Math.max(this.fade, this.arrive * this.arrive), getEra());
     if (measure) {
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
       const t1 = performance.now();

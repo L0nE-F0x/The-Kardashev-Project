@@ -82,7 +82,7 @@ export class Precip {
     if (this.kind === 'rain') {
       const u = (this.mat as THREE.ShaderMaterial).uniforms;
       u.uT.value = t;
-      u.uOpacity.value = 0.3 * (1 - night * 0.45);
+      u.uOpacity.value = 0.3 * (1 - night * 0.68);
       return;
     }
     const S = this.size;
