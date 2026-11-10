@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>The Kardashev Project — a 3D sim of the AI boom</title>
-    <meta name="description" content="A cozy-but-real management sim about the AI boom, in 3D or classic pixel art. Build power, chips, compute and supply lines on a real Earth, run a planet, and lift civilisation up the Kardashev scale to Type I. Free to play in your browser." />
+    <meta name="description" content="A cozy-but-real 3D management sim about the AI boom. Build power, chips, compute and supply lines on a real Earth, run a planet, and lift civilisation up the Kardashev scale to Type I. For Windows, macOS and Linux." />
     <link rel="canonical" href="%VITE_SITE_URL%/" />
     <meta name="theme-color" content="#07060d" />
     <meta name="color-scheme" content="dark" />
@@ -12,7 +12,7 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="The Kardashev Project" />
     <meta property="og:title" content="The Kardashev Project" />
-    <meta property="og:description" content="A cozy-but-real sim of the AI boom, now in 3D. Build power, chips & compute on a real Earth — and climb the Kardashev scale to Type I." />
+    <meta property="og:description" content="A cozy-but-real 3D sim of the AI boom. Build power, chips & compute on a real Earth — and climb the Kardashev scale to Type I. Windows, macOS and Linux." />
     <meta property="og:url" content="%VITE_SITE_URL%/" />
     <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
     <meta property="og:image:width" content="1200" />
@@ -20,16 +20,12 @@
     <meta property="og:image:alt" content="A 3D data center campus with wind turbines and a gas plant at golden hour, beside the Kardashev Project logo." />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="The Kardashev Project" />
-    <meta name="twitter:description" content="A cozy-but-real sim of the AI boom, now in 3D. Build power, chips & compute — and climb the Kardashev scale to Type I." />
+    <meta name="twitter:description" content="A cozy-but-real 3D sim of the AI boom. Build power, chips & compute — and climb the Kardashev scale to Type I." />
     <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
 
     <link rel="icon" href="./favicon.ico" sizes="48x48" />
     <link rel="icon" href="./icons/icon-32.png" type="image/png" sizes="32x32" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Kardashev" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <script type="application/ld+json">
       {
@@ -38,11 +34,11 @@
         "name": "The Kardashev Project",
         "url": "%VITE_SITE_URL%/",
         "image": "%VITE_SITE_URL%/og-image.png",
-        "description": "A cozy-but-real management sim about the AI boom, in 3D or classic pixel art: energy, chips, compute and supply lines on a real Earth, from a garage startup to a Type I civilisation.",
+        "description": "A cozy-but-real 3D management sim about the AI boom: energy, chips, compute and supply lines on a real Earth, from a garage startup to a Type I civilisation.",
         "genre": ["Simulation", "Strategy", "Management"],
-        "gamePlatform": ["Web browser", "Windows", "macOS", "Linux", "Android", "iOS"],
+        "gamePlatform": ["Windows", "macOS", "Linux"],
         "applicationCategory": "Game",
-        "operatingSystem": "Any",
+        "operatingSystem": "Windows, macOS, Linux",
         "author": { "@type": "Person", "name": "Lone Fox" },
         "publisher": { "@type": "Organization", "name": "ApexForge", "url": "https://ame-apexforge.org/" },
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
@@ -64,27 +60,28 @@
           <a href="#download">Get it</a>
           <a href="#news">What’s new</a>
         </nav>
-        <a class="button primary small" href="./play3d/">Play free</a>
+        <a class="button primary small" href="#download">Download</a>
       </div>
     </header>
 
     <main id="main">
-      <!-- the hero: the logo, the pitch and the spinning Earth (the 3D edition’s globe with the real sun; the pixel one without WebGL) -->
+      <!-- the hero: the logo, the pitch and the spinning Earth (the game’s own globe with the real sun; a still of it without WebGL) -->
       <section class="hero wrap">
         <div class="hero-text">
           <h1 class="sr-only">The Kardashev Project</h1>
           <img class="logo" src="./logo.png" width="484" height="164" alt="The Kardashev Project" />
-          <p class="tagline">A cozy-but-real sim of the AI boom, <b class="new3d">now in 3D</b>. Build power, chips and compute on a real Earth — and lift civilisation up the Kardashev scale.</p>
+          <p class="tagline">A cozy-but-real sim of the AI boom, <b class="new3d">in 3D</b>. Build power, chips and compute on a real Earth — and lift civilisation up the Kardashev scale.</p>
           <div class="cta">
-            <a class="button primary big" href="./play3d/"><span aria-hidden="true">▶</span> Play in your browser</a>
-            <a class="button ghost big" href="#download" id="cta-get">Install / download</a>
+            <a class="button primary big" href="#download" id="cta-get"><span aria-hidden="true">⬇</span> <span id="cta-get-label">Download the game</span></a>
+            <a class="button ghost big" href="#gallery">See screenshots</a>
           </div>
-          <p class="fineprint">Free · the whole campaign, Acts I–V, from a garage to Type I · desktop, Android and iPhone (landscape), installable as an app · the 3D edition is in beta: prefer pixels? <a href="./play/">Play the pixel-art edition</a> (same saves).</p>
+          <p class="fineprint">A desktop game for Windows, macOS and Linux · the whole campaign, Acts I–V, from a garage to Type I · free while it’s in development · coming to Steam.</p>
         </div>
         <div class="hero-globe">
           <div class="glow" aria-hidden="true"></div>
-          <canvas id="globe" class="px" width="200" height="200" aria-label="The spinning Earth, with the real night side and city lights"></canvas>
-          <noscript><img src="./globe.png" alt="The Earth from space: the game’s 3D globe" /></noscript>
+          <div class="globe-shade" id="globe-shade" aria-hidden="true"></div>
+          <canvas id="globe" aria-label="The spinning Earth, with the real night side and city lights"></canvas>
+          <noscript><img src="./globe.png" alt="The Earth from space: the game’s globe" /></noscript>
           <div class="kbadge"><span>Earth today</span><b id="kval">K 0.729</b></div>
         </div>
       </section>
@@ -93,7 +90,7 @@
         <div class="stat"><b>5 acts</b><span>From a garage in 2027 to a Type I civilisation</span></div>
         <div class="stat"><b>19.6 TW → 10 PW</b><span>The climb, measured in watts — K 0.729 to 1.0000</span></div>
         <div class="stat"><b>A real Earth</b><span>Natural Earth coastlines, twelve blocs, real chokepoints</span></div>
-        <div class="stat"><b>Free</b><span>In your browser, on desktop and on Android</span></div>
+        <div class="stat"><b>Desktop</b><span>Windows, macOS and Linux — and on its way to Steam</span></div>
       </section>
 
       <section id="game" class="game wrap">
@@ -105,7 +102,7 @@
 
         <div class="bento">
           <article class="tile tile-wide reveal">
-            <img class="tile-shot" src="./screenshots/ui-campus.webp" loading="lazy" alt="The 3D edition in play: a West Texas campus at golden hour with a new data hall going up under a crane, the top bar, the dock and the site panel listing what is built" />
+            <img class="tile-shot" src="./screenshots/ui-campus.webp" loading="lazy" alt="The game in play: a West Texas campus at golden hour with a new data hall going up under a crane, the top bar, the dock and the site panel listing what is built" />
             <div class="tile-body">
               <h3>Real constraints, readable at a glance</h3>
               <p>A data hall really takes the best part of a year, a fab really needs ultrapure water, and the grid queue is real. You watch it rise on site; icons up front, the real units a hover away.</p>
@@ -203,7 +200,7 @@
         <header class="section-head reveal">
           <p class="eyebrow">Screenshots</p>
           <h2>A world <span class="grad">in miniature</span></h2>
-          <p class="lede">Every place in the game is a 3D scale model you can fly around: campuses, power plants, Geneva, launch pads, the Moon and the habitats of Act V. The original pixel-art edition is still there, with the same saves. Click any shot to see it full size.</p>
+          <p class="lede">Every place in the game is a 3D scale model you can fly around: campuses, power plants, Geneva, launch pads, the Moon and the habitats of Act V. Click any shot to see it full size.</p>
         </header>
         <div class="shots reveal">
           <figure class="span2"><button type="button" class="shot" data-full="./screenshots/supergrid.webp"><img src="./screenshots/supergrid.webp" loading="lazy" alt="Africa, Europe and the Middle East by day on the 3D globe, a supergrid of glowing lines linking the continents" /></button><figcaption>Act IV: one grid that follows the sun</figcaption></figure>
@@ -248,44 +245,38 @@
 
       <section id="download" class="download wrap">
         <header class="section-head reveal">
-          <p class="eyebrow">Free</p>
-          <h2>Play <span class="grad">anywhere</span></h2>
-          <p class="lede">Your saves stay on your device. Phones play in landscape.</p>
+          <p class="eyebrow">Windows · macOS · Linux</p>
+          <h2>Get <span class="grad">the game</span></h2>
+          <p class="lede">A desktop game that updates itself. Your saves stay on your computer. Free while it’s in development; a Steam release is planned.</p>
         </header>
         <div class="get">
-          <article class="get-card featured reveal">
-            <img class="tile-icon" data-icon="globe" alt="" />
-            <h3>In your browser</h3>
-            <p>No install, no account. Chrome, Edge, Firefox and Safari on desktop; phones and tablets in landscape. The 3D edition adapts its detail to your machine.</p>
-            <a class="button primary" href="./play3d/"><span aria-hidden="true">▶</span> Play now</a>
-            <a class="hint" href="./play/">or the pixel-art edition</a>
+          <article class="get-card reveal" data-os="windows">
+            <h3>Windows</h3>
+            <p>Windows 10 and 11, 64-bit. An installer for your own account: no admin rights needed.</p>
+            <div class="stack" data-links="windows"><span class="hint">Checking for the latest release…</span></div>
           </article>
-          <article class="get-card reveal" id="install-card">
-            <img class="tile-icon" data-icon="people" alt="" />
-            <h3>As an app</h3>
-            <p>Its own icon, full screen and offline play — on Android, iPhone and iPad, and desktop.</p>
-            <div class="stack">
-              <a class="button" id="android-btn" href="https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest/download/TheKardashevProject-android.apk"><span aria-hidden="true">⬇</span> Android app (.apk)</a>
-              <button class="button" id="install-btn" hidden>Install the app</button>
-            </div>
-            <div id="install-help" class="hint"></div>
+          <article class="get-card reveal" data-os="mac">
+            <h3>macOS</h3>
+            <p>macOS 10.15 or newer, on Apple silicon and Intel Macs.</p>
+            <div class="stack" data-links="mac"><span class="hint">Checking for the latest release…</span></div>
           </article>
-          <article class="get-card reveal" id="desktop-card">
-            <img class="tile-icon" data-icon="datacenter" alt="" />
-            <h3>Desktop</h3>
-            <p>Windows, macOS and Linux builds that update themselves.</p>
-            <div id="desktop-links" class="stack"><span class="hint">Checking for the latest release…</span></div>
-            <details class="unsigned">
-              <summary>“Unknown publisher”? How to open it</summary>
-              <p>The builds aren’t code-signed yet, so your computer will ask before running them.</p>
-              <ul>
-                <li><b>Windows:</b> on the SmartScreen notice, click <i>More info → Run anyway</i>.</li>
-                <li><b>macOS:</b> right-click the app → <i>Open</i>, or System Settings → Privacy &amp; Security → <i>Open Anyway</i>.</li>
-                <li><b>Linux:</b> make the AppImage executable (<code>chmod +x</code>) and run it (Arch-based distros may need the <code>fuse2</code> package), or install the .deb on Debian and Ubuntu.</li>
-                <li><b>Android:</b> open the downloaded .apk and, if asked, allow your browser to install apps.</li>
-              </ul>
-            </details>
+          <article class="get-card reveal" data-os="linux">
+            <h3>Linux</h3>
+            <p>An AppImage that runs on most distributions, or a .deb for Debian and Ubuntu.</p>
+            <div class="stack" data-links="linux"><span class="hint">Checking for the latest release…</span></div>
           </article>
+        </div>
+        <div class="get-notes reveal">
+          <p class="hint" id="release-note"></p>
+          <details class="unsigned">
+            <summary>“Unknown publisher”? How to open it</summary>
+            <p>The builds aren’t code-signed yet, so your computer will ask before running them.</p>
+            <ul>
+              <li><b>Windows:</b> on the SmartScreen notice, click <i>More info → Run anyway</i>.</li>
+              <li><b>macOS:</b> right-click the app → <i>Open</i>, or System Settings → Privacy &amp; Security → <i>Open Anyway</i>.</li>
+              <li><b>Linux:</b> make the AppImage executable (<code>chmod +x</code>) and run it (Arch-based distros may need the <code>fuse2</code> package), or install the .deb on Debian and Ubuntu.</li>
+            </ul>
+          </details>
         </div>
       </section>
 
@@ -301,7 +292,7 @@
         <div class="closer-card">
           <h2>Ten petawatts won’t build themselves.</h2>
           <p>Start in a garage in 2027. See how far you get.</p>
-          <a class="button primary big" href="./play3d/"><span aria-hidden="true">▶</span> Play in your browser</a>
+          <a class="button primary big" href="#download"><span aria-hidden="true">⬇</span> Download the game</a>
         </div>
       </section>
     </main>
@@ -313,9 +304,8 @@
           <p>A hobby game by <b>Lone Fox</b>, built with Claude. Companies, people and events are fictional; the geography and the physics are real.</p>
         </div>
         <div class="foot-links">
-          <a href="./play3d/">Play in 3D</a>
-          <a href="./play/">Pixel edition</a>
           <a href="#download">Download</a>
+          <a href="#gallery">Screenshots</a>
           <a href="#news">What’s new</a>
           <a href="https://github.com/L0nE-F0x/The-Kardashev-Project/releases/latest" target="_blank" rel="noopener">Releases</a>
           <a href="https://ame-apexforge.org/" target="_blank" rel="noopener">ApexForge</a>
@@ -323,7 +313,7 @@
       </div>
       <div class="foot-fine wrap">
         <span>© 2026 Lone Fox · Built by <a href="https://ame-apexforge.org/" target="_blank" rel="noopener">ApexForge</a> · <span id="foot-version"></span></span>
-        <span>Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next, Silkscreen and Pixelify Sans (SIL Open Font License). Built with three.js, PixiJS, Preact, Vite and Tauri. The 3D people, trees and rocks were modelled with Meshy; the rest of the 3D world, the pixel art and the sound are generated in code.</span>
+        <span>Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next, Silkscreen and Pixelify Sans (SIL Open Font License). Built with three.js, Preact, Vite and Tauri. The people, trees and rocks were modelled with Meshy; the rest of the world, the interface art and the sound are generated in code.</span>
       </div>
     </footer>
 

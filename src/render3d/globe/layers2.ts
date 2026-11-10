@@ -10,7 +10,7 @@ import { OVER_CLOUDS, softLine, type LineLook } from './soft';
 import type { Router } from '../../world/routing';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
-import { actOf, cableDraws, LANES, lanePath, seaPath, type CableDraw } from '../../render/worldMap/act2Layers';
+import { actOf, cableDraws, LANES, lanePath, seaPath, type CableDraw } from './layerData';
 import { dir, R } from './earth';
 import { model } from './markers';
 import { Kit, rng } from '../kit';

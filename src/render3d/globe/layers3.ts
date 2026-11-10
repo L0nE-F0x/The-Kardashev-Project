@@ -9,7 +9,7 @@ import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { softLine, type LineLook } from './soft';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
-import { charterView, liftoffActive, mainKind, orbitAngle, orbitPoint } from '../../render/worldMap/act3Layers';
+import { charterView, liftoffActive, mainKind, orbitAngle, orbitPoint } from './layerData';
 import type { MegaView } from '../../sim/charterView';
 import { dir, R } from './earth';
 import { dropLine, globePath, POWER_PULSE } from './layers2';

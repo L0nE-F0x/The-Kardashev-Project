@@ -11,7 +11,7 @@
  *  - Motion: 120–260 ms eases on opacity and transform only. Reduced motion (the setting or the system's) turns
  *    it all off through styles.css.
  *  - Pixel art (portraits, icons, the logo) sits in clean square plates at whole multiples of a device pixel:
- *    `--ps` is device pixels per CSS pixel here (screen scale × interface size; play3d/index.html sets --dpr).
+ *    `--ps` is device pixels per CSS pixel here (screen scale × interface size; play/index.html sets --dpr).
  *
  * Everything is scoped to html.edition-3d:not(.ui-classic): the pixel edition never sees it, and Settings →
  * Display → Interface look → Classic turns it off here too (back to the pixel frames).
@@ -575,7 +575,7 @@ html.edition-3d:not(.ui-classic) input[type='range']::-webkit-slider-thumb {
 /*
  * Big screens: the HUD grows with the screen, as a game's HUD does (1440p and up; Settings → Interface size
  * multiplies on top). `--ui-auto` is the automatic half of the HUD's zoom (styles.css); the loading screen sizes its
- * logo by the same steps (play3d/index.html). Boxes outside the zoom (tooltips, Bit's bubble) grow by their fonts.
+ * logo by the same steps (play/index.html). Boxes outside the zoom (tooltips, Bit's bubble) grow by their fonts.
  */
 @media (min-width: 2200px) and (min-height: 1300px) {
   html.edition-3d:not(.ui-classic) {

@@ -1,8 +1,7 @@
 /**
- * Renders the brand assets from the game's own pixel code:
- *   public/favicon.ico, public/icons/*.png (Pixel Earth app icons), public/og-image.png (PIXEL_SITE=1 only),
- *   public/logo.png, public/globe.png (PIXEL_SITE=1 only), the desktop app icons in src-tauri/icons/ and the Android app's
- *   launcher and adaptive icons in android/app/src/main/res/.
+ * Renders the brand assets from the game's own pixel-art code:
+ *   public/favicon.ico, public/icons/*.png (the pixel Earth app icon), public/logo.png and the desktop app icons in
+ *   src-tauri/icons/. (The website's social card and its still globe are 3D renders: tools/og3d.mjs.)
  * Every size is drawn natively (or scaled by a whole number) so the pixels stay crisp —
  * `tauri icon` would resample with a smoothing filter.
  *
@@ -16,22 +15,18 @@ import { terrainCanvas } from '../src/render/worldMap/terrain';
 import { drawGlobe, drawStars } from '../src/render/globe';
 import { C, paletteTable } from '../src/render/palette';
 import { bayer, PixelCanvas } from '../src/render/pixels';
-import { drawText, measureText } from '../src/render/font';
 import { logoCanvas } from '../src/ui/logo';
-import { facilityArt, rotorFrames, TURBINE_LAYOUT } from '../src/render/diorama/art';
 import { encodePngRgba } from './lib/png';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
 const TAURI_ICONS = path.join(ROOT, 'src-tauri/icons');
-const ANDROID_RES = path.join(ROOT, 'android/app/src/main/res');
 fs.mkdirSync(path.join(PUBLIC, 'icons'), { recursive: true });
 fs.mkdirSync(TAURI_ICONS, { recursive: true });
 
 const buf = fs.readFileSync(path.join(ROOT, 'src/content/generated/worldmap.bin'));
 const lods = decodeWorldMap(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 const T0 = terrainCanvas(lods[0]);
-const T1 = terrainCanvas(lods[1]);
 
 /** Indexed canvas → RGBA, scaled by an integer, transparent where empty (or filled with bg). */
 function rgba(pc: PixelCanvas, scale: number): { w: number; h: number; data: Uint8Array } {
@@ -207,74 +202,7 @@ console.log('desktop icons');
   console.log('  src-tauri/icons/icon.icns');
 }
 
-// ── Android app icons (the WebView app in android/) ───────────────────────────────────────
-// One game pixel per dp where the density allows (mdpi ×1, xhdpi ×2, xxhdpi ×3, xxxhdpi ×4);
-// hdpi (×1.5) is drawn natively at its own size instead of being resampled.
-if (fs.existsSync(ANDROID_RES)) {
-  console.log('android icons');
-  const densities: [dir: string, mult: number][] = [
-    ['mdpi', 1],
-    ['hdpi', 1.5],
-    ['xhdpi', 2],
-    ['xxhdpi', 3],
-    ['xxxhdpi', 4],
-  ];
-  const dpIcon = (dir: string, file: string, dp: number, mult: number, draw: (base: number) => PixelCanvas) => {
-    const whole = Number.isInteger(mult);
-    const out = path.join(ANDROID_RES, dir);
-    fs.mkdirSync(out, { recursive: true });
-    writePng(file, draw(whole ? dp : dp * mult), whole ? mult : 1, out);
-  };
-  for (const [d, mult] of densities) {
-    // legacy launcher icon (48 dp): the rounded space tile
-    dpIcon(`mipmap-${d}`, 'ic_launcher.png', 48, mult, (b) => icon(b, { bg: 'rounded', r: b * 0.39 }));
-    // adaptive icon layer (82 dp inside the 108 dp canvas): full-bleed tile, globe inside the safe zone
-    dpIcon(`mipmap-${d}`, 'ic_maskable.png', 82, mult, (b) => icon(b, { bg: 'square', r: b * 0.3 }));
-  }
-  writePng('store_icon.png', icon(64, { bg: 'rounded', r: 25 }), 8, path.join(ROOT, 'android'));
-}
-
-// ── logo + standalone globe ───────────────────────────────────────────────────────────────
-console.log('logo & globe');
+// ── logo ──────────────────────────────────────────────────────────────────────────────────
+console.log('logo');
 writePng('logo.png', logoCanvas(), 4);
-{
-  const g = new PixelCanvas(180, 180);
-  drawGlobe(g, { terrain: T1, res: lods[1].res, lon0: 10, lat0: 18, cx: 90, cy: 90, r: 86, sun: { lat: 14, lon: -30 }, lights: true, atmosphere: true });
-  // the website's no-script globe is a still of its 3D globe now (see tools/og3d.mjs); PIXEL_SITE=1 redraws this one
-  if (process.env.PIXEL_SITE) writePng('globe.png', g, 3);
-}
-
-// ── Open Graph card (1200×630 = 400×210 × 3): the pixel edition's card. The website uses the 3D card from
-// tools/og3d.mjs since v0.10.1, so this one is only written with PIXEL_SITE=1 ─────────────────────────────
-if (process.env.PIXEL_SITE) {
-  console.log('og image (pixel)');
-  const W = 400;
-  const H = 210;
-  const pc = new PixelCanvas(W, H);
-  space(pc, 0, 0, W, H);
-  drawStars(pc, 42, 160);
-  drawGlobe(pc, { terrain: T1, res: lods[1].res, lon0: 8, lat0: 20, cx: 300, cy: 104, r: 86, sun: { lat: 14, lon: -35 }, lights: true, atmosphere: true });
-  const logo = logoCanvas();
-  pc.blit(logo, 14, 34);
-  const lines = ['A COZY-BUT-REAL PIXEL SIM', 'OF THE AI BOOM.', '', 'BUILD POWER, CHIPS & COMPUTE.', 'CLIMB THE KARDASHEV SCALE.'];
-  lines.forEach((t, i) => drawText(pc, t, 22, 86 + i * 8, i < 2 ? C.white : C.cyn5));
-  // a little campus at dusk along the bottom
-  const ground = 200;
-  pc.rect(0, ground, 210, H - ground, C.ink2);
-  pc.hline(0, ground, 210, C.ink4);
-  const dc = facilityArt('datacenter', 'KP');
-  const solar = facilityArt('solar', 'KP');
-  const wind = facilityArt('wind', 'KP');
-  const wx = 128;
-  const wy = ground - wind.base[0].h + 1;
-  pc.blit(wind.base[0], wx, wy);
-  TURBINE_LAYOUT.forEach((tb, i) => pc.blit(rotorFrames(tb.size, tb.col)[(i * 3) % 8], wx + tb.x - tb.size - 1, wy + tb.top - tb.size - 1));
-  pc.blit(solar.base[0], 78, ground - solar.base[0].h + 1);
-  pc.blit(dc.base[0], 2, ground - dc.base[0].h + 1);
-  pc.blit(dc.glow[0], 2, ground - dc.base[0].h + 1);
-  // fade the campus strip into the night with a dither
-  for (let y = 150; y < ground; y++) for (let x = 0; x < 230; x++) if (pc.get(x, y) && bayer(x, y) < ((ground - y) / 50) * 3) pc.set(x, y, C.night2);
-  drawText(pc, 'THEKARDASHEVPROJECT.NETLIFY.APP', W - 6 - measureText('THEKARDASHEVPROJECT.NETLIFY.APP'), H - 9, C.ink7);
-  writePng('og-image.png', pc, 3);
-}
 console.log('done');

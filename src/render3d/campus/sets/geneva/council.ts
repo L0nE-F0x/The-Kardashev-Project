@@ -10,7 +10,7 @@ import { instanced, type Piece } from '../../../pieces';
 import { modelParts } from '../../../models';
 import type { Act3SetOpts } from '../../act3sets';
 import { KEYS, PALETTE } from '../../../../render/palette';
-import { BLOC_FRIEZE, BLOC_ORDER } from '../../../../render/diorama/act3kit';
+import { BLOC_FRIEZE, BLOC_ORDER } from '../../planKit';
 import { CH, CHARTER_FLAG, emblemDisc, flagPole, Flags, greenery, litGlass, litSign, paving, People, plantedTree, V } from './common';
 import { beacon, fit } from './secretariat';
 

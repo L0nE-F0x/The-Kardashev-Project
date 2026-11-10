@@ -1,9 +1,8 @@
 /**
- * The shell both editions share (the pixel game in main.ts, the 3D edition in main3d.ts): the
- * frame loop with its pacing, the keyboard shortcuts and the back gesture.
+ * The shell around the game (started from main.ts): the frame loop with its pacing and the
+ * keyboard shortcuts.
  */
 import type { Game } from './game';
-import { onHostBack } from '../platform/platform';
 
 /** What the keyboard can ask of the current scene (map scenes pan and zoom). */
 interface PanZoom {
@@ -12,7 +11,7 @@ interface PanZoom {
   zoomOut?(): void;
 }
 
-/** Start the frame loop and bind the keys and the back gesture. */
+/** Start the frame loop and bind the keys. */
 export function startShell(game: Game) {
   bindKeys(game);
   // Frame pacing: at most 60 frames a second (30 with the battery saver), and 30 while nothing moves,
@@ -57,7 +56,7 @@ function calm(game: Game, idleMs: number): boolean {
   return !game.stage.getScene()?.busy?.();
 }
 
-/** Escape and the Android back gesture: close the topmost thing. False when nothing was open. */
+/** Escape: close the topmost thing. False when nothing was open. */
 function back(game: Game): boolean {
   // the menu: a sub-screen (Settings, Load, New company, the Field Guide…) goes back to the main menu
   if (game.mode === 'title' || !game.state) {
@@ -85,7 +84,6 @@ function back(game: Game): boolean {
 }
 
 function bindKeys(game: Game) {
-  onHostBack(() => back(game));
   window.addEventListener('keydown', (e) => {
     // typing in a text field (a name, a seed, a playtest note) never fires game shortcuts
     const t = e.target as HTMLElement | null;

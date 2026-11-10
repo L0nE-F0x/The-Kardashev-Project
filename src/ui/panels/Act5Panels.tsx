@@ -31,7 +31,7 @@ import { pickEpilogues, campaignStats } from '../../sim/ending';
 import { drawEndCard } from '../../render/endcard';
 import { toDataUrl } from '../../render/pixels';
 import { terrainCanvas } from '../../render/worldMap/terrain';
-import { canShareImages, saveImage, shareImage } from '../../platform/platform';
+import { saveImage } from '../../platform/platform';
 import { OpenWork, PostContract } from './Act4Panels';
 import { SITE_BY_ID } from '../../content/sites';
 
@@ -1065,14 +1065,9 @@ function EndCard({ year }: { year: number }) {
           <img class="endcard" src={url} alt={text} />
           {note && <div class="small muted">{note}</div>}
           <div class="row wrap" style={{ gap: '8px', marginTop: '8px' }}>
-            <button class="btn" onClick={() => setNote(saveImage(name, url) ? 'Saved.' : 'Update the app to save pictures — or take a screenshot to share it.')}>
+            <button class="btn" onClick={() => setNote(saveImage(name, url) ? 'Saved.' : 'Couldn’t save it: take a screenshot instead.')}>
               <Icon name="arrow" size="sm" /> Save the picture
             </button>
-            {canShareImages() && (
-              <button class="btn" onClick={() => void shareImage(name, url, text).then((ok) => setNote(ok ? 'Shared.' : 'Sharing isn’t available here.'))}>
-                Share
-              </button>
-            )}
           </div>
           <div class="quote" style={{ marginTop: '10px' }}>
             <Portrait id="kip" mood="excited" size={48} />

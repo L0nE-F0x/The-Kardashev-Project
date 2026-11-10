@@ -2,21 +2,13 @@
  * Act V's places as rows of set pieces (the same machinery as Act III/IV's view-only sites): the L4
  * and L5 yards from `yardsView`, Ring One from `ringView`, the Aurora habitat from `habitatView`,
  * each asteroid from `asteroidSiteView`, and the Moon's foundry (from `moonFoundry`) added to
- * Shackleton Base. Pure — the scene and the headless previews share it; the scene rebuilds when
- * `act3Key` changes (it includes the scenery for these sites).
+ * Shackleton Base. Pure; the campus rebuilds when `act3Key` changes (it includes the scenery for these sites).
  */
-import type { AsteroidType, GameState } from '../../sim/types';
+import type { GameState } from '../../sim/types';
 import type { SiteDef } from '../../content/sites';
 import { asteroidSiteView, habitatView, moonFoundry, ownerColor, ringView, segmentFill, yardsView } from '../../sim/systemView';
-import type { FacilityArt } from './art';
-import type { PieceSpec } from './industry';
-import type { Act3PieceKind, Act3Plan } from './act3Pieces';
-import { builderSign, rampOf, type Ramp4 } from './act3kit';
-import { rampOfIndex } from './act5kit';
-import { flagString, foundryCopy, foundryModule, lunarFoundry, lunarFoundryWidth, MODULE_W, OUTBOUND_W, DOCK_W, parseFlags, yardsBerth, yardsDock, yardsOutbound, type Product } from './yards';
-import { HEAD_W, HUB_W, RACK_W, ringHead, ringHub, ringRack } from './ring';
-import { habBuild, habDorms, habFarm, habHouses, habPark, habSchool, habSquare, habTower, habVilla, habWorks } from './habitat';
-import { astBeacon, astCatapult, astClaim, astRig, astRocks, BEACON_W, CATAPULT_W, CLAIM_POST_W, CLAIM_W, RIG_W } from './asteroid';
+import type { Act3PieceKind, Act3Plan, PieceSpec } from './plan';
+import { flagString, rampOf, type Product, type Ramp4 } from './planKit';
 
 // ── scales ─────────────────────────────────────────────────────────────────────────────────
 const lg = (x: number) => Math.log10(Math.max(1e-9, x));
@@ -45,16 +37,16 @@ const ownerRamp = (owner: string | null): Ramp4 => rampOf(ownerColor(owner) ?? '
 
 export const isAct5Site = (site: SiteDef) => site.kind === 'yards' || site.kind === 'ring' || site.kind === 'habitat' || site.kind === 'asteroid';
 
-export function act5Plan(s: GameState | null, site: SiteDef, viewW: number): Act3Plan {
+export function act5Plan(s: GameState | null, site: SiteDef): Act3Plan {
   switch (site.kind) {
     case 'yards':
-      return yardsPlan(s, site.id === 'l5' ? 'l5' : 'l4', viewW);
+      return yardsPlan(s, site.id === 'l5' ? 'l5' : 'l4');
     case 'ring':
       return ringPlan(s);
     case 'habitat':
       return habitatPlan(s);
     default:
-      return asteroidPlan(s, site, viewW);
+      return asteroidPlan(s, site);
   }
 }
 
@@ -78,7 +70,7 @@ function allocProducts(n: number, making: { collectors: number; rings: number; h
   return order.flatMap((p, i) => new Array<Product>(out[i]).fill(p));
 }
 
-function yardsPlan(s: GameState | null, id: 'l4' | 'l5', viewW: number): Act3Plan {
+function yardsPlan(s: GameState | null, id: 'l4' | 'l5'): Act3Plan {
   const v = yardsView(s, id);
   const n = yardModules(v.cap);
   const r = ownerRamp(siteOwner(s, id) ?? 'charter');
@@ -88,7 +80,7 @@ function yardsPlan(s: GameState | null, id: 'l4' | 'l5', viewW: number): Act3Pla
   const spec = (kind: Act3PieceKind, extra: Partial<PieceSpec> = {}): PieceSpec => ({ kind, label: id.toUpperCase(), accent: r.base, accentHi: r.lit, backdrop: 'space', gap: 6, ...extra });
   const products = allocProducts(n, v.making, id);
   const pieces: PieceSpec[] = [];
-  if (!n) pieces.push(spec('yardsBerth', { w: Math.max(200, viewW - 40), gap: 0 }));
+  if (!n) pieces.push(spec('yardsBerth', { w: 200, gap: 0 }));
   else {
     const main = products[0];
     const second = products.find((p) => p !== main) ?? '';
@@ -143,7 +135,7 @@ function habitatPlan(s: GameState | null): Act3Plan {
 }
 
 // ── the asteroids ──────────────────────────────────────────────────────────────────────────
-function asteroidPlan(s: GameState | null, site: SiteDef, viewW: number): Act3Plan {
+function asteroidPlan(s: GameState | null, site: SiteDef): Act3Plan {
   const v = asteroidSiteView(s, site.id);
   const d = v.def;
   const t = d.type;
@@ -163,44 +155,8 @@ function asteroidPlan(s: GameState | null, site: SiteDef, viewW: number): Act3Pl
     pieces.push(spec('astCatapult', { variant: `${t}|${flagString(flags)}`, gap: 8 }));
     pieces.push(spec('astRocks', { w: 80, seed: 6, gap: 0 }));
   }
-  // fill the screen: stretch the last stretch of open rock
-  const width = pieces.reduce((a, p) => a + widthOf(p) + (p.gap ?? 10), 20);
-  const last = [...pieces].reverse().find((p) => p.kind === 'astRocks');
-  if (last?.w !== undefined && width < viewW + 60) last.w += viewW + 60 - width;
   return { pieces, start: 20, tail: 30, scenery: { kind: 'asteroid', id: d.id, type: t, km: d.km, au: d.au, swarm: swarmLevel(s) } };
 }
-
-/** Width of an Act V piece without drawing it. */
-export function act5WidthHint(p: PieceSpec): number | null {
-  switch (p.kind) {
-    case 'moonFoundry':
-      return lunarFoundryWidth(p.n ?? 1);
-    case 'yardsModule':
-    case 'yardsCopy':
-      return MODULE_W;
-    case 'yardsOutbound':
-      return OUTBOUND_W;
-    case 'yardsDock':
-      return DOCK_W;
-    case 'ringRack':
-      return RACK_W;
-    case 'ringHub':
-      return HUB_W;
-    case 'ringHead':
-      return HEAD_W;
-    case 'astBeacon':
-      return BEACON_W;
-    case 'astClaim':
-      return p.variant?.endsWith('post') ? CLAIM_POST_W : CLAIM_W;
-    case 'astRig':
-      return RIG_W;
-    case 'astCatapult':
-      return CATAPULT_W;
-    default:
-      return p.w ?? null;
-  }
-}
-const widthOf = (p: PieceSpec) => act5WidthHint(p) ?? 160;
 
 // ── the Moon's foundry ─────────────────────────────────────────────────────────────────────
 /** Shackleton's foundry (Act V only: none until a seed lands on the Moon). */
@@ -212,66 +168,4 @@ export function moonFoundrySpec(s: GameState | null): PieceSpec | null {
   const halted = fs.every((f) => f.haltedUntil > s.day);
   const r = ownerRamp(siteOwner(s, 'moon'));
   return { kind: 'moonFoundry', label: 'SHACKLETON', accent: r.base, accentHi: r.lit, backdrop: 'lunar', n: lunarBlocks(cap), variant: flagString({ halted, q: driftLevel(drift) }), gap: 0 };
-}
-
-// ── art dispatch ───────────────────────────────────────────────────────────────────────────
-export function act5PieceArt(spec: PieceSpec): FacilityArt {
-  const r = rampOfIndex(spec.accent);
-  const parts = (spec.variant ?? '').split('|');
-  const [a, b] = parts;
-  const lived = spec.n ?? 0;
-  const seed = spec.seed ?? 0;
-  const plan = spec.variant ?? 'settle';
-  switch (spec.kind) {
-    case 'yardsModule':
-      return foundryModule((a || 'c') as Product, parseFlags(b), r, spec.n ?? 1, seed);
-    case 'yardsCopy':
-      return foundryCopy((a || 'c') as Product, parseFlags(b), r, spec.n ?? 1, seed);
-    case 'yardsOutbound':
-      return yardsOutbound(((a ?? 'c')[0] || 'c') as Product, ((a ?? '')[1] as Product | undefined) ?? null, parseFlags(b), r);
-    case 'yardsDock':
-      return yardsDock(parseFlags(a), r, 'FEED');
-    case 'yardsBerth':
-      return yardsBerth(spec.w ?? 200, spec.label);
-    case 'ringRack':
-      return ringRack(Number(parts[0]) || 0, Number(parts[1]) || 0, Number(parts[2]) || 0, seed, spec.n ?? 1);
-    case 'ringHub':
-      return ringHub(parts[0] ?? '', Number(parts[1]) || 0, Number(parts[2]) || 0, parts[3] ?? '');
-    case 'ringHead':
-      return ringHead(Number(parts[0]) || 0, Number(parts[1]) || 0, parts[2] === 'start');
-    case 'habHouses':
-      return habHouses(lived, seed);
-    case 'habSchool':
-      return habSchool(lived, seed, plan);
-    case 'habPark':
-      return habPark(lived, seed, plan);
-    case 'habFarm':
-      return habFarm(lived, seed, plan);
-    case 'habSquare':
-      return habSquare(lived, seed, plan);
-    case 'habDorms':
-      return habDorms(lived, seed);
-    case 'habWorks':
-      return habWorks(lived, seed);
-    case 'habTower':
-      return habTower(lived, seed);
-    case 'habVilla':
-      return habVilla(lived, seed);
-    case 'habBuild':
-      return habBuild(seed);
-    case 'astRocks':
-      return astRocks(spec.w ?? 100, (a || 'S') as AsteroidType, seed);
-    case 'astBeacon':
-      return astBeacon((a || 'S') as AsteroidType, spec.label);
-    case 'astClaim':
-      return astClaim((a || 'S') as AsteroidType, r, builderSign(spec.builder ?? 'charter'), spec.label, b === 'post');
-    case 'astRig':
-      return astRig((a || 'S') as AsteroidType, r, parseFlags(b), seed, spec.n ?? 1);
-    case 'astCatapult':
-      return astCatapult((a || 'S') as AsteroidType, r, parseFlags(b));
-    case 'moonFoundry':
-      return lunarFoundry(spec.n ?? 1, parseFlags(spec.variant), r);
-    default:
-      throw new Error(`not an Act V piece: ${spec.kind}`);
-  }
 }

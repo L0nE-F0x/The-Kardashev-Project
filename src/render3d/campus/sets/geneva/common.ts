@@ -9,7 +9,7 @@ import { sign } from '../../../fx';
 import type { Env } from '../../../pieces';
 import { Crowd } from '../../life';
 import { KEYS, PALETTE } from '../../../../render/palette';
-import { BLOC_BANNERS, BLOC_ORDER, blocBannerAt } from '../../../../render/diorama/act3kit';
+import { BLOC_BANNERS, BLOC_ORDER, blocBannerAt } from '../../planKit';
 import type { PersonName } from '../../../models';
 
 export const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);

@@ -1,5 +1,5 @@
 /**
- * The chiptune soundtrack (the pixel edition's own): a tiny step sequencer playing square and triangle voices.
+ * The chiptune soundtrack (the retro alternative to the cinematic score): a tiny step sequencer playing square and triangle voices.
  * A theme for the menu, a track per era (Smog & Silicon → Swarmlight) in sections (A A B A) so it doesn't loop
  * audibly, and the ending. It runs on the shared mix: a touch of the hall, the same loudness as the cinematic score.
  */

@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Debug builds only: let the emulator fetch test updates from the dev machine over plain http (10.0.2.2). -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <application android:networkSecurityConfig="@xml/debug_network" />
-</manifest>

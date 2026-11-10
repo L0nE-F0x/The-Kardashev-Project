@@ -13,7 +13,7 @@ import type { Env } from '../../../pieces';
 import { person } from '../../../models';
 import type { Act3SetOpts } from '../../act3sets';
 import { parkedCars } from '../../life';
-import { builderRamp, builderSign } from '../../../../render/diorama/act3kit';
+import { builderRamp, builderSign } from '../../planKit';
 import { PALETTE } from '../../../../render/palette';
 import {
   Anim, At, bayLines, beacon, lampHeadMat, mechTower, mixHex, P, paving, pipeRun, pipeStands, poleLamp, rollDoor, sagWires, shed,

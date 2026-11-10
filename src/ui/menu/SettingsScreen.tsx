@@ -5,7 +5,7 @@ import { defaultSettings, saveSettings } from '../../save/settings';
 import { downloadSave, exportSave, importSave, loadSlot, wipeAllData } from '../../save/save';
 import { EVENT_RATES, type EventRate } from '../../content/difficulty';
 import { SITE_BY_ID } from '../../content/sites';
-import { canFullscreen, isDesktopApp, isPhone, isStandalone, saveTextFile, toggleFullscreen } from '../../platform/platform';
+import { saveTextFile, toggleFullscreen } from '../../platform/platform';
 import { playtestReport } from '../../game/playtest';
 import { APP_VERSION } from '../../content/changelog';
 
@@ -135,17 +135,6 @@ function Display() {
   return (
     <>
       <Choice
-        label="Pixel size"
-        hint="Whole-number zoom on top of the automatic scale."
-        value={st.zoom}
-        options={[
-          [1, 'Auto'],
-          [2, 'Bigger'],
-          [3, 'Biggest'],
-        ]}
-        onChange={(v) => game.updateSettings({ zoom: v })}
-      />
-      <Choice
         label="Interface size"
         value={st.uiScale}
         options={[
@@ -167,45 +156,22 @@ function Display() {
         onChange={(v) => game.updateSettings({ uiStyle: v })}
       />
       <Toggle label="Weather" hint="Rain, snow and dust storms in campus views." value={st.weather} onChange={(v) => game.updateSettings({ weather: v })} />
-      <Toggle label="Clouds on the map" value={st.clouds} onChange={(v) => game.updateSettings({ clouds: v })} />
-      <Toggle label="Day & night" hint="The real-time night side on the map; local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
+      <Toggle label="Day & night" hint="Local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
       <Toggle label="CRT filter" hint="Scanlines and a soft vignette, for that old-monitor glow." value={st.crt} onChange={(v) => game.updateSettings({ crt: v })} />
       <Toggle label="Battery saver" hint="Draw at ~30 fps with fewer particles." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
       <Choice
-        label="Edition"
-        hint="The same game and the same saves, drawn two ways: the original pixel art, or the 3D edition (in development). Switching reloads the page where you are."
-        value={document.documentElement.classList.contains('edition-3d') ? '3d' : 'pixel'}
+        label="3D detail"
+        hint="High: soft shadows, ambient occlusion and the full countryside. Low: for older laptops. Auto picks for this machine."
+        value={st.quality3d ?? 'auto'}
         options={[
-          ['pixel', 'Pixel'],
-          ['3d', '3D (beta)'],
+          ['auto', 'Auto'],
+          ['high', 'High'],
+          ['medium', 'Medium'],
+          ['low', 'Low'],
         ]}
-        onChange={(v) => {
-          const is3d = document.documentElement.classList.contains('edition-3d');
-          if ((v === '3d') === is3d) return;
-          // remembered: the apps open /play/, which hands over to the 3D edition while this says so
-          game.updateSettings({ edition: v });
-          game.save();
-          location.href = `${v === '3d' ? '../play3d/' : '../play/'}index.html${location.search}`;
-        }}
+        onChange={(v) => game.updateSettings({ quality3d: v })}
       />
-      {document.documentElement.classList.contains('edition-3d') && (
-        <Choice
-          label="3D detail"
-          hint="High: soft shadows, ambient occlusion and the full countryside. Low: for phones and older laptops. Auto picks for this device."
-          value={st.quality3d ?? 'auto'}
-          options={[
-            ['auto', 'Auto'],
-            ['high', 'High'],
-            ['medium', 'Medium'],
-            ['low', 'Low'],
-          ]}
-          onChange={(v) => game.updateSettings({ quality3d: v })}
-        />
-      )}
       <Toggle label="FPS counter" value={st.fps} onChange={(v) => game.updateSettings({ fps: v })} />
-      {isPhone() && !isStandalone() && canFullscreen() && (
-        <Toggle label="Fullscreen on phones" hint="Hide the address bar on your first tap. The fullscreen button in the top bar does it any time." value={st.phoneFullscreen} onChange={(v) => game.updateSettings({ phoneFullscreen: v })} />
-      )}
       <div class="setting opt">
         <span class="txt">
           <span class="l">Era palette</span>
@@ -238,9 +204,9 @@ function Audio() {
       <Slider label="Music" hint="A theme on the menu, a piece for each era in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
       <Choice
         label="Soundtrack"
-        hint="Cinematic: pads, piano, bells, a choir. Chiptune: the pixel edition's own. Auto picks by edition."
+        hint="Cinematic: pads, piano, bells, a choir. Chiptune: the retro score from the game's early days."
         value={st.soundtrack}
-        options={[['auto', 'Auto'], ['cinematic', 'Cinematic'], ['chiptune', 'Chiptune']]}
+        options={[['cinematic', 'Cinematic'], ['chiptune', 'Chiptune']]}
         onChange={(v) => game.updateSettings({ soundtrack: v })}
       />
       <Slider label="Sound effects" value={st.sfx} onChange={(v) => game.updateSettings({ sfx: v })} />
@@ -464,7 +430,7 @@ function Data() {
         )}
       </div>
       <p class="small muted">
-        Saves live in this {isDesktopApp ? 'app' : 'browser'} only. Use save codes or files to move a company between devices.
+        Saves live on this computer only. Use save codes or files to move a company to another one.
       </p>
     </>
   );

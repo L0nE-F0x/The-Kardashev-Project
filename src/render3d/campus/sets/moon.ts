@@ -5,7 +5,7 @@
  * regolith cut, the helium-3 plant and its tanks), the mass driver, whatever is being built in the
  * builder's colours, and in Act V the Moon's own foundry.
  */
-import type { Act3PieceKind } from '../../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from '../plan';
 import type { Act3SetFactory } from '../act3sets';
 import { iceRig, moonHab, moonPad, moonSurvey, rimSolar } from './moon/outpost';
 import { he3Plant, he3Tanks, regolithMine } from './moon/mine';

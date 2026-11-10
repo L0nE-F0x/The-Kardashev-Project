@@ -4,7 +4,7 @@
  * Footprints are fixed per kind (ACT3_SIZE); builders get the planner's colours, labels, variants,
  * unit numbers and build progress.
  */
-import type { Act3PieceKind } from '../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from './plan';
 import type { SetPieceOpts } from './registry';
 import type { Piece } from '../pieces';
 

@@ -1,7 +1,6 @@
 /**
- * The 3D edition's stage: one WebGL canvas behind the same DOM UI, the current scene's camera and
- * post look, input handed to the scene in CSS pixels. Meets the same GameStage contract as the
- * pixel game's PixelStage, so Game drives either.
+ * The stage: one WebGL canvas behind the DOM UI, the current scene's camera and post look, input
+ * handed to the scene in CSS pixels. Implements GameStage (render/stage.ts), which is all Game knows.
  */
 import * as THREE from 'three';
 import type { GameScene, GameStage, PixelPointer } from '../render/stage';
@@ -108,7 +107,7 @@ export class Stage3D implements GameStage {
   }
 
   setZoomBoost(z: number) {
-    // the pixel game's zoom is its pixel size; here it only sizes the UI's hairlines (--px)
+    // sizes the interface's hairlines (--px): campuses ask for 2, the wide views for 1
     this.zoom = Math.max(1, Math.min(4, Math.round(z)));
     this.layout();
   }
@@ -121,7 +120,7 @@ export class Stage3D implements GameStage {
     this.scale = Math.max(Math.min(dpr, 0.6), Math.min(dpr, quality.pixelRatio) * this.dyn);
     this.renderer.setPixelRatio(this.scale);
     this.renderer.setSize(w, h);
-    // the UI's frames are drawn in "game pixels": keep them the size the pixel game uses
+    // the UI's frames are drawn in "game pixels" (--px)
     const base = Math.max(1, Math.round(Math.min(w * dpr, h * dpr) / 360));
     document.documentElement.style.setProperty('--px', `${(base * this.zoom) / dpr}px`);
     if (this.scene) {
@@ -210,7 +209,7 @@ export class Stage3D implements GameStage {
     c.style.touchAction = 'none';
     const toP = (e: PointerEvent): PixelPointer => {
       const r = c.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top, clientX: e.clientX, clientY: e.clientY, id: e.pointerId, button: e.button, pointerType: e.pointerType, perCss: 1 };
+      return { x: e.clientX - r.left, y: e.clientY - r.top, clientX: e.clientX, clientY: e.clientY, id: e.pointerId, button: e.button, pointerType: e.pointerType };
     };
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
@@ -230,7 +229,7 @@ export class Stage3D implements GameStage {
       e.preventDefault();
       const r = c.getBoundingClientRect();
       const dy = e.deltaMode === 1 ? e.deltaY * 34 : e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY;
-      this.scene?.wheel?.({ x: e.clientX - r.left, y: e.clientY - r.top, clientX: e.clientX, clientY: e.clientY, id: -1, button: 0, pointerType: 'mouse', perCss: 1 }, dy);
+      this.scene?.wheel?.({ x: e.clientX - r.left, y: e.clientY - r.top, clientX: e.clientX, clientY: e.clientY, id: -1, button: 0, pointerType: 'mouse' }, dy);
     }, { passive: false });
     c.addEventListener('contextmenu', (e) => e.preventDefault());
   }

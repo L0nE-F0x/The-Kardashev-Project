@@ -1,47 +1,18 @@
 /**
- * Act III view-only sites as rows of set pieces: the Charter HQ in Geneva, the twelve megaproject
+ * Act III–V view-only sites as rows of set pieces: the Charter HQ in Geneva, the twelve megaproject
  * sites (laid out from `megaView`: stage, kinds online, projects building, an HVDC link) and the
  * launch-complex candidates (survey, building, online, liftoff). Act IV adds fusion fleets and
  * air-capture farms at the megaprojects, the spaceport's extra pads, and the Moon base (from
- * `moonView`). Pure — the scene and the headless previews share it, and the scene rebuilds
- * whenever `act3Key` changes.
+ * `moonView`); Act V's places come from plan5.ts. Pure: the campus (viewOnly.ts turns the row into a
+ * place) rebuilds whenever `act3Key` changes.
  */
-import type { ContractKind, FusionDesignId, GameState, Project } from '../../sim/types';
-import type { Backdrop, SiteDef } from '../../content/sites';
+import type { AsteroidType, ContractKind, FusionDesignId, GameState, Project } from '../../sim/types';
+import type { SiteDef } from '../../content/sites';
 import { CONTRACT_KINDS, HVDC_ROUTES } from '../../content/charter';
 import { megaView } from '../../sim/charterView';
 import { moonView, orbitView } from '../../sim/planetView';
-import { C } from '../palette';
-import type { FacilityArt } from './art';
-import type { PieceSpec } from './industry';
-import { builderRamp, builderSign, CHARTER, rampOf } from './act3kit';
-import { councilHall, jetty, plaza, secretariat } from './charterHQ';
-import {
-  binaryPlant,
-  converterStation,
-  cspTower,
-  geoPad,
-  jackupVessel,
-  megaConstruction,
-  megaOffice,
-  megaSubstation,
-  pumpedHydro,
-  reactorUnit,
-  seaSubstation,
-  seaSurvey,
-  solarField,
-  storageYard,
-  surveyedLand,
-  windField,
-  windSea,
-} from './mega';
-import { assemblyHall, launchPad, launchSurvey, tankFarm } from './launch';
-import { dacBlocks, dacFarm, DAC_W, DESIGN_BUILDER, FUSION_SIZE, fusionPlant } from './fusion';
-import { DRIVER_W, HAB_W, HE3_W, he3Plant, he3Tanks, ICE_W, iceRig, massDriver, MINE_W, moonConstruction, moonHab, moonPad, moonSurvey, PAD_W as MOON_PAD_W, regolithMine, RIM_W, rimSolar, TANKS_W } from './moon';
-import { act5PieceArt, act5Plan, act5WidthHint, isAct5Site, moonFoundrySpec } from './act5Pieces';
-import type { SpaceScenery } from './space';
-import type { AsteroidScenery } from './asteroid';
-import type { HabitatScenery } from './habitat';
+import { builderRamp, builderSign, CHARTER_ACCENT, dacBlocks, DESIGN_BUILDER } from './planKit';
+import { act5Plan, isAct5Site, moonFoundrySpec } from './plan5';
 
 export const ACT3_PIECES = [
   'secretariat',
@@ -112,7 +83,73 @@ export type Act3PieceKind = (typeof ACT3_PIECES)[number];
 const KINDS = new Set<string>(ACT3_PIECES);
 export const isAct3Piece = (k: string): k is Act3PieceKind => KINDS.has(k);
 
-/** What the bands behind the pieces show. */
+/** One set piece in a site's row. */
+export interface PieceSpec {
+  kind: Act3PieceKind;
+  /** Sign text (the site, the Charter, a builder). */
+  label: string;
+  /** Livery, as palette indices (render/palette.ts). */
+  accent: number;
+  accentHi: number;
+  /** Variant flag (a fusion design, a construction kind, a launch cycle, a yard's flags…). */
+  variant?: string;
+  /** A count or size class (unit number, contract size). */
+  n?: number;
+  /** Construction progress bucket 0..1. */
+  p?: number;
+  /** Small variety seed (alternating tiles). */
+  seed?: number;
+  /** Space after this piece in the row. */
+  gap?: number;
+  /** The site's backdrop (ground colours under the kit). */
+  backdrop?: string;
+  /** Partner id building it (colours, signs). */
+  builder?: string;
+  /** Width of open-land pieces (survey land, bare rock). */
+  w?: number;
+  /** Built out at sea (offshore wind under construction). */
+  offshore?: boolean;
+}
+
+/** Open space: the L4/L5 yards and Ring One. */
+export interface SpaceScenery {
+  kind: 'space';
+  place: 'l4' | 'l5' | 'ring';
+  /** Habitat cylinders hanging in the distance (L5). */
+  habitats: number;
+  /** Solar Maximum's storm: 0 none, 1..3. */
+  storm: number;
+  /** The swarm's arcs lit (0..12, halves). */
+  swarm: number;
+  /** Foundry modules at the yards (for the far row behind them). */
+  modules: number;
+  /** Products in flight: any of c (collectors), r (radiator rings), h (hull sections). */
+  flow: string;
+}
+
+/** An asteroid's surface. */
+export interface AsteroidScenery {
+  kind: 'asteroid';
+  id: string;
+  type: AsteroidType;
+  /** Mean diameter, km (sets how sharply the horizon curves). */
+  km: number;
+  /** Semi-major axis, AU (how small the sun looks). */
+  au: number;
+  /** The swarm's arcs lit (0..12): it glitters around the sun even from out here. */
+  swarm: number;
+}
+
+/** Inside the Aurora habitat. */
+export interface HabitatScenery {
+  kind: 'habitat';
+  /** 'settle' | 'stations' | 'private' | 'early' (no plan yet). */
+  plan: string;
+  /** How lived-in, 0..3. */
+  lived: number;
+}
+
+/** What surrounds the pieces. */
 export type Scenery =
   | { kind: 'geneva' }
   | { kind: 'mega'; kinds: string[]; stage: number; offshore: boolean }
@@ -145,20 +182,18 @@ export function companyInitials(s: GameState | null): string {
   return (words.length > 1 ? words.map((w) => w[0]).join('') : name).slice(0, 3).toUpperCase();
 }
 
-const CHARTER_ACCENT = { accent: CHARTER.field, accentHi: C.blu5 };
-
-export function act3Plan(s: GameState | null, site: SiteDef, viewW: number): Act3Plan {
+export function act3Plan(s: GameState | null, site: SiteDef): Act3Plan {
   if (site.kind === 'charter') return charterPlan();
-  if (site.kind === 'mega') return megaPlan(s, site, viewW);
-  if (site.kind === 'moon') return moonPlan(s, viewW);
-  if (isAct5Site(site)) return act5Plan(s, site, viewW);
+  if (site.kind === 'mega') return megaPlan(s, site);
+  if (site.kind === 'moon') return moonPlan(s);
+  if (isAct5Site(site)) return act5Plan(s, site);
   return launchPlan(s, site);
 }
 
 /** Everything about the state that changes how an Act III site looks (the scene's rebuild key). */
 export function act3Key(s: GameState | null, site: SiteDef): string {
   if (site.kind !== 'mega' && site.kind !== 'launch' && site.kind !== 'moon' && !isAct5Site(site)) return '';
-  const plan = act3Plan(s, site, 0);
+  const plan = act3Plan(s, site);
   const key = plan.pieces.map((p) => pieceKeyOf(p)).join(',');
   // Act V: the bands change too (the swarm in the sky, habitats in the distance, the storm)
   return isAct5Site(site) ? `${key}#${JSON.stringify(plan.scenery)}` : key;
@@ -211,7 +246,7 @@ function hvdcAt(s: GameState | null, siteId: string): { status: 'building' | 'on
 /** Megaproject sites built out at sea (open water instead of land, no road, no walkers). */
 export const isOffshore = (site: SiteDef) => site.id === 'mega-northsea';
 
-function megaPlan(s: GameState | null, site: SiteDef, viewW: number): Act3Plan {
+function megaPlan(s: GameState | null, site: SiteDef): Act3Plan {
   const v = megaView(s, site.id);
   const off = isOffshore(site);
   const bd = site.backdrop;
@@ -299,45 +334,12 @@ function megaPlan(s: GameState | null, site: SiteDef, viewW: number): Act3Plan {
   // room to grow (at stage 0 the surveyed land already is)
   if (stage > 0 && stage < 3) pieces.push(off ? spec('seaSurvey', { w: 200, gap: 0 }) : spec('survey', { w: 180, gap: 0 }));
   const kinds = (v.online.length ? v.online : stage === 0 ? [] : v.kinds).flatMap((k): string[] => (k === 'ffleet' ? designs.map((d) => `ffleet:${d}`) : [k]));
-  // fill the screen: a narrow stage-0 site gets more surveyed land
-  const width = pieces.reduce((a, p) => a + pieceWidthHint(p) + (p.gap ?? 10), 20);
-  const stretch = [...pieces].reverse().find((p) => p.w !== undefined);
-  if (width < viewW + 60 && stretch?.w) stretch.w += viewW + 60 - width;
   return { pieces, start: 20, tail: 40, scenery: { kind: 'mega', kinds, stage, offshore: off }, offshore: off };
-}
-
-/** Width of a piece without drawing it (only the stretchable survey pieces need it exactly). */
-function pieceWidthHint(p: PieceSpec): number {
-  if (p.w !== undefined) return p.w;
-  switch (p.kind) {
-    case 'fusionPlant':
-      return FUSION_SIZE[(p.variant ?? 'tokamak') as FusionDesignId]?.[0] ?? 160;
-    case 'dacFarm':
-      return DAC_W;
-    case 'moonHab':
-      return HAB_W;
-    case 'moonPad':
-      return MOON_PAD_W;
-    case 'rimSolar':
-      return RIM_W;
-    case 'iceRig':
-      return ICE_W;
-    case 'regolithMine':
-      return MINE_W;
-    case 'he3Plant':
-      return HE3_W;
-    case 'he3Tanks':
-      return TANKS_W;
-    case 'massDriver':
-      return DRIVER_W;
-    default:
-      return act5WidthHint(p) ?? 200;
-  }
 }
 
 // ── the Moon ───────────────────────────────────────────────────────────────────────────────
 /** Shackleton Base, grown stage by stage from `moonView`, with the next stage under construction. */
-function moonPlan(s: GameState | null, viewW: number): Act3Plan {
+function moonPlan(s: GameState | null): Act3Plan {
   const mv = moonView(s);
   const pieces: PieceSpec[] = [];
   const spec = (kind: Act3PieceKind, extra: Partial<PieceSpec> = {}): PieceSpec => ({ kind, label: 'SHACKLETON', ...CHARTER_ACCENT, backdrop: 'lunar', gap: 10, ...extra });
@@ -368,9 +370,6 @@ function moonPlan(s: GameState | null, viewW: number): Act3Plan {
     pieces.push(spec('moonBuild', { ...livery(b.builder), variant: b.kind, p: step4(b.progress), label: builderSign(b.builder), gap: 12 }));
   }
   if (mv.stage < 3) pieces.push(spec('moonSurvey', { variant: 'plain', w: 150, gap: 0 }));
-  const width = pieces.reduce((a, p) => a + pieceWidthHint(p) + (p.gap ?? 10), 20);
-  const stretch = [...pieces].reverse().find((p) => p.w !== undefined);
-  if (width < viewW + 60 && stretch?.w) stretch.w += viewW + 60 - width;
   return { pieces, start: 20, tail: mv.stage >= 3 ? 70 : 40, scenery: { kind: 'moon', stage: mv.stage } };
 }
 
@@ -431,129 +430,3 @@ function launchPlan(s: GameState | null, site: SiteDef): Act3Plan {
 
 /** Pads a spaceport shows beside the first (more than this and the camera would never see them all). */
 const MAX_EXTRA_PADS = 8;
-
-// ── art dispatch ───────────────────────────────────────────────────────────────────────────
-export function act3PieceArt(spec: PieceSpec): FacilityArt {
-  const bd = (spec.backdrop ?? 'plains') as Backdrop;
-  const r = spec.builder ? builderRamp(spec.builder) : rampOf('blu3');
-  switch (spec.kind as Act3PieceKind) {
-    case 'secretariat':
-      return secretariat();
-    case 'council':
-      return councilHall();
-    case 'plaza':
-      return plaza();
-    case 'jetty':
-      return jetty();
-    case 'survey':
-      return surveyedLand(spec.label, bd, spec.w ?? 200, spec.variant === 'board');
-    case 'seaSurvey':
-      return seaSurvey(spec.w ?? 200);
-    case 'megaOffice':
-      return megaOffice(spec.label, bd);
-    case 'megaSub':
-      return megaSubstation();
-    case 'converter':
-      return converterStation(spec.label, spec.variant === 'building', spec.p ?? 1, r);
-    case 'solarField':
-      return solarField(bd, spec.seed ?? 0);
-    case 'cspTower':
-      return cspTower(bd);
-    case 'storageYard':
-      return storageYard(CHARTER.field);
-    case 'windField':
-      return windField(bd, spec.seed ?? 0);
-    case 'windSea':
-      return windSea(spec.seed ?? 0);
-    case 'seaSub':
-      return seaSubstation(spec.variant === 'hvdc');
-    case 'jackup':
-      return jackupVessel(r, spec.label);
-    case 'reactorUnit':
-      return reactorUnit(spec.n ?? 1, bd, C.cyn4);
-    case 'pumpedHydro':
-      return pumpedHydro(bd, spec.seed ?? 0);
-    case 'geoPad':
-      return geoPad(bd, (spec.seed ?? 0) === 1, rampOf('org1'));
-    case 'binaryPlant':
-      return binaryPlant(bd);
-    case 'megaBuild': {
-      const [kind, opt] = (spec.variant ?? 'solar').split(':');
-      const sea = kind === 'wind' && spec.offshore === true;
-      const full = buildTarget(kind, bd, sea, spec.n ?? 1, spec.p ?? 0, opt);
-      return megaConstruction(kind, full, spec.p ?? 0, spec.n ?? 1, r, spec.label, sea);
-    }
-    case 'vab': {
-      const full = assemblyHall(r, spec.label, bd);
-      return spec.variant === 'building' ? megaConstruction('vab', full, spec.p ?? 0, 0, r, spec.label, false) : full;
-    }
-    case 'launchPad': {
-      if (spec.variant === 'building') {
-        const full = launchPad(r, false, bd, { pad: spec.n });
-        return megaConstruction('pad', { ...full, launch: undefined }, spec.p ?? 0, 0, r, spec.label, false);
-      }
-      if (spec.variant?.startsWith('cycle:')) {
-        const [, period, offset] = spec.variant.split(':').map(Number);
-        return launchPad(r, true, bd, { pad: spec.n, period, offset });
-      }
-      return launchPad(r, spec.variant === 'liftoff', bd);
-    }
-    case 'tankFarm': {
-      const full = tankFarm(bd);
-      return spec.variant === 'building' ? megaConstruction('tank', full, spec.p ?? 0, 0, r, spec.label, false) : full;
-    }
-    case 'launchSurvey':
-      return launchSurvey(bd, spec.w ?? 220);
-    // ── Act IV ──
-    case 'fusionPlant':
-      return fusionPlant((spec.variant ?? 'tokamak') as FusionDesignId, spec.n ?? 1, bd, r);
-    case 'dacFarm':
-      return dacFarm(bd, r, spec.seed ?? 0);
-    case 'moonSurvey':
-      return moonSurvey(spec.w ?? 160, spec.variant ?? '', spec.seed ?? 0);
-    case 'moonHab':
-      return moonHab(r);
-    case 'moonPad':
-      return moonPad(r);
-    case 'rimSolar':
-      return rimSolar(spec.seed ?? 0);
-    case 'iceRig':
-      return iceRig(spec.seed ?? 0);
-    case 'regolithMine':
-      return regolithMine(spec.seed ?? 0);
-    case 'he3Plant':
-      return he3Plant(r);
-    case 'he3Tanks':
-      return he3Tanks();
-    case 'massDriver':
-      return massDriver(r);
-    case 'moonBuild': {
-      const kind = spec.variant ?? 'moonbase';
-      const full = kind === 'massdriver' ? massDriver(r) : kind === 'moonmine' ? he3Plant(r) : moonHab(r);
-      return moonConstruction(kind, full, spec.p ?? 0, r, spec.label);
-    }
-    default:
-      return act5PieceArt(spec);
-  }
-}
-
-function buildTarget(kind: string, bd: Backdrop, sea: boolean, size: number, progress = 0, opt?: string): FacilityArt {
-  switch (kind) {
-    case 'ffleet': {
-      const d = (opt ?? 'tokamak') as FusionDesignId;
-      return fusionPlant(d, 1, bd, builderRamp(DESIGN_BUILDER[d] ?? 'sunforge'));
-    }
-    case 'dac':
-      return dacFarm(bd, builderRamp('carbonfold'), 0);
-    case 'wind':
-      return sea ? windSea(0) : windField(bd, 0);
-    case 'nuclear':
-      return reactorUnit(size, bd, C.cyn4);
-    case 'hydro':
-      return pumpedHydro(bd, 1, progress);
-    case 'geo':
-      return geoPad(bd, true, rampOf('org1'));
-    default:
-      return solarField(bd, 0);
-  }
-}

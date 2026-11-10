@@ -1,5 +1,5 @@
 /**
- * A campus in the 3D edition: a real place (the ground runs to the horizon), your facilities on
+ * A campus: a real place (the ground runs to the horizon), your facilities on
  * their plots, kept in step with the sim, and life round them. Same contract as the pixel
  * DioramaScene: hover a facility or an empty plot, click to select the site, greet the advisors,
  * the menu tour's autoPan.
@@ -31,7 +31,7 @@ import { habFloor, habitatShell, HAB_R } from './habitatShell';
 import { treeField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
-import { act3Key } from '../../render/diorama/act3Pieces';
+import { act3Key } from './plan';
 import { CampusSky, type Weather } from './sky';
 import { atmo, LampField } from '../atmosphere';
 import { Precip } from './weather';

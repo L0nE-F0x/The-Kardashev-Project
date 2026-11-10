@@ -1,5 +1,5 @@
 /** Act III set pieces in 3D: the Charter's headquarters in Geneva (see ../act3sets.ts for the footprints and options). */
-import type { Act3PieceKind } from '../../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from '../plan';
 import type { Act3SetFactory } from '../act3sets';
 import { secretariat } from './geneva/secretariat';
 import { council } from './geneva/council';

@@ -11,7 +11,7 @@ import { col, Kit, mix, rng, type Paint } from '../../../kit';
 import { Plume } from '../../../fx';
 import type { Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
-import { builderSign } from '../../../../render/diorama/act3kit';
+import { builderSign } from '../../planKit';
 import {
   Ast, canvasTex, coldPortMat, cyanDark, cyanLit, faceUp, flagsOf, FONT, gy, hexOf, metalRockMat, moltenMat, rockMat, ROCK, Spray, TAU, truss,
   typeOf, V,

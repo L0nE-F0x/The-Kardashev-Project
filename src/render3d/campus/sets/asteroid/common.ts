@@ -11,7 +11,7 @@ import { col, glowMat, Kit, noise, rng, type Paint } from '../../../kit';
 import { plumeUniforms } from '../../../fx';
 import type { Env, Piece } from '../../../pieces';
 import { hasModel, loadModels, person } from '../../../models';
-import { parseFlags, type YardFlags } from '../../../../render/diorama/yards';
+import { parseFlags, type YardFlags } from '../../planKit';
 import { Anim, V } from '../mega/common';
 
 export { Anim, V };

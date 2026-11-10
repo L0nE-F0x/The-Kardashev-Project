@@ -39,8 +39,8 @@ forms, matte hand-painted colour, the game's palette, soft light). Its rules are
 ## How to check (iterate until it looks great)
 A Vite dev server runs at http://127.0.0.1:5317 (hot reload — don't start or stop servers). The **piece lab** renders one
 piece with the real ground, sky, shadows and post look, and a worker for scale:
-- facility: `/play3d/lab.html?piece=reactor&tier=1&w=28&d=54`
-- set piece: `/play3d/lab.html?set=launchPad&accent=df5f3e&hi=f08a46&builder=parabola&label=PARABOLA&variant=liftoff`
+- facility: `/play/lab.html?piece=reactor&tier=1&w=28&d=54`
+- set piece: `/play/lab.html?set=launchPad&accent=df5f3e&hi=f08a46&builder=parabola&label=PARABOLA&variant=liftoff`
   (footprint defaults to the kind's size; `&n=2`, `&p=0.5` (build progress), `&vseed=1`, `&variant=…`)
 - scene options: `&night=1`, `&alt=12` (sun altitude °), `&az=-40` (sun azimuth, 0 = south), `&yaw=-0.5&pitch=1.0&dist=120`
   (camera), `&backdrop=desert|plains|mountain|boreal|temperate|tropical|savanna|volcanic|coast`, `&sea=1` (open sea all

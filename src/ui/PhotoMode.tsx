@@ -1,5 +1,5 @@
 /**
- * Photo mode (the 3D edition's campuses): the interface steps aside for a camera bar — the hour, the weather, the
+ * Photo mode (campuses): the interface steps aside for a camera bar — the hour, the weather, the
  * lens and the blur — and the picture saves as a PNG without any interface in it. The clock waits meanwhile.
  */
 import { useEffect, useState } from 'preact/hooks';

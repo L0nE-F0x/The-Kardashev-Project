@@ -6,8 +6,7 @@ import { saveTextFile } from '../platform/platform';
 
 /**
  * Saves live in localStorage as numbered slots (up to MAX_SLOTS companies), plus a small index
- * so the menu can show cards without parsing every save. Works the same in browsers, the
- * installed PWA and the desktop app (each has its own storage).
+ * so the menu can show cards without parsing every save (the desktop app's webview keeps its own storage).
  */
 const INDEX_KEY = 'kardashev.slots.v1';
 const SLOT_PREFIX = 'kardashev.slot.';

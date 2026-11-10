@@ -1,6 +1,7 @@
+# Netlify serves the website only (index.html → dist-site/). The game ships as a desktop app.
 [build]
-  command = "npm run build"
-  publish = "dist"
+  command = "npm run build:site"
+  publish = "dist-site"
 
 [build.environment]
   # match the local toolchain (Vite 8 + TypeScript 7)
@@ -11,8 +12,24 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Netlify doesn't know the .webmanifest type; browsers cope, but serve it properly
+# The web game (/play/, /play3d/) and its installable app were retired in v0.12: old links land on the home page.
+# public/sw.js takes the old service worker's place, clears its caches and removes itself.
+[[redirects]]
+  from = "/play/*"
+  to = "/"
+  status = 302
+
+[[redirects]]
+  from = "/play3d/*"
+  to = "/"
+  status = 302
+
+[[redirects]]
+  from = "/manifest.webmanifest"
+  to = "/"
+  status = 302
+
 [[headers]]
-  for = "/manifest.webmanifest"
+  for = "/sw.js"
   [headers.values]
-    Content-Type = "application/manifest+json"
+    Cache-Control = "no-cache"

@@ -8,45 +8,11 @@ import { NewCompany } from './NewCompany';
 import { SettingsBody } from './SettingsScreen';
 import { FieldGuideBody } from './FieldGuide';
 import { HowToPlayBody } from './HowToPlay';
-import { Credits, InstallHelp, WhatsNew } from './InfoScreens';
+import { Credits, WhatsNew } from './InfoScreens';
 import { AchievementsScreen } from './Achievements';
 import { importSave } from '../../save/save';
-import { canPromptInstall, isAndroid, isDesktopApp, isIOS, isPhone, isStandalone, promptInstall, quitApp } from '../../platform/platform';
+import { isDesktopApp, quitApp } from '../../platform/platform';
 
-const BANNER_KEY = 'kardashev.appBannerDismissed';
-
-/** Phones in a browser: offer the app (Android) or the home-screen install (iPhone), once until dismissed. */
-function AppBanner() {
-  const game = useGame();
-  const [hidden, setHidden] = useState(() => {
-    try {
-      return window.localStorage.getItem(BANNER_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-  if (hidden || isDesktopApp || isStandalone() || !isPhone() || !(isAndroid() || isIOS()) || game.menuScreen !== 'main') return null;
-  const dismiss = () => {
-    setHidden(true);
-    try {
-      window.localStorage.setItem(BANNER_KEY, '1');
-    } catch {
-      /* storage blocked */
-    }
-  };
-  return (
-    <div class="appbanner frame interactive">
-      <Icon name="fullscreen" />
-      <span class="grow small">{isAndroid() ? 'Play full screen with the Android app.' : 'Add the game to your Home Screen to play full screen.'}</span>
-      <button class="btn small primary" onClick={() => game.openMenuScreen('install')}>
-        {isAndroid() ? 'Get the app' : 'How'}
-      </button>
-      <button class="btn small ghost" onClick={dismiss} aria-label="Not now">
-        <Icon name="close" size="sm" />
-      </button>
-    </div>
-  );
-}
 import type { IconName } from '../icons';
 
 function ago(ms: number): string {
@@ -58,7 +24,7 @@ function ago(ms: number): string {
   return `${Math.round(h / 24)} days ago`;
 }
 
-/** The 3D edition's caption: the place in bold, the rest under it (a lower third); keyed by its text, so each shot's eases in. */
+/** The tour's caption: the place in bold, the rest under it (a lower third); keyed by its text, so each shot's eases in. */
 function TourCaption({ text }: { text: string }) {
   const cut = text.indexOf(' · ');
   return (
@@ -94,10 +60,6 @@ export function MainMenu() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [screen]);
-  const install = async () => {
-    if (canPromptInstall()) await promptInstall();
-    else game.openMenuScreen('install');
-  };
   const item = (icon: IconName, label: string, onClick: () => void, badge?: boolean) => (
     <button class="btn menuitem" onClick={onClick}>
       <Icon name={icon} /> <span class="grow">{label}</span>
@@ -138,25 +100,15 @@ export function MainMenu() {
           game.openMenuScreen('whatsnew');
         }, newVersion)}
         {item('people', 'Credits', () => game.openMenuScreen('credits'))}
-        {!isStandalone() && item('arrow', isAndroid() ? 'Get the Android app' : canPromptInstall() || game.installAvailable ? 'Install app' : 'Get the app', isAndroid() ? () => game.openMenuScreen('install') : install)}
         {isDesktopApp && item('close', 'Quit', () => void quitApp())}
         <div class="menu-foot small muted">
           v{APP_VERSION} · Acts I–V: The Garage · The Scale-Up · The Charter · Planetary · Type I
           <div class="menu-foot-links">
             <BuiltBy />
-            {!isDesktopApp && (
-              <>
-                {' · '}
-                <a href="../" class="link">
-                  Home page
-                </a>
-              </>
-            )}
           </div>
         </div>
       </div>
       {game.tourCaption && (is3d() ? <TourCaption text={game.tourCaption} key={game.tourCaption} /> : <div class="tour-caption frame">{game.tourCaption}</div>)}
-      <AppBanner />
 
       {screen === 'new' && <NewCompany tutorialDefault={tutorialNew ? true : undefined} key={tutorialNew ? 't' : 'n'} />}
       {screen === 'load' && <LoadGame />}
@@ -178,7 +130,6 @@ export function MainMenu() {
       {screen === 'whatsnew' && <WhatsNew />}
       {screen === 'credits' && <Credits />}
       {screen === 'achievements' && <AchievementsScreen />}
-      {screen === 'install' && <InstallHelp />}
     </div>
   );
 }

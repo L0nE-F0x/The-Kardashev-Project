@@ -26,8 +26,7 @@ body {
   image-rendering: pixelated;
 }
 :root {
-  /* a phone's camera cutout and rounded corners; the Android app already pads its page clear of the cutout
-     (LauncherActivity), so there they'd count twice: html.native-insets zeroes them */
+  /* screen edges the system keeps for itself (none on a desktop window) */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -35,12 +34,6 @@ body {
   /* the HUD's zoom (Settings → UI size × the phone's automatic size). Inside a zoomed box, px and vh/vw are
      multiplied by it but % isn't: size zoomed boxes in % of the screen, or divide viewport units by --z */
   --z: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
-}
-html.native-insets {
-  --safe-t: 0px;
-  --safe-r: 0px;
-  --safe-b: 0px;
-  --safe-l: 0px;
 }
 #ui {
   position: fixed;
@@ -1214,30 +1207,6 @@ html.crt #game::after {
   }
 }
 
-/* phones: go fullscreen (top bar) and get the app (main menu) */
-.fsbtn {
-  padding: 4px 8px;
-}
-.appbanner {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: min(340px, calc(100% - 300px));
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  zoom: calc(var(--ui-zoom, 1) * var(--ui-auto, 1));
-}
-@media (max-width: 620px) {
-  .appbanner {
-    left: 10px;
-    top: auto;
-    bottom: 10px;
-    width: auto;
-  }
-}
-
 .tour-caption {
   position: absolute;
   right: 24px;
@@ -1570,34 +1539,6 @@ ol.steps li {
 }
 
 /* overlays */
-.rotate {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: #0b0a12;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  gap: 8px;
-  padding: 24px;
-}
-.rotate .phone {
-  width: 40px;
-  height: 70px;
-  border: 4px solid var(--gold);
-  margin: 0 auto 14px;
-  animation: rotatePhone 2.4s steps(4) infinite;
-}
-@keyframes rotatePhone {
-  0%,
-  40% {
-    transform: rotate(0deg);
-  }
-  60%,
-  100% {
-    transform: rotate(-90deg);
-  }
-}
 .fps {
   position: fixed;
   right: 10px;
@@ -1675,10 +1616,6 @@ ol.steps li {
   }
   .menu-foot {
     margin-top: 4px;
-  }
-  .appbanner {
-    width: min(340px, calc(100% - 460px));
-    min-width: 190px;
   }
   .cardgrid.four,
   .cardgrid.five {

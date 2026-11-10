@@ -1,7 +1,6 @@
 /**
- * The world map of the 3D edition: a globe. Same contract as the pixel MapScene (hover, select,
- * double-click into a campus, the link tool, the tutorial's `site:` targets, the menu tour's
- * cinematic glides, keyboard pan/zoom).
+ * The world map: a globe (hover, select, double-click into a campus, the link tool, the tutorial's
+ * `site:` targets, the menu tour's cinematic glides, keyboard pan/zoom).
  */
 import * as THREE from 'three';
 import type { Game } from '../../game/game';
@@ -14,7 +13,7 @@ import { CHOKEPOINTS } from '../../world/routing';
 import { closedChokepoints } from '../../sim/effects';
 import { sampleRegionCode, project } from '../../world/mapData';
 import { subsolar } from '../../world/sun';
-import { siteVisible } from '../../render/worldMap/act2Layers';
+import { siteVisible } from './layerData';
 import { REGIONS } from '../../content/regions';
 import type { GameState, Shipment } from '../../sim/types';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, lonLatOf, R } from './earth';
@@ -30,7 +29,7 @@ import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, type Marker, type Mar
 import { quality } from '../quality';
 import { CharterLayer } from './layers3';
 import { PlanetLayer } from './layers45';
-import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2Layers';
+import { rivalsAt, landingActive, mineOwned } from './layerData';
 
 const RAD = Math.PI / 180;
 const MIN_DIST = 9, MAX_DIST = 330;

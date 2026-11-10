@@ -1,88 +1,59 @@
 # The Kardashev Project
 
-A cozy-but-real pixel-art management sim about the AI boom. Start in 2027 as a garage AI startup,
-build power, chips, compute and supply lines on a real-Earth pixel map, keep your models safe, and
-(eventually) guide civilisation from **K ≈ 0.73 to Type I**.
+A cozy-but-real 3D management sim about the AI boom. Start in 2027 as a garage AI startup, build power, chips,
+compute and supply lines on a real Earth, keep your models safe, and guide civilisation from **K ≈ 0.73 to Type I**.
 
-**Play:** https://thekardashevproject.netlify.app — in the browser, installed as an app (offline, landscape on
-phones), as an Android app, or as a Windows / macOS / Linux download from
-[Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases).
+**Get it:** https://thekardashevproject.netlify.app — a desktop game for Windows, macOS and Linux (installers on
+[Releases](https://github.com/L0nE-F0x/The-Kardashev-Project/releases)). A Steam release is planned.
 
-> Status: **v0.5.1** (v0.5 "Planetary" + in-app updates). Acts I (The Garage), II (The Scale-Up), III (The Charter) and IV (Planetary) are
-> playable end to end. See `SPEC.md` for the full design and `CHANGELOG.md` for what changed.
+> Status: **v0.12.0 "All In"**. The whole campaign is playable end to end: Acts I (The Garage), II (The Scale-Up),
+> III (The Charter), IV (Planetary) and V (Type I). See `SPEC.md` for the design and `CHANGELOG.md` for what changed.
 
-## Play locally
+## Run it locally
 
 ```bash
 npm install
-npm run dev     # website at http://127.0.0.1:5317, game at http://127.0.0.1:5317/play/
+npm run dev             # the game at http://127.0.0.1:5317/play/ (the website at /)
+npm test                # the sim's tests and the balance bots
 ```
 
-Desktop app (needs Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)):
+The desktop app (needs Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)):
 
 ```bash
 npm run desktop:dev     # the game in a native window
 npm run desktop:build   # installers in src-tauri/target/release/bundle/
 ```
 
-Android app (a small WebView app that runs the live site full screen; needs JDK 17 and the Android SDK):
-
-```bash
-cd android && ./gradlew assembleRelease   # APK in android/app/build/outputs/apk/release/
-```
+Two things are built from this repo: `npm run build` makes the game (`dist/`, bundled into the desktop app) and
+`npm run build:site` makes the website (`dist-site/`, what Netlify serves). The game is not on the website.
 
 ## What's in it
 
-- **Real-Earth pixel world map**: Natural Earth coastlines, 12 regional blocs, biomes, rivers and mountain
-  ranges, two zoom levels, a live day/night terminator from the real clock and city lights.
-- **36 build sites** plus fabs, memory makers, the EUV toolmaker, packaging and cloud, all fictional companies on
-  real geography.
-- **Build** solar, wind, batteries, gas, data centers and labs. Request grid connections (with real
-  interconnect queues), and draw transmission lines between sites.
-- **Order accelerators** from Lumen or Kestrel. Ships sail real sea routes through Panama, Suez and Malacca, and
-  reroute when chokepoints close.
-- **Train models** (Bit-1, Bit-2…), and split compute between training, inference revenue, research and safety.
-  Rival labs keep shipping.
-- **Pressure**: 20+ events (supply shocks, disasters, politics, climate, safety incidents, markets), each with
-  advisor commentary and real trade-offs.
-- **Act II, The Scale-Up**: grow from a Series A to an IPO. Tiered halls and plants, megasites and the Gigawatt
-  Campus; hydro, geothermal and three nuclear paths; wafers, HBM and packaging as separate pools, supply deals, your
-  own packaging plant and a fab joint venture; mine stakes; fiber, subsea cables and regional markets; advisor jobs
-  (standing orders); a board, project finance, enterprise contracts and sovereign deals; bloc relations, export rules,
-  elections, treaties and summits; rivals building on the map; and a three-front finale, The Crunch. Start a new
-  company straight at Act II if you like.
-- **Act III, The Charter**: become Steward of the Kardashev Project, the planet's consortium, while your own company
-  bids like everyone else (or sits in a blind trust). Post contracts and judge bids from 21 partner companies with
-  traits and quirks; build megaprojects in every bloc, intercontinental HVDC links, a Chip Commons, public compute and
-  a safety regime; win votes in a Council of twelve blocs with factions, walkouts and a rival consortium; track world
-  energy, the carbon budget and compute access; give Kip a launch complex; delegate to a Charter desk (Bit can run it
-  once you trust it); then hold The Threshold and win the renewal vote. Start a new company straight at Act III too.
-- **Act IV, Planetary**: run the planet as one system from 2045. Set five-year plans and watch the years time-lapse;
-  decide your company's fate; wire the continents into a supergrid that follows the sun; look after twelve provinces'
-  heat, water and wellbeing; back a race of fusion designs and breed their fuel; hand provinces to AIs (Bit, Apex, Weft,
-  Sapling) you trust; pull carbon from the air; build spaceports, orbital data centres, space solar and a Moon base
-  with a mass driver, all visible in a new orbit view; then survive The Heat Wall. Start straight at Act IV too.
-- **Campus dioramas**: side-view pixel scenes of each site, with animated facilities, weather, real local time of
-  day, night lighting and a time-lapse toggle.
-- **Era palettes**: the whole world re-grades as K climbs (preview them in Settings → Display).
-- **Main menu** with a cinematic tour, **five save slots**, and a New Company setup: home city, difficulty
-  (Relaxed / Standard / Hard), founder perks and a custom start with a shareable seed.
-- **Bit's tutorial** walks you through the first ten minutes; the **Field Guide** explains the real science and
-  engineering behind the game, unlocking entries as you meet them.
-- **Settings**: gameplay (event pausing, offline progress, autosave, spend confirmations), display (pixel and UI
-  size, weather, clouds, day/night, CRT filter, battery saver, FPS), audio, accessibility (readable font,
-  colour-blind-safe colours, reduced motion, high contrast), controls and save data.
-- **Offline progress**: the world keeps running while you're away (1 game-month per real hour by default, max a year).
-- Mouse and keyboard or touch. Saves stay on your device, with export/import save codes and files.
+- **A real Earth as a 3D globe**: Natural Earth coastlines, twelve regional blocs, real chokepoints, the sun where
+  it really is, weather and city lights.
+- **Every site is a place you can fly around**: campuses, power plants, Geneva, launch pads, the Moon and the
+  habitats of Act V, with people who keep a working day, traffic, weather and the real local time.
+- **Act I, The Garage**: rent compute, train Bit-1, build your first data hall, order chips that sail real sea
+  routes, raise a Series A.
+- **Act II, The Scale-Up**: gigawatt campuses, reactors and your own fab; supply deals, export rules, subsea
+  cables, a board, rivals, and a three-front finale, the Crunch.
+- **Act III, The Charter**: become Steward of a planetary project. Post contracts, judge bids from every company
+  on Earth, win votes in a Council of twelve blocs, then hold the Threshold and win the renewal vote.
+- **Act IV, Planetary**: five-year plans and time-lapse jumps; a supergrid that follows the sun, a fusion race,
+  provinces run by AIs you trust, orbit and a Moon base; then the Heat Wall.
+- **Act V, Type I**: self-replicating foundries on the Moon and real asteroids, a swarm of collectors round the
+  Sun, big decisions about what the minds are owed, Solar Maximum and the last climb to K 1.0000.
+- **Teaching layers**: Bit's tutorial, a How to Play handbook, advisor tips and a Field Guide to the real science.
+- **Sandbox mode, 37 achievements, five save slots**, photo mode, a cinematic score, and an app that updates itself.
 
 ## Controls
 
-Drag to pan · scroll or pinch to zoom · click a site to inspect, double-click to view its campus ·
-Space pause · 1–4 speed · C compute · O orders · R research · F finance · G goals · N news · B Field Guide ·
-L power-line tool · M/Esc back to map · WASD/arrows pan · +/− zoom. Act II: T team · E deals · P blocs · I fiber tool.
-Act III: H the Charter · U the Council. Act IV: Y the Planet · V the orbit view.
+Drag to turn the globe · scroll to zoom · click a site to inspect, double-click to visit it · Space pause ·
+1–4 speed · C compute · O orders · R research · F finance · G goals · N news · B Field Guide · K stats ·
+? How to play · M/Esc back to the globe. Later acts add their own panels (the dock shows the keys).
 
 ## Credits
 
-Made by Lone Fox, built with Claude. Map data © Natural Earth (public domain). Fonts: Atkinson Hyperlegible
-Next, Silkscreen and Pixelify Sans (SIL OFL). Built with PixiJS, Preact, Vite and Tauri. All art and sound is generated in code.
+Made by Lone Fox, built with Claude. Map data: Natural Earth (public domain). Fonts: Atkinson Hyperlegible Next,
+Silkscreen and Pixelify Sans (SIL OFL). Built with three.js, Preact, Vite and Tauri. The people, trees and rocks
+were modelled with Meshy; the rest of the world, the interface art and the sound are generated in code.

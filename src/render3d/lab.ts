@@ -1,9 +1,9 @@
 /**
- * The piece lab (play3d/lab.html, dev only): one facility or set piece on a plot, with the real
+ * The piece lab (play/lab.html, dev only): one facility or set piece on a plot, with the real
  * ground, sky, post look and a person for scale. For building and checking 3D art.
  *
- *   /play3d/lab.html?piece=fab&tier=1&w=60&d=26          a facility type from the registry
- *   /play3d/lab.html?set=logicFab&brand=lumen&w=60        a view-only set piece
+ *   /play/lab.html?piece=fab&tier=1&w=60&d=26          a facility type from the registry
+ *   /play/lab.html?set=logicFab&brand=lumen&w=60        a view-only set piece
  *   …&progress=0.5 (under construction) &alt=35 (sun altitude °) &az=-40 (sun azimuth °, 0 = south)
  *   …&backdrop=desert &yaw=-0.5 &pitch=1.0 &dist=80 &night=1
  *

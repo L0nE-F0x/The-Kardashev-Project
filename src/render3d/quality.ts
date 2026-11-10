@@ -1,9 +1,8 @@
 /**
- * The 3D edition's detail level (Settings → Display → 3D detail). Scenes read it when they're built
+ * The detail level (Settings → Display → 3D detail). Scenes read it when they're built
  * (shadow map size, plant density); the stage applies the resolution cap and ambient occlusion
  * at once.
  */
-import { isPhone } from '../platform/platform';
 import { kitDetail } from './kit';
 
 export type QualityLevel = 'high' | 'medium' | 'low';
@@ -54,12 +53,11 @@ function gpuName(): string {
 export const strongGpu = (name: string) => /nvidia|geforce|quadro|rtx|radeon (rx|pro)|radeon\(tm\) rx|arc\(tm\) a|arc a\d|apple m\d (pro|max|ultra)/i.test(name);
 
 /**
- * The level for a setting: 'auto' is low on phones, high with a discrete GPU, medium otherwise (integrated GPUs, or
- * a browser that won't say), and the resolution adapts on top of it.
+ * The level for a setting: 'auto' is high with a discrete GPU, medium otherwise (integrated GPUs, or a webview
+ * that won't say), and the resolution adapts on top of it.
  */
 export function resolveQuality(setting: 'auto' | QualityLevel | undefined): QualityLevel {
   if (setting && setting !== 'auto') return setting;
-  if (isPhone()) return 'low';
   return strongGpu(gpuName()) ? 'high' : 'medium';
 }
 

@@ -1,5 +1,5 @@
 /** Act III–V set pieces' footprints (pure: the layout and the tests read it without the art). */
-import type { Act3PieceKind } from '../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from './plan';
 
 /** Footprints (w × d) per kind, in world units (a campus plot is 28 × 26). */
 export const ACT3_SIZE: Partial<Record<Act3PieceKind, [number, number]>> = {

@@ -43,7 +43,7 @@ import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio
 import { musicUnlocked, playMusic, setMusicMood, setSoundtrack, type Track } from '../audio/music';
 import { ambienceForScene, restartAmbience, setAmbience } from '../audio/ambience';
 import { installUiSounds } from '../audio/ui';
-import { canFullscreen, canPromptInstall, checkAppUpdate, enterFullscreen, initInstallPrompt, isPhone, isStandalone, onInstallChange, registerServiceWorker } from '../platform/platform';
+import { checkAppUpdate } from '../platform/platform';
 import type { AppUpdate, AppUpdateStatus } from '../platform/platform';
 import { kardashev } from '../sim/model';
 import { TUTORIAL, PLAY_STEP } from './tutorial';
@@ -65,7 +65,7 @@ export type SystemTab = 'overview' | 'thermal' | 'foundries' | 'asteroids' | 'sw
 export type EndingStep = 'cinematic' | 'epilogue' | 'credits' | 'stats' | 'card';
 export type Tool = { kind: 'link' | 'fiber'; from: string | null } | null;
 export type Mode = 'title' | 'map' | 'diorama' | 'orbit' | 'system';
-export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'install' | 'achievements' | 'howto';
+export type MenuScreen = 'main' | 'new' | 'load' | 'settings' | 'guide' | 'whatsnew' | 'credits' | 'achievements' | 'howto';
 export type Hover =
   | { kind: 'site'; id: string; clientX: number; clientY: number }
   | { kind: 'region'; id: RegionId; clientX: number; clientY: number }
@@ -153,10 +153,8 @@ export class Game {
   confirm: ConfirmRequest | null = null;
   settings: Settings = loadSettings();
   eraOverride: Era | null = null;
-  updateReady: (() => void) | null = null;
-  /** The installed app (desktop or Android) has a newer release; `hidden` after "Later" until the next start. */
+  /** The app has a newer release; `hidden` after "Later" until the next start. */
   appUpdate: { version: string; install: AppUpdate['install']; status: AppUpdateStatus; hidden: boolean } | null = null;
-  installAvailable = false;
   /** Demo world shown behind the main menu. */
   showcase: GameState | null = null;
   tour: TourDirector | null = null;
@@ -191,7 +189,6 @@ export class Game {
     setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
     setSoundtrack(this.settings.soundtrack);
     installUiSounds();
-    this.stage.setZoomBoost(this.settings.zoom);
     document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
     unlockOnGesture(() => {
@@ -202,33 +199,7 @@ export class Game {
     onEraChange(() => {
       if (this.mode !== 'title' && this.state && !this.ending) playMusic(this.eraTrack());
     });
-    initInstallPrompt();
-    onInstallChange(() => {
-      this.installAvailable = canPromptInstall();
-      this.notify();
-    });
-    void registerServiceWorker((apply) => {
-      this.updateReady = apply;
-      this.notify();
-    });
     this.watchAppUpdates();
-    this.autoFullscreen();
-    document.addEventListener('fullscreenchange', () => this.notify());
-  }
-
-  /**
-   * Phones in a browser tab lose a third of a landscape screen to the address bar and system bars:
-   * the first tap of the visit goes fullscreen (browsers only allow it inside a tap). After that the
-   * top bar's fullscreen button brings it back if the player leaves.
-   */
-  private autoFullscreen(): void {
-    if (!isPhone() || isStandalone() || !canFullscreen()) return;
-    const go = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse') return;
-      window.removeEventListener('pointerup', go, true);
-      if (this.settings.phoneFullscreen) void enterFullscreen();
-    };
-    window.addEventListener('pointerup', go, true);
   }
 
   get ctx() {
@@ -422,7 +393,7 @@ export class Game {
     this.mode = 'map';
     this.dioramaSite = null;
     setAmbience('map');
-    this.stage.setScene(this.scenes.map(this), this.settings.zoom);
+    this.stage.setScene(this.scenes.map(this), 1);
     this.act2Music = (this.state?.act ?? 1) >= 2;
     this.act3Music = (this.state?.act ?? 1) >= 3;
     playMusic(this.eraTrack());
@@ -441,7 +412,7 @@ export class Game {
     this.dioramaSite = null;
     setAmbience('space');
     this.hover = null;
-    this.stage.setScene(this.scenes.orbit(this), this.settings.zoom);
+    this.stage.setScene(this.scenes.orbit(this), 1);
     sfx('whoosh');
     this.notify();
   }
@@ -457,7 +428,7 @@ export class Game {
     setAmbience('space');
     this.dioramaSite = null;
     this.hover = null;
-    this.stage.setScene(this.scenes.system(this, { cinematic }), this.settings.zoom);
+    this.stage.setScene(this.scenes.system(this, { cinematic }), 1);
     if (!cinematic) sfx('whoosh');
     this.notify();
   }
@@ -488,7 +459,7 @@ export class Game {
     }
     this.hover = null;
     // dioramas are close-ups: twice the pixel size of the world map
-    this.stage.setScene(this.scenes.diorama(this, siteId), this.settings.zoom * 2);
+    this.stage.setScene(this.scenes.diorama(this, siteId), 2);
     sfx('whoosh');
     this.notify();
   }
@@ -509,7 +480,7 @@ export class Game {
   /** Update the installed app now (the game is saved first: the app restarts or gets replaced). */
   installAppUpdate(): void {
     const u = this.appUpdate;
-    if (!u || (u.status.phase !== 'ready' && u.status.phase !== 'failed' && u.status.phase !== 'cancelled')) return;
+    if (!u || (u.status.phase !== 'ready' && u.status.phase !== 'failed')) return;
     this.save();
     u.install((status) => {
       u.status = status;
@@ -530,7 +501,7 @@ export class Game {
     this.lastAutosave = performance.now();
     if (!ok && !this.saveWarned) {
       this.saveWarned = true;
-      this.toast('Couldn’t save: this browser is blocking storage (private mode?). Export your company from Settings → Data to keep it.', 'bad', 'penny');
+      this.toast('Couldn’t save: storage is blocked or full on this computer. Export your company from Settings → Data to keep it.', 'bad', 'penny');
     }
   }
   private saveWarned = false;
@@ -1113,7 +1084,6 @@ export class Game {
     applyCssSettings(this.settings);
     setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
     setSoundtrack(this.settings.soundtrack);
-    if (patch.zoom !== undefined) this.stage.setZoomBoost(this.settings.zoom * (this.mode === 'diorama' || this.tour?.inCampus() ? 2 : 1));
     this.notify();
   }
 
@@ -1123,7 +1093,7 @@ export class Game {
     this.notify();
   }
 
-  /** Photo mode (the 3D edition's campuses): the interface steps aside for a camera bar, and the clock waits. */
+  /** Photo mode (campuses): the interface steps aside for a camera bar, and the clock waits. */
   photo = false;
   togglePhoto(on = !this.photo): void {
     if (on === this.photo) return;

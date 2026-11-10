@@ -9,7 +9,6 @@ import { COMPANIES } from '../content/companies';
 import { CHOKEPOINT_BY_ID } from '../world/routing';
 import { closedChokepoints } from '../sim/effects';
 import { fmtDate, fmtDays, fmtMW } from '../sim/core';
-import { isAndroid } from '../platform/platform';
 import type { AdvisorId } from '../sim/types';
 
 /** Scrolling news ticker along the bottom. */
@@ -230,33 +229,13 @@ export function LinkHint() {
   );
 }
 
-/** Phones play in landscape: ask to rotate when held upright. */
-export function RotateOverlay() {
-  const [portrait, setPortrait] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 900px)');
-    const update = () => setPortrait(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-  if (!portrait) return null;
-  return (
-    <div class="rotate interactive">
-      <div class="phone" aria-hidden="true" />
-      <p>Turn your phone sideways to play.</p>
-      <p class="small muted">The Kardashev Project is a landscape game.</p>
-    </div>
-  );
-}
-
 export function FpsCounter() {
   const game = useGame();
   if (!game.settings.fps) return null;
   return <div class="fps">{game.fps} fps</div>;
 }
 
-/** The installed app (desktop or Android) has a newer release: update it from inside the game. */
+/** The app has a newer release: update it from inside the game. */
 function AppUpdateToast() {
   const game = useGame();
   const u = game.appUpdate!;
@@ -285,19 +264,11 @@ function AppUpdateToast() {
         {(st.attempt ?? 1) > 1 ? ' · reconnected' : ''}
       </span>
     );
-  else if (st.phase === 'permission') body = <span>Allow the game to install updates, then come back.</span>;
-  else if (st.phase === 'installing') body = <span>{isAndroid() ? 'Installing: confirm on screen, then open the game again.' : 'Installing: the game restarts in a moment.'}</span>;
-  else if (st.phase === 'browser')
-    body = (
-      <>
-        <span>The new app is downloading in your browser: open it to install.</span>
-        {later}
-      </>
-    );
+  else if (st.phase === 'installing') body = <span>Installing: the game restarts in a moment.</span>;
   else
     body = (
       <>
-        <span data-tip={st.phase === 'failed' ? st.reason : undefined}>{st.phase === 'cancelled' ? 'Update cancelled.' : 'The update didn’t work.'}</span>
+        <span data-tip={st.reason}>The update didn’t work.</span>
         <button class="btn small primary" onClick={() => game.installAppUpdate()}>
           Try again
         </button>
@@ -311,19 +282,10 @@ function AppUpdateToast() {
   );
 }
 
-/** A newer version: the installed app's own update first, else the web app's (service worker). */
+/** A newer version of the app is out. */
 export function UpdateToast() {
   const game = useGame();
-  if (game.appUpdate && !game.appUpdate.hidden) return <AppUpdateToast />;
-  if (!game.updateReady) return null;
-  return (
-    <div class="update frame interactive">
-      <span>A new version is ready.</span>
-      <button class="btn small primary" onClick={() => game.updateReady?.()}>
-        Reload
-      </button>
-    </div>
-  );
+  return game.appUpdate && !game.appUpdate.hidden ? <AppUpdateToast /> : null;
 }
 
 /** With auto-pause off, a waiting decision sits here until opened. */

@@ -52,19 +52,11 @@ body.landing {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-/* the stars are pixel art; nothing else needs to be */
-body.landing {
-  image-rendering: pixelated;
-}
-body.landing * {
-  image-rendering: auto;
-}
-/* (the screenshots are 3D renders now: smooth scaling) */
+/* the game's own pixel art (the logo, the app icon, the interface icons) keeps its hard edges */
 body.landing img.px-art,
 body.landing .tile-icon,
 body.landing .logo,
-body.landing .brand img,
-body.landing #globe.px {
+body.landing .brand img {
   image-rendering: pixelated;
 }
 
@@ -325,19 +317,32 @@ section {
   background: radial-gradient(circle, rgb(95 211 181 / 0.22), rgb(80 110 255 / 0.1) 45%, transparent 70%);
   filter: blur(30px);
 }
-/* the pixel globe and the 3D one share the grid cell: the 3D one fades in over the pixel one */
+/* until the globe has baked, a dark planet with a lit limb stands in its place; the globe fades in over it */
 #globe,
-#globe3d {
+.globe-shade,
+.globe-still {
   grid-area: 1 / 1;
   position: relative;
   width: min(100%, 480px);
   aspect-ratio: 1;
+}
+#globe {
   opacity: 0;
   transition: opacity 0.9s;
 }
-#globe.ready,
-#globe3d.ready {
+#globe.ready {
   opacity: 1;
+}
+.globe-shade::before {
+  content: '';
+  position: absolute;
+  /* the planet's disc inside the canvas square (the atmosphere takes the rest) */
+  inset: 5.7%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 32%, #1b2a4d 0%, #101831 38%, #080b19 72%, #05060f 100%);
+  box-shadow:
+    inset 10px 8px 26px -10px rgb(140 190 255 / 0.5),
+    0 0 26px -4px rgb(96 150 255 / 0.4);
 }
 .hero-globe noscript img {
   width: min(100%, 480px);
@@ -721,7 +726,7 @@ section {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 .get-card {
   display: flex;
@@ -757,6 +762,25 @@ section {
 }
 .hint b {
   color: var(--site-muted);
+}
+.get-notes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 28px;
+  margin-top: 18px;
+  padding: 0 4px;
+}
+.get-notes .hint {
+  margin: 0;
+}
+.get-notes a {
+  color: var(--site-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.get-notes a:hover {
+  color: var(--site-text);
 }
 .unsigned {
   font-size: 14px;
@@ -1047,7 +1071,8 @@ details.release[open] > summary .release-head::after {
     order: -1;
   }
   #globe,
-  #globe3d {
+  .globe-shade,
+  .globe-still {
     width: min(76vw, 380px);
   }
   .stats {

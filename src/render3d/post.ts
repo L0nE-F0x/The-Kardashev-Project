@@ -1,5 +1,5 @@
 /**
- * The 3D edition's look, per scene. One scene render (HDR, with its depth) feeds everything:
+ * The picture's look, per scene. One scene render (HDR, with its depth) feeds everything:
  * ambient occlusion from the depth buffer, depth of field (the miniature read: sharp where the camera looks, soft
  * before and behind it), bloom for lights, then the "film": exposure, a tone curve, a grade (the era's tint,
  * contrast, vignette, the stage fade, a whisper of grain so gradients don't band) and a light sharpen.

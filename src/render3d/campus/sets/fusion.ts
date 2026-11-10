@@ -3,7 +3,7 @@
  * `fusionPlant` draws one plant of a fleet in its design (`variant`: tokamak, stellarator, laser,
  * pinch, dhe3; `n` = unit number; the builder's livery), `dacFarm` a block of direct air capture.
  */
-import type { Act3PieceKind } from '../../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from '../plan';
 import type { Act3SetFactory, Act3SetOpts } from '../act3sets';
 import type { Piece } from '../../pieces';
 import { tokamakPlant } from './fusion/tokamak';

@@ -1,8 +1,7 @@
 /**
- * The website hero's Earth, in 3D: the game's own globe (render3d/globe/earth.ts — land, relief, sea, city lights,
- * clouds, the atmosphere) with the sun where it really is right now, turning with the pixel globe it fades in over
- * (`view.lon`, shared). Loaded once the page is idle (three.js comes in its own chunk, shared with the 3D game).
- * Returns false without WebGL (the pixel globe stays).
+ * The website hero's Earth: the game's own globe (render3d/globe/earth.ts — land, relief, sea, city lights,
+ * clouds, the atmosphere) with the sun where it really is right now. Loaded once the page is idle (three.js comes
+ * in its own chunk). Returns false without WebGL (the page shows a still instead).
  */
 import * as THREE from 'three';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, R } from '../render3d/globe/earth';
@@ -33,7 +32,7 @@ export function spinGlobe3d(canvas: HTMLCanvasElement, lod: MapLod, still: boole
   cloudMat.uniforms.opacity.value = 0.85;
 
   const camera = new THREE.PerspectiveCamera(30, 1, 10, 2000);
-  // the globe as big as the pixel one it replaces (~88% of the square), its atmosphere just inside the edge
+  // the planet fills ~80% of the square (as .globe-shade's disc), its atmosphere just inside the edge
   const DIST = (R * 1.12) / Math.sin((camera.fov * Math.PI) / 360);
 
   const size = () => {
@@ -72,7 +71,7 @@ export function spinGlobe3d(canvas: HTMLCanvasElement, lod: MapLod, still: boole
     last = now;
     if (visible && !document.hidden) {
       time += dt;
-      view.lon -= dt * 6; // west → east, as the pixel globe turned
+      view.lon -= dt * 6; // west → east
       draw();
     }
     requestAnimationFrame(loop);

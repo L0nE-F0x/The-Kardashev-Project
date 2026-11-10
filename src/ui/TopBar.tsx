@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { Eased, Icon, is3d, useGame } from './components';
-import { canFullscreen, enterFullscreen, isFullscreen, isPhone, isStandalone } from '../platform/platform';
 import { warming } from '../sim/climate';
 import { overLine, surfaceTW } from '../sim/swarm';
 import { lineTW } from '../sim/systemView';
@@ -150,11 +149,6 @@ Click to open the System (X).`}>
           )}
         </div>
       </div>
-      {isPhone() && !isStandalone() && canFullscreen() && !isFullscreen() && (
-        <button class="btn fsbtn frame" onClick={() => void enterFullscreen()} data-tip="Fullscreen" aria-label="Fullscreen">
-          <Icon name="fullscreen" size="sm" />
-        </button>
-      )}
     </div>
   );
 }

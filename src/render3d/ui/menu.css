@@ -32,7 +32,7 @@
     .menu-col > * {
       animation: eSlideRight 0.5s var(--e-ease) both;
     }
-    /* the logo doesn't slide: the loading screen's logo lands on it (play3d/index.html), and the menu waits for it */
+    /* the logo doesn't slide: the loading screen's logo lands on it (play/index.html), and the menu waits for it */
     .menu-col > .menu-logo {
       animation: none;
     }

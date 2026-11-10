@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import preact from '@preact/preset-vite';
-import { VitePWA } from 'vite-plugin-pwa';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string; description: string };
 
@@ -34,8 +34,30 @@ function screenshotSaver(): Plugin {
   };
 }
 
+/**
+ * Two things are built from this repo, each into its own folder:
+ *   - the game (`npm run build` → dist/): play/index.html, bundled into the desktop app by Tauri;
+ *   - the website (`npm run build:site` → dist-site/): index.html, what Netlify serves. The game is not on it.
+ * Both share public/, so each build drops the files only the other one uses.
+ */
+const SITE = process.env.KP_TARGET === 'site';
+const OUT = SITE ? 'dist-site' : 'dist';
+/** public/ files the website doesn't serve, and the ones the app doesn't carry. */
+const NOT_ON_SITE = ['3d', 'audio'];
+const NOT_IN_APP = ['screenshots', 'og-image.png', 'globe.png', 'robots.txt', 'sitemap.xml', 'sw.js'];
+
+function pruneOutput(): Plugin {
+  return {
+    name: 'kp-prune-output',
+    apply: 'build',
+    closeBundle() {
+      for (const name of SITE ? NOT_ON_SITE : NOT_IN_APP) rmSync(resolve(OUT, name), { recursive: true, force: true });
+    },
+  };
+}
+
 export default defineConfig({
-  // relative base: works at the site root, on Netlify previews and inside the desktop app
+  // relative base: works at the site root, on Netlify previews and inside the desktop app (tauri://localhost/play/)
   base: './',
   // helper checkouts that share one node_modules (a symlink) keep their own dependency cache
   cacheDir: process.env.VITE_CACHE_DIR || 'node_modules/.vite',
@@ -46,63 +68,14 @@ export default defineConfig({
   plugins: [
     preact(),
     screenshotSaver(),
-    VitePWA({
-      // the site is served from the domain root: absolute URLs work for both / and /play/
-      base: '/',
-      // we register the service worker ourselves (skipped inside the desktop app)
-      injectRegister: null,
-      registerType: 'prompt',
-      filename: 'sw.js',
-      manifestFilename: 'manifest.webmanifest',
-      includeAssets: ['favicon.ico', 'icons/*.png', 'og-image.png'],
-      manifest: {
-        id: '/play/',
-        name: 'The Kardashev Project',
-        short_name: 'Kardashev',
-        description: pkg.description,
-        start_url: '/play/?app=1',
-        scope: '/',
-        display: 'fullscreen',
-        display_override: ['fullscreen', 'standalone'],
-        orientation: 'landscape',
-        background_color: '#0b0a12',
-        theme_color: '#0b0a12',
-        categories: ['games', 'simulation', 'strategy'],
-        icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-        screenshots: [
-          { src: '/screenshots/globe-asia.webp', sizes: '1600x900', type: 'image/webp', form_factor: 'wide', label: 'East Asia at night on the globe' },
-          { src: '/screenshots/act2-wyoming.webp', sizes: '1600x900', type: 'image/webp', form_factor: 'wide', label: 'A gigawatt data center campus' },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2,bin,png,svg,ico,webp,mp3}'],
-        // marketing images are for the website, not for offline play
-        globIgnores: ['screenshots/**', 'og-image.png', 'globe.png'],
-        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-        cleanupOutdatedCaches: true,
-        navigateFallback: null,
-        // the installed app opens /play/?app=1 — serve the cached page for it offline
-        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^app$/],
-        // the 3D edition's models (18 MB) load as a place needs them: keep each one once fetched, so the 3D game
-        // also plays offline after a first visit (not precached: pixel-game players never download them)
-        runtimeCaching: [{ urlPattern: /\/3d\/models\/.*\.glb$/, handler: 'CacheFirst', options: { cacheName: 'kp-3d-models', expiration: { maxEntries: 80 } } }],
-      },
-      devOptions: { enabled: false },
-    }),
+    pruneOutput(),
   ],
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1800,
+    outDir: OUT,
     rollupOptions: {
-      input: {
-        main: 'index.html',
-        play: 'play/index.html',
-        play3d: 'play3d/index.html',
-      },
+      input: SITE ? { main: 'index.html' } : { play: 'play/index.html' },
     },
   },
   // fixed address: the desktop app's dev mode (tauri.conf.json devUrl) points here

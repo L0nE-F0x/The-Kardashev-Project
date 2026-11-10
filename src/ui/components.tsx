@@ -11,12 +11,12 @@ import { CAST4 } from '../content/planet';
 import { CEOS } from '../content/companies';
 import { CAST5 } from '../content/system';
 import { bitForm, castAge, deskHolder } from '../sim/systemView';
-import { isAndroidApp, openExternal } from '../platform/platform';
+import { openExternal } from '../platform/platform';
 
 export const GameCtx = createContext<Game>(null as unknown as Game);
 
 /**
- * The 3D edition wearing its own interface look (render3d/ui/*.css; main3d.ts marks the page before the UI renders,
+ * The game wearing its own interface look (render3d/ui/*.css; main.ts marks the page before the UI renders,
  * and the Classic look turns it off): a few screens carry extra markup for it.
  */
 export const is3d = (): boolean => {
@@ -33,8 +33,8 @@ export function useGame(): Game {
 }
 
 /**
- * A number that glides to its new value instead of stepping (the 3D edition's money and K meter). Text only, so the
- * markup is the same in both editions; the pixel edition and reduced motion show the value as it is.
+ * A number that glides to its new value instead of stepping (the money and the K meter). Text only; the Classic
+ * look and reduced motion show the value as it is.
  */
 export function Eased({ value, format }: { value: number; format: (v: number) => string }) {
   const game = useContext(GameCtx);
@@ -218,13 +218,13 @@ export function fmtPlaytime(sec: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-/** A link to a page outside the game: a new tab in the browser, the system browser in the desktop and Android apps. */
+/** A link to a page outside the game: it opens in the system browser. */
 export function ExtLink({ href, children }: { href: string; children: ComponentChildren }) {
   return (
     <a
       href={href}
       class="link"
-      target={isAndroidApp() ? undefined : '_blank'}
+      target="_blank"
       rel="noopener"
       onClick={(e) => {
         if (openExternal(href)) e.preventDefault();

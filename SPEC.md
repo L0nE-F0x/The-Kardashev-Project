@@ -1,5 +1,10 @@
 # The Kardashev Project — Game Spec v0.1
 
+> **Read section 30 first (2026-11-11):** the game is 3D and desktop only now (Windows, macOS, Linux; Steam is the
+> goal). The pixel-art edition, the browser game, the installable web app and the Android app described in the
+> sections below were removed; where an older section speaks of pixel dioramas, the pixel map, phones or the PWA, it
+> is history. The sim, the acts and the interface are unchanged.
+
 > A cozy-but-real pixel-art management sim about the AI boom. You start in 2027 as a scrappy AI
 > startup and grow into the steward of Earth's whole AI stack (energy, chips, memory, data
 > centers, networks, launch), guiding civilisation from **K ≈ 0.73 to Type I**, and later beyond.
@@ -2224,3 +2229,64 @@ compressors, panners). Chrome on the Intel GPU drew the same views correctly too
 - From the helpers: the website hero runs the globe's high shaders on phones (`earthMaterial(t, W, H, level?)` takes a
   level now); Act III's satellite, beam and liftoff on the globe were not exercised; power beams in the ending only show
   with beam capacity; the cinematic is capped at 16 s by `tickEnding`; the 4K-at-150% interface survey was partial.
+
+## 30. v0.12.0 "All In": one game, 3D, desktop only (built 2026-11-11)
+
+**The decision (the user, 2026-11-11):** the game goes to Steam, for Windows, macOS and Linux. So: no Android app, no
+playing in the browser, no installable web app, and no pixel edition ("we're going full 3D"). They had played v0.11.0
+and were happy with the look, the speed and the sound. The old code was to be deleted, not parked.
+
+**What was removed**
+- The pixel edition: its entry point, the Pixi stage, the map, the dioramas, the orbit and solar-system views, their
+  sprites and helpers (about 28,500 lines in `src/render/`), the Edition setting and the hand-over from /play/ to
+  /play3d/, `pixi.js`. Sixteen test files that only checked pixel art went with it.
+- The Android app (`android/`, its CI job, the bridges in platform.ts, the in-game APK update, assetlinks.json).
+- The web game: the Play buttons, the PWA (manifest, service worker, install prompts, `vite-plugin-pwa`,
+  `workbox-window`), the phone-only interface (rotate-your-phone screen, phone fullscreen, the get-the-app banner,
+  the share button).
+- Settings that did nothing in 3D: Pixel size, Clouds on the map, Fullscreen on phones. Soundtrack lost "Auto"
+  (old settings migrate: anything but Chiptune becomes Cinematic).
+
+**What moved**
+- The 3D game is `play/index.html` → `src/main.ts` (was play3d/ and main3d.ts). The desktop app still opens
+  `play/index.html`; saves live in the webview's storage, which does not depend on the path, so they carry over.
+- The pure code the 3D game borrowed from the pixel renderer now lives with it: the site planner
+  (`render3d/campus/plan.ts`, `plan5.ts`, `planKit.ts`; the side view's "stretch to the screen width" logic and width
+  hints were dropped, the 3D campus never used them) and the globe's layer data (`render3d/globe/layerData.ts`).
+  `render/stage.ts` is only the stage contract now. `tests/site-plan.test.ts` keeps the planner checks the pixel
+  preview tests used to carry.
+- Two builds: `npm run build` → `dist/` (the game, for the app) and `npm run build:site` → `dist-site/` (the website,
+  for Netlify). Netlify redirects /play/ and /play3d/ to the home page; `public/sw.js` replaces the old service worker,
+  deletes its caches and unregisters itself, and the home page does the same for a browser that lands there first.
+- The website: the hero opens on a dark planet (CSS) and the game's globe fades in over it (no pixel globe first; a
+  still without WebGL); a smooth starfield; three download cards (Windows, macOS, Linux) filled from the latest GitHub
+  release, the visitor's system lit and the hero button going straight to its file; copy without browser, phone or
+  pixel-edition claims.
+
+**Calls I made (easy to change)**
+- Kept as pixel art: the logo, the app icon, the advisors' portraits, the interface icons and the Type I end card.
+  They are the 3D interface's own art direction since v0.11 (SPEC §29) and the user had just approved that build;
+  redrawing them is an art job, not a removal.
+- Kept the Chiptune soundtrack as an option (Cinematic is the default), the Classic interface look and the Pixel
+  text font: working options, no upkeep today.
+- Kept the HUD's compact rules for small windows, touch input and the safe-area variables: a Steam Deck is a small
+  touch screen. The app's window is at least 960×540, so most of the phone rules never fire.
+- The website says "coming to Steam" (fine print, a stat tile, the download lede).
+- Named it v0.12.0 "All In".
+
+**Consequences to know**
+- Anyone who played in a browser (or the Android app, which showed the live site) loses access to those saves when
+  the website is deployed: they lived in that browser's storage for the site. Desktop saves are untouched.
+- The website and the release must ship together: v0.11.0's installers still open the pixel edition by default.
+- The Android signing key and its repo secrets are unused now. Left in place.
+
+**Checked:** type check; 22 test files (the bots for every act, the planner, the 3D layouts); the game in headless
+Chrome on the RTX at High from the dev server and from the production bundle (menu, settings, Act I, Act III and Act V
+places, orbit, the solar system: no console errors); the website from both (hero, downloads, a narrow window).
+Not checked: the desktop app itself (a Tauri build) and the Netlify redirects, which only exist once deployed.
+
+**Open (asked 2026-11-11)**
+- Redo the logo, the app icon, the portraits and the end card in the 3D style, or keep the pixel art as the game's
+  signature?
+- Drop the Chiptune soundtrack, the Classic look and the Pixel font too?
+- "Coming to Steam" on the website: yes, or not yet?

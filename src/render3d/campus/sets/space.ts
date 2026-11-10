@@ -5,7 +5,7 @@
  * growing head). They float: no ground; each piece is a section of one long station whose spine
  * lines up with its neighbours'. The pieces themselves live in ./space/.
  */
-import type { Act3PieceKind } from '../../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from '../plan';
 import type { Act3SetFactory } from '../act3sets';
 import { yardsCopy, yardsModule } from './space/module';
 import { yardsBerth, yardsDock, yardsOutbound } from './space/yards';

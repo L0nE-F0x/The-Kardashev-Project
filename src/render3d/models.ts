@@ -27,7 +27,7 @@ export const TOWNSFOLK: PersonName[] = ['kid_a', 'kid_b', 'resident_a', 'residen
 const RIGGED = new Set<string>([...PEOPLE, ...TOWNSFOLK, 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut']);
 export const CARS: ModelName[] = ['sedan', 'hatchback', 'suv', 'pickup', 'van'];
 
-// the page lives at /play3d/: the models sit next to it, in /3d/models/
+// the page lives at /play/: the models sit next to it, in /3d/models/
 const BASE = '../3d/models/';
 const templates = new Map<string, THREE.Object3D>();
 const loading = new Map<string, Promise<void>>();

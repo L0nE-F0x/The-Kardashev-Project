@@ -1,41 +1,61 @@
+/**
+ * The game (play/index.html): the sim, the interface, saves and audio in `Game`, drawn by three.js
+ * (render3d/). See SPEC §28–30.
+ */
 import { render, h } from 'preact';
 import './ui/styles.css';
 import './ui/modern.css';
+import './render3d/edition.css';
+import './render3d/photo.css';
 import mapUrl from './content/generated/worldmap.bin?url';
-import { PixelStage } from './render/stage';
 import { syncCssVars } from './render/palette';
 import { decodeWorldMap } from './world/mapData';
 import { Router } from './world/routing';
 import { Game } from './game/game';
-import { MapScene, prebuildMapLod } from './render/worldMap/mapScene';
-import { DioramaScene } from './render/diorama/dioramaScene';
-import { OrbitScene } from './render/orbit/orbitScene';
-import { SystemScene } from './render/system/systemScene';
 import { TourDirector } from './game/tour';
 import { App } from './ui/App';
 import { startShell } from './game/shell';
+import { Stage3D } from './render3d/stage3d';
+import { GlobeScene } from './render3d/globe/globeScene';
+import { CampusScene } from './render3d/campus/campusScene';
+import { OrbitScene3D } from './render3d/orbit/orbitScene';
+import { SystemScene3D } from './render3d/system/systemScene';
+import { loadModels, PEOPLE, SCENERY } from './render3d/models';
 import { loadSettings } from './save/settings';
+import { quality, resolveQuality, setQuality } from './render3d/quality';
+
+/** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
+const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
 
 async function boot() {
-  // the player picked the 3D edition: the installed apps start here, so hand over before building anything
-  if (loadSettings().edition === '3d') {
-    location.replace(`../play3d/index.html${location.search}`);
-    return;
-  }
   syncCssVars();
+  document.documentElement.classList.add('edition-3d');
   const host = document.getElementById('game')!;
   const status = document.getElementById('boot');
-  const stage = new PixelStage();
-  await stage.init(host);
-  const buf = await (await fetch(mapUrl)).arrayBuffer();
+  if (status) status.textContent = 'BUILDING THE WORLD…';
+  const q0 = loadSettings().quality3d;
+  setQuality(resolveQuality(q0), (q0 ?? 'auto') === 'auto');
+  // handy in the console while tuning (the live detail level the stage and scenes read)
+  (window as unknown as { quality3d: typeof quality }).quality3d = quality;
+  const stage = new Stage3D(host);
+  const [buf] = await Promise.all([(await fetch(mapUrl)).arrayBuffer(), loadModels([...ACT1_MODELS, ...PEOPLE])]);
   const lods = decodeWorldMap(buf);
   const router = new Router(lods[0]);
-  const game = new Game(stage, { lods, router }, {
-    map: (g) => new MapScene(g),
-    diorama: (g, siteId) => new DioramaScene(g, siteId),
-    tour: (g) => new TourDirector(g, { prebuild: prebuildMapLod }),
-    orbit: (g) => new OrbitScene(g),
-    system: (g, opts) => new SystemScene(g, opts),
+  const game: Game = new Game(stage, { lods, router }, {
+    map: (g) => new GlobeScene(g),
+    diorama: (g, siteId) => new CampusScene(g, siteId),
+    orbit: (g) => new OrbitScene3D(g),
+    system: (g, opts) => new SystemScene3D(g, opts),
+    // the menu tour: every shot, from the first campuses to Geneva, the Moon, the swarm and Aurora
+    tour: (g) => new TourDirector(g),
+  });
+  // the detail level follows the setting
+  let q = game.settings.quality3d;
+  game.subscribe(() => {
+    if (game.settings.quality3d === q) return;
+    q = game.settings.quality3d;
+    setQuality(resolveQuality(q), q === 'auto');
+    stage.applyQuality();
   });
   game.showMenu();
   render(h(App, { game }), document.getElementById('ui')!);

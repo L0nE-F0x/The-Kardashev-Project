@@ -1,6 +1,6 @@
 /**
  * Music: two soundtracks over the same cues. "Cinematic" (tracks.ts: pads, pianos, bells, a choir, one theme that
- * returns from the menu to the ending) is the 3D edition's; "Chiptune" (chiptune.ts) is the pixel edition's. Your own
+ * returns from the menu to the ending) is the game's score; "Chiptune" (chiptune.ts) is the retro alternative. Your own
  * theme song on the menu (public/audio/theme.mp3) still wins over both. Tracks cross-fade, and the cinematic score
  * follows the game's mood: calmer while paused, a little more drive at speed, tension in a finale.
  */
@@ -10,14 +10,14 @@ import { Cinematic, type Mood } from './cinematic';
 import { TRACKS } from './tracks';
 
 export type Track = 'menu' | 'era0' | 'era1' | 'era2' | 'era3' | 'era4' | 'ending' | null;
-/** Settings → Audio → Soundtrack: 'auto' is cinematic in the 3D edition and chiptune in the pixel edition. */
-export type Soundtrack = 'auto' | 'cinematic' | 'chiptune';
+/** Settings → Audio → Soundtrack. */
+export type Soundtrack = 'cinematic' | 'chiptune';
 
 const THEME_URL = '../audio/theme.mp3';
 const REST: Mood = { calm: false, drive: 0, tension: 0 };
 let want: Track = null;
 let unlocked = false;
-let soundtrack: Soundtrack = 'auto';
+let soundtrack: Soundtrack = 'cinematic';
 let mood: Mood = REST;
 /** What is sounding: the track, which soundtrack plays it, and the player (null while the MP3 theme plays). */
 let now: { track: Track; style: string; player: Cinematic | Chiptune | null } = { track: null, style: '', player: null };
@@ -25,8 +25,7 @@ let themeEl: HTMLAudioElement | null = null;
 let themeMissing = false;
 let themeGain: GainNode | null = null;
 
-const style = (): 'cinematic' | 'chiptune' =>
-  soundtrack === 'auto' ? (document.documentElement.classList.contains('edition-3d') ? 'cinematic' : 'chiptune') : soundtrack;
+const style = (): Soundtrack => soundtrack;
 
 export function musicUnlocked(): void {
   unlocked = true;

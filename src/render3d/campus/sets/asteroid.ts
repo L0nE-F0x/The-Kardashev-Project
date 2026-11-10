@@ -4,7 +4,7 @@
  * (h halted, q1–3 quarantine) or `post` (the claim at a working mine). The pieces live in
  * ./asteroid/.
  */
-import type { Act3PieceKind } from '../../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from '../plan';
 import type { Act3SetFactory } from '../act3sets';
 import { astBeacon, astCatapult, astClaim, astRig, astRocks } from './asteroid/pieces';
 

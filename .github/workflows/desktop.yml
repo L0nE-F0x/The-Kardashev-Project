@@ -1,7 +1,6 @@
 name: Release builds
 
-# Builds the Windows, macOS and Linux installers and the Android app (APK), and attaches them to a
-# *draft* GitHub release.
+# Builds the Windows, macOS and Linux installers and attaches them to a *draft* GitHub release.
 # Run it by pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) or from the
 # Actions tab. Publish the draft when you're happy — the website's Download buttons read the
 # latest published release.
@@ -85,64 +84,19 @@ jobs:
           tagName: v__VERSION__
           releaseName: The Kardashev Project v__VERSION__
           releaseBody: |
-            Download the installer for your computer below, or play in the browser at https://thekardashevproject.netlify.app/play/
+            Download the installer for your computer below (Windows, macOS or Linux).
 
             These builds are not code-signed yet, so your computer will ask before opening them:
             - **Windows:** on the SmartScreen notice, click *More info → Run anyway*.
             - **macOS:** right-click the app → *Open*, or System Settings → Privacy & Security → *Open Anyway*.
             - **Linux:** `chmod +x` the AppImage and run it (Arch-based distros may need `fuse2`), or install the .deb.
-            - **Android:** download `TheKardashevProject-android.apk` on your phone, open it, and allow installs from your browser if asked.
 
-            Already installed? From v0.5.1 the desktop and Android apps offer each new version in the game: press *Update*.
+            Already installed? The game offers each new version itself: press *Update*.
 
             What's new: https://thekardashevproject.netlify.app/#news
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-
-  # The Android app is a small WebView app that runs the live site full screen, so
-  # it only needs rebuilding when its version, icon or name changes. Signed with the release key
-  # from the repo secrets ANDROID_KEYSTORE_B64 (base64 of the .p12) and ANDROID_KEYSTORE_PASSWORD.
-  android:
-    name: Android (APK)
-    runs-on: ubuntu-24.04
-    # after the desktop builds, so the draft release already exists to attach to
-    needs: build
-    if: ${{ !cancelled() }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Build the signed APK
-        env:
-          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          KP_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_B64" ]; then echo "::error::ANDROID_KEYSTORE_B64 secret is missing"; exit 1; fi
-          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
-          export KP_ANDROID_KEYSTORE="$RUNNER_TEMP/release.p12"
-          cd android
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleRelease
-          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/TheKardashevProject-android.apk"
-          rm "$RUNNER_TEMP/release.p12"
-
-      - uses: actions/upload-artifact@v5
-        with:
-          name: android-apk
-          path: ${{ runner.temp }}/TheKardashevProject-android.apk
-
-      - name: Attach to the draft release
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "The Kardashev Project $GITHUB_REF_NAME" --notes "Android build."
-          gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/TheKardashevProject-android.apk" --clobber
 
   # The updater manifest the installed desktop apps read: one latest.json for every platform, written
   # after all the signed installers are on the draft release (the matrix jobs would race to merge it).

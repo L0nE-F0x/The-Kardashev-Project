@@ -7,7 +7,7 @@ import type { SiteDef } from '../../content/sites';
 import type { GameState } from '../../sim/types';
 import type { SetPieceKind } from './industry';
 import { FRONT_Z, type Rect } from './layout';
-import { act3Plan, type Act3PieceKind } from '../../render/diorama/act3Pieces';
+import { act3Plan, type Act3PieceKind } from './plan';
 import { ACT3_SIZE } from './act3sizes';
 import { PALETTE } from '../../render/palette';
 
@@ -39,7 +39,7 @@ export const isPlanSite = (site: SiteDef) => ['charter', 'mega', 'launch', 'moon
 export interface PlanSet { specs: SetSpec[]; scenery: string; offshore: boolean; lakeAt?: number; extra?: Record<string, unknown> }
 
 export function planSpecs(s: GameState | null, site: SiteDef): PlanSet {
-  const plan = act3Plan(s, site, 0);
+  const plan = act3Plan(s, site);
   const specs = plan.pieces.map((p): SetSpec => ({
     kind: p.kind as Act3PieceKind, brand: p.builder ?? 'charter', label: p.label, variant: p.variant,
     accent: paletteHex(p.accent), hi: paletteHex(p.accentHi, '#fbd46e'), n: p.n, p: p.p, builder: p.builder, vseed: p.seed, backdrop: p.backdrop, offshore: p.offshore,

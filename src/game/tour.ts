@@ -7,12 +7,11 @@ import { act4PreviewState } from '../sim/planetPreview';
 import { act5PreviewState } from '../sim/systemPreview';
 import { refreshStats } from '../sim/tick';
 import type { GameState } from '../sim/types';
-import type { MapLod } from '../world/mapData';
 
 /** Which world a shot shows: the Act II showcase company, a ~2062 planet, a ~2084 solar system. */
 type World = 2 | 4 | 5;
 
-/** How the 3D edition films a campus shot: the light, and the camera's move (the pixel edition pans as it always has). */
+/** How a campus shot is filmed: the light, and the camera's move. */
 type Light = 'dawn' | 'morning' | 'noon' | 'golden' | 'sunset' | 'dusk' | 'night';
 type Move = 'rise' | 'orbit' | 'push' | 'fly' | 'crane' | 'low' | 'sky';
 
@@ -61,13 +60,6 @@ interface DioramaLike extends Scene {
   direct?(d: { light?: Light; move?: Move; secs: number }): void;
 }
 
-export interface TourOptions {
-  /** Get a map zoom level's layers ready before a close-up shot cuts in (the pixel map). */
-  prebuild?: (lods: MapLod[], lod: number) => void;
-  /** Which shots this edition can show (the 3D edition grows into the later acts). */
-  supports?: (shot: { kind: Shot['kind']; site?: string; world?: number }) => boolean;
-}
-
 export class TourDirector {
   private index = -1;
   private t = 0;
@@ -77,7 +69,7 @@ export class TourDirector {
   /** The later-act worlds, built the first time a shot needs them (never saved). */
   private worlds = new Map<World, GameState>();
 
-  constructor(private readonly game: Game, private readonly opts: TourOptions = {}) {}
+  constructor(private readonly game: Game) {}
 
   private world(w: World): GameState {
     const g = this.game;
@@ -139,7 +131,6 @@ export class TourDirector {
   private nextShot(first: boolean): void {
     const g = this.game;
     this.index = (this.index + 1) % SHOTS.length;
-    for (let i = 0; i < SHOTS.length && this.opts.supports && !this.opts.supports(SHOTS[this.index]); i++) this.index = (this.index + 1) % SHOTS.length;
     const shot = SHOTS[this.index];
     this.t = 0;
     this.fadingOut = false;
@@ -152,24 +143,21 @@ export class TourDirector {
         this.nextShot(false);
         return;
       }
-      g.stage.setScene(scene, g.settings.zoom);
+      g.stage.setScene(scene, 1);
       g.tourCaption = shot.caption;
     } else if (shot.kind === 'map') {
       const scene = g.makeMapScene() as MapLike;
-      g.stage.setScene(scene, g.settings.zoom);
+      g.stage.setScene(scene, 1);
       scene.cinematic?.(shot.from, shot.to, shot.secs, shot.lod);
       g.tourCaption = shot.caption;
     } else {
       const scene = g.makeDioramaScene(shot.site) as DioramaLike;
       scene.autoPan = true;
       scene.direct?.({ light: shot.light, move: shot.move, secs: shot.secs });
-      g.stage.setScene(scene, g.settings.zoom * 2);
+      g.stage.setScene(scene, 2);
       const site = SITE_BY_ID[shot.site];
       g.tourCaption = shot.caption ?? `${site.name} · ${REGIONS[site.region].name}`;
     }
-    // the next shot is a close-up of the map: get its detailed layers ready in idle moments (no hitch when it cuts in)
-    const next = SHOTS[(this.index + 1) % SHOTS.length];
-    if (next.kind === 'map' && next.lod > 0) this.opts.prebuild?.(g.world.lods, next.lod);
     g.notify();
   }
 }

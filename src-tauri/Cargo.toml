@@ -1,7 +1,7 @@
 [package]
 name = "kardashev-project"
 version = "0.2.0"
-description = "The Kardashev Project: a cozy-but-real pixel-art sim of the AI boom"
+description = "The Kardashev Project: a cozy-but-real 3D sim of the AI boom"
 authors = ["Lone Fox"]
 repository = "https://github.com/L0nE-F0x/The-Kardashev-Project"
 edition = "2024"

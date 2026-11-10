@@ -3,7 +3,7 @@
  * options). A megaproject site is a row-wrapped sea of these blocks, more of them per stage: the
  * pieces themselves live in ./mega/.
  */
-import type { Act3PieceKind } from '../../../render/diorama/act3Pieces';
+import type { Act3PieceKind } from '../plan';
 import type { Act3SetFactory } from '../act3sets';
 import { cspTower, solarField, storageYard } from './mega/solar';
 import { converter, megaOffice, megaSub, seaSurvey, survey } from './mega/grid';

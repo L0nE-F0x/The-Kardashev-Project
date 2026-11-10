@@ -1,7 +1,12 @@
 # The Kardashev Project — dev guide
 
-Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.11.0 "Golden Hour"** (the grand polish pass on the 3D edition: sky, light and atmosphere on the
+A 3D management sim about the AI boom, for desktop (Windows, macOS, Linux; Steam is the goal). Design doc: `SPEC.md`
+(pillars, acts, decisions log).
+**One game, one platform (v0.12.0 "All In", SPEC §30):** the pixel-art edition, the web game, the installable web app
+(PWA) and the Android app were removed on 2026-11-11. Don't bring them back, and don't add phone or browser support:
+the game is the 3D one, shipped as the desktop app. What is left of the pixel days is the interface's art (logo,
+portraits, 9×9 and 15×15 icons, the Type I end card) and the optional Chiptune soundtrack.
+Current build: **v0.12.0 "All In"** on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
 campuses, the globe rebuilt, cinematic space views and ending, a 3D interface theme, new sound, photo mode: SPEC §29)
 on top of v0.10.1 "Lived In" (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
 working day, far-north daylight: SPEC §28) on top of v0.10.0 "Third Dimension" (the 3D edition in beta, opt-in via
@@ -15,19 +20,19 @@ Soundtrack" (M5 steps 1–7) and v0.6 "Type I" (M4.5): the whole v1 campaign is 
 Scale-Up), III (The Charter), IV (Planetary) and V (Type I, ending on Kardashev 1.0000) — on top of v0.2 "The Front Door" (website, main menu, tutorial, settings, save slots, PWA and
 desktop builds). v0.6.1 "Signs of Life" redrew the diorama people (people.ts, life.ts), lighting and depth, decluttered the world map
 and cleaned up the off-world dither. v0.4.2 "Easy Reading" added the readable font (Atkinson Hyperlegible Next), phone fullscreen and the
-Android app; v0.5.1 added in-app updates for the installed desktop and Android apps (an Update toast in the game).
-Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
+Android app; v0.5.1 added in-app updates (an Update toast in the game). Release names before 0.12 mention editions, phones and
+the Android app: history only.
+The website is live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`, the website only).
 
-## The 3D edition (SPEC §28, §29)
+## The renderer (SPEC §28, §29)
 
-A second front end on the same game: `play3d/index.html` → `src/main3d.ts` builds the same `Game` with
-`render3d/stage3d.ts` (three.js) and 3D scenes behind `SceneFactory`; sim, UI, tutorial, saves and audio are shared,
-so sim/UI changes land in both. Both stages meet `GameStage`/`GameScene` (render/stage.ts); keys and the frame loop are
-`game/shell.ts`. Settings → Display → Edition switches between /play/ and /play3d/ (same saves) and is remembered
-(`settings.edition`: the apps always open /play/, whose boot hands over to /play3d/). 3D detail = `render3d/quality.ts`
+`play/index.html` → `src/main.ts` builds `Game` with `render3d/stage3d.ts` (three.js) and the scenes behind
+`SceneFactory`. `Game` only knows the `GameStage`/`GameScene` contract (render/stage.ts); keys and the frame loop are
+`game/shell.ts`. main.ts adds `html.edition-3d` before the UI renders (the interface theme is scoped to it). 3D detail =
+`render3d/quality.ts`
 (shadows, AO at half resolution, resolution, MSAA on high only / FXAA below, plants, bevel segments; since v0.11 also
-the blur's quality, the ground bump and the globe's extras: high only where it costs). Auto = low on
-phones, high only when the browser names a discrete GPU (WebKit never does), else medium, plus adaptive resolution in
+the blur's quality, the ground bump and the globe's extras: high only where it costs). Auto = high only when the
+webview names a discrete GPU (WebKit never does), else medium, plus adaptive resolution in
 `stage3d.ts` (one frame timed by GPU syncs every 0.7 s; not the frame rate: WebKit caps rAF at 30 in low-power mode).
 Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-res AO +24, 4× MSAA +11, bloom +3.5.
 - **The picture (v0.11, SPEC §29):** `post.ts` = one scene render (HDR + depth) → GTAO from depth → depth-of-field →
@@ -41,28 +46,30 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   intensities, haze, exposure). Tune the look there, not per piece.
 - **Scenes:** `globe/` (globeScene: Earth from `earth.ts` + `bake.ts` (climate, lights) + `space.ts` (stars, Sun,
   aurora) + `markers.ts`: biome/land/relief/region textures + shader with real-time sun, city lights, weather, region
-  tints, heat haze; `layers2/3/45.ts` = Act II cables/fiber/lanes · Act III megaproject
+  tints, heat haze; `layerData.ts` = what the layers read from the game (site visibility, cables, lanes, the Charter's
+  map view, the orbit); `layers2/3/45.ts` = Act II cables/fiber/lanes · Act III megaproject
   patches, HVDC, satellite, liftoff · Act IV–V supergrid, fusion/rectenna glows, banners, garden/forge), `campus/`
   (campusScene: every site — build sites on plots (`layout.ts`), view-only places (`viewOnly.ts`: Act II set pieces via
-  `setPiecesFor`, Act III–V via the shared planner `act3Plan` + `act3Key` rebuilds), sceneries: campus, geneva (lake),
+  `setPiecesFor`, Act III–V via the planner `act3Plan` + `act3Key` rebuilds in `plan.ts` / `plan5.ts`, with `planKit.ts`
+  for builder colours, bloc banners and yard flags; `tests/site-plan.test.ts`), sceneries: campus, geneva (lake),
   offshore, launch coast, moon, space (no ground), habitat (`habitatShell.ts`), asteroid (curved ground); `ground.ts` =
   ten backdrops to the horizon, `sky.ts` (real sun at the site, weather, lunar/space/habitat modes), `weather.ts`,
   `water.ts` (lakes and seas cut from the ground grid), `life.ts` (rigged people, advisors, Bit, traffic)),
   `orbit/orbitScene.ts` (Act IV–V), `system/systemScene.ts` + `swarm.ts` + `cinematic.ts` (Act V + the Type I
-  pull-back), `space/` (their shared kit: backdrop, Sun, bodies, ribbon lines), the same TourDirector (every shot; in
-  3D each campus shot has a `light` and a camera `move`: `CampusScene.direct`). Photo mode: `ui/PhotoMode.tsx`,
+  pull-back), `space/` (their shared kit: backdrop, Sun, bodies, ribbon lines), the TourDirector (every shot;
+  each campus shot has a `light` and a camera `move`: `CampusScene.direct`). Photo mode: `ui/PhotoMode.tsx`,
   `game.photo`, `Stage3D.capture`, the campus's `setHour` / `setWeather` / `setLens` / `blur`. The 3D interface theme is
   CSS only, scoped to `html.edition-3d`: `render3d/edition.css` imports `render3d/ui/*.css` (tokens, art, menu, hud,
-  cards, acts); the loading screen is in `play3d/index.html`. Scenes free their GPU memory in `destroy()` via
+  cards, acts); the loading screen is in `play/index.html`. Scenes free their GPU memory in `destroy()` via
   `disposeObject` (kit.ts: skips anything with `userData.shared`, e.g. model materials, cached kit textures, the
   Earth's textures); a campus rebuild frees the old world too.
 - **Pieces:** `campus/registry.ts` maps facility types (`act1.ts`, `plants2.ts`) and set pieces (`industry.ts`,
   `act3sets.ts` → `sets/*.ts`; footprints in `act3sizes.ts`) to builders returning `Piece` (pieces.ts). Conventions
-  and the lab: `art3d/PIECES.md`; lab page `/play3d/lab.html?piece=…|set=…` (dev). Art direction: `art3d/DIRECTION.md`.
+  and the lab: `art3d/PIECES.md`; lab page `/play/lab.html?piece=…|set=…` (dev). Art direction: `art3d/DIRECTION.md`.
 - **Meshy:** `tools/meshy.mjs` (concept image first with one style brief; `--char` = rigged people), `tools/glb-tex.mjs`
   shrinks textures into `public/3d/models/` (people: the `_walk.glb`, `--size 1024`); models load on demand
   (`models.ts`: PEOPLE at boot, advisors/astronaut/TOWNSFOLK when a scene needs them; the lab's `?people=1|town`
-  lines them up). The service worker caches `/3d/models/*.glb` at run time (not precached).
+  lines them up). The app carries them in its bundle (`dist/3d/models/`).
 - **QA:** headless Chrome on the dev laptop's RTX is far faster than SwiftShader and shows the high preset as players see
   it: `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
   google-chrome-stable --headless=new --remote-debugging-port=9222 --use-angle=gl-egl --ignore-gpu-blocklist` and
@@ -74,35 +81,29 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   under automation (`navigator.webdriver`). Real-GPU timing: Chrome with `--use-angle=gl-egl` (the Intel iGPU), or the
   desktop app (`npx tauri build --debug --no-bundle --config '{"identifier":"…test3d","build":{"beforeBuildCommand":""}}'`
   after `npm run build`, scratch XDG dirs + the WebKit inspector, see the update test below; WebKit's Runtime.evaluate
-  doesn't await promises). `window.quality3d` is the live detail level. Android: the emulator's WebView renders WebGL
-  but CDP screenshots leave the canvas black — use `adb exec-out screencap -p`.
+  doesn't await promises). `window.quality3d` is the live detail level. The game page in dev is
+  http://127.0.0.1:5317/play/ (the browser is a development tool only: players get the desktop app).
 
 ## Commands
 
 ```bash
-npm run dev           # Vite dev server → http://127.0.0.1:5317 (landing at /, game at /play/)
-npm run build         # typecheck (tsc 7) + production build → dist/ (both pages + service worker)
+npm run dev           # Vite dev server → http://127.0.0.1:5317 (the game at /play/, the website at /)
+npm run build         # typecheck (tsc 7) + the game → dist/ (play/index.html; what the desktop app bundles)
+npm run build:site    # typecheck + the website → dist-site/ (index.html; what Netlify serves: no game in it)
+                      # (vite.config.ts: KP_TARGET=site picks the website; each build drops the other's public/ files)
 BALANCE=1 npx vitest run tests/balance.test.ts   # the balance report: every act's bot × Relaxed/Standard/Hard × seeds
                       # (BALANCE_ACTS=4,5 BALANCE_SEEDS=21,7 BALANCE_DIR=…; Act I searches 24 plans per run)
 npm test              # vitest: sim determinism, Act I bot, Act II bot (preset → IPO), Act III bot (preset → renewal),
                       # Act IV bot (preset → jumps → the Heat Wall), Act V bot (preset → eras → Solar Maximum → Type I),
-                      # offline, saves, routing, map + diorama scenes
+                      # offline, saves, routing, the site planner and the 3D layouts
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
-npm run gen:assets    # re-render icons, favicon, logo + src-tauri/icons from game code (PIXEL_SITE=1: also the old pixel
-                      # OG card and globe; the website's are 3D now: node tools/og3d.mjs [globe], PLAYWRIGHT=<its index.mjs>)
+npm run gen:assets    # re-render icons, favicon, logo + src-tauri/icons from the pixel-art code (the website's social
+                      # card and still globe are 3D renders: node tools/og3d.mjs [globe], PLAYWRIGHT=<its index.mjs>)
 npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
-PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act2-preview.test.ts tests/diorama-preview.test.ts \
-  tests/act3-map-preview.test.ts tests/act3-diorama-preview.test.ts tests/act4-map-preview.test.ts \
-  tests/act4-orbit-preview.test.ts tests/act4-diorama-preview.test.ts tests/act4-portraits.test.ts \
-  tests/act5-system-preview.test.ts tests/act5-map-preview.test.ts tests/act5-diorama-preview.test.ts tests/act5-portraits.test.ts \
-  tests/people-preview.test.ts tests/map-declutter.test.ts
-                      # render map / portrait / route / Act II–V map / diorama / orbit / solar-system previews to PNG,
-                      # the people contact sheet and live MapScene snapshots (live-*.png, via tests/helpers/mapshot.ts)
-cd android && KP_ANDROID_KEYSTORE=~/.config/kardashev-project/android/kardashev-release.p12 \
-  KP_ANDROID_KEYSTORE_PASSWORD=$(cat ~/.config/kardashev-project/android/keystore-password.txt) ./gradlew assembleRelease
-                      # signed Android APK → android/app/build/outputs/apk/release/ (needs JDK 17 + Android SDK:
-                      # JAVA_HOME / ANDROID_HOME; CI has both). Without the KP_ vars it builds unsigned.
+PREVIEW_DIR=/some/dir npx vitest run tests/preview.test.ts tests/routing.test.ts tests/act4-portraits.test.ts \
+  tests/act5-portraits.test.ts tests/governors.test.ts tests/dock-icons.test.ts
+                      # render the terrain / portrait / route / dock-icon previews to PNG
 ```
 
 In the browser console, `window.game` is the live `Game` (state, actions, `setEraOverride(0..3)`, `enterDiorama(siteId)`,
@@ -111,13 +112,13 @@ In the browser console, `window.game` is the live `Game` (state, actions, `setEr
 an automated or off-screen Chrome window throttles requestAnimationFrame to ~1 fps, which also throttles the game clock.
 The test bots import fine in the console too (`await import('/tests/helpers/act3bot.ts')` → `botDay3(game.state)` before
 each tick) to play an act forward on autopilot.
-Gameplay screenshots for the website: in dev, the page can POST a PNG to `/__screenshot?name=<name>` (Content-Type `image/png`, same origin only) and it lands in `public/screenshots/`.
+Screenshots for the website: in dev, the page can POST a PNG to `/__screenshot?name=<name>` (Content-Type `image/png`, same origin only) and it lands in `public/screenshots/`.
 
 ## Architecture
 
 ```
-index.html          the website (landing page) → src/landing/
-play/index.html     the game → src/main.ts
+index.html          the website (landing page) → src/landing/   (built by `npm run build:site`)
+play/index.html     the game → src/main.ts (+ play/lab.html, the dev piece lab)   (built by `npm run build`)
 src/
   sim/        PURE game logic — no DOM, no Pixi. Deterministic (seeded RNG in state).
     types.ts      GameState and friends (everything serialisable); GameMeta = difficulty, founder, custom start
@@ -180,35 +181,18 @@ src/
               contract kinds live in charter.ts (ACT5_KINDS, `vstage`); SPACE_SITES (yards, ring, habitat, asteroids) are
               in SITE_BY_ID but not in SITES, like the Moon
   world/      map raster decode + sea router (A* over 0.5° ocean, carved canals, closable chokepoints) + sun position
-  render/     Pixi v8. stage.ts = low-res render target scaled by whole numbers (one pixel size everywhere) + fade overlay
-    palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn → Swarmlight)
-    endcard.ts    the Type I end card (480×270 PixelCanvas: the Sun, the swarm, the Earth, the run's numbers)
+  render/     What is left of the pixel renderer: the stage contract and the interface's pixel art (no Pixi, no scenes).
+    stage.ts      `GameStage` / `GameScene` / `PixelPointer`: all `Game` knows about what draws it (Stage3D implements it)
+    palette.ts    master palette + era grading (Smog & Silicon → Grid Rush → Solarpunk Bloom → Orbital Dawn → Swarmlight);
+                  the 3D post pass reads the era, pieces and plans carry colours as palette indices
     pixels.ts     PixelCanvas: indexed-colour drawing (rect/line/ellipse/dither/text) baked with the era palette
-    globe.ts      orthographic pixel Earth (landing hero, icons, OG image) with real sun + city lights
-    worldMap/     terrain painter, night terminator + city lights, MapScene (markers, links, ships, input, cinematic glides),
-                  act2Layers.ts (Act II site visibility, landing/mine/rival markers, cables, fiber, cosmetic shipping lanes),
-                  act3Layers.ts (Charter HQ, megaproject markers + overlays, HVDC links, launch, bloc anchors, satellites),
-                  declutter.ts (pure: label placement without overlaps, crowded markers nudged apart; mapScene's anchorPx)
-    diorama/      side-view campus scenes: dioramaScene.ts (scrolling wide campuses, view-only supplier/mine/landing scenes;
-                  night light pools, haze, contact shadows, the near foreground, hall fill / brownout beacons / opening flash),
-                  people.ts (8×14 outlined figures: 4-frame walk with a bob, poses, looks by job and era, the advisors, Bit,
-                  speech bubbles; `stampPerson` for people baked into set pieces), life.ts (the crowd: doors, chats, phones,
-                  crews, carrying, reactions to toasts, named advisors you can click, the dog, cyclists, birds, drones),
-                  art.ts (backdrops + the makeArt switch), plants.ts (Act II plants), industry.ts (suppliers, mines,
-                  landing stations, rival campuses), sizes.ts (per-tier sizes), layout.ts (plots), campusArt.ts, draw.ts;
-                  Act III: act3Pieces.ts (planner + art dispatch + `act3Key`), charterHQ.ts (Geneva), mega.ts (megaprojects
-                  by stage and kind, offshore North Sea), launch.ts (pad, rocket, liftoff loop), act3kit.ts, scenery.ts (bands)
-                  Act IV: moon.ts (the Moon base by stage, the mass driver, lunar light), fusion.ts (five plant designs,
-                  air-capture farms); spaceports extend launch.ts
-    orbit/        Act IV's orbit view: orbitScene.ts (Scene), orbitArt.ts (pure drawing), orbitSprites.ts; Act V adds the
-                  L4/L5 yards, habitats, beam relays and the storm (`orbitExtras`)
-    system/       Act V's solar-system view: systemScene.ts (Scene; `{ cinematic }` = the Type I pull-back,
-                  `cinematicDone`), systemArt.ts (pure drawing); the Earth & Moon lens; click opens space dioramas
-    sprites/      map icons, advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to Bit-9;
-                  every partner CEO, the faction delegates, Ade and the three rival AIs have looks), charterIcons.ts
-                  (Act III map sprites), act4Icons.ts (Act IV map sprites), act5Icons.ts (beam fields); worldMap/act4Layers.ts
-                  and act5Layers.ts (garden/forge tints, beam fields) are the Act IV–V map layers. Portraits take an `age`
-                  (0–3: greying, elder, renewed) and Bit gens 10 (co-steward) and 11 (a free mind)
+    font.ts / globe.ts / worldMap/terrain.ts   pixel text, the pixel Earth and the terrain painter: the logo, the app
+                  icons (tools/gen-assets.ts), site previews in panels and the end card draw with them
+    endcard.ts    the Type I end card (480×270 PixelCanvas: the Sun, the swarm, the Earth, the run's numbers)
+    sprites/portraits.ts   advisor + CEO portraits (procedural, with moods; Bit upgrades per model generation, up to
+                  Bit-9; every partner CEO, the faction delegates, Ade and the three rival AIs have looks). Portraits take
+                  an `age` (0–3: greying, elder, renewed) and Bit gens 10 (co-steward) and 11 (a free mind)
+  render3d/   the renderer (three.js): see "The renderer" above
   game/
     game.ts       orchestrator: state, clock, scenes, slots, settings, tutorial, menu/tour, UI subscriptions, sound
     tutorial.ts   Bit's guided steps (20 since v0.9: the loop, the dock, a typical day, How to play): text, target (`data-tut`
@@ -222,7 +206,7 @@ src/
     briefings.ts  Act II (`b-*`), Act III (`c-*`), Act IV (`d-*`) and Act V (`e-*`) unlock briefings: the owning advisor's 1–3 step
                   spotlight, shown once (each act's briefings only fire in that act)
     showcase.ts   the fake "day 900" world the menu tour flies over
-    tour.ts       TourDirector: map glides + campus cuts behind the main menu; Act III–V shots borrow the preview
+    tour.ts       TourDirector: globe glides + campus cuts behind the main menu; Act III–V shots borrow the preview
                   worlds (`act4PreviewState`, `act5PreviewState`) and the orbit and solar-system scenes
     playtest.ts   the playtest report (real time per act from `meta.log`, the notes) that Settings → Data → Log saves
   ui/         Preact DOM overlay (crisp text). components.tsx has useGame()/Icon/Portrait/Bar/Panel/Toggle/Choice/Window
@@ -238,36 +222,41 @@ src/
                            plan, the era overlay and report, the Solar Maximum tracker, the Type I ending (cinematic,
                            epilogues, credits, stats, end card); game.ending drives it
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website (`.frame` reads --frame-bg/-edge/-shadow)
+    styles.css    the HUD (its `max-height: 520px` / narrow-window rules date from the phone days: harmless, never hit in
+                  the app's 960×540 minimum window; leave or prune, don't extend)
     modern.css    the modern HUD layer (v0.9): softer frames, accent rules, hairlines, motion; every rule is scoped
                   `:where(html:not(.ui-classic))` (zero specificity, so variant rules still win); Settings → Display →
                   Interface look → Classic adds `html.ui-classic` and turns it off
     menu/         MainMenu, NewCompany, SettingsScreen (tabs; used in menu and in game), FieldGuide, InfoScreens,
                   HowToPlay (the handbook: content/howToPlay.ts; menu item, dock ? button, ? / F1, `game.openHowTo(topic)`)
-    Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: rotate-phone, FPS, update toast, decision pill, confirm
-  landing/    website script + css (the 2026 redesign, the 3D look since v0.10.1: the hero's pixel logo and spinning Earth —
-              the pixel globe at once, then the 3D edition's globe (`globe3d.ts`, earth.ts on the coarse map, baked once the
-              page is idle) cross-fading in at the same rotation — then glass panels on the starfield: sticky nav, a bento of
-              pillars, one row per act, a screenshot gallery with a lightbox, the K-scale bar, install + GitHub-release
-              downloads, a compact What's New). Play buttons open /play3d/, with a pixel-edition link beside them. Shots are
-              3D renders saved as 1600×900 WebP in public/screenshots/ (globe-asia and act2-wyoming also feed the PWA
-              manifest), shot in Chrome on the real GPU at the High preset by freezing menu-tour shots (`game.tour`:
-              index − 1, `nextShot`, `running = false`) or `makeDioramaScene` + `aim`; the gallery's 2-wide shots need
-              their order kept (see the comment in landing.css). The OG card and the no-script globe: `tools/og3d.mjs`
-  platform/   platform.ts: browser vs installed PWA vs desktop app (quit, fullscreen, install prompt, service worker)
+    Tutorial.tsx  spotlight + Bit bubble; Overlays.tsx: FPS, update toast, decision pill, confirm
+  landing/    website script + css: the hero (the pixel logo and the game's own globe: `globe3d.ts`, earth.ts on the
+              coarse map, baked once the page is idle, fading in over a CSS dark planet; without WebGL a still,
+              public/globe.png), then glass panels on a starfield: sticky nav, a bento of pillars, one row per act, a
+              screenshot gallery with a lightbox, the K-scale bar, one download card per system filled from the latest
+              GitHub release (the visitor's system lit, the hero button going straight to it), a compact What's New.
+              There is no Play button: the game is not on the website. Shots are renders saved as 1600×900 WebP in
+              public/screenshots/, shot in Chrome on the real GPU at the High preset by freezing menu-tour shots
+              (`game.tour`: index − 1, `nextShot`, `running = false`) or `makeDioramaScene` + `aim`; the gallery's 2-wide
+              shots need their order kept (see the comment in landing.css). The OG card and the still globe:
+              `tools/og3d.mjs`. public/sw.js + the redirects in netlify.toml retire the old web game for browsers that
+              had it installed (the worker deletes the old caches and unregisters itself): keep both for a good while
+  platform/   platform.ts: the desktop shell (quit, fullscreen, in-app updates, opening links, saving files); a plain
+              browser tab in dev falls through to downloads and document fullscreen
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
               achievements.ts (per-device achievement store: unlocked, advisors met, places visited)
   audio/      All synthesised in WebAudio (v0.11: SPEC §29). engine.ts (the mix: sfx / music / ambience buses, each
               with a dry path and two shared sends (a generated hall, a tempo-synced echo), then sub filter → glue
               compressor → limiter → ceiling; one look-ahead timer for every sequencer; `renderOffline` for
-              measurements), music.ts (which track plays, the `soundtrack` setting: auto = cinematic in 3D, chiptune
-              in the pixel edition; `setMusicMood`; the menu's theme.mp3 override), the cinematic score = score.ts
+              measurements), music.ts (which track plays, the `soundtrack` setting: cinematic by default,
+              chiptune as the retro option; `setMusicMood`; the menu's theme.mp3 override), the cinematic score = score.ts
               (sequencer, voice-leading) + synth.ts (instruments) + cinematic.ts + tracks.ts (seven pieces on one
-              theme: menu, era0–4, ending), chiptune.ts (the pixel edition's tracks), sfx.ts (layered effects in the
+              theme: menu, era0–4, ending), chiptune.ts (the optional retro tracks), sfx.ts (layered effects in the
               music's key) + ui.ts (clicks and hover ticks on every button), ambience.ts (a living bed per place: map,
               campus, night, rain, coast, lake, Moon, space, habitat; the 3D campus says which through `ambience()`).
               Nobody can listen in QA: measure instead (the harness and rendered WAVs lived in the session's scratchpad;
               `renderOffline` + ffmpeg `ebur128` reproduce it: music −16 LUFS at full sliders, peaks under −1.5 dBFS).
-src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the game bundled; capabilities = close, fullscreen,
+src-tauri/    Tauri 2 desktop shell (one window loading play/index.html from dist/, the game bundled; capabilities = close, fullscreen,
               updater, restart, opener scoped to the ApexForge page). The AppImage bundles GStreamer plugins
               (`bundleMediaFramework`, plugin packages installed in CI): without them Ubuntu's bundled GStreamer finds
               none on Arch/Fedora and WebKit aborts the page when the game's audio starts (≤ 0.8.0). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
@@ -276,50 +265,28 @@ src-tauri/    Tauri 2 desktop shell (one window loading play/index.html, the gam
               over 6 connections spread across the host's addresses, a stalled or crawling one swapped for a fresh
               one, keeping its bytes) and hands it to the updater's `install`, which checks the signature first;
               errors starting "fast download:" fall back to the updater's own download (`platform.ts#installDesktop`)
-android/      the Android app: one WebView activity (LauncherActivity.java, no libraries) that runs the LIVE site at
-              /play/?app=android full screen and landscape, in its own process. Not a Trusted Web Activity any more
-              (v0.5.0): Xiaomi's MIUI/HyperOS silently blocks the hand-off to Chrome, so the icon did nothing. The page
-              gets window.KardashevAndroid.saveFile (export a save) and .saveImage (v0.6.0: the end card as base64 PNG) and
-              calls window.kpBack (the back gesture), all wrapped in platform.ts (saveTextFile, saveImage, onHostBack). In-app updates (v0.5.1): the page compares the app's
-              version (user agent `KardashevAndroid/x.y.z`) with the latest GitHub release and calls installUpdate(url):
-              the app downloads the APK (only from this repo's releases) into its cache, UpdateProvider serves it to the
-              phone's installer (ACTION_INSTALL_PACKAGE, not PackageInstaller sessions: those fail on some Xiaomi phones),
-              status comes back through window.kpUpdateStatus. Debug builds may also fetch from http://10.0.2.2 (the
-              emulator's host) for testing. Version comes from package.json; web changes need no new APK.
-              public/.well-known/assetlinks.json is left over from the TWA (unused, harmless).
-              QA: the debug APK enables WebView debugging, so `adb forward tcp:9333 localabstract:webview_devtools_remote_<pid>`
-              + raw CDP (Playwright can't attach to a WebView) drives the page in the emulator (AVD `kp`, Android 15;
-              `ANDROID_AVD_HOME=~/.config/.android/avd`). CDP `Page.navigate` to http://10.0.2.2:5317/play/?app=android runs the
-              dev server inside the app; `adb shell cmd overlay enable com.android.internal.display.cutout.emulation.hole`
-              simulates a punch-hole camera.
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
-.github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + the Android APK on a draft GitHub release
+.github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + latest.json on a draft GitHub release
 ```
 
 ## Conventions
 
-- **Pixel rules:** never draw at a different pixel size. All world art goes through `PixelCanvas` with palette
-  indices (`C.ink3`, `C.yel0`…), never raw hex. Zoom = change the stage's whole-number scale, not sprite scale.
-  Icons are rendered per size or scaled by whole numbers (never resampled).
-- **Art is code:** sprites are text grids (`PixelCanvas.from`) or procedural drawers. Use `cachedTexture(key, fn)`
-  for anything reused; `textureOf` + `releaseTexture` for per-scene textures.
+- **Interface pixel art:** the logo, portraits, icons and the end card go through `PixelCanvas` with palette
+  indices (`C.ink3`, `C.yel0`…), never raw hex, and are shown at a whole number of device pixels per art pixel
+  (render3d/ui/art.css), never resampled. The world itself is 3D: `art3d/DIRECTION.md`, `art3d/PIECES.md`.
 - **Sim/render split:** the sim must stay runnable in Node (tests). UI reads `game.state` (or `game.view`, which is
   the showcase world during the menu tour); mutations go through `game.*` action wrappers (they refresh stats,
   play sounds, toast errors and honour the confirm-spend setting).
-- **Platform split:** game code never touches Tauri/Electron APIs directly — only `src/platform/platform.ts`
-  (also phone fullscreen, Android detection, the APK link, the install prompt).
+- **Platform split:** game code never touches Tauri/Electron APIs directly — only `src/platform/platform.ts`.
 - **Fonts:** `--font` (Atkinson Hyperlegible Next: all running text, buttons, numbers), `--font-label` (small labels;
   their rules set capitals + `--caps-track`), `--font-pixel` (Silkscreen: `h2` titles, the website's section titles
   and brand only). Never set a pixel font on body text. Settings → Accessibility → Text font switches `html.font-pixel`
   (the pre-0.4.2 Pixelify + Silkscreen look) or `html.font-system`. In-world text (map labels, logo) is PixelCanvas art.
-- **Phones:** landscape only. Short screens (`max-height: 520px`) get the compact rules; `(max-width: 820px) and
-  (min-height: 521px)` is for narrow *tall* windows. Short coarse-pointer screens get `--ui-auto: 0.88` on top of the
-  player's UI size. `#ui` is inset by the safe areas (`--safe-*`; zero in the Android app, `html.native-insets`, whose
-  root view already pads around the cutout). **Zoomed HUD boxes** (the `zoom: …--ui-zoom…` list in styles.css): size
-  them in % of the screen, never `vh`/`vw` (zoom multiplies those; divide by `--z` if you must). Spotlight bubbles go
-  through `SpotBubble`/`placeBubble` (Tutorial.tsx), which measure and keep them on screen. Phone QA: headless Chrome with phone emulation
-  (Pixel-class 915×412 and 780×360 at DPR 2.6–3, plus ~863×300 for a browser tab with its address bar).
+- **Windows, not phones:** the app's window is at least 960×540; the HUD also has to hold up on big and high-DPI
+  screens and on a Steam Deck (1280×800, touch). **Zoomed HUD boxes** (the `zoom: …--ui-zoom…` list in styles.css):
+  size them in % of the screen, never `vh`/`vw` (zoom multiplies those; divide by `--z` if you must). Spotlight bubbles
+  go through `SpotBubble`/`placeBubble` (Tutorial.tsx), which measure and keep them on screen.
 - **Content first:** new facilities/techs/events/sites/objectives are data in `src/content/`. Events are
   `EventDef`s with `weight`/`setup`/`choices[].apply` — keep choices to real trade-offs, give 2 advisor lines, and
   price crises with `cc(s, n)` so difficulty scales them.
@@ -366,15 +333,15 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   game over or any speed button ends it and the player's speed comes back. Acts I–III only, never in the tutorial.
 - **Clock & time away:** anything that blocks the clock pauses it with `autoPaused` and it resumes by itself when the
   block goes away; `setSpeed` is the player's choice. Skips run in ~14 ms slices (`stepBudgeted`); jumps advance per
-  1/60 s of real time. Offline catch-up only in Acts I–III, only if the clock was running (`meta.pausedAtSave`) and
+  1/60 s of real time. Offline catch-up (time away with the app closed) only in Acts I–III, only if the clock was running (`meta.pausedAtSave`) and
   nothing is waiting (`offlineAllowed`); research picks the cheapest project while away. Toasts: errors only during
   the tutorial (achievements held to its end).
 - **Goals:** numeric objectives carry `progress(s) → { frac, text }`: the goal card shows a bar (hint in the tooltip),
   the Goals panels show it under the hint. Acts II–III list the phase's headline goals first.
-- **Input & frames:** touch slop and tap radius come from `dragSlop(p)` / `touchRadius(p, mouse)` (stage.ts); scenes
-  implement `pointerCancel` (a cancelled press is never a tap) and `busy()` (camera moving). Switch scenes with
-  `stage.setScene(scene, zoom)`. Frame pacing lives in `main.ts` (60 fps cap, 30 with Battery saver or when calm).
-  Textures are RGBA buffers in a Map registry (no canvas per texture); 1×1 particle pools use `render/pixelPool.ts`.
+- **Input & frames:** scenes implement `pointerCancel` (a cancelled press is never a tap) and `busy()` (camera
+  moving). Switch scenes with `stage.setScene(scene, zoom)` (zoom 1 for the wide views, 2 for campuses: it only sizes
+  the interface's `--px` hairlines). Frame pacing lives in `game/shell.ts` (60 fps cap, 30 with Battery saver or when
+  calm).
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
   it in `game.updateSettings` (CSS-level ones in `applyCssSettings`).
 - **Save compatibility:** adding optional fields → default them in `save/save.ts#migrate`. Breaking changes →
@@ -384,20 +351,18 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 
 ## Releasing
 
-1. Bump `version` in `package.json` (the game, website, PWA and desktop builds all read it) and add a
+1. Bump `version` in `package.json` (the game, the website and the desktop builds all read it) and add a
    `## x.y.z — Title (date)` section to `CHANGELOG.md` (it feeds What's New in game and on the website).
-2. Commit and push `main` → Netlify deploys the site and the web game; installed PWAs get an "update ready" toast.
-3. For desktop builds and the Android app: `git tag vx.y.z && git push origin vx.y.z` → GitHub Actions builds the
-   installers and `TheKardashevProject-android.apk` into a **draft** release. Publish the draft and the website's
-   Download buttons pick it up (the APK link is `releases/latest/download/TheKardashevProject-android.apk`, so the asset
-   name must stay fixed). The APK is signed from the repo secrets `ANDROID_KEYSTORE_B64` and
-   `ANDROID_KEYSTORE_PASSWORD`; the key itself lives in `~/.config/kardashev-project/android/` on the dev machine.
-   **Never lose or change it**: a new key means phones can't update the app.
-4. Publishing the draft also updates the installed apps: the game offers the new version in a toast (desktop: the
-   `updater-json` job's `latest.json`; Android: the latest release vs the app's own version). Desktop updates are
-   signed in CI from the secrets `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the key lives in
-   `~/.config/kardashev-project/tauri/` (kardashev-updater.key + updater-password.txt). **Never lose or change it
-   either**: installed desktop apps only accept updates signed with it.
+2. Commit and push `main` → Netlify deploys the website (`npm run build:site`). The game itself reaches players only
+   through a release.
+3. `git tag vx.y.z && git push origin vx.y.z` → GitHub Actions builds the installers into a **draft** release. Publish
+   the draft and the website's download cards pick it up.
+4. Publishing the draft also updates the installed apps: the game offers the new version in a toast (the
+   `updater-json` job's `latest.json`). Updates are signed in CI from the secrets `TAURI_SIGNING_PRIVATE_KEY` and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the key lives in `~/.config/kardashev-project/tauri/` (kardashev-updater.key +
+   updater-password.txt). **Never lose or change it**: installed apps only accept updates signed with it.
+   (The Android keystore in `~/.config/kardashev-project/android/` and the `ANDROID_KEYSTORE_*` repo secrets are left
+   over from the retired Android app: unused, leave them alone.)
 
 The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the game's own menu theme is the fallback).
 
@@ -405,7 +370,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 | Want | Edit |
 |---|---|
-| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, map icon in `render/sprites/mapIcons.ts`, diorama art: size in `render/diorama/sizes.ts`, drawing in `plants.ts`, wired in `art.ts#makeArt`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx` |
+| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, a builder in `render3d/campus/registry.ts` (`art3d/PIECES.md`), its globe marker in `render3d/globe/markers.ts`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx` |
 | New site | `content/sites.ts` (port must reach the world ocean — `npm test` checks every supplier→site route) |
 | New tech | `content/techs.ts` (+ a `TechKey` if it needs a new multiplier, read via `techMult`) |
 | New event | `content/events.ts` |
@@ -415,18 +380,18 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Achievement | `content/achievements.ts` (`done(s)` check, or `done: null` + `game.achieve(id)`; ids are for Steam later) |
 | Sandbox switch or slider | `SandboxOpts` in `sim/types.ts`, read it in the sim formula, add the control in `ui/menu/SandboxControls.tsx` |
 | Province governor | `GOVERNORS` in `content/planet.ts` + a look in `GOVERNOR_LOOKS` (`render/sprites/portraits.ts`) |
-| Era music / place ambience | cinematic: `audio/tracks.ts` (a `TrackDef` per piece: key, tempo, sections, instruments) · chiptune: `audio/chiptune.ts` · beds: `audio/ambience.ts` |
+| Era music / place ambience | the score: `audio/tracks.ts` (a `TrackDef` per piece: key, tempo, sections, instruments) · the optional chiptune: `audio/chiptune.ts` · beds: `audio/ambience.ts` |
 | Sound effect | a `SoundId` + its recipe in `audio/sfx.ts` (layers: transient, body, tail), then `sfx(id)` where it happens |
-| Person look, pose, outfit | `render/diorama/people.ts` (`tests/people-preview.test.ts` checks sizes and the closed outline) |
-| Campus behaviour, critter, vehicle | `render/diorama/life.ts` (the scene feeds it `Spot`s and a `LifeEnv` each frame) |
+| People (models, clips, a working day) | `render3d/models.ts` (PEOPLE, TOWNSFOLK), `render3d/campus/people.ts` + `paths.ts`; `tests/render3d-people.test.ts` |
+| Campus behaviour, traffic | `render3d/campus/life.ts`, `vehicles.ts` |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
 | Dock icon | `ui/dockIcons.ts` (keep a 9×9 icon of the same name in `icons.ts` for Classic); look with `PREVIEW_DIR=… DOCK_ZOOM=a,b npx vitest run tests/dock-icons.test.ts` |
-| Menu tour shot | `game/tour.ts` (`SHOTS`; a campus shot's `light` and `move` direct the 3D edition) and, for a new campus, `game/showcase.ts` |
-| A time of day's look (3D) | `KEYS` in `render3d/campus/sky.ts` (by sun altitude: sky, key, fill, haze, exposure) |
-| A lamp that lights its surroundings (3D) | `lightPool(parent, x, y, z, r, poolMat(colour))` (kit.ts): it joins the lamp field |
+| Menu tour shot | `game/tour.ts` (`SHOTS`; a campus shot has a `light` and a camera `move`) and, for a new campus, `game/showcase.ts` |
+| A time of day's look | `KEYS` in `render3d/campus/sky.ts` (by sun altitude: sky, key, fill, haze, exposure) |
+| A lamp that lights its surroundings | `lightPool(parent, x, y, z, r, poolMat(colour))` (kit.ts): it joins the lamp field |
 | Re-tune the economy | `sim/model.ts` constants, `content/facilities.ts`, `content/companies.ts` |
-| Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render/diorama/` + `mapIcons.ts` |
+| Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render3d/campus/` (`act1.ts`, `plants2.ts`, `registry.ts`) |
 | Supply deal, mine | `content/stack.ts` |
 | Cable system / landing station | `content/network.ts` + a `landing(...)` row in `content/sites.ts` |
 | Export rule, treaty, sovereign deal | `content/politics.ts` |
@@ -437,7 +402,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Act II briefing | `game/briefings.ts` (+ `data-tut` targets) |
 | Re-tune Act II pacing | `tests/act2.test.ts` + `tests/helpers/act2bot.ts`; `ACT2_ALLOCATION`, `inferPriceTrend`, `MODEL_PLAN` in `sim/model.ts`; rival pace in `sim/ai.ts#tickRivals` |
 | Partner company | `PARTNERS` in `content/charter.ts` (traits, quirk, CEO, colour, pitches) + a CEO look in `render/sprites/portraits.ts` |
-| Contract kind | `CONTRACT_KINDS` in `content/charter.ts` (+ its completion effect in `sim/charter.ts#completeProject`, access gain, art) |
+| Contract kind | `CONTRACT_KINDS` in `content/charter.ts` (+ its completion effect in `sim/charter.ts#completeProject`, access gain, its pieces in `render3d/campus/plan.ts` + `sets/`) |
 | Megaproject site / HVDC route / launch site | `megaSite(...)` / `launchSite(...)` in `content/sites.ts`; `HVDC_ROUTES` in `content/charter.ts` |
 | Mission | `MISSIONS` (+ `MISSION_MODS`) in `content/charter.ts`, its reward in `sim/charter.ts#completeMission` |
 | Council resolution | `content/council.ts` (+ its effect in `sim/council.ts#applyResolution`) |
@@ -445,7 +410,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Act III event / chain | `content/events3.ts` |
 | Act III briefing | `game/briefings.ts` (`c-*`, + `data-tut` targets) |
 | Re-tune Act III pacing | `tests/act3.test.ts` + `tests/helpers/act3bot.ts`; `CHARTER` numbers, contract `value`/`days`, world growth in `sim/world.ts`, world alignment drift in `sim/frontier.ts` |
-| Fusion design | `FUSION_DESIGNS` in `content/planet.ts` (+ a partner in `PARTNERS` with `act: 4`, a CEO look, plant art in `render/diorama/fusion.ts`) |
+| Fusion design | `FUSION_DESIGNS` in `content/planet.ts` (+ a partner in `PARTNERS` with `act: 4`, a CEO look, `DESIGN_BUILDER` in `render3d/campus/planKit.ts`, plant art in `render3d/campus/sets/fusion/`) |
 | Supergrid route | `SUPERGRID_ROUTES` in `content/planet.ts` |
 | AI that can run provinces | `AIS` in `content/planet.ts` + an `AiId`, a face in `portraits.ts` |
 | Act IV event / chain | `content/events4.ts` (first choice = the autopilot default) |
@@ -461,48 +426,45 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** the user plays v0.11.0 "Golden Hour" (SPEC §29: shipped 2026-11-10) and listens to the new sound, which
-nobody had heard when it shipped (rendered WAVs: `~/Music/The Kardashev Project - sound renders/`). From SPEC §29
-"Open": a Settings switch to run the desktop app on the discrete GPU, photo mode's save inside the desktop app, the
-Windows and macOS builds unseen. After that, as before: their choice of edition. The website shows the 3D look since 2026-11-10 (3D hero globe, 3D shots, OG card,
-copy; Play opens /play3d/). Still pending after that:
-their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the log and v1.0.0
-(SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
-(deferred until marketing), Electron/Steam wrapper if the game goes to Steam.
+**Next:** v0.12.0 "All In" (SPEC §30) is built on the local branch `desktop-only`: ship it when the user says so
+(merge, push, tag; the website and the release must go out together, because the website no longer offers the web
+game and the 0.11.0 installers still open the pixel edition by default). The user played 0.11.0 on 2026-11-11 and
+is happy with the look, the speed and the sound. Open questions put to them that day (SPEC §30 "Open"): redo the
+pixel-art logo, app icon, portraits and end card in the 3D style or keep them; keep or drop the Chiptune soundtrack,
+the Classic interface look and the Pixel text font; whether the website should say "coming to Steam".
+Then, as before: their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the
+log and v1.0.0 (SPEC §21–22), and Steam prep (SPEC §27: controller and Steam Deck, a demo, the store page, an
+Electron/Steamworks wrapper if Tauri can't do the overlay). Later: Type II as an Act VI that continues a finished save
+(SPEC §20 hooks), the real theme song, code signing (Windows/macOS).
 
 **Still open:**
-- M5 (SPEC §21): steps 1–7 shipped in v0.7.0; v0.8.0 (SPEC §22) is the whole-game audit and its fixes (finales that can
-  be lost, fewer cards, the first hour, phones, speed). Waiting for the user's full playthrough, then the retune and
-  v1.0.0. The music was level-checked in headless Chrome but nobody has listened to it yet. Known numbers to watch in
-  the retune: Act I's long wait for Bit-2 (~415 days with nothing to research), Act II now 3.8–5 years (the bot stopped
-  falling into the export trap), Act IV's bot reaches its Heat Wall on the stage-3 limit rather than the full checklist.
-- Act V (v0.6.0): Android apps older than 0.6.0 can't save the end card (they suggest updating); Act V screens checked in
-  headless desktop and phone emulation only.
-  The 0.6.0 APK's `saveImage` bridge compiled (local debug build) but hasn't been tried on the emulator or a phone yet.
-- Local Android builds on the dev machine: `JAVA_HOME=~/.local/share/jdk/jdk-17.0.21+9 ANDROID_HOME=~/.local/share/android-sdk
-  ./gradlew assembleDebug --offline` (in `android/`).
-- Act IV (v0.5.0): screens checked in headless desktop and phone emulation only.
-- Act III panels were checked at phone sizes only in headless Chrome phone emulation (v0.4.2), not on a real phone.
+- From SPEC §29: a Settings switch to run the app on the discrete GPU on hybrid laptops (today it renders on the
+  integrated one; `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia` works by hand on Linux); photo mode and
+  the end card save through the webview's download path (`saveImage` in platform.ts), never tried inside the desktop
+  app: a native save dialog would be the proper fix; Act III's satellite, beam and liftoff on the globe were not
+  exercised; power beams in the ending only show with beam capacity; the cinematic is capped at 16 s by `tickEnding`;
+  the 4K-at-150% interface survey was partial.
+- M5 (SPEC §21): steps 1–7 shipped in v0.7.0; v0.8.0 (SPEC §22) is the whole-game audit and its fixes. Waiting for the
+  user's full playthrough, then the retune and v1.0.0. Known numbers to watch in the retune: Act I's long wait for
+  Bit-2 (~415 days with nothing to research), Act II now 3.8–5 years (the bot stopped falling into the export trap),
+  Act IV's bot reaches its Heat Wall on the stage-3 limit rather than the full checklist.
+- The Windows and macOS installers build in CI but have never been launched on a real machine (in-app updates there
+  are untested too; CI also signs the .deb, untested). The Linux AppImage runs on the dev machine (Omarchy/Arch,
+  installed to ~/Applications with a launcher entry).
+- Leftovers from the phone days that still work and were left alone: the HUD's compact CSS for short or narrow
+  windows, touch input, the safe-area variables. Prune only with a look at the Steam Deck.
 - AppImages up to 0.8.0 crash on non-Ubuntu distros at the first click (no GStreamer plugins), so they can't update
-  themselves: those users reinstall 0.8.1 by hand. The dev machine (Omarchy) updated 0.8.0 → 0.8.1 in the game on
-  2026-11-06 (with a temporary plugin stopgap, since removed): the first real Linux in-app update from a CI release.
-  The app checks ~6 s after launch, then every 6 h (the user is happy with that); a launch in the first minute after
-  publishing can miss a release (GitHub's latest/download lags), so relaunch to test. `check()` errors are swallowed in
-  platform.ts. To debug the desktop page: `WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9339` + the WebKit inspector protocol
-  over ws://127.0.0.1:9339/socket/1/1/WebPage (Target.sendMessageToTarget → Runtime.evaluate, Page.snapshotRect).
+  themselves: those users reinstall by hand. The app checks ~6 s after launch, then every 6 h (the user is happy with
+  that); a launch in the first minute after publishing can miss a release (GitHub's latest/download lags), so relaunch
+  to test. `check()` errors are swallowed in platform.ts. To debug the desktop page:
+  `WEBKIT_INSPECTOR_HTTP_SERVER=127.0.0.1:9339` + the WebKit inspector protocol over
+  ws://127.0.0.1:9339/socket/1/1/WebPage (Target.sendMessageToTarget → Runtime.evaluate, Page.snapshotRect).
 - Desktop update test (v0.9.4): `cd src-tauri && cargo test --lib fastdl` (fake slow/stalled/broken servers on
   127.0.0.x), `-- --ignored --nocapture` fetches the real latest release and checks its signature. End to end: `npx tauri
   build --debug --no-bundle --config '{"version":"0.9.2","identifier":"com.lonefox.kardashevproject.updatetest"}'`, copy
   the binary to a scratch dir as `kp-test.AppImage` (an unbundled build installs over its own file), run it with
   scratch `XDG_DATA_HOME`/`XDG_CONFIG_HOME`/`XDG_CACHE_HOME` (the restarted real AppImage inherits them, so the real saves
   stay untouched) and the inspector env var, then `game.installAppUpdate()`. 2026-11-08: 93 MB in 5.4 s, restarted as 0.9.3.
-- In-app updates (v0.5.1) were tested end to end with local builds (the Linux AppImage: update, restart, a bad signature
-  refused; the Android app in the emulator) and on the user's real Xiaomi phone, which updated itself to v0.5.1. Not yet
-  on Windows or macOS. CI also signs the .deb (latest.json has linux-x86_64-deb), untested.
-- The Windows and macOS installers build in CI but have never been launched on a real machine. The Linux AppImage runs
-  on the dev machine (Omarchy/Arch, installed to ~/Applications with a launcher entry).
-- The Android app runs on the user's real phone (Xiaomi, v0.5.x, the WebView app). Google Play would need an `.aab`
-  (`./gradlew bundleRelease`) and a Play Console account.
 
 **Balance is deliberately deferred** to a pre-launch beta (full playthrough + beta testers, then a rebalancing pass
 across all acts). Until then, balance bots are guard rails only: every act must be completable with no stalls or NaNs,

@@ -14,34 +14,24 @@ export interface Settings {
   /** Advisor tips: one-off nudges when something is stuck (game/tips.ts). */
   tips: boolean;
   // display
-  /** Extra whole-number pixel zoom on top of the automatic scale. */
-  zoom: number;
   uiScale: number;
-  /** Interface look: the modern HUD (v0.9) or the classic pixel frames. */
+  /** Interface look: the modern HUD or the classic pixel frames. */
   uiStyle: 'modern' | 'classic';
   weather: boolean;
-  clouds: boolean;
   crt: boolean;
   dayNight: boolean;
   batterySaver: boolean;
-  /** The 3D edition's detail (shadows, ambient occlusion, resolution, plants); 'auto' picks by device. */
+  /** 3D detail (shadows, ambient occlusion, resolution, plants); 'auto' picks by the machine. */
   quality3d: 'auto' | 'high' | 'medium' | 'low';
-  /**
-   * Which edition opens: the installed apps always start at /play/, which hands over to /play3d/ when this is '3d'
-   * (Settings → Display → Edition sets it).
-   */
-  edition: 'pixel' | '3d';
   fps: boolean;
-  /** Phones in a browser tab: go fullscreen on the first tap. */
-  phoneFullscreen: boolean;
   // audio (0..1)
   master: number;
   music: number;
   sfx: number;
   /** The sound of the place under the music: wind, birds, rain, the halls' hum. */
   ambience: number;
-  /** Which score plays: 'auto' is the cinematic one in the 3D edition and the chiptune in the pixel edition. */
-  soundtrack: 'auto' | 'cinematic' | 'chiptune';
+  /** Which score plays: the cinematic one, or the chiptune from the game's pixel-art days. */
+  soundtrack: 'cinematic' | 'chiptune';
   muteInBackground: boolean;
   // accessibility
   /** Text font: smooth Atkinson Hyperlegible (default), the classic pixel fonts, or the device's own. */
@@ -79,23 +69,19 @@ export function defaultSettings(): Settings {
     confirmSpend: 0,
     goalTracker: true,
     tips: true,
-    zoom: 1,
     uiScale: 1,
     uiStyle: 'modern',
     weather: true,
-    clouds: true,
     crt: false,
     dayNight: true,
     batterySaver: false,
     quality3d: 'auto',
-    edition: 'pixel',
     fps: false,
-    phoneFullscreen: true,
     master: 0.8,
     music: 0.6,
     sfx: 0.8,
     ambience: 0.7,
-    soundtrack: 'auto',
+    soundtrack: 'cinematic',
     muteInBackground: true,
     textFont: 'clean',
     colorblind: 'off',
@@ -112,7 +98,7 @@ export function loadSettings(): Settings {
   try {
     const txt = window.localStorage.getItem(KEY);
     if (!txt) return base;
-    const raw = JSON.parse(txt) as Partial<Settings> & { sound?: boolean; tutorialHints?: boolean; readableFont?: boolean };
+    const raw = JSON.parse(txt) as Partial<Settings> & Record<string, unknown> & { sound?: boolean; tutorialHints?: boolean; readableFont?: boolean };
     // v0.1 settings: { sound, offline, zoom, tutorialHints }
     if (raw.sound === false && raw.master === undefined) raw.master = 0;
     if (raw.tutorialHints !== undefined && raw.goalTracker === undefined) raw.goalTracker = raw.tutorialHints;
@@ -121,6 +107,10 @@ export function loadSettings(): Settings {
     delete raw.sound;
     delete raw.tutorialHints;
     delete raw.readableFont;
+    // v0.11 and earlier: the pixel edition's settings (its zoom, its map clouds, which edition opens, phones) and
+    // a soundtrack that followed the edition
+    for (const k of ['zoom', 'clouds', 'edition', 'phoneFullscreen']) delete raw[k];
+    if (raw.soundtrack !== 'chiptune') raw.soundtrack = 'cinematic';
     return { ...base, ...raw };
   } catch {
     return base;

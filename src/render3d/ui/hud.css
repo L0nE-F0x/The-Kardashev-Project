@@ -367,8 +367,7 @@ html.edition-3d:not(.ui-classic) {
   .crunch,
   .decision,
   .update,
-  .advisor-tip,
-  .appbanner {
+  .advisor-tip {
     background: var(--e-glass-hud);
     box-shadow: var(--e-shadow-hud);
   }

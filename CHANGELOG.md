@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 — All In (2026-11-11)
+One game, in 3D, on your computer. The pixel-art edition and every way of playing outside the desktop app are retired, so all the work goes into the game that is heading for Steam.
+
+- **3D is the game now.** The app opens straight into it: no Edition switch, no hand-over from the pixel game. Your companies, settings and achievements carry over untouched.
+- **Desktop only: Windows, macOS and Linux.** The browser version, the installable web app and the Android app are retired. Old links to the web game lead to the home page.
+- **Settings tidied.** Gone: Edition, Pixel size, Clouds on the map and Fullscreen on phones (none of them did anything in 3D). Soundtrack is a plain choice now: Cinematic (the default) or Chiptune.
+- **The website** shows the 3D Earth from the first moment (no pixel globe first), and offers one download per system, with yours picked out.
+- **A lighter app.** The pixel renderer and its engine are no longer shipped or loaded.
+- Kept from the pixel days, on purpose: the logo, the advisors' portraits, the small interface icons and the Type I end card are still pixel art.
+
 ## 0.11.0 — Golden Hour (2026-11-10)
 The 3D edition, filmed properly: real skies and light at every hour, a living globe, a space worth looking at, an interface made for it and a new sound. The pixel edition looks as it did, and gets the new sound engine too.
 
