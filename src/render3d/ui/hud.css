@@ -81,7 +81,7 @@ html.edition-3d:not(.ui-classic) {
   .stat .v:not(.gold, .cyan, .good, .bad, .warn) {
     color: var(--c-white, #fbf7f0);
   }
-  /* each stat's pixel icon on a small plate */
+  /* each stat's icon on a small plate */
   .stat > img.px,
   .kmeter > img.px {
     border-radius: 2px;
