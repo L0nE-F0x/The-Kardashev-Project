@@ -1,7 +1,9 @@
 # The Kardashev Project — dev guide
 
 Pixel-art management sim about the AI boom. Design doc: `SPEC.md` (pillars, acts, decisions log).
-Current build: **v0.10.1 "Lived In"** (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
+Current build: **v0.11.0 "Golden Hour"** (the grand polish pass on the 3D edition: sky, light and atmosphere on the
+campuses, the globe rebuilt, cinematic space views and ending, a 3D interface theme, new sound, photo mode: SPEC §29)
+on top of v0.10.1 "Lived In" (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
 working day, far-north daylight: SPEC §28) on top of v0.10.0 "Third Dimension" (the 3D edition in beta, opt-in via
 Settings → Display → Edition: SPEC §28) on top of v0.9.4 "Fast Lane" (desktop updates download in pieces over six connections: SPEC §26b) on top of
 v0.9.3 "Clear Signs" (new 15×15 dock icons drawn in whole device pixels, the dock badge fix, the desktop
@@ -23,19 +25,35 @@ A second front end on the same game: `play3d/index.html` → `src/main3d.ts` bui
 so sim/UI changes land in both. Both stages meet `GameStage`/`GameScene` (render/stage.ts); keys and the frame loop are
 `game/shell.ts`. Settings → Display → Edition switches between /play/ and /play3d/ (same saves) and is remembered
 (`settings.edition`: the apps always open /play/, whose boot hands over to /play3d/). 3D detail = `render3d/quality.ts`
-(shadows, AO at half resolution, resolution, MSAA on high only / FXAA below, plants, bevel segments). Auto = low on
+(shadows, AO at half resolution, resolution, MSAA on high only / FXAA below, plants, bevel segments; since v0.11 also
+the blur's quality, the ground bump and the globe's extras: high only where it costs). Auto = low on
 phones, high only when the browser names a discrete GPU (WebKit never does), else medium, plus adaptive resolution in
 `stage3d.ts` (one frame timed by GPU syncs every 0.7 s; not the frame rate: WebKit caps rAF at 30 in low-power mode).
 Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-res AO +24, 4× MSAA +11, bloom +3.5.
-- **Scenes:** `globe/` (globeScene: Earth from `earth.ts` = biome/land/relief/region textures + shader with real-time
-  sun, city lights, clouds, region tints, heat haze; `layers2/3/45.ts` = Act II cables/fiber/lanes · Act III megaproject
+- **The picture (v0.11, SPEC §29):** `post.ts` = one scene render (HDR + depth) → GTAO from depth → depth-of-field →
+  bloom → one film pass (exposure, neutral or ACES `tone`, sharpen, era grade, contrast, vignette, fade) → FXAA below
+  high. A scene asks through its `look` (`tone`, `exposure`, `dof`, `contrast`, `sharpen`, `saturation`; defaults =
+  neutral, as the globe and space use). `atmosphere.ts` patches three's fog and light chunks for campus scenes (any
+  scene with `scene.fog`): aerial haze, the lamp field (light pools drawn from above into a texture: `lightPool` in
+  kit.ts puts them on `LAMP_LAYER`), sky reflections under roughness 0.6, wet ground; every material gets the shared
+  `atmo` uniforms automatically (an accessor on `Material.prototype.onBeforeCompile`), so pieces need nothing.
+  `campus/sky.ts` = the dome (sun, moon, clouds, stars, aurora) and the light keys by sun altitude (`KEYS`: colours,
+  intensities, haze, exposure). Tune the look there, not per piece.
+- **Scenes:** `globe/` (globeScene: Earth from `earth.ts` + `bake.ts` (climate, lights) + `space.ts` (stars, Sun,
+  aurora) + `markers.ts`: biome/land/relief/region textures + shader with real-time sun, city lights, weather, region
+  tints, heat haze; `layers2/3/45.ts` = Act II cables/fiber/lanes · Act III megaproject
   patches, HVDC, satellite, liftoff · Act IV–V supergrid, fusion/rectenna glows, banners, garden/forge), `campus/`
   (campusScene: every site — build sites on plots (`layout.ts`), view-only places (`viewOnly.ts`: Act II set pieces via
   `setPiecesFor`, Act III–V via the shared planner `act3Plan` + `act3Key` rebuilds), sceneries: campus, geneva (lake),
   offshore, launch coast, moon, space (no ground), habitat (`habitatShell.ts`), asteroid (curved ground); `ground.ts` =
   ten backdrops to the horizon, `sky.ts` (real sun at the site, weather, lunar/space/habitat modes), `weather.ts`,
-  `life.ts` (rigged people, advisors, Bit, traffic)), `orbit/orbitScene.ts` (Act IV–V), `system/systemScene.ts`
-  (Act V + the Type I pull-back), the same TourDirector (every shot). Scenes free their GPU memory in `destroy()` via
+  `water.ts` (lakes and seas cut from the ground grid), `life.ts` (rigged people, advisors, Bit, traffic)),
+  `orbit/orbitScene.ts` (Act IV–V), `system/systemScene.ts` + `swarm.ts` + `cinematic.ts` (Act V + the Type I
+  pull-back), `space/` (their shared kit: backdrop, Sun, bodies, ribbon lines), the same TourDirector (every shot; in
+  3D each campus shot has a `light` and a camera `move`: `CampusScene.direct`). Photo mode: `ui/PhotoMode.tsx`,
+  `game.photo`, `Stage3D.capture`, the campus's `setHour` / `setWeather` / `setLens` / `blur`. The 3D interface theme is
+  CSS only, scoped to `html.edition-3d`: `render3d/edition.css` imports `render3d/ui/*.css` (tokens, art, menu, hud,
+  cards, acts); the loading screen is in `play3d/index.html`. Scenes free their GPU memory in `destroy()` via
   `disposeObject` (kit.ts: skips anything with `userData.shared`, e.g. model materials, cached kit textures, the
   Earth's textures); a campus rebuild frees the old world too.
 - **Pieces:** `campus/registry.ts` maps facility types (`act1.ts`, `plants2.ts`) and set pieces (`industry.ts`,
@@ -45,7 +63,12 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   shrinks textures into `public/3d/models/` (people: the `_walk.glb`, `--size 1024`); models load on demand
   (`models.ts`: PEOPLE at boot, advisors/astronaut/TOWNSFOLK when a scene needs them; the lab's `?people=1|town`
   lines them up). The service worker caches `/3d/models/*.glb` at run time (not precached).
-- **QA:** headless Chrome + `--use-angle=swiftshader`; stub Vite's `@vite/client` with a working `updateStyle` (else no
+- **QA:** headless Chrome on the dev laptop's RTX is far faster than SwiftShader and shows the high preset as players see
+  it: `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
+  google-chrome-stable --headless=new --remote-debugging-port=9222 --use-angle=gl-egl --ignore-gpu-blocklist` and
+  Playwright's `connectOverCDP`. Campus hooks: `setLight('dawn'|'morning'|'noon'|'golden'|'sunset'|'dusk'|'night')`,
+  `setHour(h)`, `setWeather('rain'|…|null)`, `aim(...)`; freeze a tour shot with `tour.index = i - 1; tour.nextShot(false);
+  tour.running = false`. Otherwise: headless Chrome + `--use-angle=swiftshader`; stub Vite's `@vite/client` with a working `updateStyle` (else no
   CSS) when other edits would hot-reload the page; campus `aim(x, z, dist, yaw, pitch)`; `game.updateSettings({ dayNight:
   false })` pins local noon; `tests/render3d-layout.test.ts` checks every place's layout. Adaptive resolution is off
   under automation (`navigator.webdriver`). Real-GPU timing: Chrome with `--use-angle=gl-egl` (the Intel iGPU), or the
@@ -390,7 +413,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
 | Dock icon | `ui/dockIcons.ts` (keep a 9×9 icon of the same name in `icons.ts` for Classic); look with `PREVIEW_DIR=… DOCK_ZOOM=a,b npx vitest run tests/dock-icons.test.ts` |
-| Menu tour shot | `game/tour.ts` (`SHOTS`) and, for a new campus, `game/showcase.ts` |
+| Menu tour shot | `game/tour.ts` (`SHOTS`; a campus shot's `light` and `move` direct the 3D edition) and, for a new campus, `game/showcase.ts` |
+| A time of day's look (3D) | `KEYS` in `render3d/campus/sky.ts` (by sun altitude: sky, key, fill, haze, exposure) |
+| A lamp that lights its surroundings (3D) | `lightPool(parent, x, y, z, r, poolMat(colour))` (kit.ts): it joins the lamp field |
 | Re-tune the economy | `sim/model.ts` constants, `content/facilities.ts`, `content/companies.ts` |
 | Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render/diorama/` + `mapIcons.ts` |
 | Supply deal, mine | `content/stack.ts` |
@@ -427,8 +452,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** the user plays v0.10.1 (their first 3D polish list is done: SPEC §28 "The polish pass"; still open there),
-then their choice of edition. The website shows the 3D look since 2026-11-10 (3D hero globe, 3D shots, OG card,
+**Next:** v0.11.0 "Golden Hour" is built on branch `grand-polish` (SPEC §29) and waits for the user's look and their
+"ship it" (merge, push, tag). Then, from SPEC §29 "Open": frame cost A/B on a quiet machine (Intel iGPU, medium), the
+desktop app on the discrete GPU, the website's screenshots re-shot. After that, as before: the user plays, then their
+choice of edition. The website shows the 3D look since 2026-11-10 (3D hero globe, 3D shots, OG card,
 copy; Play opens /play3d/). Still pending after that:
 their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the log and v1.0.0
 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form

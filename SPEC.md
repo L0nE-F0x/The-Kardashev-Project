@@ -2113,3 +2113,94 @@ colours, speed; and realism of the mechanics, not just the graphics. What change
 **Still open after 0.10.1:** commuter cars don't drive in or out (people appear at their car); figures set pieces
 place directly (Moon astronauts, some Aurora townsfolk) hold a walk frame; Act II plants and Act III–V set pieces have a
 guessed front door only. The website went 3D the same day (hero globe, shots, OG card, Play → /play3d/).
+
+## 29. v0.11.0 "Golden Hour": the grand polish pass (built 2026-11-10 on branch `grand-polish`, not shipped)
+
+The brief, with the user away: "100x this game … aesthetics, quality, performance, graphics, sound … this is the model
+we publish this game to Steam with. Polish it until it's perfect." No questions could be asked, so every call below is
+mine and listed. North star for all of it: **a film crew shooting a scale model of the future** (physically motivated
+light, a real sky, aerial perspective, filmic contrast, glowing nights; never muddy, never flat). Steam ships the 3D
+edition on desktop; the pixel edition had to stay exactly as it was (checked: its interface differs by 0 pixels).
+Five strands, built in parallel on disjoint files (four Claude helpers in git worktrees, the campuses by the lead),
+merged into `grand-polish`.
+
+**Campuses: light, sky, atmosphere (`render3d/atmosphere.ts`, `campus/sky.ts`, `post.ts`)**
+- `atmosphere.ts` patches three's own shader chunks once, so the 150-odd materials the pieces make need no changes:
+  the fog chunks become aerial haze (an exponential height fog integrated along the ray, squared so the campus stays
+  clear and the world's edge is never seen, tinted toward the sun with the same sum the sky dome makes at the horizon);
+  `lights_fragment_end` gains the **lamp field** (every light pool drawn from above into one texture, re-drawn every
+  2–4 frames, which lights ground, walls, cars and people at night) and **sky reflections** on anything with roughness
+  under 0.6; `lights_physical_fragment` gains **wet ground** in rain. Every material gets the shared `atmo` uniforms
+  through an accessor on `Material.prototype.onBeforeCompile` (assigning a hook wraps it; its text still keys the
+  program cache). All of it only acts where `scene.fog` is set, i.e. on campuses.
+- `sky.ts`: a shader dome (gradient, sun and moon discs, a glow round the sun, clouds from the shared noise lit from
+  the sun's side, stars, the Milky Way, the aurora above 50° latitude) and light keyed to the sun's altitude: a warm key
+  against a cool fill, exposure rising toward sunset, a blue hour, a moon kept high so nights read. Weather greys it;
+  under cloud the sun gives way to the fill.
+- `post.ts` rewritten without EffectComposer: one scene render (HDR, MSAA on high, with a depth texture) feeds GTAO
+  (normals rebuilt from depth: no second scene render), a separable depth-of-field (the miniature read; the old
+  screen-band tilt remains for scenes that ask for it), bloom, then one "film" pass (exposure, neutral or ACES curve,
+  sharpen, the era grade, contrast, vignette, grain, fade) and FXAA below high. `Look` gained `tone`, `exposure`, `dof`,
+  `contrast`, `sharpen`, `saturation`; the default stays the neutral curve, which the globe and space scenes kept.
+- Ground (`ground.ts`): steep ground shows level rock strata per pixel (mesas, canyon walls) and a bump from the grain
+  (high only); `open` eases far relief down to a lake shore. Water (`water.ts`): a sheet cut from the ground's own grid
+  with a depth per corner: shallows, foam, three turned ripple layers. Rain (`weather.ts`): GPU streaks.
+- Camera: pitch down to 1.5 rad (the horizon and sky are in view), an arrival move (fade up, come down, settle), the
+  habitat seen down its axis through a 54° lens with bulkheads, real grass in its meadow.
+- The menu tour is directed (`game/tour.ts` `light` + `move` per campus shot → `CampusScene.direct`): seven lights
+  (dawn … night, found from today's sun at the site) and seven moves (rise, orbit, push, fly, crane, low, sky); fair
+  weather in the tour.
+- Photo mode (`ui/PhotoMode.tsx`, `game.photo`, `Stage3D.capture`): hour, weather, lens, blur, a 4K PNG without the
+  interface; the clock waits.
+
+**The globe (`render3d/globe/`: `earth.ts`, new `bake.ts`, `space.ts`, `markers.ts`)**: one air model for surface,
+clouds and halo; weather as a static climate texture with noise drifting through it (ITCZ, storm tracks, spirals, clear
+deserts), self-shaded with ground shadows; richer land and relief, turquoise shelves, sun glint; night lights baked as
+amber and white channels with towns placed by biome, coast and metro; moonlit night side; auroral ovals; stars, Milky
+Way and the Sun; lines with a core, a glow and comets of light in the shader; marker halos; pill labels; zoom and drag
+that keep the place under the cursor.
+
+**Space (`render3d/orbit/`, `render3d/system/`, new `render3d/space/`)**: a shared kit (a galaxy baked into a cube map,
+a Sun with granulation, corona, prominences and an occluded flare, procedural Moon and planets, feathered ribbon
+lines); the swarm as up to 19,000 instanced sails on real orbital planes, lit on the GPU; the orbit view with the Earth
+filling the frame, constellation planes, lit stations, launch arcs and storms; the Type I ending as one directed
+pull-back (`system/cinematic.ts`, 13 s to the held frame inside the game's 16 s).
+
+**The 3D interface (`render3d/edition.css` → `render3d/ui/*.css`, `play3d/index.html`, small hooks in `src/ui`)**: a
+theme scoped to `html.edition-3d` (dark glass with a hairline, no backdrop blur; Atkinson throughout, pixel art kept
+on whole device pixels), a loading screen whose logo flies to the menu, a title screen that frames the tour, the HUD
+and every panel, card and late-game screen restyled, automatic scale on big screens. Classic look falls back to the
+old frames.
+
+**Sound (`src/audio/`)**: see the changelog; a mix bus with reverb and delay sends and a limiter, a cinematic score
+beside the chiptune (`soundtrack` setting: auto = cinematic in 3D), layered effects, living ambience.
+
+**Calls you may want to change**
+- Version and name are mine: 0.11.0 "Golden Hour". Nothing is merged to `main`, pushed or tagged.
+- Campuses use the ACES curve with exposure by the hour; nights are brighter and bluer than real ("day for night").
+- The menu tour films each campus in a chosen light instead of the site's real hour (in play, campuses still follow
+  the real sun at the site); the tour's weather is fair or cloudy only.
+- The low preset has no blur and no sharpen; the ground bump and the guarded blur are high only.
+- Silkscreen is gone from the 3D HUD; the title's tagline ("From a garage to a Type I civilisation") is new.
+- Globe: clouds are anchored to geography and drawn under the markers and lines; in play their opacity is 0.64.
+- Space keeps the neutral curve (ACES greyed the gold); the swarm sits at 0.9 AU; four sparse "ribs" over the Sun
+  appear once the ring is about 72% built.
+
+**Measured, and what is not**: `npm test` passes (the people test needs a longer timeout on a busy machine), the
+production build passes. Frame cost could not be measured cleanly: the machine was saturated by the helpers and an
+Unreal editor, and runs of the same build differed by 3×. Best-case GPU times on the Intel iGPU at medium, 1080p,
+new against old: campus 33 / 43 / 15 / 31 ms against 35 / 32 / 50 / 40, globe 8 against 14. **To do on a quiet machine:**
+the same A/B (the kit is in the session's scratchpad; `EXT_disjoint_timer_query_webgl2` works in Chrome on Intel).
+Nothing was run in WebKitGTK (the desktop app) or on Windows/macOS: the theme uses `:has()` and `round()` with
+fallbacks, and the shaders were only seen on ANGLE (NVIDIA and Intel).
+
+**Open**
+- The desktop app renders on the integrated GPU on hybrid laptops. Launched with `__NV_PRIME_RENDER_OFFLOAD=1
+  __GLX_VENDOR_LIBRARY_NAME=nvidia` the installed AppImage's WebKit process ran on the RTX 4050 without crashing
+  (picture not checked). A Settings switch (read before the webview starts) would make it a click; on Windows the
+  equivalent is `--force_high_performance_gpu` for WebView2. Not built: too risky as a default, untestable on Windows here.
+- Photo mode saves through the browser's download path, like the end card: not tried in the desktop app.
+- The website still shows the old screenshots (16 WebP shots in `public/screenshots/`, the OG card): re-shoot at ship time.
+- From the helpers: the website hero runs the globe's high shaders on phones (`earthMaterial(t, W, H, level?)` takes a
+  level now); Act III's satellite, beam and liftoff on the globe were not exercised; power beams in the ending only show
+  with beam capacity; the cinematic is capped at 16 s by `tickEnding`; the 4K-at-150% interface survey was partial.

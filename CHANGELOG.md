@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.11.0 — Golden Hour (2026-11-10)
+The 3D edition, filmed properly: real skies and light at every hour, a living globe, a space worth looking at, an interface made for it and a new sound. The pixel edition looks as it did, and gets the new sound engine too.
+
+**Light and sky (3D campuses)**
+- A real sky over every campus: the sun and the moon as discs, drifting clouds lit from the sun's side, stars and the Milky Way at night, and the northern lights over Luleå, the fjords and Reykjanes.
+- Light that follows the hour: crisp noon, a warm golden hour with long shadows, a pink sunset, a blue hour when the windows come on, and moonlit nights you can see by.
+- Haze toward the horizon, warm when you look into the sun, so the far land fades into the sky instead of ending.
+- Lamps really light the ground, the walls, the cars and the people near them at night, and headlights sweep along the road.
+- Glass, solar panels and water mirror the sky.
+- Sharper, deeper pictures: the blur now follows true distance (sharp where you look, soft in front and behind), with richer contrast and colour.
+
+**Places**
+- Tilt the camera all the way down to the horizon: mesas, mountain ranges, forests and the sea are part of the view now. Cliffs show their rock in level layers.
+- Lakes and seas have turquoise shallows, a line of foam on the beach, ripples and a glint under the sun or the moon.
+- Rain falls in fine streaks and wets the roads and roofs; under cloud the light goes soft and grey.
+- Aurora, the habitat, is seen down its length through a wider lens: the land curving up both sides and overhead, the sky windows, the sun-line and the bulkhead at the far end.
+- Arriving at a place, the picture fades up and the camera comes down and settles.
+
+**The globe**
+- The Earth rebuilt: real weather (the tropical rain belt, storm tracks, spiral storms, clear deserts) drifting over it and casting shadows, forests, deserts and snow in their own colours, mountains that catch the low sun, turquoise coasts, and the sun glinting on the sea.
+- A proper atmosphere: a thin bright limb by day, orange and violet along the edge of night.
+- The night side is alive: towns and cities as thousands of small lights, moonlit land and sea, auroras round both poles.
+- Stars in their colours, the Milky Way, and the Sun itself in the sky.
+- Cables, sea lanes and power lines glow, with light travelling along them; sites ping when you pick them; labels are easier to read.
+- The globe now turns and zooms under your hand: the place under the cursor stays under the cursor.
+
+**Space and the ending**
+- The solar system view: a living Sun with a corona and flares, the swarm as thousands of sails that catch the light on their orbits, lit planets and asteroids, the Milky Way behind.
+- The orbit view: the Earth fills the frame, satellites fly in their planes with trails, stations carry running lights, launches rise as arcs of fire, and a solar storm lights the auroras.
+- Reaching Type I is now one unbroken shot: sunrise over the Earth's edge, out past the Moon, and the swarm turning to the Sun.
+
+**The 3D interface**
+- A new look for the 3D edition: clean dark glass panels, larger and clearer text, and a K meter that shows your next milestone. (Settings → Display → Interface look → Classic brings the old frames back.)
+- A new title screen: the tour fills the screen like a film, with the logo, a simple menu and a caption for each shot. Continue is the first button when you have a save.
+- A loading screen with the logo and a progress line.
+- The menu's tour is directed: every shot has its own light (golden hour, dusk, night) and its own camera move.
+- Bigger screens get a bigger interface on their own; the Steam Deck's screen fits.
+
+**Photo mode**
+- On any campus, press Photo: the interface steps aside and the game waits. Choose the hour, the weather, the lens and the blur, and save a 4K picture with no interface in it. Esc goes back.
+
+**Smoother**
+- Medium and low detail do less work per picture than before the new effects went in; high detail no longer draws the scene twice for its shading.
+
 ## 0.10.1 — Lived In (2026-11-10)
 A big polish pass on the 3D edition: a steady globe, proper roads, real grass and farmland, traffic that drives like traffic, and people with a working day.
 
