@@ -18,14 +18,15 @@ import { siteVisible } from '../../render/worldMap/act2Layers';
 import { REGIONS } from '../../content/regions';
 import type { GameState, Shipment } from '../../sim/types';
 import { atmosphereMaterial, cloudMaterial, dir, earthMaterial, earthTextures, lonLatOf, R } from './earth';
-import { disposeObject, Kit, rng } from '../kit';
+import { disposeObject } from '../kit';
 import { Labels } from './labels';
-import { globePath, NetworkLayer } from './layers2';
+import { dropLine, globePath, NetworkLayer, POWER_PULSE } from './layers2';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { softLine, softLineMaterial } from './soft';
+import { lineClock, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './soft';
 import { Aurora, milkyWay, starField, Sun } from './space';
+import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, type Marker, type MarkerKind } from './markers';
 import { quality } from '../quality';
 import { CharterLayer } from './layers3';
 import { PlanetLayer } from './layers45';
@@ -33,33 +34,23 @@ import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2La
 
 const RAD = Math.PI / 180;
 const MIN_DIST = 9, MAX_DIST = 330;
+const wrap = (deg: number) => ((deg + 540) % 360) - 180;
 
-type MarkerKind = 'home' | 'owned' | 'build' | 'supplier' | 'cloud' | 'landing' | 'mine' | 'charter' | 'mega' | 'launch' | 'other';
-
-interface Marker {
-  site: SiteDef;
-  group: THREE.Group;
-  sig: string;
-  kind: MarkerKind;
-  /** Height of the top above the surface, in marker units. */
-  top: number;
-}
-
-const markerMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 });
+/** How strongly each kind of site's ring of light calls out (0 = a still ring). */
+const BEAT: Partial<Record<MarkerKind, number>> = { home: 0.55, owned: 0.4, charter: 0.3, mega: 0.25, launch: 0.25 };
 
 export class GlobeScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(32, 1, 0.5, 6000);
-  // no FXAA: the globe anti-aliases its own edges (coasts, lines, stars), and FXAA only made thin lines flicker
+  // no FXAA: the globe anti-aliases its own edges (coasts, the limb, lines, stars), and FXAA only made thin lines flicker
   readonly look: Look = { ...defaultLook(), bloom: 0.32, bloomThreshold: 1.0, vignette: 0.34, fxaa: false };
-  private earth: THREE.Mesh;
   private earthMat: THREE.ShaderMaterial;
-  private clouds: THREE.Mesh;
   private cloudMat: THREE.ShaderMaterial;
   private atmo: THREE.ShaderMaterial;
   private sun = new THREE.DirectionalLight(0xfff1dc, 2.4);
   private markers = new Map<string, Marker>();
   private markerRoot = new THREE.Group();
+  private halos = new Halos();
   private shipRoot = new THREE.Group();
   private routeRoot = new THREE.Group();
   private linkRoot = new THREE.Group();
@@ -69,7 +60,6 @@ export class GlobeScene implements Scene3D {
   private sunDisc = new Sun(quality.level !== 'low');
   private aurora: Aurora | null = null;
   private linkKey = '';
-  private selRing: THREE.Mesh;
   private labels: Labels;
   private network: NetworkLayer;
   private charter = new CharterLayer();
@@ -77,11 +67,16 @@ export class GlobeScene implements Scene3D {
   private w = 1;
   private h = 1;
   private time = 0;
-  // camera: the point looked at (lon, lat) and the distance above it
+  // camera: the point looked at (lon, lat) and the distance above it, easing towards `want`
   private lon = -100;
   private lat = 30;
   private dist = 260;
-  private goal: { lon: number; lat: number; dist: number } | null = null;
+  private want = { lon: -100, lat: 30, dist: 260 };
+  /** While a zoom eases in or out: the place that stays under the cursor. */
+  private anchor: { x: number; y: number; lon: number; lat: number } | null = null;
+  /** While dragging: the place that was grabbed (it stays under the finger). */
+  private grab: { lon: number; lat: number } | null = null;
+  /** The glide after a drag is let go, degrees a second. */
   private vel = { lon: 0, lat: 0 };
   private cine: { from: [number, number]; to: [number, number]; t: number; secs: number; dist: number } | null = null;
   private down: { x: number; y: number; moved: boolean; t: number } | null = null;
@@ -90,30 +85,28 @@ export class GlobeScene implements Scene3D {
   private pinch = 0;
   private lastClick = { t: 0, site: '' };
   private cursor: { x: number; y: number } | null = null;
+  private v = new THREE.Vector3();
 
   constructor(private readonly game: Game) {
     const lod = game.world.lods[game.world.lods.length - 1];
     const tex = earthTextures(lod);
     this.earthMat = earthMaterial(tex, lod.W, lod.H);
-    this.earth = new THREE.Mesh(new THREE.SphereGeometry(R, 256, 128), this.earthMat);
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(R, 256, 128), this.earthMat);
     this.cloudMat = cloudMaterial(tex);
-    this.clouds = new THREE.Mesh(new THREE.SphereGeometry(R * 1.009, 160, 80), this.cloudMat);
-    this.clouds.renderOrder = 2;
+    const clouds = new THREE.Mesh(new THREE.SphereGeometry(R * 1.009, 160, 80), this.cloudMat);
+    clouds.renderOrder = 2;
     this.atmo = atmosphereMaterial(1.1);
     const atmo = new THREE.Mesh(new THREE.SphereGeometry(R * 1.1, 96, 48), this.atmo);
     atmo.renderOrder = 3;
-    this.scene.add(this.earth, this.clouds, atmo);
+    this.scene.add(earth, clouds, atmo);
     this.scene.add(this.sun, this.sun.target, new THREE.HemisphereLight(0xb8c8ff, 0x302a3a, 0.7), new THREE.AmbientLight(0x404060, 0.4));
     this.scene.add(this.stars, this.sunDisc.group);
     if (quality.level !== 'low') {
       this.aurora = new Aurora(tex.detail);
       this.scene.add(milkyWay(tex.detail), this.aurora.mesh);
     }
-    this.scene.add(this.markerRoot, this.shipRoot, this.routeRoot, this.linkRoot, this.chokeRoot);
+    this.scene.add(this.halos.mesh, this.markerRoot, this.shipRoot, this.routeRoot, this.linkRoot, this.chokeRoot);
     this.scene.background = new THREE.Color(0x030408);
-    this.selRing = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.16, 6, 40), new THREE.MeshBasicMaterial({ color: 0xfde9a4 }));
-    this.selRing.rotation.x = Math.PI / 2;
-    this.selRing.visible = false;
     this.buildChokepoints();
     this.labels = new Labels();
     this.network = new NetworkLayer(game.world.router);
@@ -126,6 +119,7 @@ export class GlobeScene implements Scene3D {
       this.lon = home.lon;
       this.lat = Math.max(-40, Math.min(60, home.lat - 6));
     }
+    this.settle();
   }
 
   // ── camera ────────────────────────────────────────────────────────────────────────────────
@@ -143,6 +137,8 @@ export class GlobeScene implements Scene3D {
     this.camera.near = Math.max(0.2, this.dist * 0.05);
     this.camera.far = this.dist + R * 3 + 3000;
     this.camera.updateProjectionMatrix();
+    // (picking between frames needs the matrices as they are now)
+    this.camera.updateMatrixWorld();
   }
 
   private degPerPx() {
@@ -152,20 +148,49 @@ export class GlobeScene implements Scene3D {
 
   private clampView() {
     this.lat = Math.max(-62, Math.min(76, this.lat));
-    this.lon = ((this.lon + 540) % 360) - 180;
+    this.lon = wrap(this.lon);
     this.dist = Math.max(MIN_DIST, Math.min(MAX_DIST, this.dist));
+    this.want.lat = Math.max(-62, Math.min(76, this.want.lat));
+    this.want.dist = Math.max(MIN_DIST, Math.min(MAX_DIST, this.want.dist));
+  }
+
+  /** The view as it stands is where it wants to be (no easing left to do). */
+  private settle() {
+    this.want.lon = this.lon;
+    this.want.lat = this.lat;
+    this.want.dist = this.dist;
+  }
+
+  /**
+   * Turn the globe so the place (lon, lat) sits under the screen point (x, y). False when that point is off the
+   * globe, or the place is so near a pole that a nudge would spin the whole view.
+   */
+  private pin(lon: number, lat: number, x: number, y: number): boolean {
+    if (Math.abs(lat) > 80) return false;
+    for (let i = 0; i < 2; i++) {
+      this.placeCamera();
+      const at = this.pick(x, y);
+      if (!at || Math.abs(at.lat) > 80) return false;
+      this.lon += wrap(lon - at.lon);
+      this.lat += lat - at.lat;
+      this.clampView();
+    }
+    return true;
   }
 
   cinematic(from: [number, number], to: [number, number], secs: number, lod: number) {
     this.cine = { from, to, t: 0, secs, dist: lod >= 1 ? 120 : 215 };
-    this.goal = null;
+    this.anchor = null;
+    this.vel.lon = this.vel.lat = 0;
   }
 
   centreOn(lon: number, lat: number, animate = false) {
-    if (animate) this.goal = { lon, lat: lat - 4, dist: Math.min(this.dist, 140) };
+    this.anchor = null;
+    this.vel.lon = this.vel.lat = 0;
+    if (animate) this.want = { lon, lat: lat - 4, dist: Math.min(this.want.dist, 140) };
     else {
-      this.lon = lon;
-      this.lat = lat;
+      this.lon = this.want.lon = lon;
+      this.lat = this.want.lat = lat;
     }
   }
 
@@ -177,73 +202,76 @@ export class GlobeScene implements Scene3D {
   zoomIn(anchor?: { x: number; y: number }) { this.zoomBy(1 / 1.35, anchor); }
   zoomOut(anchor?: { x: number; y: number }) { this.zoomBy(1.35, anchor); }
 
-  private zoomBy(k: number, anchor?: { x: number; y: number }) {
+  private zoomBy(k: number, at?: { x: number; y: number }) {
     this.cine = null;
-    const g = this.goal ?? { lon: this.lon, lat: this.lat, dist: this.dist };
-    let { lon, lat } = g;
-    if (anchor && k < 1) {
-      const ll = this.pick(anchor.x, anchor.y);
-      if (ll) {
-        let dl = ll.lon - lon;
-        dl = ((dl + 540) % 360) - 180;
-        lon += dl * 0.3;
-        lat += (ll.lat - lat) * 0.3;
-      }
-    }
-    this.goal = { lon, lat, dist: Math.max(MIN_DIST, Math.min(MAX_DIST, g.dist * k)) };
+    this.vel.lon = this.vel.lat = 0;
+    this.want.dist = Math.max(MIN_DIST, Math.min(MAX_DIST, this.want.dist * k));
+    // the place under the cursor stays under it while the zoom eases (about the middle of the view otherwise)
+    const ll = at ? this.pick(at.x, at.y) : null;
+    this.anchor = at && ll ? { ...at, ...ll } : null;
+    if (this.anchor) { this.want.lon = this.lon; this.want.lat = this.lat; }
   }
 
   pan(dx: number, dy: number) {
     this.cine = null;
+    this.anchor = null;
     const k = this.degPerPx() * 4;
-    this.goal = { lon: (this.goal?.lon ?? this.lon) + dx * k, lat: (this.goal?.lat ?? this.lat) - dy * k, dist: this.goal?.dist ?? this.dist };
+    this.want.lon += dx * k;
+    this.want.lat -= dy * k;
   }
 
   busy() {
-    return (this.cine !== null && this.cine.t < 1) || this.goal !== null || !!this.down?.moved || this.pointers.size >= 2 || Math.hypot(this.vel.lon, this.vel.lat) > 0.5;
+    const moving = Math.abs(wrap(this.want.lon - this.lon)) > 0.05 || Math.abs(this.want.lat - this.lat) > 0.05 || Math.abs(this.want.dist - this.dist) > this.dist * 0.004;
+    return (this.cine !== null && this.cine.t < 1) || moving || !!this.down?.moved || this.pointers.size >= 2 || Math.hypot(this.vel.lon, this.vel.lat) > 0.5;
   }
 
   resize(w: number, h: number) {
     this.w = w;
     this.h = h;
-    this.network?.setResolution(w, h);
-    for (const e of this.ships?.values() ?? []) (e.line.material as LineMaterial).resolution.set(w, h);
-    for (const l of this.linkRoot?.children ?? []) ((l as Line2).material as LineMaterial).resolution.set(w, h);
-    this.charter?.setResolution(w, h);
-    this.planet?.setResolution(w, h);
+    lineRes.value.set(w, h);
   }
 
   // ── frame ─────────────────────────────────────────────────────────────────────────────────
-  update(dt: number) {
-    this.time += dt;
-    const g = this.game;
-    const s = g.view;
+  private moveCamera(dt: number) {
     if (this.cine) {
       const c = this.cine;
       c.t = Math.min(1, c.t + dt / c.secs);
       const k = c.t * c.t * (3 - 2 * c.t);
-      let dl = c.to[0] - c.from[0];
-      dl = ((dl + 540) % 360) - 180;
-      this.lon = c.from[0] + dl * k;
+      this.lon = c.from[0] + wrap(c.to[0] - c.from[0]) * k;
       this.lat = c.from[1] + (c.to[1] - c.from[1]) * k - 6;
-      this.dist += (c.dist - this.dist) * Math.min(1, dt * 2);
-    } else if (this.goal) {
-      const e = Math.min(1, dt * 5);
-      let dl = this.goal.lon - this.lon;
-      dl = ((dl + 540) % 360) - 180;
-      this.lon += dl * e;
-      this.lat += (this.goal.lat - this.lat) * e;
-      this.dist += (this.goal.dist - this.dist) * e;
-      if (Math.abs(dl) < 0.01 && Math.abs(this.goal.lat - this.lat) < 0.01 && Math.abs(this.goal.dist - this.dist) < 0.05) this.goal = null;
-    } else if (!this.down) {
-      this.lon += this.vel.lon * dt;
-      this.lat += this.vel.lat * dt;
-      const f = Math.exp(-dt * 4);
-      this.vel.lon *= f;
-      this.vel.lat *= f;
+      this.dist += (c.dist - this.dist) * (1 - Math.exp(-dt * 2));
+      this.settle();
+    } else {
+      // the zoom eases out; while it does, the place under the cursor stays put
+      this.dist += (this.want.dist - this.dist) * (1 - Math.exp(-dt * 9));
+      if (this.anchor && Math.abs(this.want.dist - this.dist) > this.dist * 0.0015 && this.pin(this.anchor.lon, this.anchor.lat, this.anchor.x, this.anchor.y)) {
+        this.want.lon = this.lon;
+        this.want.lat = this.lat;
+      } else {
+        this.anchor = null;
+        if (!this.down) {
+          // a let-go drag glides on and slows
+          this.want.lon += this.vel.lon * dt;
+          this.want.lat += this.vel.lat * dt;
+          const f = Math.exp(-dt * 3.2);
+          this.vel.lon *= f;
+          this.vel.lat *= f;
+        }
+        const e = 1 - Math.exp(-dt * (Math.hypot(this.vel.lon, this.vel.lat) > 0.5 ? 30 : 7));
+        this.lon += wrap(this.want.lon - this.lon) * e;
+        this.lat += (this.want.lat - this.lat) * e;
+      }
     }
     this.clampView();
     this.placeCamera();
+  }
+
+  update(dt: number) {
+    this.time += dt;
+    lineClock.value = this.time;
+    const g = this.game;
+    const s = g.view;
+    this.moveCamera(dt);
 
     // the sun where it really is right now (like the pixel map)
     const day = (s?.day ?? 0) + g.dayFraction();
@@ -254,6 +282,7 @@ export class GlobeScene implements Scene3D {
     this.atmo.uniforms.sunDir.value.copy(sunDir);
     this.sun.position.copy(sunDir).multiplyScalar(500);
     this.sunDisc.update(sunDir, this.camera);
+    // (from far out the curtains pile up along the limb: turned down there)
     this.aurora?.update(sunDir, this.time, 0.45 + 0.55 * (1 - THREE.MathUtils.smoothstep(this.dist, 90, 260)));
     // the weather drifts east, a turn of the globe in half an hour
     const shift = (this.time / 1800) % 1;
@@ -262,7 +291,7 @@ export class GlobeScene implements Scene3D {
     this.earthMat.uniforms.time.value = this.time % 7200;
     // clouds (and their shadows) thin out as you come down to the ground, and in play the map reads through them
     const high = THREE.MathUtils.smoothstep(this.dist, 26, 115);
-    this.cloudMat.uniforms.opacity.value = high * (g.mode === 'title' ? 0.95 : 0.8);
+    this.cloudMat.uniforms.opacity.value = high * (g.mode === 'title' ? 0.95 : 0.64);
     this.earthMat.uniforms.cloudShadow.value = high;
 
     // region hover / selection
@@ -279,7 +308,7 @@ export class GlobeScene implements Scene3D {
     this.updateShips(s, day);
     this.updateLinks(s);
     this.updateChokepoints(s);
-    this.updateLabels(s);
+    this.updateLabels();
     this.updateToolPreview();
     // stars keep their size on screen whatever the 3D resolution
     (this.stars.material as THREE.ShaderMaterial).uniforms.pixelRatio.value = g.stage.scale || 1;
@@ -297,15 +326,15 @@ export class GlobeScene implements Scene3D {
     const pts = globePath([[from.lon, from.lat], [end.lon, end.lat]], 1.004, 0.5);
     const flat = pts.flatMap((p) => [p.x, p.y, p.z]);
     if (!this.toolLine) {
-      const m = softLineMaterial({ color: tool!.kind === 'fiber' ? 0xfbd46e : 0xf7b258, width: 2.4, dashed: true, dashSize: 0.8, gapSize: 0.5, opacity: 0.95 });
+      const m = softLineMaterial({ color: tool!.kind === 'fiber' ? 0xfbd46e : 0xf7b258, width: 2.4, dashed: true, dashSize: 0.8, gapSize: 0.5, opacity: 0.95, glow: 0.4 });
       this.toolLine = new Line2(new LineGeometry(), m);
+      this.toolLine.renderOrder = OVER_CLOUDS;
       this.scene.add(this.toolLine);
     }
     this.toolLine.geometry.dispose();
     this.toolLine.geometry = new LineGeometry();
     this.toolLine.geometry.setPositions(flat);
     this.toolLine.computeLineDistances();
-    (this.toolLine.material as LineMaterial).resolution.set(this.w, this.h);
     this.toolLine.visible = true;
   }
 
@@ -316,7 +345,7 @@ export class GlobeScene implements Scene3D {
   }
 
   private facing(n: THREE.Vector3) {
-    const toCam = this.camera.position.clone().sub(n.clone().multiplyScalar(R)).normalize();
+    const toCam = this.v.copy(this.camera.position).addScaledVector(n, -R).normalize();
     return n.dot(toCam);
   }
 
@@ -332,6 +361,7 @@ export class GlobeScene implements Scene3D {
     const alive = new Set<string>();
     const hovered = this.game.hover?.kind === 'site' ? this.game.hover.id : null;
     const selected = this.game.selection?.kind === 'site' ? this.game.selection.id : null;
+    this.halos.begin(this.time);
     for (const site of SITES) {
       if (site.kind === 'moon') continue;
       if (!siteVisible(site, s)) continue;
@@ -349,27 +379,22 @@ export class GlobeScene implements Scene3D {
         this.markers.set(site.id, m);
       }
       const n = dir(site.lon, site.lat);
-      const p = n.clone().multiplyScalar(R);
+      const p = n.clone().multiplyScalar(R + 0.02);
       const vis = this.facing(n);
       m.group.visible = vis > 0.08;
       if (!m.group.visible) continue;
-      const big = site.id === hovered || site.id === selected ? 1.3 : 1;
-      const sc = this.screenScale(p, 9) * big;
-      m.group.position.copy(n).multiplyScalar(R + 0.02);
+      const hot = site.id === selected ? 1 : site.id === hovered ? 0.8 : 0;
+      const sc = this.screenScale(p, 10.5) * (hot ? 1.3 : 1);
+      m.group.position.copy(p);
       m.group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
       m.group.scale.setScalar(sc);
+      // its ring of light: still for a place you could build, beating where something of yours stands, calling
+      // out round the chosen one
+      const beat = hot || (active ? 0.4 : BEAT[kind] ?? 0);
+      this.halos.add(p, n, sc * (2.5 + hot * 0.6), hot ? '#fde9a4' : active ? '#a3f0d6' : KIND_COL[kind], beat, Math.abs(site.lon * 0.37 + site.lat * 0.11) % 1);
     }
-    for (const [id, m] of this.markers) if (!alive.has(id)) { this.markerRoot.remove(m.group); this.markers.delete(id); }
-    // the selection ring
-    const selM = selected ? this.markers.get(selected) : null;
-    this.selRing.visible = !!selM?.group.visible;
-    if (selM && this.selRing.visible) {
-      if (!this.selRing.parent) this.markerRoot.add(this.selRing);
-      this.selRing.removeFromParent();
-      selM.group.add(this.selRing);
-      this.selRing.position.y = 0.12;
-      this.selRing.scale.setScalar(1 + Math.sin(this.time * 4) * 0.06);
-    }
+    this.halos.end();
+    for (const [id, m] of this.markers) if (!alive.has(id)) { this.markerRoot.remove(m.group); m.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose()); this.markers.delete(id); }
   }
 
   // ── ships and their routes ────────────────────────────────────────────────────────────────
@@ -403,6 +428,12 @@ export class GlobeScene implements Scene3D {
     return null;
   }
 
+  private dropShip(e: { obj: THREE.Object3D; line: Line2 }) {
+    this.shipRoot.remove(e.obj);
+    e.obj.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
+    dropLine(this.routeRoot, e.line);
+  }
+
   private updateShips(s: GameState | null, t: number) {
     const ships = s?.shipments ?? [];
     const alive = new Set<string>();
@@ -412,7 +443,7 @@ export class GlobeScene implements Scene3D {
       let e = this.ships.get(sh.id);
       const key = `${sh.portDay}|${sh.route.length}|${sh.overland.length}`;
       if (!e || e.key !== key) {
-        if (e) { this.shipRoot.remove(e.obj); this.routeRoot.remove(e.line); e.line.geometry.dispose(); e.line.material.dispose(); }
+        if (e) this.dropShip(e);
         const obj = sh.mode === 'air' ? planeMesh() : shipMesh();
         const pts: THREE.Vector3[] = [];
         const path = [...sh.route, ...sh.overland.slice(1)];
@@ -426,8 +457,7 @@ export class GlobeScene implements Scene3D {
           }
           pts.push(a.multiplyScalar(R * 1.003));
         }
-        const line = softLine(pts, { color: sh.mode === 'air' ? 0xd6e2f0 : 0xc9ece6, width: 1, dashed: true, dashSize: 0.9, gapSize: 0.7, opacity: 0.75 });
-        (line.material as LineMaterial).resolution.set(this.w, this.h);
+        const line = softLine(pts, { color: sh.mode === 'air' ? 0xd6e2f0 : 0xc9ece6, width: 1, dashed: true, dashSize: 0.9, gapSize: 0.7, opacity: 0.75, glow: 0.15 });
         this.shipRoot.add(obj);
         this.routeRoot.add(line);
         e = { obj, line, key };
@@ -449,7 +479,7 @@ export class GlobeScene implements Scene3D {
       e.obj.matrixAutoUpdate = false;
       e.obj.matrixWorldNeedsUpdate = true;
     }
-    for (const [id, e] of this.ships) if (!alive.has(id)) { this.shipRoot.remove(e.obj); this.routeRoot.remove(e.line); e.line.geometry.dispose(); e.line.material.dispose(); this.ships.delete(id); }
+    for (const [id, e] of this.ships) if (!alive.has(id)) { this.dropShip(e); this.ships.delete(id); }
   }
 
   // ── power links between sites ─────────────────────────────────────────────────────────────
@@ -458,7 +488,7 @@ export class GlobeScene implements Scene3D {
     const key = links.map((l) => l.id + l.status).join(',');
     if (key === this.linkKey) return;
     this.linkKey = key;
-    for (const c of [...this.linkRoot.children]) { this.linkRoot.remove(c); (c as Line2).geometry.dispose(); ((c as Line2).material as LineMaterial).dispose(); }
+    for (const c of [...this.linkRoot.children]) dropLine(this.linkRoot, c as Line2);
     for (const l of links) {
       const a = siteDef(l.a), b = siteDef(l.b);
       const pa = dir(a.lon, a.lat), pb = dir(b.lon, b.lat);
@@ -469,18 +499,19 @@ export class GlobeScene implements Scene3D {
         const p = pa.clone().lerp(pb, t).normalize();
         pts.push(p.multiplyScalar(R * (1.002 + Math.sin(Math.PI * t) * ang * 0.08)));
       }
-      const line = l.status === 'online'
-        ? softLine(pts, { color: 0xfbd46e, width: 1.2, opacity: 0.9 })
-        : softLine(pts, { color: 0xf7b258, width: 1.2, dashed: true, dashSize: 0.6, gapSize: 0.6, opacity: 0.8 });
-      (line.material as LineMaterial).resolution.set(this.w, this.h);
-      this.linkRoot.add(line);
+      // power runs along a live line; one being strung is dashed
+      this.linkRoot.add(l.status === 'online'
+        ? softLine(pts, { color: 0xfbd46e, width: 1.4, opacity: 0.95, pulse: POWER_PULSE })
+        : softLine(pts, { color: 0xf7b258, width: 1.2, dashed: true, dashSize: 0.6, gapSize: 0.6, opacity: 0.8 }));
     }
   }
 
   // ── chokepoints ───────────────────────────────────────────────────────────────────────────
   private buildChokepoints() {
     for (const c of CHOKEPOINTS) {
-      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({ color: 0x5fd3b5, emissive: 0x1c8780, emissiveIntensity: 0.6, roughness: 0.5 }));
+      // (flagged transparent to be drawn with the markers, over the clouds)
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), new THREE.MeshStandardMaterial({ color: 0x5fd3b5, emissive: 0x1c8780, emissiveIntensity: 0.9, roughness: 0.5, transparent: true }));
+      m.renderOrder = OVER_CLOUDS + 2;
       m.userData.id = c.id;
       this.chokeRoot.add(m);
     }
@@ -516,7 +547,7 @@ export class GlobeScene implements Scene3D {
     return m.group.localToWorld(new THREE.Vector3(0, m.top, 0));
   }
 
-  private updateLabels(s: GameState | null) {
+  private updateLabels() {
     const hovered = this.game.hover?.kind === 'site' ? this.game.hover.id : null;
     const selected = this.game.selection?.kind === 'site' ? this.game.selection.id : null;
     const items: { id: string; text: string; x: number; y: number; pri: number; tone: string }[] = [];
@@ -541,21 +572,19 @@ export class GlobeScene implements Scene3D {
       if (sp) items.push({ id: 'r:' + r.id, text: r.name.toUpperCase(), x: sp.x, y: sp.y, pri: r.id === hovR ? 9 : 0.5, tone: r.id === hovR ? 'region hot-region' : 'region' });
     }
     this.labels.show(items, (this.game.mode === 'title' ? 0.85 : 1) * (1 - Math.min(1, this.game.stage.fade)));
-    void s;
   }
 
   // ── picking ───────────────────────────────────────────────────────────────────────────────
   /** Longitude/latitude under a screen point, or null off the globe. */
   private pick(x: number, y: number): { lon: number; lat: number } | null {
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(new THREE.Vector2((x / this.w) * 2 - 1, -(y / this.h) * 2 + 1), this.camera);
-    const o = ray.ray.origin, d = ray.ray.direction;
+    const o = this.camera.position;
+    const d = this.v.set((x / this.w) * 2 - 1, -(y / this.h) * 2 + 1, 0.5).unproject(this.camera).sub(o).normalize();
     const b = o.dot(d), c = o.lengthSq() - R * R;
     const disc = b * b - c;
     if (disc < 0) return null;
     const t = -b - Math.sqrt(disc);
     if (t < 0) return null;
-    return lonLatOf(o.clone().addScaledVector(d, t));
+    return lonLatOf(d.multiplyScalar(t).add(o));
   }
 
   private hitSite(x: number, y: number, radius = 14): string | null {
@@ -633,7 +662,9 @@ export class GlobeScene implements Scene3D {
     this.last = { x: p.x, y: p.y, t: performance.now() };
     this.vel = { lon: 0, lat: 0 };
     this.cine = null;
-    this.goal = null;
+    this.anchor = null;
+    this.settle();
+    this.grab = this.pick(p.x, p.y);
   }
 
   pointerMove(p: PixelPointer) {
@@ -642,7 +673,7 @@ export class GlobeScene implements Scene3D {
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (this.pinch > 0 && d > 0) this.dist = Math.max(MIN_DIST, Math.min(MAX_DIST, this.dist * (this.pinch / d)));
+      if (this.pinch > 0 && d > 0) this.dist = this.want.dist = Math.max(MIN_DIST, Math.min(MAX_DIST, this.dist * (this.pinch / d)));
       this.pinch = d;
       return;
     }
@@ -650,13 +681,22 @@ export class GlobeScene implements Scene3D {
       const slop = p.pointerType === 'mouse' ? 3 : 10;
       if (!this.down.moved && Math.hypot(p.x - this.down.x, p.y - this.down.y) > slop) this.down.moved = true;
       if (this.down.moved && this.last) {
-        const k = this.degPerPx();
-        const dx = p.x - this.last.x, dy = p.y - this.last.y;
-        this.lon -= dx * k / Math.max(0.3, Math.cos(this.lat * RAD));
-        this.lat += dy * k;
+        const lon0 = this.lon, lat0 = this.lat;
+        // the place that was grabbed stays under the finger; off the globe's edge (or by a pole) the drag just turns it
+        if (!this.grab || !this.pin(this.grab.lon, this.grab.lat, p.x, p.y)) {
+          const k = this.degPerPx();
+          this.lon = lon0 - ((p.x - this.last.x) * k) / Math.max(0.3, Math.cos(lat0 * RAD));
+          this.lat = lat0 + (p.y - this.last.y) * k;
+          this.clampView();
+          this.grab = null;
+        }
+        this.settle();
+        // how fast it's turning, smoothed over the last few moves: the glide when it's let go
         const now = performance.now();
-        const dtt = Math.max(1, now - this.last.t) / 1000;
-        this.vel = { lon: (-dx * k) / dtt, lat: (dy * k) / dtt };
+        const dtt = Math.max(4, now - this.last.t) / 1000;
+        const cap = (v: number) => Math.max(-240, Math.min(240, v));
+        this.vel.lon += (cap(wrap(this.lon - lon0) / dtt) - this.vel.lon) * 0.5;
+        this.vel.lat += (cap((this.lat - lat0) / dtt) - this.vel.lat) * 0.5;
         this.last = { x: p.x, y: p.y, t: now };
         this.game.setHover(null);
         return;
@@ -670,6 +710,7 @@ export class GlobeScene implements Scene3D {
     if (this.pointers.size < 2) this.pinch = 0;
     const d = this.down;
     this.down = null;
+    this.grab = null;
     if (!d) return;
     if (d.moved) {
       if (this.last && performance.now() - this.last.t > 80) this.vel = { lon: 0, lat: 0 };
@@ -703,6 +744,7 @@ export class GlobeScene implements Scene3D {
     this.pointers.delete(p.id);
     if (this.pointers.size < 2) this.pinch = 0;
     this.down = null;
+    this.grab = null;
   }
 
   pointerLeave() {
@@ -712,107 +754,11 @@ export class GlobeScene implements Scene3D {
 
   wheel(p: PixelPointer, deltaY: number) {
     if (this.game.settings.wheel === 'pan') return this.pan(0, Math.sign(deltaY) * 14);
-    const k = Math.pow(1.0015, deltaY);
-    this.zoomBy(k, deltaY < 0 ? { x: p.x, y: p.y } : undefined);
+    this.zoomBy(Math.pow(1.0015, deltaY), { x: p.x, y: p.y });
   }
 
   destroy() {
     this.labels.destroy();
     disposeObject(this.scene);
-    void this.cursor;
   }
-}
-
-// ── marker art: little scale-model plinths ───────────────────────────────────────────────────
-const KIND_COL: Record<MarkerKind, string> = {
-  home: '#fbd46e', owned: '#5fd3b5', build: '#e9e1d2', supplier: '#a862c4', cloud: '#6c9fd2', landing: '#2fae9b',
-  mine: '#d4a862', charter: '#f7b258', mega: '#f08a46', launch: '#e6e0e3', other: '#c3bcc7',
-};
-
-const RIVAL_COL: Record<string, string> = { meridian: '#c23a3f', lattice: '#7e43a8', orchard: '#5a9537' };
-
-function makeMarker(site: SiteDef, kind: MarkerKind, online: boolean[], sig: string, rivals: { owner: string; building: boolean }[] = [], active = false): Marker {
-  const k = new Kit(rng(site.id.length * 31 + site.lat * 7));
-  const col = active ? '#a3f0d6' : KIND_COL[kind];
-  // rivals' halls stand on little pads beside the plinth (a crane while they build)
-  rivals.forEach((r, i) => {
-    const a = -0.9 + i * 0.75, x = Math.cos(a) * 1.55, z = Math.sin(a) * 1.55;
-    k.geo(new THREE.CylinderGeometry(0.42, 0.46, 0.18, 6).translate(x, 0.09, z), '#433c52', 0.02);
-    k.box(0.5, r.building ? 0.25 : 0.42, 0.4, RIVAL_COL[r.owner] ?? '#9d95a6', x, 0.18, z, { r: 0.03 });
-    if (r.building) {
-      k.box(0.05, 0.75, 0.05, '#fbd46e', x + 0.2, 0.18, z, { r: 0, jitter: 0 });
-      k.box(0.5, 0.05, 0.05, '#fbd46e', x + 0.2, 0.9, z, { r: 0, jitter: 0 });
-    }
-  });
-  const hexPlinth = (r: number, h: number, c: string, y = 0) => k.geo(new THREE.CylinderGeometry(r, r * 1.08, h, 6).translate(0, y + h / 2, 0), c, 0.02);
-  hexPlinth(1.15, 0.28, '#433c52');
-  hexPlinth(1.0, 0.16, col, 0.28);
-  let top = 0.6;
-  if (kind === 'home') {
-    k.box(0.9, 0.55, 0.7, '#efe8de', 0, 0.44, 0, { r: 0.04 });
-    k.geo(new THREE.ConeGeometry(0.72, 0.42, 4).rotateY(Math.PI / 4).translate(0, 0.99 + 0.21, 0), '#5b5562', 0);
-    k.box(0.38, 0.32, 0.05, '#f7b258', 0.12, 0.44, 0.36, { r: 0 });
-    top = 1.45;
-  } else if (kind === 'owned') {
-    const n = Math.max(1, Math.min(6, online.length));
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + 0.4, r = n > 1 ? 0.48 : 0;
-      const h = 0.35 + ((i * 37) % 5) * 0.08;
-      k.box(0.42, h, 0.36, online[i] === false ? '#fbd46e' : '#e7e1d6', Math.cos(a) * r, 0.44, Math.sin(a) * r, { r: 0.03 });
-      k.box(0.44, 0.06, 0.38, online[i] === false ? '#df5f3e' : '#5b5562', Math.cos(a) * r, 0.44 + h, Math.sin(a) * r, { r: 0.01 });
-    }
-    top = 1.25;
-  } else if (kind === 'build') {
-    k.cyl(0.04, 0.04, 0.9, '#9d95a6', 0, 0.44, 0, 6);
-    k.box(0.4, 0.24, 0.03, '#df5f3e', 0.2, 1.08, 0, { r: 0 });
-    top = 1.4;
-  } else if (kind === 'supplier') {
-    k.box(0.95, 0.42, 0.6, '#d8cfc3', 0, 0.44, 0, { r: 0.03 });
-    k.cyl(0.1, 0.12, 0.8, '#7a7186', 0.3, 0.44, -0.12, 8);
-    k.box(0.5, 0.18, 0.62, '#7e43a8', -0.18, 0.86, 0, { r: 0.02 });
-    top = 1.3;
-  } else if (kind === 'cloud') {
-    for (const [x, y, r] of [[-0.25, 0.75, 0.3], [0.1, 0.82, 0.36], [0.4, 0.72, 0.26]]) k.geo(new THREE.SphereGeometry(r, 10, 8).translate(x, y, 0), '#e6eef8', 0.02);
-    top = 1.2;
-  } else if (kind === 'mine') {
-    k.geo(new THREE.ConeGeometry(0.6, 0.55, 7).translate(0, 0.44 + 0.27, 0), '#9c6c3d', 0.04);
-    top = 1.1;
-  } else if (kind === 'landing') {
-    k.geo(new THREE.SphereGeometry(0.42, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.44, 0), '#efe8de', 0.02);
-    top = 1.0;
-  } else {
-    k.box(0.6, 0.6, 0.6, col, 0, 0.44, 0, { r: 0.08 });
-    top = 1.15;
-  }
-  const mesh = k.build(markerMat);
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
-  const g = new THREE.Group();
-  g.add(mesh);
-  return { site, group: g, sig, kind, top };
-}
-
-function shipMesh() {
-  const k = new Kit(rng(3));
-  k.box(1.8, 0.32, 0.55, '#93243a', 0, 0, 0, { r: 0.08 });
-  k.box(1.75, 0.12, 0.5, '#efe8de', 0, 0.32, 0, { r: 0.02 });
-  for (let i = 0; i < 4; i++) k.box(0.3, 0.24, 0.42, ['#345c96', '#df5f3e', '#2fae9b', '#fbd46e'][i], -0.55 + i * 0.32, 0.44, 0, { r: 0.02 });
-  k.box(0.3, 0.45, 0.45, '#efe8de', 0.72, 0.44, 0, { r: 0.04 });
-  const m = k.build(markerMat);
-  m.castShadow = false;
-  const g = new THREE.Group();
-  g.add(m);
-  return g;
-}
-
-function planeMesh() {
-  const k = new Kit(rng(4));
-  k.cyl(0.13, 0.13, 1.6, '#e6e0e3', 0, 0, 0, 8, { rz: Math.PI / 2 });
-  k.box(0.35, 0.05, 1.7, '#c3bcc7', 0.1 - 0.8, 0, 0, { r: 0 });
-  k.box(0.25, 0.4, 0.05, '#c23a3f', -1.5, 0, 0, { r: 0 });
-  const m = k.build(markerMat);
-  m.castShadow = false;
-  const g = new THREE.Group();
-  g.add(m);
-  return g;
 }

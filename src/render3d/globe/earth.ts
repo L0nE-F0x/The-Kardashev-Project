@@ -418,7 +418,7 @@ const AIR = `
     c *= 1.0 + pow(max(fwd, 0.0), 6.0) * 2.4;
     // the night's airglow: a whisper of green just above the limb
     float g = (h - 0.012) / 0.009;
-    return c + vec3(0.004, 0.010, 0.009) * exp(-g * g) * (1.0 - lit);
+    return c + vec3(0.0025, 0.0055, 0.006) * exp(-g * g) * (1.0 - lit);
   }`;
 
 /**
@@ -687,9 +687,11 @@ export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.le
           vec2 li = texture2D(tLights, vUv, 4.0).rg;
           c += (li.r * ${AMBER} + li.g * ${WHITE}) * (1.0 - smoothstep(-0.15, 0.05, dn)) * 0.3;
         #endif
-        // edge-on at the limb the shell fades into the air
+        // less opacity clears the thin veils first and leaves the cloud's white heart (a wash of grey over the
+        // whole map would muddy it); edge-on at the limb the shell fades into the air
+        a = smoothstep(1.0 - opacity, 1.3 - opacity * 0.3, a) * min(1.0, opacity * 3.0);
         a *= smoothstep(0.0, 0.2, dot(n, normalize(vView)));
-        gl_FragColor = vec4(c, a * opacity * mix(0.6, 1.0, lit));
+        gl_FragColor = vec4(c, a * mix(0.6, 1.0, lit));
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
