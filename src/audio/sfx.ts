@@ -187,7 +187,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   whoosh: {
-    gain: 0.5, rev: 0.35, gap: 0.2,
+    gain: 0.9, rev: 0.35, gap: 0.2,
     play(v) {
       const side = v.r() < 0.5 ? -0.6 : 0.6;
       air(v, v.t, 'pink', 'bandpass', 240, 2900, 0.42, 0.9, 0.3, 0.8, side);

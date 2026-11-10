@@ -10,7 +10,7 @@ import { seeded } from './score';
 export type Ambience = 'none' | 'map' | 'campus' | 'night' | 'rain' | 'coast' | 'lake' | 'moon' | 'space' | 'habitat';
 
 /** Per-bed trim, set by measurement so every place sits at about the same loudness (rain a little over, space under). */
-const LEVEL: Record<Exclude<Ambience, 'none'>, number> = { map: 1, campus: 2, night: 1.95, rain: 1.1, coast: 0.85, lake: 1.9, moon: 2.1, space: 0.7, habitat: 1.05 };
+const LEVEL: Record<Exclude<Ambience, 'none'>, number> = { map: 1, campus: 2, night: 1.95, rain: 1.1, coast: 0.85, lake: 1.9, moon: 3.1, space: 0.8, habitat: 1.05 };
 
 /** Where each bed's low cut sits (Hz); 110 unless named. */
 const FLOOR: Partial<Record<Ambience, number>> = { rain: 55, coast: 65, moon: 80, space: 38 };

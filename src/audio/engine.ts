@@ -33,7 +33,9 @@ interface Graph {
   master: GainNode;
   buses: Record<BusName, Bus>;
   duck: GainNode[];
+  /** The echo: its two lines, and the three gains that close it while its time changes. */
   delays: DelayNode[];
+  echoGates: GainNode[];
 }
 
 // Bus levels at a full slider. Calibrated by measurement (the offline renders in the QA harness): with every slider
@@ -42,6 +44,8 @@ const TRIM = { sfx: 0.62, music: 0.84, amb: 0.5 };
 /** After the limiter: takes back the make-up gain browsers' compressors add, leaving ~1.5 dB under full scale. */
 const POST = 0.82;
 const CEILING = 0.84;
+/** The echo's return level and the two gains round its loop (each echo two thirds of the last). */
+const ECHO = [0.8, 0.66, 0.66];
 
 let live: Graph | null = null;
 /** The graph in use: the live one, or an offline render's while `renderOffline` runs. */
@@ -154,11 +158,11 @@ function build(ctx: AudioContext): Graph {
   thin.frequency.value = 320;
   thin.Q.value = 0.5;
   const cross = ctx.createGain(), fb = ctx.createGain();
-  cross.gain.value = 0.66;
-  fb.gain.value = 0.66;
+  cross.gain.value = ECHO[1];
+  fb.gain.value = ECHO[2];
   const merge = ctx.createChannelMerger(2);
   const delOut = ctx.createGain();
-  delOut.gain.value = 0.8;
+  delOut.gain.value = ECHO[0];
   delIn.connect(thin);
   thin.connect(dl);
   dl.connect(tone);
@@ -197,7 +201,7 @@ function build(ctx: AudioContext): Graph {
     };
     return { dry: mk(ducked ? air : mix), rev: mk(revIn), del: mk(delIn) };
   };
-  return { ctx, master, buses: { sfx: bus(false), music: bus(true), amb: bus(false) }, duck, delays: [dl, dr] };
+  return { ctx, master, buses: { sfx: bus(false), music: bus(true), amb: bus(false) }, duck, delays: [dl, dr], echoGates: [delOut, cross, fb] };
 }
 
 export function audioCtx(): AudioContext | null {
@@ -297,10 +301,18 @@ export function duckMusic(depth = 0.5, hold = 1.2): void {
 
 /** Set the echo's time (the score keeps it on the beat: usually a dotted eighth). */
 export function setDelayTime(seconds: number): void {
-  delayTime = Math.max(0.05, Math.min(1.9, seconds));
+  const next = Math.max(0.05, Math.min(1.9, seconds));
+  if (next === delayTime) return;
+  delayTime = next;
   if (!g) return;
-  // a slow glide: echoes in flight bend a little instead of clicking
-  for (const d of g.delays) d.delayTime.setTargetAtTime(delayTime, g.ctx.currentTime, 0.4);
+  // a delay line can't change length with echoes in it (they bend, or tear): close its return and its loop for a
+  // moment, jump while nothing passes, open again. The gap is a tenth of a second of missing echo
+  const t = g.ctx.currentTime;
+  g.echoGates.forEach((gate, k) => {
+    glide(gate.gain, 0, t, 0.012);
+    gate.gain.setTargetAtTime(ECHO[k], t + 0.14, 0.05);
+  });
+  for (const d of g.delays) d.delayTime.setValueAtTime(delayTime, t + 0.11);
 }
 
 // ── the pump: one look-ahead timer for every sequencer ──────────────────────────────────────
