@@ -61,8 +61,8 @@ function eruptionMaterial() {
       ${NOISE}
       void main(){
         // seen edge-on a shell is a bright rim; noise tears it into arcs
-        float rim = pow(max(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0), 3.0);
-        float torn = smoothstep(0.42, 0.7, fbm(normalize(vP) * 2.2 + uSeed, 4));
+        float rim = pow(max(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0), 5.0);
+        float torn = smoothstep(0.52, 0.78, fbm(normalize(vP) * 2.2 + uSeed, 4));
         gl_FragColor = vec4(vec3(1.0, 0.5, 0.22) * rim * torn * uK, 1.0);
         ${OUTPUT}
       }`,
@@ -468,7 +468,7 @@ export class SystemScene3D implements Scene3D {
       const k = (this.time * 0.07 + e.phase) % 1;
       e.mesh.scale.setScalar(SUN_R * 1.2 + k * AU * 1.5);
       e.mesh.rotation.set(e.phase * 9, this.time * 0.05 + e.phase * 4, 0);
-      e.mesh.material.uniforms.uK.value = storm * 2.4 * Math.pow(1 - k, 2) * Math.min(1, k * 12);
+      e.mesh.material.uniforms.uK.value = storm * 0.9 * Math.pow(1 - k, 2) * Math.min(1, k * 12);
     }
     this.updateLabels(v, earth);
   }
@@ -640,6 +640,7 @@ export class SystemScene3D implements Scene3D {
     this.game.stage.canvas.style.cursor = '';
     disposeObject(this.scene);
     for (const l of this.lamps) l.dispose();
+    this.backdrop.dispose();
   }
 }
 

@@ -24,8 +24,9 @@ const skyVS = /* glsl */ `
     gl_Position.z = gl_Position.w * 0.99999;
   }`;
 
+/** The galaxy, painted from noise (costly: it is drawn once into a cube map, see Backdrop). */
 function milkyWay(gain: number) {
-  const oct = quality.level === 'high' ? 5 : quality.level === 'medium' ? 4 : 3;
+  const oct = 5;
   return new THREE.ShaderMaterial({
     depthWrite: false,
     uniforms: { uGain: { value: gain } },
@@ -135,13 +136,35 @@ export function galaxyFor(forward: THREE.Vector3, slope = 0.45, lift = 0.1, core
 export class Backdrop {
   readonly object = new THREE.Group();
   private starMat: THREE.ShaderMaterial;
+  /** The galaxy as painted, once: every frame after the first only looks it up. */
+  private sky = new THREE.WebGLCubeRenderTarget(quality.level === 'low' ? 256 : 512, { type: THREE.HalfFloatType, generateMipmaps: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
 
   /** `lie`: how the galaxy lies across this view's sky (see `galaxyFor`). `gain`: 1 = the default brightness. */
   constructor(lie: THREE.Quaternion, gain = 1) {
-    const dome = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), milkyWay(0.062 * gain));
-    dome.material.side = THREE.BackSide;
+    const ball = new THREE.IcosahedronGeometry(1, 3);
+    const dome = new THREE.Mesh(ball, new THREE.ShaderMaterial({
+      depthWrite: false, side: THREE.BackSide,
+      uniforms: { tSky: { value: this.sky.texture } },
+      vertexShader: skyVS,
+      fragmentShader: /* glsl */ `uniform samplerCube tSky; varying vec3 vDir;
+        void main(){ gl_FragColor = vec4(textureCube(tSky, vDir).rgb, 1.0);
+          ${OUTPUT} }`,
+    }));
     dome.frustumCulled = false;
     dome.renderOrder = -1000;
+    // painted the first time the sky is drawn (that's when there is a renderer to paint with): the noise costs a
+    // couple of milliseconds a frame on a fast GPU and far more on a slow one, so it must not run every frame
+    let painted = false;
+    dome.onBeforeRender = (renderer) => {
+      if (painted) return;
+      painted = true;
+      const paint = milkyWay(0.062 * gain);
+      paint.side = THREE.BackSide;
+      const scene = new THREE.Scene();
+      scene.add(new THREE.Mesh(ball, paint));
+      new THREE.CubeCamera(0.1, 10, this.sky).update(renderer, scene);
+      paint.dispose();
+    };
     const count = quality.level === 'high' ? 7500 : quality.level === 'medium' ? 5000 : 3200;
     const st = stars(count, gain);
     this.starMat = st.material as THREE.ShaderMaterial;
@@ -152,5 +175,10 @@ export class Backdrop {
   /** Star discs are sized in screen pixels. */
   resize(pixelRatio: number) {
     this.starMat.uniforms.uPx.value = pixelRatio;
+  }
+
+  /** Free the painted sky (the scene's own dispose frees the rest). */
+  dispose() {
+    this.sky.dispose();
   }
 }

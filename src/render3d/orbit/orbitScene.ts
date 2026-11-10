@@ -517,5 +517,6 @@ export class OrbitScene3D implements Scene3D {
     this.game.stage.canvas.style.cursor = '';
     disposeObject(this.scene);
     this.fleet.dispose();
+    this.backdrop?.dispose();
   }
 }

@@ -14,8 +14,8 @@ export type StationKind = 'odc' | 'sps' | 'relay' | 'build' | 'yard' | 'habitat'
 const shared = <M extends THREE.Material>(m: M) => { m.userData.shared = true; return m; };
 const hullMat = shared(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.25 }));
 // solar cells: near-black glass that flashes when the Sun's reflection finds the camera
-const panelMat = shared(new THREE.MeshStandardMaterial({ color: 0x1a2b58, roughness: 0.22, metalness: 0.9, emissive: 0x050a1c }));
-const foilMat = shared(new THREE.MeshStandardMaterial({ color: 0xd8a23e, roughness: 0.32, metalness: 0.9, emissive: 0x2c1a04 }));
+const panelMat = shared(new THREE.MeshStandardMaterial({ color: 0x1a2b58, roughness: 0.3, metalness: 0.85, emissive: 0x050a1c }));
+const foilMat = shared(new THREE.MeshStandardMaterial({ color: 0xd8a23e, roughness: 0.58, metalness: 0.6, emissive: 0x2c1a04 }));
 const windowMat = shared(new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 1.8, 1.0) }));
 
 const WHITE = new THREE.Color(7, 7, 7.6), RED = new THREE.Color(7, 0.9, 0.5), GREEN = new THREE.Color(0.6, 6, 1.4), WARM = new THREE.Color(5, 3.1, 1.4);
