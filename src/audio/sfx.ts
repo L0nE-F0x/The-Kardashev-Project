@@ -161,7 +161,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   page: {
-    gain: 0.42, rev: 0.06,
+    gain: 0.9, rev: 0.06,
     play(v) {
       const p = vary(v, 150);
       air(v, v.t, 'white', 'bandpass', 2500 * p, 3500 * p, 0.06, 0.4, 0.018, 0.9);
@@ -169,7 +169,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   open: {
-    gain: 0.45, rev: 0.1,
+    gain: 0.62, rev: 0.1,
     play(v) {
       const p = vary(v, 80);
       air(v, v.t, 'white', 'bandpass', 1500 * p, 4400 * p, 0.11, 0.42, 0.06, 1.1);
@@ -177,7 +177,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   close: {
-    gain: 0.45, rev: 0.1,
+    gain: 0.62, rev: 0.1,
     play(v) {
       const p = vary(v, 80);
       air(v, v.t, 'white', 'bandpass', 3800 * p, 1300 * p, 0.1, 0.36, 0.02, 1.1);
@@ -190,7 +190,7 @@ const SOUNDS: Record<SoundId, Sound> = {
       const side = v.r() < 0.5 ? -0.6 : 0.6;
       air(v, v.t, 'pink', 'bandpass', 240, 2900, 0.42, 0.9, 0.3, 0.8, side);
       air(v, v.t + 0.26, 'pink', 'bandpass', 2600, 420, 0.5, 0.5, 0.06, 0.8, -side);
-      tone(v, v.t, 'sine', 74, 44, 0.4, 0.5, 0.05);
+      tone(v, v.t, 'sine', 78, 48, 0.4, 0.22, 0.05);
     },
   },
   bubble: {
@@ -212,7 +212,7 @@ const SOUNDS: Record<SoundId, Sound> = {
 
   // ── the company: building, money, science ──
   build: {
-    gain: 0.5, rev: 0.16, gap: 0.1,
+    gain: 0.62, rev: 0.16, gap: 0.1,
     play(v) {
       // ground broken: a thunk, a ratchet, a wooden note
       const kit = makeKit(v.ctx, v.s, v.r);
@@ -226,7 +226,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     play(v) {
       // it's online: weight landing, a triad climbing, a breath of air out
       const kit = makeKit(v.ctx, v.s, v.r);
-      kit.kick(v.t, 0.8, { f0: 92, f1: 40, decay: 0.42 });
+      kit.kick(v.t, 0.6, { f0: 92, f1: 43, decay: 0.42 });
       const m = makeMallet(v.ctx, v.s, { ratio: 4, tone: 0.22, decay: 0.6 });
       [1, 3, 5].forEach((d, k) => m(v.t + k * 0.08, v.deg(d, 1), 0.55 + k * 0.1, (k - 1) * 0.25));
       makeBell(v.ctx, v.s, { ratio: 4, index: 1, decay: 1.4 })(v.t + 0.24, v.deg(1, 2), 0.42);
@@ -234,7 +234,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   cash: {
-    gain: 0.42, rev: 0.2, del: 0.08, gap: 0.1,
+    gain: 0.8, rev: 0.2, del: 0.08, gap: 0.1,
     play(v) {
       // two coins: bright, brief
       air(v, v.t, 'white', 'highpass', 6500, 6500, 0.02, 0.25, 0.001);
@@ -244,7 +244,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   research: {
-    gain: 0.45, rev: 0.4, del: 0.3, gap: 0.25,
+    gain: 0.62, rev: 0.4, del: 0.3, gap: 0.25,
     play(v) {
       // a discovery: glass climbing to a note that doesn't close (the ninth)
       const b = makeBell(v.ctx, v.s, { ratio: 2, index: 0.8, decay: 1.5 });
@@ -264,7 +264,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   objective: {
-    gain: 0.48, rev: 0.32, del: 0.2, gap: 0.25,
+    gain: 0.55, rev: 0.32, del: 0.2, gap: 0.25,
     play(v) {
       const m = makeMallet(v.ctx, v.s, { ratio: 5.4, tone: 0.3, decay: 0.8 });
       [[1, 1], [3, 1], [5, 1], [1, 2]].forEach(([d, o], k) => m(v.t + k * 0.07, v.deg(d, o), 0.55 + k * 0.08, (k - 1.5) * 0.2));
@@ -273,7 +273,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   alert: {
-    gain: 0.5, rev: 0.3, del: 0.1, gap: 0.3,
+    gain: 0.85, rev: 0.3, del: 0.1, gap: 0.3,
     play(v) {
       // "a word, please": a falling fourth on a bell, a soft knock under it
       const b = makeBell(v.ctx, v.s, { ratio: 3.5, index: 0.7, decay: 0.9 });
@@ -285,7 +285,7 @@ const SOUNDS: Record<SoundId, Sound> = {
 
   // ── the stings: the theme's four notes ──
   achievement: {
-    gain: 0.5, rev: 0.42, del: 0.25, gap: 0.8, duck: [0.25, 0.7],
+    gain: 0.75, rev: 0.42, del: 0.25, gap: 0.8, duck: [0.25, 0.7],
     play(v) {
       const b = makeBell(v.ctx, v.s, { ratio: 4, index: 1.1, decay: 1.6 });
       [[5, 1], [1, 2], [3, 2]].forEach(([d, o], k) => b(v.t + k * 0.075, v.deg(d, o), 0.5 + k * 0.08, (k - 1) * 0.3));
@@ -293,7 +293,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   fanfare: {
-    gain: 0.55, rev: 0.45, del: 0.2, gap: 1.5, duck: [0.5, 1.9],
+    gain: 0.42, rev: 0.45, del: 0.2, gap: 1.5, duck: [0.5, 1.9],
     play(v) {
       // so–do–re–mi on bells and piano, the tonic chord swelling under the last note
       const motif = [v.deg(5), v.deg(1, 1), v.deg(2, 1), v.deg(3, 1)];
@@ -310,7 +310,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   act: {
-    gain: 0.6, rev: 0.5, del: 0.2, gap: 4, duck: [0.65, 4.4],
+    gain: 0.46, rev: 0.5, del: 0.2, gap: 4, duck: [0.65, 4.4],
     play(v) {
       // an act ends: the four notes, the leap above them, and a choir on the home chord (I – IV – I)
       const motif = [v.deg(5), v.deg(1, 1), v.deg(2, 1), v.deg(3, 1)];
@@ -336,7 +336,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   start: {
-    gain: 0.5, rev: 0.45, del: 0.15, gap: 1, duck: [0.3, 1.2],
+    gain: 0.4, rev: 0.45, del: 0.15, gap: 1, duck: [0.3, 1.2],
     play(v) {
       // a company opens its doors: a warm chord rising, two notes of the theme
       makePad(v.ctx, v.s, v.r, { cut: 1700, attack: 0.6, release: 1.4 })(v.t, [v.deg(1), v.deg(5), v.deg(2, 1)], 1.1, 0.8, 1.2);
@@ -349,7 +349,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   decision: {
-    gain: 0.55, rev: 0.5, del: 0.1, gap: 1.5, duck: [0.55, 2.4],
+    gain: 0.44, rev: 0.5, del: 0.1, gap: 1.5, duck: [0.55, 2.4],
     play(v) {
       // the room goes quiet: two low notes, a chord that asks instead of answers
       const p = makePiano(v.ctx, v.s, v.r, { decay: 2.2 });
@@ -381,7 +381,7 @@ const SOUNDS: Record<SoundId, Sound> = {
       shake.connect(slow);
       slow.connect(depth);
       const nodes: AudioNode[] = [slow, depth];
-      for (const [kind, type, f0, f1, peak] of [['brown', 'lowpass', 70, 190, 1.3], ['pink', 'bandpass', 380, 900, 0.36]] as const) {
+      for (const [kind, type, f0, f1, peak] of [['brown', 'lowpass', 95, 240, 1.3], ['pink', 'bandpass', 380, 900, 0.36]] as const) {
         const src = ctx.createBufferSource();
         src.buffer = noiseBuffer(kind);
         src.loop = true;
@@ -411,7 +411,7 @@ const SOUNDS: Record<SoundId, Sound> = {
       shake.start(t);
       shake.stop(t + 5.5);
       freeWhenDone(shake, ...nodes);
-      tone(v, t, 'sine', 44, 33, 4.6, 0.55, 0.5);
+      tone(v, t, 'sine', 60, 44, 4.6, 0.4, 0.5);
     },
   },
   thump: {
@@ -427,7 +427,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   jump: {
-    gain: 0.5, rev: 0.5, del: 0.4, gap: 1.5, duck: [0.3, 1.4],
+    gain: 0.7, rev: 0.5, del: 0.4, gap: 1.5, duck: [0.3, 1.4],
     play(v) {
       // years pass: the air rises, lights run up two octaves faster and faster, and it lands
       air(v, v.t, 'pink', 'bandpass', 300, 5200, 1.35, 0.55, 1.15, 0.9);
@@ -443,7 +443,7 @@ const SOUNDS: Record<SoundId, Sound> = {
     },
   },
   arc: {
-    gain: 0.48, rev: 0.5, del: 0.4, gap: 0.6,
+    gain: 0.75, rev: 0.5, del: 0.4, gap: 0.6,
     play(v) {
       // an arc of the swarm lights: the theme's four notes as sparks, a zap, a glow
       const b = makeBell(v.ctx, v.s, { ratio: 4, index: 1.2, decay: 1.6 });

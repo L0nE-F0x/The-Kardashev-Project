@@ -10,7 +10,10 @@ import { seeded } from './score';
 export type Ambience = 'none' | 'map' | 'campus' | 'night' | 'rain' | 'coast' | 'lake' | 'moon' | 'space' | 'habitat';
 
 /** Per-bed trim, set by measurement so every place sits at about the same loudness (rain a little over, space under). */
-const LEVEL: Record<Exclude<Ambience, 'none'>, number> = { map: 1, campus: 1, night: 1, rain: 1, coast: 1, lake: 1, moon: 1, space: 1, habitat: 1 };
+const LEVEL: Record<Exclude<Ambience, 'none'>, number> = { map: 1, campus: 2, night: 1.95, rain: 1.1, coast: 0.85, lake: 1.9, moon: 2.1, space: 0.7, habitat: 1.05 };
+
+/** Where each bed's low cut sits (Hz); 110 unless named. */
+const FLOOR: Partial<Record<Ambience, number>> = { rain: 55, coast: 65, moon: 80, space: 38 };
 
 type Rnd = () => number;
 
@@ -295,9 +298,11 @@ function build(kind: Exclude<Ambience, 'none'>, b: Bed) {
   const { r } = b;
   const every = (first: number, fire: (t: number) => number) => b.events.push({ next: b.ctx.currentTime + first, fire });
   const slow = wander(b, 0.045), gusts = wander(b, 0.11);
-  const wind = (level: number, tone = 1) => {
-    wash(b, 'brown', 'lowpass', 460 * tone, 0.5, level, { move: slow, swell: 0.55, bend: 500 });
-    wash(b, 'pink', 'bandpass', 760 * tone, 0.7, level * 0.34, { move: gusts, swell: 0.8, bend: 700, pan: -0.25 });
+  // wind is air moving, not rumble: a body, a gust that whistles a little, and whatever it stirs (leaves, grass)
+  const wind = (level: number, tone = 1, leaves = 0.1) => {
+    wash(b, 'pink', 'lowpass', 520 * tone, 0.5, level, { move: slow, swell: 0.55, bend: 500 });
+    wash(b, 'pink', 'bandpass', 820 * tone, 0.8, level * 0.3, { move: gusts, swell: 0.85, bend: 700, pan: -0.3 });
+    if (leaves) wash(b, 'pink', 'highpass', 2600, 0.5, level * leaves, { move: gusts, swell: 0.9, pan: 0.3 });
   };
   const birds = (gap: number, level = 0.05) =>
     every(0.6 + r() * 2, (t) => {
@@ -312,17 +317,17 @@ function build(kind: Exclude<Ambience, 'none'>, b: Bed) {
   switch (kind) {
     case 'map':
       // the world from high up: thin wind, and air moving far below
-      wind(0.16, 0.8);
-      wash(b, 'pink', 'bandpass', 1900, 0.5, 0.012, { move: gusts, swell: 0.7, bend: 900, pan: 0.3 });
+      wind(0.2, 0.8, 0);
+      wash(b, 'pink', 'bandpass', 1900, 0.5, 0.02, { move: gusts, swell: 0.7, bend: 900, pan: 0.3 });
       break;
     case 'campus':
-      wind(0.1);
+      wind(0.12);
       halls(b, 0.03, slow);
       birds(3.4);
       traffic(4 + r() * 4, 20);
       break;
     case 'night':
-      wind(0.07, 0.85);
+      wind(0.085, 0.85, 0.05);
       halls(b, 0.032, slow);
       loop(b, 'crickets', 0.055, b.far);
       traffic(9 + r() * 6, 42, 0.07);
@@ -337,17 +342,17 @@ function build(kind: Exclude<Ambience, 'none'>, b: Bed) {
       // rain is three sounds: the hiss in the air, the drumming on roofs, and the drops by your feet
       wash(b, 'pink', 'highpass', 1500, 0.5, 0.075, { move: slow, swell: 0.2 });
       wash(b, 'white', 'bandpass', 5600, 0.6, 0.022, { move: gusts, swell: 0.3, pan: 0.3 });
-      wash(b, 'brown', 'lowpass', 420, 0.5, 0.11, { move: gusts, swell: 0.4 });
+      wash(b, 'pink', 'lowpass', 480, 0.5, 0.1, { move: gusts, swell: 0.4 });
       loop(b, 'drops', 0.3);
       halls(b, 0.014, slow);
       every(5 + r() * 3, (t) => {
-        thunder(b, t, 0.75);
+        thunder(b, t, 0.55);
         return 19 + r() * 24;
       });
       break;
     case 'coast':
-      wash(b, 'brown', 'lowpass', 300, 0.5, 0.14, { move: slow, swell: 0.4 });
-      wind(0.06, 1.2);
+      wash(b, 'brown', 'lowpass', 300, 0.5, 0.12, { move: slow, swell: 0.4 });
+      wind(0.07, 1.2, 0);
       every(0.5, (t) => {
         wave(b, t, 0.12);
         return 5.5 + r() * 3.5;
@@ -360,11 +365,10 @@ function build(kind: Exclude<Ambience, 'none'>, b: Bed) {
       });
       break;
     case 'lake':
-      wind(0.055);
-      wash(b, 'pink', 'bandpass', 2100, 0.6, 0.008, { move: gusts, swell: 0.6 });
+      wind(0.11);
       // water against the quay: small, irregular laps
       every(0.4, (t) => {
-        shot(b, t, 0.7 + r() * 0.5, arc(0.045 + r() * 0.035, 0.3), { noise: 'pink', filter: ['bandpass', 650 + r() * 500, 1.2], sweep: 1300, pan: r() * 1.4 - 0.7, to: b.near });
+        shot(b, t, 0.7 + r() * 0.5, arc(0.08 + r() * 0.06, 0.3), { noise: 'pink', filter: ['bandpass', 650 + r() * 500, 1.2], sweep: 1300, pan: r() * 1.4 - 0.7, to: b.near });
         return 1.3 + r() * 1.9;
       });
       birds(5, 0.04);
@@ -372,7 +376,7 @@ function build(kind: Exclude<Ambience, 'none'>, b: Bed) {
     case 'moon': {
       // no air, so no world: only the suit. Its pump, your own breath, and now and then the radio
       wash(b, 'pink', 'bandpass', 230, 2, 0.05, { move: slow, swell: 0.2 });
-      hum(b, 100, 0.012, slow);
+      hum(b, 100, 0.005, slow);
       wash(b, 'white', 'bandpass', 2600, 1.5, 0.004);
       every(0.8, (t) => {
         shot(b, t, 1.5, arc(0.03, 0.55), { noise: 'pink', filter: ['bandpass', 950, 0.8], to: b.near });
@@ -392,15 +396,15 @@ function build(kind: Exclude<Ambience, 'none'>, b: Bed) {
     }
     case 'space':
       // a drone with no pitch you could name: noise ringing in two low resonances, a thin band of solar wind above
-      wash(b, 'brown', 'lowpass', 72, 5, 0.3, { move: slow, swell: 0.4, bend: 300 });
-      wash(b, 'brown', 'bandpass', 150, 4, 0.2, { move: gusts, swell: 0.6, bend: 500, pan: -0.4 });
-      wash(b, 'pink', 'bandpass', 2300, 0.8, 0.007, { move: slow, swell: 0.8, bend: 1400, pan: 0.4 });
+      wash(b, 'brown', 'bandpass', 92, 3, 0.2, { move: slow, swell: 0.4, bend: 300 });
+      wash(b, 'brown', 'bandpass', 165, 4, 0.14, { move: gusts, swell: 0.6, bend: 500, pan: -0.4 });
+      wash(b, 'pink', 'bandpass', 2300, 0.8, 0.012, { move: slow, swell: 0.8, bend: 1400, pan: 0.4 });
       break;
     case 'habitat':
       // parkland inside a turning drum: a breeze, a brook, birds with a roof over them, the hull's slow hum
-      wind(0.05, 1.1);
+      wind(0.06, 1.1);
       loop(b, 'stream', 0.2);
-      wash(b, 'brown', 'lowpass', 95, 2, 0.12, { move: slow, swell: 0.3 });
+      wash(b, 'brown', 'bandpass', 110, 2, 0.1, { move: slow, swell: 0.3 });
       hum(b, 48, 0.02, slow);
       birds(2.4, 0.06);
       break;
@@ -447,15 +451,21 @@ export function setAmbience(kind: Ambience): void {
     const near = ctx.createGain(), far = ctx.createGain(), dry = ctx.createGain(), wet = ctx.createGain(), farDry = ctx.createGain(), nearWet = ctx.createGain();
     farDry.gain.value = 0.55;
     nearWet.gain.value = 0.12;
-    near.connect(dry);
+    // nothing outdoors needs the bottom octave: it only eats headroom (thunder, surf and the void keep more of it)
+    const floor = ctx.createBiquadFilter();
+    floor.type = 'highpass';
+    floor.frequency.value = FLOOR[kind] ?? 110;
+    floor.Q.value = 0.5;
+    near.connect(floor);
     near.connect(nearWet);
     nearWet.connect(wet);
     far.connect(farDry);
-    farDry.connect(dry);
+    farDry.connect(floor);
     far.connect(wet);
+    floor.connect(dry);
     dry.connect(bus.dry);
     wet.connect(bus.rev);
-    const b: Bed = { ctx, r: seeded(kind.length * 977 + builds++ * 7919), near, far, sources: [], nodes: [farDry, nearWet], events: [] };
+    const b: Bed = { ctx, r: seeded(kind.length * 977 + builds++ * 7919), near, far, sources: [], nodes: [farDry, nearWet, floor], events: [] };
     for (const f of [dry, wet]) {
       f.gain.value = 0;
       f.gain.setTargetAtTime(LEVEL[kind], ctx.currentTime, 0.9);
