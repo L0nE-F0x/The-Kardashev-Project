@@ -28,9 +28,9 @@ interface Key {
 const KEYS: Key[] = [
   { alt: -90, top: '#03050f', hor: '#0e1630', skyI: 1, glow: '#22306a', glowI: 0.5, sun: '#8fa8ff', sunI: 1.25, hemiSky: '#3a4ca8', hemiGround: '#1c2038', hemiI: 0.55, haze: 0.75, night: 1, stars: 1, exposure: 1.5 },
   { alt: -14, top: '#040714', hor: '#111a3a', skyI: 1, glow: '#22306a', glowI: 0.5, sun: '#8fa8ff', sunI: 1.25, hemiSky: '#3a4ca8', hemiGround: '#1c2038', hemiI: 0.55, haze: 0.75, night: 1, stars: 1, exposure: 1.5 },
-  { alt: -8, top: '#0a1030', hor: '#23275a', skyI: 0.9, glow: '#6a3a6a', glowI: 0.5, sun: '#8fa8ff', sunI: 0.8, hemiSky: '#4654b4', hemiGround: '#24223c', hemiI: 0.62, haze: 0.85, night: 1, stars: 0.75, exposure: 1.6 },
-  { alt: -4, top: '#18205c', hor: '#55487e', skyI: 0.62, glow: '#e0683e', glowI: 0.9, sun: '#ff8a5a', sunI: 0.04, hemiSky: '#6a6cc0', hemiGround: '#4a3040', hemiI: 0.74, haze: 1.0, night: 0.85, stars: 0.22, exposure: 1.9 },
-  { alt: -1, top: '#2a418c', hor: '#8a7aa8', skyI: 0.55, glow: '#ff8440', glowI: 1.0, sun: '#ff7a3e', sunI: 0.9, hemiSky: '#7f86d0', hemiGround: '#6a4038', hemiI: 0.72, haze: 1.1, night: 0.5, stars: 0, exposure: 2.1 },
+  { alt: -8, top: '#0a1030', hor: '#23275a', skyI: 0.9, glow: '#6a3a6a', glowI: 0.5, sun: '#8fa8ff', sunI: 0.8, hemiSky: '#4a5cc0', hemiGround: '#24223c', hemiI: 0.74, haze: 0.85, night: 1, stars: 0.75, exposure: 1.7 },
+  { alt: -4, top: '#18205c', hor: '#55487e', skyI: 0.6, glow: '#e0683e', glowI: 0.85, sun: '#ff8a5a', sunI: 0.04, hemiSky: '#8d98e0', hemiGround: '#4c3a52', hemiI: 1.25, haze: 1.0, night: 0.85, stars: 0.22, exposure: 2.15 },
+  { alt: -1, top: '#2a418c', hor: '#8a7aa8', skyI: 0.55, glow: '#ff8440', glowI: 1.0, sun: '#ff7a3e', sunI: 0.9, hemiSky: '#929ade', hemiGround: '#6a4038', hemiI: 0.95, haze: 1.1, night: 0.5, stars: 0, exposure: 2.1 },
   { alt: 3, top: '#3a5cb0', hor: '#b8a6c0', skyI: 0.55, glow: '#ffa058', glowI: 0.85, sun: '#ff8f48', sunI: 2.5, hemiSky: '#8494dc', hemiGround: '#7a4e3c', hemiI: 0.74, haze: 1.15, night: 0.12, stars: 0, exposure: 2.1 },
   { alt: 10, top: '#3d6cc6', hor: '#d6ccd0', skyI: 0.72, glow: '#ffc88a', glowI: 0.6, sun: '#ffb46e', sunI: 3.3, hemiSky: '#90a6e6', hemiGround: '#8a6044', hemiI: 0.82, haze: 1.05, night: 0, stars: 0, exposure: 1.65 },
   { alt: 24, top: '#3878d4', hor: '#cfe2f0', skyI: 1.05, glow: '#fff0d6', glowI: 0.5, sun: '#ffe0b4', sunI: 3.5, hemiSky: '#a4c0ee', hemiGround: '#a07a54', hemiI: 0.95, haze: 0.9, night: 0, stars: 0, exposure: 1.15 },
@@ -63,7 +63,7 @@ const DOME_FS = /* glsl */ `
 uniform vec3 top; uniform vec3 hor; uniform float skyI;
 uniform vec3 sunDir; uniform vec3 sunCol; uniform vec3 glowCol; uniform float sunDisc;
 uniform vec3 moonDir; uniform float moonK;
-uniform float stars; uniform float time;
+uniform float stars; uniform float time; uniform float aurora;
 uniform sampler2D tNoise;
 // x: cover 0..1, y: opacity, z: how dark the bases are, w: drift
 uniform vec4 cloud; uniform vec3 cloudLit; uniform vec3 cloudDark;
@@ -114,6 +114,25 @@ void main() {
     float mw = band * (0.35 + 0.65 * texture2D(tNoise, d.xz * 0.9 + d.y * 0.5).r) * texture2D(tNoise, d.zy * 2.3 + 0.2).r;
     c += (tint * star + vec3(0.42, 0.5, 0.78) * mw * 0.16) * stars * clear * smoothstep(-0.05, 0.12, y);
   }
+  if (aurora > 0.01 && y > 0.02 && d.z < 0.4) {
+    // the northern lights: curtains whose hems wander along the northern sky; each is a row of fine rays, bright
+    // at the hem and fading far up, green below and violet above
+    float az = atan(d.x, -d.z);
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 3; i++) {
+      float fi = float(i);
+      float hem = 0.07 + fi * 0.075 + 0.05 * texture2D(tNoise, vec2(az * (0.19 + fi * 0.05) + time * (0.004 - fi * 0.003), 0.37 + fi * 0.21)).r
+        + 0.02 * sin(az * (4.0 + fi * 2.0) + time * 0.17 + fi * 2.1);
+      float e = y - hem;
+      float rays = texture2D(tNoise, vec2(az * (2.1 + fi * 0.9) + fi * 0.37, time * 0.012)).r * texture2D(tNoise, vec2(az * (6.3 + fi) + 0.5, time * 0.02 + fi * 0.3)).g;
+      rays = pow(clamp(rays * 3.6, 0.0, 1.0), 1.6);
+      // a bright hem, and rays standing on it: the brighter the ray, the higher it reaches
+      float up2 = max(e, 0.0);
+      float cur = smoothstep(-0.006, 0.002, e) * (exp(-up2 * 34.0) * 0.5 + rays * exp(-up2 * (5.0 + 9.0 * (1.0 - rays)))) * (1.0 - fi * 0.28);
+      acc += mix(vec3(0.14, 1.0, 0.48), vec3(0.62, 0.26, 1.0), smoothstep(0.03, 0.3, e)) * cur;
+    }
+    c += acc * aurora * clear * smoothstep(0.4, -0.25, d.z) * 0.2;
+  }
   if (moonK > 0.01) {
     float cm = dot(d, moonDir);
     float disc = smoothstep(0.99962, 0.99974, cm);
@@ -140,7 +159,7 @@ export class CampusSky {
     top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, skyI: { value: 1 },
     sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, glowCol: { value: new THREE.Color() }, sunDisc: { value: 1 },
     moonDir: { value: new THREE.Vector3(0, 1, 0) }, moonK: { value: 0 },
-    stars: { value: 0 }, time: { value: 0 }, tNoise: cloudUniforms.uCloudTex,
+    stars: { value: 0 }, time: { value: 0 }, aurora: { value: 0 }, tNoise: cloudUniforms.uCloudTex,
     cloud: { value: new THREE.Vector4(0.4, 1, 0.5, 0.0016) }, cloudLit: { value: new THREE.Color() }, cloudDark: { value: new THREE.Color() },
   };
   night = 0;
@@ -150,7 +169,7 @@ export class CampusSky {
 
   /** 'earth' (the default), 'lunar' (the Moon), 'space' (the yards, the ring), 'habitat' (inside Aurora), 'asteroid'. */
   private readonly lunar: boolean;
-  constructor(scene: THREE.Scene, private weather: Weather = 'clear', readonly mode: 'earth' | 'lunar' | 'space' | 'habitat' | 'asteroid' | boolean = 'earth', extra: { place?: string; swarm?: number; habitats?: number } = {}) {
+  constructor(scene: THREE.Scene, private weather: Weather = 'clear', readonly mode: 'earth' | 'lunar' | 'space' | 'habitat' | 'asteroid' | boolean = 'earth', private extra: { place?: string; swarm?: number; habitats?: number; /** Northern (southern) lights on clear nights, 0..1. */ aurora?: number } = {}) {
     if (mode === true) mode = 'lunar';
     if (mode === false) mode = 'earth';
     this.mode = mode;
@@ -257,6 +276,7 @@ export class CampusSky {
     u.moonDir.value.copy(moon);
     u.moonK.value = 1 - THREE.MathUtils.smoothstep(alt, -8, -3);
     u.stars.value = k.stars * (1 - grey);
+    u.aurora.value = (this.extra.aurora ?? 0) * THREE.MathUtils.smoothstep(k.stars, 0.5, 1);
     // clouds: sunlit tops in the key's colour (the sunset's glow from below at twilight), bases in the sky's shade
     const dayAmt = THREE.MathUtils.smoothstep(alt, -3, 9);
     const dusk = Math.max(0, 1 - Math.abs(alt + 1) / 6);

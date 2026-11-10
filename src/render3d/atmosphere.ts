@@ -76,14 +76,16 @@ export const LAMP_LAYER = 5;
     gl_FragColor.rgb = mix( gl_FragColor.rgb, hcol, hf );
   }
 #endif`;
-  // the lamps join the indirect light, so they tint by the surface's own colour and take ambient occlusion
+  // the lamps join the indirect light
   C.lights_fragment_end = /* glsl */ `#if defined( USE_FOG ) && defined( RE_IndirectDiffuse )
   if ( uLampK.x > 0.001 ) {
     vec3 lampN = inverseTransformDirection( geometryNormal, viewMatrix );
     vec3 lamp = texture2D( uLampTex, ( vFogWorld.xz - uLampBox.xy ) * uLampBox.zw ).rgb;
     float lampH = 1.0 - smoothstep( uLampK.z * 0.35, uLampK.z, vFogWorld.y - uLampK.y );
-    // floors take it all, walls most of it, undersides none
-    irradiance += lamp * ( uLampK.x * lampH * smoothstep( -0.3, 0.15, lampN.y ) * mix( 0.6, 1.0, max( lampN.y, 0.0 ) ) );
+    // floors take it all, walls most of it, undersides none; the surface's colour tints it only half way (a warm
+    // lamp on grass reads as lamplight, not as lime green)
+    vec3 lampAlbedo = mix( material.diffuseColor, vec3( dot( material.diffuseColor, vec3( 0.3333 ) ) ), 0.5 );
+    reflectedLight.indirectDiffuse += lamp * lampAlbedo * ( RECIPROCAL_PI * uLampK.x * lampH * smoothstep( -0.3, 0.15, lampN.y ) * mix( 0.6, 1.0, max( lampN.y, 0.0 ) ) );
   }
 #endif
 ` + C.lights_fragment_end;

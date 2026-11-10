@@ -84,6 +84,11 @@ function hashStr(s: string) {
 /** Which advisor walks as which figure (until each has a model of their own). */
 const ADVISOR_FIGURE: Partial<Record<AdvisorId, PersonName>> = { juno: 'engineer', penny: 'office', mira: 'researcher', sol: 'office', iris: 'scientist', kip: 'worker', lena: 'scientist' };
 
+/** The light a tour shot is filmed in, and its camera move (see `CampusScene.direct`). */
+export type TourLight = 'dawn' | 'morning' | 'noon' | 'golden' | 'sunset' | 'dusk' | 'night';
+export type TourMove = 'rise' | 'orbit' | 'push' | 'fly' | 'crane' | 'low' | 'sky';
+interface Cam { x: number; z: number; dist: number; yaw: number; pitch: number }
+
 export class CampusScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(30, 1, 1, 6000);
@@ -313,7 +318,9 @@ export class CampusScene implements Scene3D {
     const offWorld = this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid' || this.scenery === 'habitat';
     const weather = offWorld ? 'clear' : this.pickWeather();
     const skyMode = this.scenery === 'moon' ? 'lunar' : this.scenery === 'space' ? 'space' : this.scenery === 'asteroid' ? 'asteroid' : this.scenery === 'habitat' ? 'habitat' : 'earth';
-    this.sky = new CampusSky(this.scene, weather, skyMode, { place: ex.place, swarm: ex.swarm, habitats: ex.habitats });
+    // far enough from the equator, clear nights bring the aurora
+    const polar = Math.abs(this.site.lat);
+    this.sky = new CampusSky(this.scene, weather, skyMode, { place: ex.place, swarm: ex.swarm, habitats: ex.habitats, aurora: offWorld ? 0 : THREE.MathUtils.smoothstep(polar, 50, 62) });
     this.precip = new Precip(weather, seed);
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
@@ -397,6 +404,62 @@ export class CampusScene implements Scene3D {
   setHour(h: number) {
     const now = this.localHour();
     this.timeOffset += ((((h - now) % 24) + 24) % 24) * 3_600_000;
+  }
+
+  /**
+   * Set the clock to the hour today's sun gives this light: 'dawn' and 'morning' before noon, the rest after it
+   * ('noon' = as high as it gets, 'night' = well after dark).
+   */
+  setLight(light: TourLight) {
+    const want = { dawn: 3, morning: 24, noon: 90, golden: 9, sunset: 2.5, dusk: -4.5, night: -24 }[light];
+    const am = light === 'dawn' || light === 'morning';
+    let best = 12, err = Infinity;
+    for (let h = am ? 2 : 11; h <= (am ? 12 : 26); h += 0.05) {
+      this.setHour(h);
+      const e = Math.abs(this.sunNow().alt - want);
+      if (e < err - 1e-6) { err = e; best = h; }
+    }
+    this.setHour(best);
+  }
+
+  /** The menu tour directs a shot: the light it's filmed in, and a camera move played over its `secs`. */
+  direct(d: { light?: TourLight; move?: TourMove; secs: number }) {
+    if (d.light && this.scenery !== 'moon' && this.scenery !== 'space' && this.scenery !== 'asteroid' && this.scenery !== 'habitat') this.setLight(d.light);
+    if (!d.move || this.scenery === 'space' || this.scenery === 'habitat') return;
+    const f = this.layout.focus, W = this.layout.bounds.x1 - this.layout.bounds.x0, D = this.dist;
+    const at = (x: number, z: number, dist: number, yaw: number, pitch: number): Cam => ({ x: f.x + x, z: f.z + z, dist, yaw, pitch });
+    const moves: Record<TourMove, [Cam, Cam]> = {
+      // a crane shot: up from the grass with the horizon in view, to the classic three-quarter view
+      rise: [at(-W * 0.12, 24, D * 0.5, -0.78, 1.5), at(0, 0, D * 0.86, -0.4, 1.22)],
+      // round the campus at eye level with its roofs
+      orbit: [at(0, 0, D * 0.74, -0.72, 1.36), at(0, 0, D * 0.74, 0.12, 1.36)],
+      // from the wide view in to the buildings
+      push: [at(0, 0, D * 1.2, -0.16, 1.3), at(-W * 0.08, 6, D * 0.48, -0.46, 1.4)],
+      // along the frontage, low
+      fly: [at(-W * 0.34, 12, D * 0.46, -0.3, 1.43), at(W * 0.34, 12, D * 0.46, 0.26, 1.43)],
+      // down from high over the roofs to the horizon
+      crane: [at(0, -10, D * 1.1, 0.34, 0.92), at(0, 6, D * 0.7, -0.18, 1.42)],
+      // from out on the land, the campus against the sky
+      low: [at(W * 0.1, 34, D * 0.72, 0.5, 1.475), at(-W * 0.04, 30, D * 0.6, 0.2, 1.46)],
+      // from a person's height at the gate: the buildings against the sky (stars, the aurora)
+      sky: [at(-W * 0.1, 16, D * 0.4, -0.3, 1.5), at(W * 0.05, 16, D * 0.4, 0.1, 1.5)],
+    };
+    this.shot = { t: 0, secs: d.secs, from: moves[d.move][0], to: moves[d.move][1] };
+    this.runShot(0);
+  }
+  private shot: { t: number; secs: number; from: Cam; to: Cam } | null = null;
+  private runShot(dt: number) {
+    const sh = this.shot!;
+    sh.t += dt;
+    const k = Math.min(1, sh.t / sh.secs);
+    // a touch of ease at each end, a steady move between (the cut's fade covers the rest)
+    const e = k * 0.82 + (k * k * (3 - 2 * k)) * 0.18;
+    const l = (a: number, b: number) => a + (b - a) * e;
+    this.target.x = l(sh.from.x, sh.to.x);
+    this.target.z = l(sh.from.z, sh.to.z);
+    this.dist = l(sh.from.dist, sh.to.dist);
+    this.yaw = l(sh.from.yaw, sh.to.yaw);
+    this.pitch = l(sh.from.pitch, sh.to.pitch);
   }
 
   /** QA: the people's walk map and plans drawn over the ground. */
@@ -861,6 +924,8 @@ export class CampusScene implements Scene3D {
 
   private pickWeather(): Weather {
     if (!this.game.settings.weather) return 'clear';
+    // the menu tour films in fair weather (a few shots under cloud, for variety)
+    if (this.game.mode === 'title') return noise(this.site.lon * 0.37 + 0.5, this.site.lat * 0.53 + 0.5, 23) > 0.74 ? 'cloudy' : 'clear';
     const day = this.game.view?.day ?? 0;
     const r = noise(Math.floor(day / 3) + 0.5, Math.floor(this.site.lat * 7 + this.site.lon) + 0.5, 17);
     const wet = this.site.backdrop === 'desert' ? 0.05 : this.site.water > 0.7 ? 0.35 : 0.22;
@@ -973,7 +1038,8 @@ export class CampusScene implements Scene3D {
     this.look.bloom = 0.14 + this.sky.night * 0.3;
     this.look.bloomThreshold = 1.3 - this.sky.night * 0.35;
     // the camera
-    if (this.autoPan && !this.down) {
+    if (this.shot && this.autoPan && !this.down) this.runShot(dt);
+    else if (this.autoPan && !this.down) {
       this.yaw = -0.35 + Math.sin(this.time * 0.05) * 0.3;
       this.target.x = this.layout.focus.x + Math.sin(this.time * 0.035) * 25;
     } else if (!this.down) {

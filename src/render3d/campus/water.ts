@@ -74,12 +74,14 @@ export function waterMaterial(shallow: Paint, deep: Paint): THREE.MeshStandardMa
         }`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         {
-          // three layers of ripples sliding over each other; they flatten with distance (no sparkle noise far out)
+          // three layers of ripples sliding over each other, each turned a different way so the noise's own repeat
+          // never lines up; they flatten with distance (no stripes or sparkle toward the horizon)
           float wd = distance(vWPos, cameraPosition);
-          float amp = 0.5 / (1.0 + wd * 0.006);
-          vec2 g = (texture2D(uGrain, vWPos.xz * 0.028 + vec2(uWTime * 0.011, uWTime * 0.006)).rg - 0.5)
-            + (texture2D(uGrain, vWPos.xz * 0.093 - vec2(uWTime * 0.017, -uWTime * 0.012)).rg - 0.5) * 0.6
-            + (texture2D(uGrain, vWPos.xz * 0.31 + vec2(-uWTime * 0.031, uWTime * 0.023)).gr - 0.5) * 0.3;
+          float amp = 0.5 / (1.0 + wd * 0.004 + wd * wd * 0.00002);
+          vec2 p1 = mat2(0.866, 0.5, -0.5, 0.866) * vWPos.xz, p2 = mat2(0.342, -0.94, 0.94, 0.342) * vWPos.xz, p3 = mat2(-0.643, 0.766, -0.766, -0.643) * vWPos.xz;
+          vec2 g = (texture2D(uGrain, p1 * 0.0213 + vec2(uWTime * 0.011, uWTime * 0.006)).rg - 0.5)
+            + (texture2D(uGrain, p2 * 0.0871 - vec2(uWTime * 0.017, -uWTime * 0.012)).rg - 0.5) * 0.6
+            + (texture2D(uGrain, p3 * 0.293 + vec2(-uWTime * 0.031, uWTime * 0.023)).gr - 0.5) * 0.3;
           normal = normalize((viewMatrix * vec4(normalize(vec3(g.x * amp, 1.0, g.y * amp)), 0.0)).xyz);
         }`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.9, wFoam);')
