@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
-import { Icon, useGame } from './components';
+import { Eased, Icon, is3d, useGame } from './components';
 import { canFullscreen, enterFullscreen, isFullscreen, isPhone, isStandalone } from '../platform/platform';
 import { warming } from '../sim/climate';
 import { overLine, surfaceTW } from '../sim/swarm';
@@ -68,7 +68,9 @@ export function TopBar() {
         <div class="stat" data-tip={`Cash on hand.\nRevenue ${fmtMoney(st.revenueMonth)}/mo · running costs ${fmtMoney(st.costMonth)}/mo.\nRound: ${s.finance.round === 'seed' ? 'Seed' : 'Series ' + s.finance.round}`}>
           <Icon name="cash" />
           <div class="col">
-            <span class="v gold">{fmtMoney(s.finance.cash)}</span>
+            <span class="v gold">
+              <Eased value={s.finance.cash} format={fmtMoney} />
+            </span>
             <span class={`s ${net >= 0 ? 'good' : 'bad'}`}>
               {net >= 0 ? '▲' : '▼'} {fmtMoney(Math.abs(net))}/mo
             </span>
@@ -135,10 +137,17 @@ Click to open the System (X).`}>
       <div class="kmeter frame" data-tut="kmeter" data-tip={`Kardashev scale: K = (log₁₀ watts − 6) / 10.\nCivilisation uses ${st.worldTW.toFixed(2)} TW.\nNext milestone: K ${next.k.toFixed(2)} — ${next.label}.\nType I = 10 PW = K 1.00.`}>
         <Icon name="k" />
         <div class="col" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <span class={`kv ${st.K >= 0.99 ? 'gold' : ''}`}>K {st.K.toFixed(st.K >= 0.95 ? 4 : 5)}</span>
+          <span class={`kv ${st.K >= 0.99 ? 'gold' : ''}`}>
+            <Eased value={st.K} format={(k) => `K ${k.toFixed(st.K >= 0.95 ? 4 : 5)}`} />
+          </span>
           <div class="kbar">
             <i style={{ width: `${Math.max(1, Math.min(100, kProgress * 100))}%` }} />
           </div>
+          {is3d() && (
+            <span class="knext" aria-hidden="true">
+              {next.k.toFixed(2)}
+            </span>
+          )}
         </div>
       </div>
       {isPhone() && !isStandalone() && canFullscreen() && !isFullscreen() && (
