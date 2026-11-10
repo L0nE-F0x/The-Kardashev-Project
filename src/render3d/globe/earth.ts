@@ -17,7 +17,7 @@ import type { MapLod } from '../../world/mapData';
 import { BIOME } from '../../content/mapcodes';
 import { PALETTE, type ColorKey } from '../../render/palette';
 import { quality, type QualityLevel } from '../quality';
-import { boxBlur, cityLights, clamp01, cloudNoise, dataTex, detailMaps, fbm3, hash3, noise3, RAD, sstep, WEATHER_WARP, weatherMap } from './bake';
+import { boxBlur, cityLights, clamp01, cloudNoise, dataTex, detailMaps, fbm3, hash3, noise3, RAD, sparkleMap, sstep, WEATHER_WARP, weatherMap } from './bake';
 
 export const R = 100;
 
@@ -87,6 +87,8 @@ export interface EarthTextures {
   detail: THREE.DataTexture;
   /** Its companion: a tiling ridged height field's slope (r, g) and height (b), and billows (a). */
   relief: THREE.DataTexture;
+  /** A tile of pin-point lights (r) and their numbers (g): a city's glow seen close, the galaxy's dust of stars. */
+  sparkle: THREE.DataTexture;
 }
 
 let cached: EarthTextures | null = null;
@@ -364,6 +366,7 @@ export function earthTextures(lod: MapLod): EarthTextures {
     weather: weatherMap(lod),
     detail,
     relief,
+    sparkle: sparkleMap(),
   };
   // the globe, the orbit view and space views all borrow these: never freed with a scene
   for (const t of Object.values(cached)) (t as THREE.Texture).userData.shared = true;
@@ -399,7 +402,7 @@ const BICUBIC = `
  * the sun sinks, and the glow of the limb by height above the ground (in planet radii) and the sun's height there.
  */
 const AIR = `
-  vec3 sunTint(float dn){ return mix(vec3(1.0, 0.42, 0.18), vec3(1.0, 0.97, 0.92), smoothstep(-0.06, 0.24, dn)); }
+  vec3 sunTint(float dn){ return mix(vec3(1.0, 0.47, 0.21), vec3(1.0, 0.97, 0.92), smoothstep(-0.06, 0.24, dn)); }
   vec3 airGlow(float dn){
     return mix(vec3(0.72, 0.30, 0.13), vec3(0.30, 0.58, 1.0), smoothstep(-0.03, 0.24, dn)) * smoothstep(-0.2, 0.04, dn);
   }
@@ -414,13 +417,13 @@ const AIR = `
     // looking towards the sun the air lights up: the bright arc of a sunrise seen from orbit
     c *= 1.0 + pow(max(fwd, 0.0), 6.0) * 2.4;
     // the night's airglow: a whisper of green just above the limb
-    float g = (h - 0.012) / 0.007;
-    return c + vec3(0.010, 0.026, 0.018) * exp(-g * g) * (1.0 - lit);
+    float g = (h - 0.012) / 0.009;
+    return c + vec3(0.004, 0.010, 0.009) * exp(-g * g) * (1.0 - lit);
   }`;
 
 /**
  * The cloud over a point: the climate (static) thresholds the noise streaming through it (it slides east as
- * `cloudShift` runs 0 → 1, one turn of the globe). Returns the density (0.5 = the cloud's soft edge); `deep` =
+ * `cloudShift` runs 0 → 1: one turn of the globe). Returns the density (0.5 = the cloud's soft edge); `deep` =
  * how tall the cloud stands there.
  */
 const CLOUD = `
@@ -428,20 +431,41 @@ const CLOUD = `
   float cloudAt(vec2 uv, out float deep){
     vec4 w = texture2D(tWeather, uv);
     deep = w.a;
-    float nz = texture2D(tClouds, uv + (w.gb - 0.5) * ${WEATHER_WARP.toFixed(3)} + vec2(cloudShift, 0.0)).r;
+    float nz = texture2D(tClouds, uv + (w.gb - 0.5) * ${WEATHER_WARP.toFixed(3)} - vec2(cloudShift, 0.0)).r;
     return (nz - mix(1.0, 0.12, w.r)) * 2.0 + 0.5;
   }`;
 
+/**
+ * Tiling detail without the map's squeeze towards the poles (with `CHARTS`): the map's own chart up to the
+ * mid-latitudes, a polar chart (looking down the axis) beyond them, cross-faded from 45° to 58°; only that band
+ * pays for two lookups. f = repeats round the equator and from pole to pole (the first a touch low, so the detail
+ * is square at 35° rather than on the equator); the polar chart matches the second.
+ */
+const DETAIL = `
+  #ifdef CHARTS
+    vec4 detailAt(sampler2D t, vec3 n, vec2 uv, vec2 f, float o){
+      float k = smoothstep(0.707, 0.848, abs(n.y));
+      vec2 ue = uv * f + o, up = n.xz * (f.y * 0.3183) + o;
+      vec2 ex = dFdx(ue), ey = dFdy(ue), px = dFdx(up), py = dFdy(up);
+      vec4 a = vec4(0.0), b = vec4(0.0);
+      if (k < 1.0) a = textureGrad(t, ue, ex, ey);
+      if (k > 0.0) b = textureGrad(t, up, px, py);
+      return mix(a, b, k);
+    }
+  #else
+    #define detailAt(t, n, uv, f, o) texture2D(t, (uv) * (f) + (o))
+  #endif`;
+
 const AMBER = 'vec3(1.0, 0.56, 0.22)', WHITE = 'vec3(1.0, 0.88, 0.70)';
 
-const levelDefines = (level: QualityLevel) => (level === 'high' ? { HQ: '' } : level === 'low' ? { LQ: '' } : {});
+const levelDefines = (level: QualityLevel, charts = level === 'high'): Record<string, string> => ({ ...(level === 'high' ? { HQ: '' } : level === 'low' ? { LQ: '' } : {}), ...(charts ? { CHARTS: '' } : {}) });
 
 export function earthMaterial(t: EarthTextures, W: number, H: number, level: QualityLevel = quality.level) {
   return new THREE.ShaderMaterial({
     defines: levelDefines(level),
     uniforms: {
       tLand: { value: t.land }, tColor: { value: t.color }, tData: { value: t.data }, tRegion: { value: t.region }, tLights: { value: t.lights },
-      tClouds: { value: t.clouds }, tWeather: { value: t.weather }, tDetail: { value: t.detail }, tRelief: { value: t.relief },
+      tClouds: { value: t.clouds }, tWeather: { value: t.weather }, tDetail: { value: t.detail }, tRelief: { value: t.relief }, tSparkle: { value: t.sparkle },
       sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, texel: { value: new THREE.Vector2(1 / W, 1 / H) },
       hoverCode: { value: -1 }, selCode: { value: -1 }, time: { value: 0 }, nightLights: { value: 1 }, cloudShadow: { value: 1 },
       // set when any regionTint has alpha (the globe does it each frame), so other pixels skip the region lookups
@@ -454,13 +478,14 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
         vec3 cam = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz;
         vView = cam - position;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D tLand, tColor, tData, tRegion, tLights, tDetail, tRelief; uniform vec3 sunDir; uniform float hoverCode, selCode, time, nightLights, cloudShadow, tintOn;
+    fragmentShader: `uniform sampler2D tLand, tColor, tData, tRegion, tLights, tDetail, tRelief, tSparkle; uniform vec3 sunDir; uniform float hoverCode, selCode, time, nightLights, cloudShadow, tintOn;
       uniform vec2 texel; uniform vec4 regionTint[16]; uniform vec4 haze;
       varying vec2 vUv; varying vec3 vN; varying vec3 vView;
       ${FRAME}
       ${BICUBIC}
       ${AIR}
       ${CLOUD}
+      ${DETAIL}
       // the region code of a raster cell (wraps east-west)
       float codeAt(ivec2 p, ivec2 sz){ p.x = p.x < 0 ? p.x + sz.x : (p.x >= sz.x ? p.x - sz.x : p.x); p.y = clamp(p.y, 0, sz.y - 1);
         return floor(texelFetch(tRegion, p, 0).r * 255.0 + 0.5); }
@@ -473,10 +498,10 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
         float nv = dot(n, V), nvc = max(nv, 0.0);
         float dn = dot(n, sunDir);
         // fine detail from the tiling noise (mipmapped: it fades to grey with distance instead of aliasing)
-        vec4 d1 = texture2D(tDetail, vUv * vec2(40.0, 20.0));
-        vec4 d2 = texture2D(tDetail, vUv * vec2(152.0, 76.0) + 0.37);
+        vec4 d1 = detailAt(tDetail, n, vUv, vec2(33.0, 20.0), 0.0);
+        vec4 d2 = detailAt(tDetail, n, vUv, vec2(124.0, 76.0), 0.37);
         #ifdef HQ
-          vec4 d3 = texture2D(tDetail, vUv * vec2(608.0, 304.0) + 0.71);
+          vec4 d3 = detailAt(tDetail, n, vUv, vec2(498.0, 304.0), 0.71);
         #else
           vec4 d3 = vec4(0.5);
         #endif
@@ -501,7 +526,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
         sea = mix(sea, ${lin('sea5')}, smoothstep(0.42, 0.6, shelf) * 0.7);
         // warm seas lean teal, cold ones steel; slow currents mottle both
         sea *= mix(vec3(0.84, 1.07, 1.02), vec3(1.0, 0.98, 1.04), smoothstep(0.25, 0.75, abs(n.y)));
-        sea *= 0.84 + dat.g * 0.32;
+        sea *= 0.84 + dat.g * 0.32 + (d2.a - 0.5) * 0.07 + (d3.r - 0.5) * 0.06;
         // turquoise shallows hugging the coast, and a thin line of surf along it (never wider than a few pixels)
         float sh = smoothstep(-0.5, 0.02, e);
         sea = mix(sea, ${lin('#3fa9b4')}, sh * sh * sh * (0.2 + shelf * 0.5) * (0.7 + 0.6 * d2.a));
@@ -541,8 +566,8 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
         vec2 slope = (dat.ba - 0.5) / 6.0;
         #ifdef HQ
           // fine relief from the tiling slope map, by how rugged the land is here
-          vec4 rA = texture2D(tRelief, vUv * vec2(152.0, 76.0) + 0.37);
-          vec4 rB = texture2D(tRelief, vUv * vec2(608.0, 304.0) + 0.71);
+          vec4 rA = texture2D(tRelief, vUv * vec2(124.0, 76.0) + 0.37);
+          vec4 rB = texture2D(tRelief, vUv * vec2(498.0, 304.0) + 0.71);
           slope += ((rA.rg - 0.5) * 0.03 + (rB.rg - 0.5) * 0.014) * (0.1 + col.a * 1.6);
         #endif
         vec3 Nr = normalize(n - (east * slope.x + north * slope.y) * 14.0 * land);
@@ -554,7 +579,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
         float relief = 1.0 + (dot(Nr, Lr) - dot(n, Lr)) * 1.6 + (dot(Nr, sunDir) - dn) / max(dn + 0.25, 0.22) * 0.8 * smoothstep(-0.12, 0.08, dn);
         relief = clamp(relief, 0.3, 1.8);
         // a painted terminator: bright almost to the edge, then a soft fall into the night
-        float day = smoothstep(-0.10, 0.26, dn) * (0.8 + 0.2 * clamp(dn, 0.0, 1.0));
+        float day = smoothstep(-0.07, 0.26, dn) * (0.8 + 0.2 * clamp(dn, 0.0, 1.0));
         // the cloud above the point the sun shines through
         float cosLat = max(length(n.xz), 0.08);
         vec2 sOff = vec2(dot(sT, east) / (6.2832 * cosLat), -dot(sT, north) / 3.1416) * 0.012;
@@ -571,25 +596,28 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
         vec3 Nw = n;
         #ifdef HQ
           // wind on the water: two layers of ripples sliding across each other break the glint up
-          vec2 rip = texture2D(tRelief, vUv * vec2(300.0, 150.0) + vec2(time * 0.004, time * 0.002)).rg + texture2D(tRelief, vUv * vec2(532.0, 266.0) - vec2(time * 0.003, -time * 0.005)).rg - 1.0;
-          Nw = normalize(n + (east * rip.x + north * rip.y) * 0.2);
+          vec2 rip = texture2D(tRelief, vUv * vec2(246.0, 150.0) + vec2(time * 0.004, time * 0.002)).rg + texture2D(tRelief, vUv * vec2(436.0, 266.0) - vec2(time * 0.003, -time * 0.005)).rg - 1.0;
+          Nw = normalize(n + (east * rip.x + north * rip.y) * 0.13);
         #endif
         float nh = max(dot(Nw, normalize(sunDir + V)), 0.0);
         // calm water mirrors the sun, ruffled water spreads it
         float calm = 0.55 + dat.g * 0.9;
-        float glint = pow(nh, 44.0) * 0.14 + pow(nh, 380.0 * calm) * 0.75 * calm + pow(nh, 2400.0) * 1.6;
+        float glint = pow(nh, 36.0) * 0.12 + pow(nh, 260.0 * calm) * 0.55 * calm + pow(nh, 1400.0) * 0.5;
         c += sunC * vec3(1.0, 0.93, 0.80) * glint * water * smoothstep(0.0, 0.2, dn) * shade;
         c += ${lin('sky3')} * pow(1.0 - nvc, 4.0) * water * day * 0.35;
         // city lights on the night side: amber sodium and white LED, brighter where the lookup shrinks many into one
         float night = 1.0 - smoothstep(-0.15, 0.05, dn);
         vec2 li = texture2D(tLights, vUv).rg;
-        float many = clamp(log2(max(abs(dFdx(vUv.x)), abs(dFdy(vUv.x))) * float(textureSize(tLights, 0).x) + 1e-5), 0.0, 2.5);
-        vec3 glow = (li.r * ${AMBER} + li.g * ${WHITE}) * (1.0 + many * 0.5);
+        float many = clamp(log2(max(abs(dFdx(vUv.x)), abs(dFdy(vUv.x))) * float(textureSize(tLights, 0).x) + 1e-5), 0.0, 1.5);
+        vec3 glow = (li.r * ${AMBER} + li.g * ${WHITE}) * (1.0 + many * 0.35);
         #ifdef HQ
-          // and they twinkle (close up; from far out the noise averages away)
-          glow *= 0.72 + 0.56 * texture2D(tDetail, vUv * vec2(1100.0, 550.0) + vec2(time * 0.011, time * 0.007)).r;
+          // close up each glow breaks into the lights it's made of, and they twinkle, each to its own beat
+          // (from far out the noise averages away and the glow is whole again)
+          vec2 sp = texture2D(tSparkle, vUv * vec2(590.0, 360.0)).rg;
+          float close = clamp(-log2(max(abs(dFdx(vUv.x)), abs(dFdy(vUv.x))) * float(textureSize(tLights, 0).x) + 1e-5) * 0.5, 0.0, 1.0);
+          glow *= mix(1.0, 0.3 + sp.r * 5.0 * (0.8 + 0.2 * sin(time * (1.2 + sp.g * 2.6) + sp.g * 60.0)), close);
         #endif
-        c += glow * land * night * nightLights * 1.5;
+        c += glow * land * night * nightLights * 1.35;
         // the air: a veil that thickens towards the limb, blue by day, warm at dusk; waste heat turns it warm,
         // lets it reach further in and washes the land a little
         float od = 1.0 / max(nvc, 0.05) - 1.0;
@@ -611,32 +639,35 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
 export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.level) {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
-    defines: levelDefines(level),
+    defines: levelDefines(level, level !== 'low'),
     uniforms: {
       tClouds: { value: t.clouds }, tWeather: { value: t.weather }, tRelief: { value: t.relief }, tLights: { value: t.lights },
       sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, opacity: { value: 0.85 },
     },
-    vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vView;
+    vertexShader: `uniform float cloudShift; varying vec2 vUv; varying vec3 vN; varying vec3 vView; varying vec2 vTurn;
       void main(){ vUv = vec2(uv.x, 1.0 - uv.y); vN = normalize(position);
         vView = (inverse(modelMatrix) * vec4(cameraPosition, 1.0)).xyz - position;
+        vTurn = vec2(cos(cloudShift * 6.2832), sin(cloudShift * 6.2832));
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `uniform sampler2D tRelief, tLights; uniform vec3 sunDir; uniform float opacity; varying vec2 vUv; varying vec3 vN; varying vec3 vView;
+    fragmentShader: `uniform sampler2D tRelief, tLights; uniform vec3 sunDir; uniform float opacity; varying vec2 vUv; varying vec3 vN; varying vec3 vView; varying vec2 vTurn;
       ${FRAME}
       ${AIR}
       ${CLOUD}
+      ${DETAIL}
       void main(){
         float deep;
         float d0 = cloudAt(vUv, deep);
         // clear sky stops here: nothing below can lift it to the cloud's edge
         if (d0 < 0.2) discard;
-        // billows from the tiling detail, riding with the cloud (mipmapped: frilly up close, smooth from far out)
-        vec2 uv = vUv + vec2(cloudShift, 0.0);
-        float bA = texture2D(tRelief, uv * vec2(64.0, 32.0)).a, bB = texture2D(tRelief, uv * vec2(236.0, 118.0) + 0.5).a;
-        float d = d0 + (bA - 0.55) * 0.24 + (bB - 0.55) * 0.12;
-        // a crisp frilly edge to a thin veil, then thickening slowly to solid cloud (deep weather more so)
-        float a = smoothstep(0.42, 0.53, d) * (0.38 + (0.42 + deep * 0.2) * smoothstep(0.5, 1.0, d));
         vec3 n = normalize(vN);
         float dn = dot(n, sunDir);
+        // billows from the tiling detail, riding east with the cloud (mipmapped: frilly up close, smooth from far out)
+        vec2 uv = vUv - vec2(cloudShift, 0.0);
+        vec3 nt = vec3(n.x * vTurn.x - n.z * vTurn.y, n.y, n.z * vTurn.x + n.x * vTurn.y);
+        float bA = detailAt(tRelief, nt, uv, vec2(52.0, 32.0), 0.0).a, bB = detailAt(tRelief, nt, uv, vec2(194.0, 118.0), 0.5).a;
+        float d = d0 + (bA - 0.55) * 0.26 + (bB - 0.55) * 0.14;
+        // soft at the edge, a thin veil first, thickening slowly into solid cloud (deep weather more so)
+        float a = smoothstep(0.40, 0.64, d) * (0.5 + (0.32 + deep * 0.18) * smoothstep(0.55, 1.05, d));
         // puffy: lit where the cloud thins towards the sun, shaded where it thickens; deep cloud stands taller
         float self = 0.5 + (bA - 0.5) * 0.3 + (bB - 0.5) * 0.2 + (d - 0.55) * 0.7;
         #ifndef LQ
@@ -650,7 +681,7 @@ export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.le
         // clouds stand in the light a little after the ground below has lost it
         float lit = smoothstep(-0.16, 0.34, dn + 0.03);
         vec3 body = mix(vec3(0.60, 0.68, 0.84) * (1.0 - deep * 0.22), vec3(1.0), self);
-        vec3 c = body * sunTint(dn + 0.05) * lit * 1.04 + vec3(0.020, 0.027, 0.052) * (1.0 - lit);
+        vec3 c = body * sunTint(dn + 0.05) * lit * 0.97 + vec3(0.020, 0.027, 0.052) * (1.0 - lit);
         #ifdef HQ
           // the towns' glow on the cloud's underside
           vec2 li = texture2D(tLights, vUv, 4.0).rg;

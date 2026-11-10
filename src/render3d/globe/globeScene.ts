@@ -24,7 +24,9 @@ import { globePath, NetworkLayer } from './layers2';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { softLine, softLineMaterial, starField } from './soft';
+import { softLine, softLineMaterial } from './soft';
+import { Aurora, milkyWay, starField, Sun } from './space';
+import { quality } from '../quality';
 import { CharterLayer } from './layers3';
 import { PlanetLayer } from './layers45';
 import { rivalsAt, landingActive, mineOwned } from '../../render/worldMap/act2Layers';
@@ -49,7 +51,7 @@ export class GlobeScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(32, 1, 0.5, 6000);
   // no FXAA: the globe anti-aliases its own edges (coasts, lines, stars), and FXAA only made thin lines flicker
-  readonly look: Look = { ...defaultLook(), bloom: 0.35, bloomThreshold: 0.9, vignette: 0.34, fxaa: false };
+  readonly look: Look = { ...defaultLook(), bloom: 0.32, bloomThreshold: 1.0, vignette: 0.34, fxaa: false };
   private earth: THREE.Mesh;
   private earthMat: THREE.ShaderMaterial;
   private clouds: THREE.Mesh;
@@ -63,7 +65,9 @@ export class GlobeScene implements Scene3D {
   private linkRoot = new THREE.Group();
   private chokeRoot = new THREE.Group();
   private ships = new Map<string, { obj: THREE.Object3D; line: Line2; key: string }>();
-  private stars = starField();
+  private stars = starField(quality.level === 'low' ? 5000 : 14000);
+  private sunDisc = new Sun(quality.level !== 'low');
+  private aurora: Aurora | null = null;
   private linkKey = '';
   private selRing: THREE.Mesh;
   private labels: Labels;
@@ -100,9 +104,13 @@ export class GlobeScene implements Scene3D {
     atmo.renderOrder = 3;
     this.scene.add(this.earth, this.clouds, atmo);
     this.scene.add(this.sun, this.sun.target, new THREE.HemisphereLight(0xb8c8ff, 0x302a3a, 0.7), new THREE.AmbientLight(0x404060, 0.4));
-    this.scene.add(this.stars);
+    this.scene.add(this.stars, this.sunDisc.group);
+    if (quality.level !== 'low') {
+      this.aurora = new Aurora(tex.detail);
+      this.scene.add(milkyWay(tex.detail), this.aurora.mesh);
+    }
     this.scene.add(this.markerRoot, this.shipRoot, this.routeRoot, this.linkRoot, this.chokeRoot);
-    this.scene.background = new THREE.Color(0x05060e);
+    this.scene.background = new THREE.Color(0x030408);
     this.selRing = new THREE.Mesh(new THREE.TorusGeometry(1.7, 0.16, 6, 40), new THREE.MeshBasicMaterial({ color: 0xfde9a4 }));
     this.selRing.rotation.x = Math.PI / 2;
     this.selRing.visible = false;
@@ -245,11 +253,17 @@ export class GlobeScene implements Scene3D {
     this.cloudMat.uniforms.sunDir.value.copy(sunDir);
     this.atmo.uniforms.sunDir.value.copy(sunDir);
     this.sun.position.copy(sunDir).multiplyScalar(500);
-    const shift = (this.time * 0.0016) % 1;
+    this.sunDisc.update(sunDir, this.camera);
+    this.aurora?.update(sunDir, this.time, 0.45 + 0.55 * (1 - THREE.MathUtils.smoothstep(this.dist, 90, 260)));
+    // the weather drifts east, a turn of the globe in half an hour
+    const shift = (this.time / 1800) % 1;
     this.earthMat.uniforms.cloudShift.value = shift;
     this.cloudMat.uniforms.cloudShift.value = shift;
-    // clouds thin out as you come down to the ground
-    this.cloudMat.uniforms.opacity.value = 0.25 + 0.6 * THREE.MathUtils.smoothstep(this.dist, 20, 120);
+    this.earthMat.uniforms.time.value = this.time % 7200;
+    // clouds (and their shadows) thin out as you come down to the ground, and in play the map reads through them
+    const high = THREE.MathUtils.smoothstep(this.dist, 26, 115);
+    this.cloudMat.uniforms.opacity.value = high * (g.mode === 'title' ? 0.95 : 0.8);
+    this.earthMat.uniforms.cloudShadow.value = high;
 
     // region hover / selection
     const hov = g.hover?.kind === 'region' ? CODE_BY_REGION[g.hover.id] : -1;

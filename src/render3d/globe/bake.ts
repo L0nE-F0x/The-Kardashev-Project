@@ -375,6 +375,27 @@ export function cityLights(lod: MapLod, isLand: Uint8Array, big: boolean): THREE
   return dataTex(new Uint8Array(px.buffer), w, h, THREE.RGFormat);
 }
 
+/**
+ * A tile of pin-point lights (r; g = each one's own number, for its twinkle): close up the shaders break a city's
+ * glow into the lamps it's made of, and the Milky Way's haze into stars. Mipmapped: from far out it's an even grey.
+ */
+export function sparkleMap(): THREE.DataTexture {
+  const n = 128;
+  const px = new Uint8ClampedArray(n * n * 2);
+  let seed = 31;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < n * n; i++) px[i * 2 + 1] = hash3((i % n) >> 2, ((i / n) | 0) >> 2, 3, 5) * 255;
+  for (let k = 0; k < 420; k++) {
+    const cx = rnd() * n, cy = rnd() * n, b = 90 + rnd() * rnd() * 400, s = 0.55 + rnd() * 0.35;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const x = Math.floor(cx) + dx, y = Math.floor(cy) + dy;
+      const g = Math.exp(-((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2) / (2 * s * s));
+      px[((((y % n) + n) % n) * n + (((x % n) + n) % n)) * 2] += b * g;
+    }
+  }
+  return dataTex(new Uint8Array(px.buffer), n, n, THREE.RGFormat, { tile: true, aniso: 4 });
+}
+
 // ── tiling detail ────────────────────────────────────────────────────────────────────────────────
 /** A tiling fbm (n × n): value noise on wrapping lattices of 8, 16, 32 and 64 cells. */
 function tileFbm(n: number, seed: number): Float32Array {
