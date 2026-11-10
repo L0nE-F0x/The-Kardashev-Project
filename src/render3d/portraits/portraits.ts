@@ -139,6 +139,18 @@ export function governorPortraitUrl(region: string, mood: Mood = 'neutral'): str
   return picture(`gov:${region}:${m}`, () => personShot(governorLook(region), m), () => tonesOf(governorLook(region)));
 }
 
+/**
+ * Open the studio and compile its shaders now (about half a second, once; nothing is kept). Not called by anything
+ * yet: the first portrait asked for pays this otherwise. Worth calling where a pause does not show, such as behind
+ * the loading screen.
+ */
+export function warmPortraits() {
+  if (typeof document === 'undefined') return;
+  // one face with every kind of paint on it (blush, stubble, glass, a glow behind), and Bit for the lights
+  shoot(() => personShot({ ...ceoLook(''), stubble: true, glasses: true, glow: true, stars: true }, 'happy'));
+  shoot(() => bitShot(bitModel(4), 'happy'));
+}
+
 /** Forget every rendered portrait (a dev tool: the contact sheet re-renders after a hot reload). */
 export function clearPortraits() {
   cache.clear();
