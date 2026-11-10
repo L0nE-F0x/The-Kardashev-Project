@@ -178,7 +178,7 @@ const ERA4: Song = {
 export type ChipId = 'menu' | 'era0' | 'era1' | 'era2' | 'era3' | 'era4' | 'ending';
 const SONGS: Record<ChipId, Song> = { menu: MENU_SONG, era0: ERA0, era1: ERA1, era2: ERA2, era3: ERA3, era4: ERA4, ending: ENDING_SONG };
 /** Per-song trim: the voices were written quiet; this lands every song at the cinematic score's loudness. */
-const LEVEL: Record<ChipId, number> = { menu: 4, era0: 4, era1: 4, era2: 4, era3: 4, era4: 4, ending: 4 };
+const LEVEL: Record<ChipId, number> = { menu: 2.6, era0: 3, era1: 3, era2: 3, era3: 2.5, era4: 2.1, ending: 2.5 };
 
 export class Chiptune {
   private step = 0; // 16th notes
@@ -243,6 +243,8 @@ export class Chiptune {
     const g = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
+    // silent until the note starts (a GainNode is born at 1: a voice that starts a sample early would click)
+    g.gain.value = 0;
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(vol, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
@@ -359,7 +361,9 @@ export class Chiptune {
     f.frequency.value = freq;
     const g = ctx.createGain();
     // the shared noise is stereo and half-level: doubled here to keep the old kit's balance
-    g.gain.setValueAtTime(vol * 2, t);
+    g.gain.value = 0;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol * 2, t + 0.001);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     src.connect(f);
     f.connect(g);
@@ -383,6 +387,7 @@ export class Chiptune {
     const g = ctx.createGain();
     osc.frequency.setValueAtTime(120, t);
     osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    g.gain.value = 0;
     g.gain.setValueAtTime(0, t);
     g.gain.linearRampToValueAtTime(vol, t + 0.002);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);

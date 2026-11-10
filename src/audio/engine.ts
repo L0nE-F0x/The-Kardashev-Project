@@ -1,7 +1,7 @@
 /**
  * The shared WebAudio mix, created lazily on first use:
  *
- *   sfx · music (ducked under stings) · ambience ── each a dry input and two sends
+ *   sfx · music (ducked under stings, a touch of air) · ambience ── each a dry input and two sends
  *        dry ─────────────────────────────────────┐
  *        reverb send → hall (a generated impulse) ─┤→ sub filter → glue compressor → limiter → ceiling → master → out
  *        delay send → ping-pong, tempo-synced ─────┘
@@ -60,17 +60,24 @@ function impulse(ctx: BaseAudioContext): AudioBuffer {
   const buf = ctx.createBuffer(2, len, sr);
   const r = seeded(1977);
   const pre = Math.floor(sr * 0.018);
-  for (let ch = 0; ch < 2; ch++) {
-    const d = buf.getChannelData(ch);
+  // left and right share a third of the tail (a common "middle"), so the hall is wide but still there in mono
+  const tail = () => {
+    const d = new Float32Array(len);
     let lp = 0;
     for (let i = pre; i < len; i++) {
       const t = (i - pre) / sr;
-      // the low-pass closes from ~9 kHz to ~1.5 kHz across the tail
-      const a = Math.exp((-2 * Math.PI * (1500 + 7500 * Math.exp(-t * 2.2))) / sr);
+      // the low-pass closes from ~11 kHz to ~2 kHz across the tail
+      const a = Math.exp((-2 * Math.PI * (2000 + 9000 * Math.exp(-t * 2))) / sr);
       lp = lp * a + (r() * 2 - 1) * (1 - a);
-      // a quick build (diffusion), then −60 dB in about 2.8 s
+      // a quick build (diffusion), then -60 dB in about 2.8 s
       d[i] = lp * Math.min(1, t / 0.035) * Math.exp(-t * 2.45);
     }
+    return d;
+  };
+  const mid = tail();
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch), own = tail();
+    for (let i = pre; i < len; i++) d[i] = own[i] * 0.82 + mid[i] * 0.58;
     for (let k = 0; k < 7; k++) {
       const at = pre + Math.floor(sr * (0.007 + r() * 0.07));
       d[at] += (r() > 0.5 ? 1 : -1) * 0.5 * (1 - k / 9);
@@ -169,6 +176,13 @@ function build(ctx: AudioContext): Graph {
   merge.connect(delToRev);
   delToRev.connect(revIn);
 
+  // the score's instruments are warm by design: a mastering shelf gives the music back its air
+  const air = ctx.createBiquadFilter();
+  air.type = 'highshelf';
+  air.frequency.value = 5500;
+  air.gain.value = 4;
+  air.connect(mix);
+
   const duck: GainNode[] = [];
   const bus = (ducked: boolean): Bus => {
     const mk = (to: AudioNode) => {
@@ -181,7 +195,7 @@ function build(ctx: AudioContext): Graph {
       } else vol.connect(to);
       return vol;
     };
-    return { dry: mk(mix), rev: mk(revIn), del: mk(delIn) };
+    return { dry: mk(ducked ? air : mix), rev: mk(revIn), del: mk(delIn) };
   };
   return { ctx, master, buses: { sfx: bus(false), music: bus(true), amb: bus(false) }, duck, delays: [dl, dr] };
 }

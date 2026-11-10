@@ -114,8 +114,13 @@ function pan(ctx: BaseAudioContext, p: number): AudioNode {
   return n;
 }
 
-/** Struck: up in `a` seconds, an exponential fall over `d`, then the last trace to exact zero. Returns the end time. */
+/**
+ * Struck: up in `a` seconds, an exponential fall over `d`, then the last trace to exact zero. Returns the end time.
+ * (Envelopes set the gain to zero at once, not only from `t`: a GainNode is born at 1, and a source that starts a
+ * sample before its envelope would let one full-level sample through.)
+ */
 function struck(g: AudioParam, t: number, a: number, peak: number, d: number): number {
+  g.value = 0;
   g.setValueAtTime(0, t);
   g.linearRampToValueAtTime(peak, t + a);
   g.exponentialRampToValueAtTime(Math.max(1e-5, peak * 0.001), t + a + d);
@@ -126,6 +131,7 @@ function struck(g: AudioParam, t: number, a: number, peak: number, d: number): n
 /** Held: a linear swell in, held to the note's end, a linear fade out (pads cross-fade seamlessly). Returns the end time. */
 function held(g: AudioParam, t: number, a: number, peak: number, dur: number, r: number): number {
   const off = t + Math.max(a, dur);
+  g.value = 0;
   g.setValueAtTime(0, t);
   g.linearRampToValueAtTime(peak, t + a);
   g.setValueAtTime(peak, off);
@@ -276,6 +282,7 @@ export function makeRhodes(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { index?:
     const vca = ctx.createGain();
     // high notes ring shorter, like the real thing
     const ring = decay * Math.max(0.35, 1.5 - (m - 48) / 36);
+    vca.gain.value = 0;
     vca.gain.setValueAtTime(0, t);
     vca.gain.linearRampToValueAtTime(vel * 0.5, t + 0.004);
     vca.gain.setTargetAtTime(0, t + 0.004, ring);
@@ -302,6 +309,7 @@ export function makePiano(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { decay?: 
     lp.frequency.exponentialRampToValueAtTime(Math.max(300, f * 1.6), t + 0.9);
     const vca = ctx.createGain();
     const ring = decay * Math.max(0.3, 1.6 - (m - 45) / 34);
+    vca.gain.value = 0;
     vca.gain.setValueAtTime(0, t);
     vca.gain.linearRampToValueAtTime(vel * 0.42, t + 0.006);
     vca.gain.setTargetAtTime(0, t + 0.006, ring);
@@ -501,7 +509,7 @@ export function makeKit(ctx: BaseAudioContext, s: Strip, r: Rnd) {
     },
     /** A deep, slow boom with a long tail (the distant drum of the big moments). */
     boom(t: number, vel: number) {
-      tone(t, 72, 36, 0.35, vel * 0.9, 2.4, 0.006);
+      tone(t, 78, 41, 0.35, vel * 0.9, 2.4, 0.006);
       noise(t, 'lowpass', 320, 0.4, 0.004, vel * 0.5, 0.5);
     },
     /** A cymbal swell: bright noise rising for `dur`, then washing out. */
@@ -511,6 +519,7 @@ export function makeKit(ctx: BaseAudioContext, s: Strip, r: Rnd) {
       f.type = 'highpass';
       f.frequency.value = low;
       const g = ctx.createGain();
+      g.gain.value = 0;
       g.gain.setValueAtTime(0, t);
       g.gain.linearRampToValueAtTime(vel * 0.05, t + dur * 0.5);
       g.gain.exponentialRampToValueAtTime(vel * 0.4, t + dur);

@@ -299,8 +299,8 @@ export class Cinematic {
         const accent = s % (c.steps / 4) === 0;
         c.at(s, (t) => ost(t, low + (accent ? 0 : 12), accent ? 0.8 : 0.4, 0, 0.8 + 0.4 * Math.sin(c.n * 0.4)));
       }
-      c.at(0, (t) => kit.kick(t, 0.5, { f0: 70, f1: 38, decay: 0.35 }));
-      c.at(c.steps === 12 ? 2 : 3, (t) => kit.kick(t, 0.32, { f0: 64, f1: 36, decay: 0.3 }));
+      c.at(0, (t) => kit.kick(t, 0.5, { f0: 74, f1: 42, decay: 0.35 }));
+      c.at(c.steps === 12 ? 2 : 3, (t) => kit.kick(t, 0.32, { f0: 68, f1: 41, decay: 0.3 }));
       if (c.n % 2 === 0) c.at(0, (t) => high(t, [fifth, fifth + 2], c.dur(c.steps * 2), 0.5));
       if (c.n % 8 === 4) c.at(0, (t) => kit.boom(t, 0.6));
     };

@@ -74,6 +74,7 @@ function air(v: Voice, t: number, kind: 'white' | 'pink' | 'brown', type: Biquad
   f.frequency.setValueAtTime(f0, t);
   if (f1 !== f0) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
   const g = ctx.createGain();
+  g.gain.value = 0;
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(peak, t + a);
   g.gain.exponentialRampToValueAtTime(peak * 0.001, t + dur);
@@ -102,6 +103,7 @@ function tone(v: Voice, t: number, w: Wave | 'sine', f0: number, f1: number, dur
   o.frequency.setValueAtTime(f0, t);
   if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
   const g = ctx.createGain();
+  g.gain.value = 0;
   g.gain.setValueAtTime(0, t);
   g.gain.linearRampToValueAtTime(peak, t + a);
   g.gain.exponentialRampToValueAtTime(peak * 0.001, t + dur);
@@ -395,6 +397,7 @@ const SOUNDS: Record<SoundId, Sound> = {
         crackle.gain.value = 0.55;
         depth.connect(crackle.gain);
         const g = ctx.createGain();
+        g.gain.value = 0;
         g.gain.setValueAtTime(0, t);
         g.gain.linearRampToValueAtTime(peak, t + 0.8);
         g.gain.setValueAtTime(peak, t + 2);

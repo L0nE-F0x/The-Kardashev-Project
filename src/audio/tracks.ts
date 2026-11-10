@@ -50,7 +50,7 @@ function fill(c: Bar, kit: Kit, from: number, vel = 0.5) {
 
 // ── menu: First Light ───────────────────────────────────────────────────────────────────────
 const menu: TrackDef = {
-  bpm: 76, steps: 16, beat: 4, tonic: 62, delay: 3, lo: 55, hi: 74, bassLo: 33, gain: 1,
+  bpm: 76, steps: 16, beat: 4, tonic: 62, delay: 3, lo: 55, hi: 74, bassLo: 33, gain: 0.88,
   secs: {
     // the four notes, one bell to a bar: the game's signature before anything else happens
     intro: { ch: 'Dadd9 | . | Gmaj7/D | .', mel: "5:16 | 1':16 | 2':16 | 3':16" },
@@ -62,13 +62,13 @@ const menu: TrackDef = {
   },
   form: (pass, r) => (pass === 0 ? ['intro', 'a1', 'a2', 'b', 'a3', 'out'] : [['a1', 'b', 'a3', 'out'], ['intro', 'a2', 'b', 'a3', 'out'], ['a1', 'a2', 'out'], ['intro', 'a1', 'b', 'a3']][Math.floor(r() * 4)]),
   setup(k: Setup) {
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.5, rev: 0.5 }), k.r, { cut: 1500, attack: 1.4, release: 2.6 });
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.3, rev: 0.5 }), k.r, { cut: 1900, attack: 1.4, release: 2.6 });
     const piano = makePiano(k.ctx, k.strip('piano', { gain: 0.62, rev: 0.4, del: 0.1 }), k.r);
-    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.3, rev: 0.6, del: 0.35 }), { ratio: 4, index: 1.1, decay: 3 });
-    const strings = makeLead(k.ctx, k.strip('strings', { gain: 0.3, rev: 0.6 }), k.r, { cut: 2200, attack: 0.22, release: 0.9, detune: 9 });
-    const arp = makePluck(k.ctx, k.strip('arp', { gain: 0.2, group: 'rhythm', rev: 0.35, del: 0.45 }), { cut: 2400, decay: 0.3 });
-    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.5 }), { cut: 380, release: 0.3 });
-    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.5, group: 'rhythm', rev: 0.3 }), k.r);
+    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.7, rev: 0.6, del: 0.35 }), { ratio: 4, index: 1.1, decay: 3 });
+    const strings = makeLead(k.ctx, k.strip('strings', { gain: 0.2, rev: 0.6 }), k.r, { cut: 2200, attack: 0.22, release: 0.9, detune: 9 });
+    const arp = makePluck(k.ctx, k.strip('arp', { gain: 0.8, group: 'rhythm', rev: 0.35, del: 0.45 }), { cut: 2400, decay: 0.3 });
+    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.36 }), { cut: 380, release: 0.3 });
+    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.62, group: 'rhythm', rev: 0.3 }), k.r);
     const ring: Note = (t, m, _d, vel) => bell(t, m, vel);
     return (c) => {
       const { sec, i } = c;
@@ -126,7 +126,7 @@ const menu: TrackDef = {
 
 // ── era 0: Smog & Silicon ───────────────────────────────────────────────────────────────────
 const era0: TrackDef = {
-  bpm: 72, steps: 16, beat: 4, swing: 0.22, tonic: 60, delay: 3, lo: 52, hi: 69, bassLo: 33, gain: 1,
+  bpm: 72, steps: 16, beat: 4, swing: 0.22, tonic: 60, delay: 3, lo: 52, hi: 69, bassLo: 33, gain: 1.08,
   secs: {
     in: { ch: 'Am9 | Fmaj7 | Am9 | Fmaj7' },
     a: {
@@ -145,12 +145,12 @@ const era0: TrackDef = {
   },
   form: (pass, r) => (pass === 0 ? ['in', 'a', 'a', 'b', 't', 'a', 'b'] : [['a', 'b', 't', 'a'], ['b', 'a', 't', 'b'], ['a', 'a', 'b', 't'], ['in', 'a', 'b', 'a']][Math.floor(r() * 4)]),
   setup(k: Setup) {
-    const keys = makeRhodes(k.ctx, k.strip('keys', { gain: 0.55, rev: 0.3, del: 0.14, lp: 4200 }), k.r, { wow: 7, decay: 1.2 });
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.32, rev: 0.4 }), k.r, { cut: 900, attack: 0.9, release: 1.8, detune: 12 });
-    const reed = makeLead(k.ctx, k.strip('reed', { gain: 0.34, rev: 0.45, del: 0.25, lp: 3200 }), k.r, { wave: 'hollow', cut: 1900, attack: 0.05, release: 0.3, detune: 8 });
-    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.22, rev: 0.5, del: 0.3 }), { ratio: 4, index: 0.8, decay: 1.8 });
-    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.6 }), { cut: 300, grit: 0.35 });
-    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.5, group: 'rhythm', rev: 0.12, lp: 7000 }), k.r);
+    const keys = makeRhodes(k.ctx, k.strip('keys', { gain: 0.55, rev: 0.3, del: 0.14, lp: 6000 }), k.r, { wow: 7, decay: 1.2, index: 1.4 });
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.27, rev: 0.4 }), k.r, { cut: 1100, attack: 0.9, release: 1.8, detune: 12 });
+    const reed = makeLead(k.ctx, k.strip('reed', { gain: 0.34, rev: 0.45, del: 0.25, lp: 4500 }), k.r, { wave: 'hollow', cut: 2300, attack: 0.05, release: 0.3, detune: 8 });
+    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.55, rev: 0.5, del: 0.3 }), { ratio: 4, index: 0.8, decay: 1.8 });
+    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.36 }), { cut: 300, grit: 0.35 });
+    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.45, group: 'rhythm', rev: 0.12, lp: 9000 }), k.r);
     const fast = makeKit(k.ctx, k.strip('drive', { gain: 0.3, group: 'drive', rev: 0.1, pan: 0.25, lp: 8000 }), k.r);
     const dust = crackle(k.ctx, k.strip('dust', { gain: 0.1 }), k.r);
     k.onStop(() => dust.stop());
@@ -201,13 +201,13 @@ const era1: TrackDef = {
   },
   form: (pass, r) => (pass === 0 ? ['in', 'a', 't', 'b', 'br', 't2', 'a'] : [['a', 'b', 't', 'br', 't2'], ['a', 't', 'a', 'b', 't2'], ['br', 'a', 'b', 't2', 'a'], ['a', 'a', 'br', 't', 'b']][Math.floor(r() * 4)]),
   setup(k: Setup) {
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.44, rev: 0.45 }), k.r, { cut: 1900, attack: 0.5, release: 1.2 });
-    const arp = makePluck(k.ctx, k.strip('arp', { gain: 0.26, group: 'rhythm', rev: 0.25, del: 0.45 }), { cut: 3000, q: 2.2, decay: 0.2 });
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.27, rev: 0.45 }), k.r, { cut: 1900, attack: 0.5, release: 1.2 });
+    const arp = makePluck(k.ctx, k.strip('arp', { gain: 0.6, group: 'rhythm', rev: 0.25, del: 0.45 }), { cut: 3000, q: 2.2, decay: 0.2 });
     const lead = makeLead(k.ctx, k.strip('lead', { gain: 0.36, rev: 0.4, del: 0.3 }), k.r, { cut: 2800, attack: 0.02, release: 0.3 });
-    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.26, rev: 0.5, del: 0.35 }), { ratio: 4, index: 1.3, decay: 1.6 });
-    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.52, group: 'rhythm' }), { cut: 520, grit: 0.6, release: 0.06 });
+    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.65, rev: 0.5, del: 0.35 }), { ratio: 4, index: 1.3, decay: 1.6 });
+    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.28, group: 'rhythm' }), { cut: 520, grit: 0.6, release: 0.06 });
     const sub = makeBass(k.ctx, k.strip('sub', { gain: 0.45 }), { cut: 260, grit: 0.2, release: 0.4 });
-    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.5, group: 'rhythm', rev: 0.16 }), k.r);
+    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.46, group: 'rhythm', rev: 0.16 }), k.r);
     const fast = makeKit(k.ctx, k.strip('drive', { gain: 0.3, group: 'drive', rev: 0.1, pan: -0.25 }), k.r);
     const ring: Note = (t, m, _d, vel) => bell(t, m, vel);
     return (c) => {
@@ -257,7 +257,7 @@ const era1: TrackDef = {
 
 // ── era 2: Solarpunk Bloom ──────────────────────────────────────────────────────────────────
 const era2: TrackDef = {
-  bpm: 66, steps: 12, beat: 3, tonic: 65, delay: 2, lo: 53, hi: 72, bassLo: 34, gain: 1,
+  bpm: 66, steps: 12, beat: 3, tonic: 65, delay: 2, lo: 53, hi: 72, bassLo: 34, gain: 1.22,
   secs: {
     in: { ch: 'Fadd9 | . | Bbmaj7 | .' },
     a: { ch: 'Fmaj9 | Am7 | Bbmaj7 | C6 | Fmaj9 | Am7 | Bbmaj7 | Csus4 C', mel: "3:3 5:3 6:6 | 5:3 3:3 2:6 | 1:3 3:3 5:4 4:2 | 3:6 2:6 | 3:3 5:3 1':6 | 7:3 5:3 3:6 | 4:3 3:3 1:4 2:2 | 2:9 -:3" },
@@ -267,13 +267,13 @@ const era2: TrackDef = {
   },
   form: (pass, r) => (pass === 0 ? ['in', 'a', 'b', 't', 'a', 't2'] : [['a', 'b', 't2'], ['b', 'a', 't', 'a'], ['in', 'a', 't', 'b', 't2'], ['a', 'a', 'b', 't']][Math.floor(r() * 4)]),
   setup(k: Setup) {
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.4, rev: 0.5 }), k.r, { cut: 1700, attack: 1.1, release: 2.2 });
-    const marimba = makeMallet(k.ctx, k.strip('marimba', { gain: 0.5, group: 'rhythm', rev: 0.3, del: 0.12 }), { ratio: 4, tone: 0.2, decay: 0.5 });
-    const kalimba = makeMallet(k.ctx, k.strip('kalimba', { gain: 0.6, rev: 0.45, del: 0.3 }), { ratio: 5.4, tone: 0.3, decay: 1.1 });
-    const strings = makeLead(k.ctx, k.strip('strings', { gain: 0.26, rev: 0.6 }), k.r, { cut: 2000, attack: 0.3, release: 0.9, detune: 9 });
-    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.2, rev: 0.6, del: 0.4 }), { ratio: 4, index: 0.9, decay: 2 });
-    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.5 }), { cut: 340, grit: 0.4, release: 0.2 });
-    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.42, group: 'rhythm', rev: 0.22, pan: 0.15 }), k.r);
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.2, rev: 0.5 }), k.r, { cut: 2000, attack: 1.1, release: 2.2 });
+    const marimba = makeMallet(k.ctx, k.strip('marimba', { gain: 0.82, group: 'rhythm', rev: 0.3, del: 0.12 }), { ratio: 4, tone: 0.2, decay: 0.5 });
+    const kalimba = makeMallet(k.ctx, k.strip('kalimba', { gain: 1.2, rev: 0.45, del: 0.3 }), { ratio: 5.4, tone: 0.3, decay: 1.1 });
+    const strings = makeLead(k.ctx, k.strip('strings', { gain: 0.2, rev: 0.6 }), k.r, { cut: 2000, attack: 0.3, release: 0.9, detune: 9 });
+    const bell = makeBell(k.ctx, k.strip('bell', { gain: 1.0, rev: 0.6, del: 0.4 }), { ratio: 4, index: 0.9, decay: 2 });
+    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.27 }), { cut: 340, grit: 0.4, release: 0.2 });
+    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.66, group: 'rhythm', rev: 0.22, pan: 0.15 }), k.r);
     const fast = makeKit(k.ctx, k.strip('drive', { gain: 0.3, group: 'drive', rev: 0.2, pan: -0.3 }), k.r);
     const tine: Note = (t, m, _d, vel) => kalimba(t, m, vel);
     // two ways through the chord, three eighths to a beat
@@ -298,8 +298,8 @@ const era2: TrackDef = {
       if (sec !== 'in' || i >= 2) for (let s = 0; s < 12; s++) c.at(s, (t) => kit.shaker(t, s % 3 === 0 ? 0.55 : 0.24), true);
       if (sec !== 'in' && !(c.x[0] > 0.75 && i < 4)) {
         for (const s of [0, 2, 4, 5, 7, 9, 11]) c.at(s, (t) => kit.rim(t, 0.3), true);
-        c.at(0, (t) => kit.tom(t, 0.6, 92, 0.34));
-        c.at(6, (t) => kit.tom(t, 0.36, 92, 0.3));
+        c.at(0, (t) => kit.tom(t, 0.45, 92, 0.34));
+        c.at(6, (t) => kit.tom(t, 0.3, 92, 0.3));
         for (const s of [4, 10]) c.at(s, (t) => kit.tom(t, 0.3, 205, 0.14), true);
       }
       // light on leaves: a bell on a chord tone now and then
@@ -315,7 +315,7 @@ const era2: TrackDef = {
 
 // ── era 3: Orbital Dawn ─────────────────────────────────────────────────────────────────────
 const era3: TrackDef = {
-  bpm: 54, steps: 16, beat: 4, tonic: 64, delay: 3, lo: 54, hi: 73, open: true, bassLo: 28, gain: 1,
+  bpm: 54, steps: 16, beat: 4, tonic: 64, delay: 3, lo: 54, hi: 73, open: true, bassLo: 35, gain: 0.9,
   secs: {
     // E Lydian: the raised fourth (A#) is the sound of somewhere with no ground under it
     a: { ch: 'Emaj9 | . | F#/E | . | Emaj9 | . | F#/E | .', mel: "5:8 1':8 | 2':16 | 3':8 #4':8 | 6':16 | -:8 5:4 1':4 | 2':8 3':8 | #4':16 | 3':16" },
@@ -325,13 +325,13 @@ const era3: TrackDef = {
   },
   form: (pass, r) => (pass === 0 ? ['a', 'b', 't', 'a', 'b', 't2'] : [['a', 'b', 't2'], ['b', 'a', 't'], ['a', 't', 'b', 't2'], ['a', 'a', 'b']][Math.floor(r() * 4)]),
   setup(k: Setup) {
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.55, rev: 0.6 }), k.r, { cut: 1300, attack: 2.4, release: 4, detune: 11, width: 0.8 });
-    const glass = makeBell(k.ctx, k.strip('glass', { gain: 0.36, rev: 0.6, del: 0.5 }), { ratio: 2, index: 0.7, decay: 4 });
-    const celesta = makeBell(k.ctx, k.strip('celesta', { gain: 0.36, rev: 0.55, del: 0.35 }), { ratio: 4, index: 1, decay: 3 });
-    const shimmer = makePluck(k.ctx, k.strip('shimmer', { gain: 0.14, group: 'rhythm', rev: 0.5, del: 0.6 }), { wave: 'glass', cut: 5200, decay: 0.5 });
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.4, rev: 0.6 }), k.r, { cut: 1700, attack: 2.4, release: 4, detune: 11, width: 0.8 });
+    const glass = makeBell(k.ctx, k.strip('glass', { gain: 0.9, rev: 0.6, del: 0.5 }), { ratio: 2, index: 0.7, decay: 4 });
+    const celesta = makeBell(k.ctx, k.strip('celesta', { gain: 0.9, rev: 0.55, del: 0.35 }), { ratio: 4, index: 1, decay: 3 });
+    const shimmer = makePluck(k.ctx, k.strip('shimmer', { gain: 0.6, group: 'rhythm', rev: 0.5, del: 0.6 }), { wave: 'glass', cut: 5200, decay: 0.5 });
     const sub = makeBass(k.ctx, k.strip('sub', { gain: 0.55 }), { cut: 220, grit: 0.25, release: 1.2 });
     const kit = makeKit(k.ctx, k.strip('air', { gain: 0.45, rev: 0.6 }), k.r);
-    const ping = makePluck(k.ctx, k.strip('drive', { gain: 0.16, group: 'drive', rev: 0.4, del: 0.5 }), { wave: 'glass', cut: 3000, decay: 0.35 });
+    const ping = makePluck(k.ctx, k.strip('drive', { gain: 0.5, group: 'drive', rev: 0.4, del: 0.5 }), { wave: 'glass', cut: 3000, decay: 0.35 });
     return (c) => {
       const { sec, i } = c;
       const theme = sec === 't' || sec === 't2';
@@ -362,7 +362,7 @@ const era3: TrackDef = {
 
 // ── era 4: Swarmlight ───────────────────────────────────────────────────────────────────────
 const era4: TrackDef = {
-  bpm: 60, steps: 16, beat: 4, tonic: 59, delay: 3, lo: 54, hi: 73, bassLo: 28, gain: 1,
+  bpm: 60, steps: 16, beat: 4, tonic: 59, delay: 3, lo: 54, hi: 73, bassLo: 35, gain: 0.64,
   secs: {
     a: { ch: 'Bmaj9 | G#m9 | Emaj9 | F#sus4 F# | Bmaj9 | G#m9 | Emaj9 | F#sus4 F#', mel: "5':12 3':4 | 2':16 | 1':12 6:4 | 2':8 3':8 | 5':12 6':4 | 5':8 3':8 | 2':12 1':4 | 2':16" },
     b: { ch: 'Emaj7 | D#m7 | C#m9 | F#7sus4 | Emaj7 | D#m7 | G#m7 | F#sus4 F#', mel: "3':8 5':8 | 3':8 2':8 | 1':8 3':8 | 2':16 | 3':8 5':8 | 6':8 5':8 | 3':8 2':4 1':4 | 2':16" },
@@ -371,14 +371,14 @@ const era4: TrackDef = {
   },
   form: (pass, r) => (pass === 0 ? ['a', 't', 'b', 't2'] : [['a', 'b', 't2'], ['b', 't', 'a', 't2'], ['a', 't', 'b'], ['a', 'a', 't2']][Math.floor(r() * 4)]),
   setup(k: Setup) {
-    const choir = makeChoir(k.ctx, k.strip('choir', { gain: 0.5, rev: 0.65 }), k.r, { attack: 1.1, release: 2.6 });
+    const choir = makeChoir(k.ctx, k.strip('choir', { gain: 0.42, rev: 0.65 }), k.r, { attack: 1.1, release: 2.6 });
     const soprano = makeChoir(k.ctx, k.strip('soprano', { gain: 0.42, rev: 0.65, del: 0.15 }), k.r, { attack: 0.16, release: 0.7, width: 0.2 });
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.28, rev: 0.5 }), k.r, { wave: 'glass', cut: 2600, attack: 1.6, release: 3, detune: 12, width: 0.8 });
-    const shimmer = makePluck(k.ctx, k.strip('shimmer', { gain: 0.13, group: 'rhythm', rev: 0.5, del: 0.5 }), { wave: 'glass', cut: 6000, decay: 0.26 });
-    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.3, rev: 0.6, del: 0.4 }), { ratio: 3.5, index: 1, decay: 3.2 });
-    const sub = makeBass(k.ctx, k.strip('sub', { gain: 0.55 }), { cut: 220, grit: 0.25, release: 1 });
-    const kit = makeKit(k.ctx, k.strip('air', { gain: 0.45, rev: 0.6 }), k.r);
-    const ping = makePluck(k.ctx, k.strip('drive', { gain: 0.16, group: 'drive', rev: 0.4, del: 0.5 }), { wave: 'glass', cut: 3200, decay: 0.3 });
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.3, rev: 0.5 }), k.r, { wave: 'glass', cut: 2600, attack: 1.6, release: 3, detune: 12, width: 0.8 });
+    const shimmer = makePluck(k.ctx, k.strip('shimmer', { gain: 0.7, group: 'rhythm', rev: 0.5, del: 0.5 }), { wave: 'glass', cut: 6000, decay: 0.26 });
+    const bell = makeBell(k.ctx, k.strip('bell', { gain: 1.0, rev: 0.6, del: 0.4 }), { ratio: 3.5, index: 1, decay: 3.2 });
+    const sub = makeBass(k.ctx, k.strip('sub', { gain: 0.65 }), { cut: 220, grit: 0.25, release: 1 });
+    const kit = makeKit(k.ctx, k.strip('air', { gain: 0.55, rev: 0.6 }), k.r);
+    const ping = makePluck(k.ctx, k.strip('drive', { gain: 0.5, group: 'drive', rev: 0.4, del: 0.5 }), { wave: 'glass', cut: 3200, decay: 0.3 });
     return (c) => {
       const { sec, i } = c;
       const theme = sec === 't' || sec === 't2';
@@ -408,7 +408,7 @@ const era4: TrackDef = {
 
 // ── the ending: Type I ──────────────────────────────────────────────────────────────────────
 const ending: TrackDef = {
-  bpm: 72, steps: 16, beat: 4, tonic: 62, delay: 3, lo: 55, hi: 74, bassLo: 33, gain: 1,
+  bpm: 72, steps: 16, beat: 4, tonic: 62, delay: 3, lo: 55, hi: 74, bassLo: 33, gain: 0.68,
   secs: {
     e1: { ch: 'D | A/C# | Bm7 | G | D/F# | Gmaj7 | Em7 | Asus4 A', mel: THEME_OPEN },
     e2: { ch: 'D | A/C# | Bm7 | G | D/F# | Gmaj7 | Em7 | Asus4 A', mel: THEME_OPEN },
@@ -421,15 +421,15 @@ const ending: TrackDef = {
   // the first statement is the moment itself; after that the quiet and the full openings take turns
   form: (pass) => [pass % 2 ? 'e2' : 'e1', 'eb', 'e3', 'ec'],
   setup(k: Setup) {
-    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.42, rev: 0.5 }), k.r, { cut: 1700, attack: 1.2, release: 2.6 });
-    const choir = makeChoir(k.ctx, k.strip('choir', { gain: 0.44, rev: 0.65 }), k.r, { attack: 0.9, release: 2.4 });
+    const pad = makePad(k.ctx, k.strip('pad', { gain: 0.26, rev: 0.5 }), k.r, { cut: 2000, attack: 1.2, release: 2.6 });
+    const choir = makeChoir(k.ctx, k.strip('choir', { gain: 0.38, rev: 0.65 }), k.r, { attack: 0.9, release: 2.4 });
     const soprano = makeChoir(k.ctx, k.strip('soprano', { gain: 0.36, rev: 0.65, del: 0.12 }), k.r, { attack: 0.14, release: 0.7, width: 0.2 });
     const piano = makePiano(k.ctx, k.strip('piano', { gain: 0.6, rev: 0.4, del: 0.08 }), k.r, { bright: 1.15 });
-    const strings = makeLead(k.ctx, k.strip('strings', { gain: 0.3, rev: 0.6 }), k.r, { cut: 2400, attack: 0.2, release: 0.9, detune: 10 });
-    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.28, rev: 0.6, del: 0.3 }), { ratio: 4, index: 1.2, decay: 3 });
-    const arp = makePluck(k.ctx, k.strip('arp', { gain: 0.17, group: 'rhythm', rev: 0.35, del: 0.45 }), { cut: 2800, decay: 0.26 });
-    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.5 }), { cut: 400, release: 0.3 });
-    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.55, group: 'rhythm', rev: 0.35 }), k.r);
+    const strings = makeLead(k.ctx, k.strip('strings', { gain: 0.2, rev: 0.6 }), k.r, { cut: 2400, attack: 0.2, release: 0.9, detune: 10 });
+    const bell = makeBell(k.ctx, k.strip('bell', { gain: 0.7, rev: 0.6, del: 0.3 }), { ratio: 4, index: 1.2, decay: 3 });
+    const arp = makePluck(k.ctx, k.strip('arp', { gain: 0.65, group: 'rhythm', rev: 0.35, del: 0.45 }), { cut: 2800, decay: 0.26 });
+    const bass = makeBass(k.ctx, k.strip('bass', { gain: 0.36 }), { cut: 400, release: 0.3 });
+    const kit = makeKit(k.ctx, k.strip('kit', { gain: 0.62, group: 'rhythm', rev: 0.35 }), k.r);
     const crash = makeKit(k.ctx, k.strip('crash', { gain: 0.5, rev: 0.5 }), k.r);
     const ring: Note = (t, m, _d, vel) => bell(t, m, vel);
     return (c) => {
