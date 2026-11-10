@@ -111,7 +111,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
       <div class="cardgrid four">
         {HOME_SITES.map((s) => (
           <button key={s.id} class={`btn pickcard ${home === s.id ? 'active' : ''}`} onClick={() => setHome(s.id)} aria-pressed={home === s.id}>
-            <img class="preview" src={sitePreviewUrl(lod, s.id)} alt="" draggable={false} />
+            <img class="preview" src={sitePreviewUrl(lod, s.id)} width={576} height={320} style={{ imageRendering: 'auto', height: 'auto' }} alt="" draggable={false} />
             <span class="n">{s.name}</span>
             <span class="b">{REGIONS[s.region].name}</span>
             <span class="b">
