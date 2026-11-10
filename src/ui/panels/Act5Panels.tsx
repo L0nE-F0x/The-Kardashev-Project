@@ -4,7 +4,7 @@
  * report, the Solar Maximum tracker and the Type I ending (the pull-back, epilogues, credits, the
  * campaign's numbers and the end card). Contracts posted here are awarded like any other.
  */
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, speakerName, useGame } from '../components';
 import type { IconName } from '../icons';
 import type { SystemTab } from '../../game/game';
@@ -28,9 +28,8 @@ import { portraitUrl } from '../../render/sprites/portraits';
 import { warming } from '../../sim/climate';
 import { avgWellbeing } from '../../sim/provinces';
 import { pickEpilogues, campaignStats } from '../../sim/ending';
-import { drawEndCard } from '../../render/endcard';
-import { toDataUrl } from '../../render/pixels';
-import { terrainCanvas } from '../../render/worldMap/terrain';
+import { drawEndCard, endCardBackdrop, END_H, END_W } from '../../render/endcard';
+import { logoUrl } from '../logo';
 import { savedNote, saveImage } from '../../platform/platform';
 import { OpenWork, PostContract } from './Act4Panels';
 import { SITE_BY_ID } from '../../content/sites';
@@ -1045,9 +1044,21 @@ function EndCard({ year }: { year: number }) {
   const game = useGame();
   const s = game.state!;
   const [note, setNote] = useState('');
-  const url = useMemo(() => {
-    const lod = game.world.lods[1] ?? game.world.lods[0];
-    return toDataUrl(drawEndCard({ s, terrain: terrainCanvas(lod), res: lod.res }));
+  // the card is made once this window is up: a picture of the stage (the ending's last frame, still behind the
+  // window) with the run's numbers set over it
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const t = setTimeout(() => {
+      void drawEndCard({ s, backdrop: endCardBackdrop(game.stage), logo: logoUrl() }).then(
+        (u) => live && setUrl(u),
+        () => live && setNote('The picture couldn’t be made: take a screenshot instead.'),
+      );
+    }, 120);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
   }, [s.day]);
   const name = `type-i-${year}.png`;
   const text = `${s.company.name} reached Type I in ${year} in The Kardashev Project.`;
@@ -1062,10 +1073,16 @@ function EndCard({ year }: { year: number }) {
           </div>
         </div>
         <div class="body">
-          <img class="endcard" src={url} alt={text} />
+          {url ? (
+            <img class="endcard" src={url} width={END_W} height={END_H} style={{ imageRendering: 'auto', height: 'auto' }} alt={text} />
+          ) : (
+            <div class="endcard small muted" style={{ aspectRatio: `${END_W} / ${END_H}`, display: 'grid', placeItems: 'center', background: '#05050c', borderRadius: '8px' }}>
+              Developing your picture…
+            </div>
+          )}
           {note && <div class="small muted">{note}</div>}
           <div class="row wrap" style={{ gap: '8px', marginTop: '8px' }}>
-            <button class="btn" onClick={() => void saveImage(name, url).then((p) => setNote(savedNote(p, 'Couldn’t save it: take a screenshot instead.')))}>
+            <button class="btn" disabled={!url} onClick={() => url && void saveImage(name, url).then((p) => setNote(savedNote(p, 'Couldn’t save it: take a screenshot instead.')))}>
               <Icon name="arrow" size="sm" /> Save the picture
             </button>
           </div>
