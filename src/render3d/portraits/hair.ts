@@ -5,8 +5,8 @@
  */
 import * as THREE from 'three';
 import { C } from '../../render/palette';
-import { blend, bump, geo, gloss, halo, lerp, lit, matte, put, rand, shade, smooth, type V3 } from './parts';
-import { edge, layer, mount, surf } from './head';
+import { blend, bump, geo, gloss, halo, lerp, lit, matte, put, rand, shade, smooth, tint, type V3 } from './parts';
+import { edge, layer, mount, surf, veil } from './head';
 import type { Look } from './looks';
 
 const PI = Math.PI;
@@ -346,7 +346,7 @@ export function hair(head: THREE.Object3D, L: Look) {
     }
     case 'undercut':
       // shaved sides, a long top swept over
-      lay('shaved', cap(SHORT, 0.02), matte(blend(tone.deep, L.skin[1], 0.3), 0.95));
+      put(head, veil('shaved', (az, el) => smooth(-0.04, 0.12, el - through(Math.abs(az), SHORT))), tint(tone.deep, 0.62), [0, 0, 0], { ghost: true, order: 1 });
       lay('undercut-top', (az, el) => {
         const a = Math.abs(az);
         const line = through(a, [[0, 0.68], [0.8, 0.62], [1.3, 0.56], [2.2, 0.3], [PI, 0.1]]);
@@ -386,13 +386,15 @@ export function hair(head: THREE.Object3D, L: Look) {
     case 'shag': {
       lay('shag', cap(fringe(-0.7, 0.4), (az, el) => 0.1 + 0.03 * Math.sin(az * 10) * smooth(0.2, -0.5, el)));
       ball([0, -0.95, -0.4], [0.98, 0.8, 0.5]);
-      // layers ending in points on the shoulders
+      // layers ending in flicked points on the shoulders
       for (const side of [-1, 1]) {
-        for (let i = 0; i < 5; i++) {
-          const az = side * (1.02 + i * 0.36);
-          const p = surf(az, -0.62, 0.12);
-          const lock = put(head, geo.cone(), i % 2 ? high : main, [p.x * 1.02, p.y + 0.12, p.z], { s: [0.24, 0.85 + (i % 2) * 0.2, 0.24] });
-          lock.rotation.set(PI + 0.1, 0, side * -0.12);
+        for (let i = 0; i < 4; i++) {
+          const az = side * (1.0 + i * 0.42);
+          const p = surf(az, -0.5, 0.1);
+          const len = 0.6 + (i % 2) * 0.22;
+          ball([p.x * 1.03, p.y - len * 0.55, p.z], [0.2, len * 0.62, 0.22], i % 2 ? high : main, [0, 0, side * (0.12 + (i % 2) * 0.1)]);
+          const tip = put(head, geo.cone(), i % 2 ? high : main, [p.x * 1.06 + side * 0.06, p.y - len * 1.02, p.z], { s: [0.15, 0.3, 0.16] });
+          tip.rotation.set(PI, 0, side * 0.5);
         }
       }
       break;

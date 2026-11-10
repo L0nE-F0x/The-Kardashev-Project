@@ -51,6 +51,11 @@ export function sheer(c: number | string, opacity: number): THREE.MeshStandardMa
   const hex = typeof c === 'number' ? hexOf(c) : c;
   return mat(`s:${hex}:${opacity}`, () => new THREE.MeshStandardMaterial({ color: colour(hex), roughness: 0.9, metalness: 0, transparent: true, opacity, depthWrite: false }));
 }
+/** Paint that thins out where the geometry says so (a `veil`'s per-vertex alpha): stubble, a shaved head. */
+export function tint(c: number | string, opacity: number): THREE.MeshStandardMaterial {
+  const hex = typeof c === 'number' ? hexOf(c) : c;
+  return mat(`t:${hex}:${opacity}`, () => new THREE.MeshStandardMaterial({ color: colour(hex), roughness: 0.95, metalness: 0, transparent: true, opacity, vertexColors: true, depthWrite: false }));
+}
 let fade: THREE.DataTexture | null = null;
 /** Paint airbrushed on (`geo.plate()`): full in the middle, fading out to the rim. Lit like the rest. */
 export function soft(c: number | string, opacity: number): THREE.MeshStandardMaterial {

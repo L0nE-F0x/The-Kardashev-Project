@@ -8,7 +8,7 @@ import { C } from '../../render/palette';
 import { geo, gloss, lit, matte, put, type Shot } from './parts';
 import { motifs, wall } from './backdrop';
 import { dress } from './dress';
-import { earWear, face, FACES, glasses, mount, whiskers } from './head';
+import { earWear, face, FACES, glasses, mount, quirksOf, whiskers } from './head';
 import { hair, hairTones } from './hair';
 import type { Look } from './looks';
 
@@ -52,6 +52,8 @@ export function personShot(L: Look, mood: Mood): Shot {
   fig.add(neck);
   const head = new THREE.Group();
   head.position.set(0, -NECK_Y, 0);
+  const Q = quirksOf(L);
+  head.scale.set(Q.wide, Q.long, 1);
   neck.add(head);
 
   face(head, L, mood);

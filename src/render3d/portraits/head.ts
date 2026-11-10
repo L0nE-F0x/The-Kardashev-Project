@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import type { Mood } from '../../content/events';
 import { C } from '../../render/palette';
-import { blend, colour, geo, gloss, lit, matte, put, shade, shared, sheer, soft } from './parts';
+import { blend, colour, geo, gloss, lit, matte, put, rand, shade, shared, sheer, smooth, soft, tint } from './parts';
 import type { Look } from './looks';
 
 // ── the skull and its surface ──
@@ -141,6 +141,32 @@ export function sculpt(key: string, seg: [number, number], rule: (az: number, el
   });
 }
 
+/**
+ * A veil over the skull: skin-tight, and as dense at each point as `alpha(az, el)` says (0…1), so its edge fades
+ * instead of ending. For `tint` materials.
+ */
+export function veil(key: string, alpha: (az: number, el: number) => number): THREE.BufferGeometry {
+  return shared(`veil:${key}`, () => {
+    const b = blank([64, 44]);
+    const n = b.az.length;
+    const pos = new Float32Array(n * 3);
+    const col = new Float32Array(n * 4);
+    const v = new THREE.Vector3();
+    for (let i = 0; i < n; i++) {
+      v.set(b.dirs[i * 3], b.dirs[i * 3 + 1], b.dirs[i * 3 + 2]);
+      onSkull(v).multiplyScalar(1.006);
+      pos.set([v.x, v.y, v.z], i * 3);
+      col.set([1, 1, 1, Math.max(0, Math.min(1, alpha(b.az[i], b.el[i])))], i * 4);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(normals(pos, b.index.array), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(col, 4));
+    g.setIndex(b.index);
+    return g;
+  });
+}
+
 const skullGeo = () => sculpt('skull', [56, 40], (_az, _el, v) => { onSkull(v); });
 
 /**
@@ -191,7 +217,7 @@ export interface Skin {
   crease: string;
 }
 export function skinOf(L: Look): Skin {
-  const base = blend(L.skin[1], L.skin[2], 0.12);
+  const base = blend(L.skin[1], L.skin[2], 0.3);
   return { base, shadow: blend(L.skin[0], L.skin[1], 0.5), light: blend(L.skin[1], L.skin[2], 0.7), crease: shade(blend(L.skin[0], L.skin[1], 0.35), -0.05) };
 }
 /** The brow colour: the hair's dark tone (silver hair gets a grey brow that still shows). */
@@ -210,9 +236,34 @@ export function seam(key: string, pts: [number, number][], radius: number, lift 
   return geo.tube(`seam:${key}`, () => pts.map(([az, el]) => surf(az, el, lift)), radius, false, Math.max(12, pts.length * 3));
 }
 
+/**
+ * What makes one face not quite another's: small leanings of proportion, the same for a person in every mood and
+ * at every age (they come from the parts of a look that never change: skin, clothes, backdrop, hair style).
+ */
+export interface Quirks {
+  /** The head a little wider or longer. */
+  wide: number;
+  long: number;
+  eyeGap: number;
+  eyeSize: number;
+  eyeTall: number;
+  nose: number;
+  brow: number;
+  mouth: number;
+}
+export function quirksOf(L: Look): Quirks {
+  let h = 2166136261;
+  for (const ch of JSON.stringify([L.bg, L.skin, L.cloth, L.style])) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  const r = rand(h);
+  const around = (spread: number) => 1 + (r() * 2 - 1) * spread;
+  return { wide: around(0.04), long: around(0.035), eyeGap: (r() * 2 - 1) * 0.03, eyeSize: around(0.1), eyeTall: around(0.1), nose: around(0.2), brow: around(0.18), mouth: around(0.1) };
+}
+
 /** The skull, ears, nose and the face in a mood. `head` is centred on the skull. */
 export function face(head: THREE.Object3D, L: Look, mood: Mood) {
   const F = FACES[mood];
+  const Q = quirksOf(L);
+  const eyeAz = EYE.az + Q.eyeGap;
   const skin = skinOf(L);
   const skinMat = matte(skin.base, 0.72);
   put(head, skullGeo(), skinMat, [0, 0, 0]);
@@ -224,27 +275,27 @@ export function face(head: THREE.Object3D, L: Look, mood: Mood) {
   }
   // nose: a small soft button, a touch warmer than the skin
   const nose = mount(head, 0, -0.3, 0);
-  put(nose, geo.ball(), matte(blend(skin.base, C.pnk0, 0.08), 0.72), [0, 0, 0.02], { s: [0.095, 0.105, 0.11] });
+  put(nose, geo.ball(), matte(blend(skin.base, C.pnk0, 0.08), 0.72), [0, 0, 0.02], { s: [0.095 * Q.nose, 0.105 * Q.nose, 0.11 * Q.nose] });
 
   // brows
   const brow = matte(browOf(L), 0.9);
   const heavy = mood === 'angry' ? 1.25 : 1;
   for (const side of [-1, 1]) {
-    const b = mount(head, side * (EYE.az + 0.02), BROW_EL + F.browUp, 0.012);
+    const b = mount(head, side * (eyeAz + 0.02), BROW_EL + F.browUp, 0.012);
     // inner end up: the outer end drops (and the other way round)
-    put(b, geo.pill(), brow, [side * 0.01, 0, 0], { s: [0.3, 0.44 * heavy, 0.3], r: [0, 0, -side * F.browTilt], ghost: true });
+    put(b, geo.pill(), brow, [side * 0.01, 0, 0], { s: [0.3, 0.44 * heavy * Q.brow, 0.3], r: [0, 0, -side * F.browTilt], ghost: true });
   }
 
   // eyes: big dark beads with a glint toward the key light
   const ink = gloss(C.ink0, 0.2);
   for (const side of [-1, 1]) {
-    const e = mount(head, side * EYE.az, EYE.el, 0);
+    const e = mount(head, side * eyeAz, EYE.el, 0);
     if (F.eyes === 'arc') {
       // smiling eyes: two arcs
       put(e, eyeArc(), matte(C.ink0, 0.6), [0, -0.04, 0.012], { ghost: true });
     } else {
       const k = F.eyes === 'wide' ? 1.22 : F.eyes === 'small' ? 0.86 : 1;
-      put(e, geo.ball(), ink, [0, 0, -0.012], { s: [0.112 * k, 0.15 * k, 0.05], ghost: true });
+      put(e, geo.ball(), ink, [0, 0, -0.012], { s: [0.112 * k * Q.eyeSize, 0.15 * k * Q.eyeSize * Q.eyeTall, 0.05], ghost: true });
       put(e, geo.ball(), lit(C.white), [-0.035 * k, 0.055 * k, 0.03], { s: (F.eyes === 'wide' ? 0.044 : 0.034) * k, ghost: true });
       if (F.eyes === 'wide') put(e, geo.ball(), lit(C.white, 0.85), [0.04, -0.055, 0.03], { s: 0.02, ghost: true });
     }
@@ -274,7 +325,7 @@ export function face(head: THREE.Object3D, L: Look, mood: Mood) {
   const curve = (key: string, w: number, depth: number, el = MOUTH_EL) =>
     seam(`mouth:${key}`, Array.from({ length: 9 }, (_, i) => { const u = i / 4 - 1; return [u * w, el - depth * (1 - u * u)] as [number, number]; }), r);
   if (F.mouth === 'rest') {
-    put(head, curve(`rest${r}`, 0.17, 0.03), matte(painted ? lip : blend(skin.shadow, C.red1, 0.5), 0.8), [0, 0, 0], { ghost: true });
+    put(head, curve(`rest${r}:${Q.mouth.toFixed(2)}`, 0.17 * Q.mouth, 0.03), matte(painted ? lip : blend(skin.shadow, C.red1, 0.5), 0.8), [0, 0, 0], { ghost: true });
   } else if (F.mouth === 'smile') {
     put(head, curve(`smile${r}`, 0.27, 0.12, MOUTH_EL + 0.055), matte(lip, 0.7), [0, 0, 0], { ghost: true });
   } else if (F.mouth === 'frown') {
@@ -354,16 +405,14 @@ export function glasses(head: THREE.Object3D, thin: boolean) {
 /** Beard, stubble, goatee, moustache. */
 export function whiskers(head: THREE.Object3D, L: Look, hair: string, hairDark: string) {
   // the jaw from ear to ear, up to under the nose, with the mouth left open
-  const jaw = (full: number) => (az: number, el: number) => {
+  const jaw = (az: number, el: number) => {
     const a = Math.abs(az);
-    if (a > 1.5) return 0;
-    const top = a < 0.42 ? -0.4 : a < 0.9 ? -0.4 + ((a - 0.42) / 0.48) * 0.3 : -0.1 + ((a - 0.9) / 0.6) * 0.16;
-    const mouth = (az / 0.25) ** 2 + ((el - MOUTH_EL + 0.01) / 0.115) ** 2;
-    const inside = Math.min(top - el, (1.5 - a) * 0.9, (mouth - 1) * 0.12);
-    return edge(inside, full);
+    const top = a < 0.42 ? -0.42 : a < 0.9 ? -0.42 + ((a - 0.42) / 0.48) * 0.3 : -0.12 + ((a - 0.9) / 0.6) * 0.16;
+    const mouth = (az / 0.27) ** 2 + ((el - MOUTH_EL + 0.01) / 0.125) ** 2;
+    return Math.min(top - el, (1.5 - a) * 0.9, (mouth - 1) * 0.12);
   };
-  if (L.beard) put(head, layer('beard', jaw(0.07)), matte(hair, 0.95), [0, 0, 0]);
-  else if (L.stubble) put(head, layer('stubble', jaw(0.014)), sheer(blend(hairDark, C.ink2, 0.5), 0.3), [0, 0, 0], { ghost: true, order: 1 });
+  if (L.beard) put(head, layer('beard', (az, el) => edge(jaw(az, el), 0.07)), matte(hair, 0.95), [0, 0, 0]);
+  else if (L.stubble) put(head, veil('stubble', (az, el) => smooth(-0.02, 0.2, jaw(az, el) + 0.05)), tint(blend(hairDark, C.ink3, 0.45), 0.34), [0, 0, 0], { ghost: true, order: 1 });
   if (L.goatee) {
     const g = mount(head, 0, -0.86, 0);
     put(g, geo.ball(), matte(hair, 0.95), [0, 0, 0.01], { s: [0.15, 0.17, 0.1] });

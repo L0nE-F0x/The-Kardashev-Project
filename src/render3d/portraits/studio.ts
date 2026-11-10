@@ -61,7 +61,7 @@ const DEVELOP = /* glsl */ `
     vec3 c = vec3( 0.0 );
     for ( int j = 0; j < ${SUPER}; j++ ) for ( int i = 0; i < ${SUPER}; i++ )
       c += texture2D( uRaw, uv + ( vec2( float( i ), float( j ) ) - ${((SUPER - 1) / 2).toFixed(1)} ) * uTexel ).rgb;
-    c = neutral( c / ${(SUPER * SUPER).toFixed(1)} );
+    c = neutral( c * ${(1.1 / (SUPER * SUPER)).toFixed(4)} );
     c = clamp( c, 0.0, 1.0 );
     c = mix( c * 12.92, 1.055 * pow( c, vec3( 0.41666 ) ) - 0.055, step( 0.0031308, c ) );
     gl_FragColor = vec4( c, 1.0 );
