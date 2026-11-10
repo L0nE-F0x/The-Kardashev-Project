@@ -9,10 +9,11 @@
  * instead of aliasing.
  *
  * Three levels of shader (quality.ts): `high` adds a third octave of detail, fine relief, smooth (bicubic) coasts
- * close up, ripples in the sun's glint, lights that break into lamps and twinkle, and the towns' glow under cloud;
- * `low` drops the clouds' shadows and their self-shading. The night side skips the cloud shadows and the day side
- * the city lights, so no level looks up more than the old Earth did. The space views and the website's hero
- * borrow all of it.
+ * close up, ripples in the sun's glint, lights that break into lamps and twinkle, the towns' glow under cloud,
+ * detail that stays square towards the poles (DETAIL below) and clouds lit from the sun's side by a second look
+ * at the weather; `low` drops the clouds' shadows on the ground. The night side skips the cloud shadows and the
+ * day side the city lights, so `medium` and `low` look up no more than the old Earth did. The space views and
+ * the website's hero borrow all of it.
  */
 import * as THREE from 'three';
 import type { MapLod } from '../../world/mapData';
@@ -467,7 +468,7 @@ const DETAIL = `
 
 const AMBER = 'vec3(1.0, 0.56, 0.22)', WHITE = 'vec3(1.0, 0.88, 0.70)';
 
-const levelDefines = (level: QualityLevel, charts = level === 'high'): Record<string, string> => ({ ...(level === 'high' ? { HQ: '' } : level === 'low' ? { LQ: '' } : {}), ...(charts ? { CHARTS: '' } : {}) });
+const levelDefines = (level: QualityLevel): Record<string, string> => (level === 'high' ? { HQ: '', CHARTS: '' } : level === 'low' ? { LQ: '' } : {});
 
 export function earthMaterial(t: EarthTextures, W: number, H: number, level: QualityLevel = quality.level) {
   return new THREE.ShaderMaterial({
@@ -656,7 +657,7 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
 export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.level) {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false,
-    defines: levelDefines(level, level !== 'low'),
+    defines: levelDefines(level),
     uniforms: {
       tClouds: { value: t.clouds }, tWeather: { value: t.weather }, tRelief: { value: t.relief }, tLights: { value: t.lights },
       sunDir: { value: new THREE.Vector3(1, 0, 0) }, cloudShift: { value: 0 }, opacity: { value: 0.85 },
@@ -687,7 +688,7 @@ export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.le
         float a = smoothstep(0.40, 0.64, d) * (0.5 + (0.32 + deep * 0.18) * smoothstep(0.55, 1.05, d));
         // puffy: lit where the cloud thins towards the sun, shaded where it thickens; deep cloud stands taller
         float self = 0.5 + (bA - 0.5) * 0.3 + (bB - 0.5) * 0.2 + (d - 0.55) * 0.7;
-        #ifndef LQ
+        #ifdef HQ
           vec3 east = eastOf(n), north = cross(n, east);
           vec3 sT = sunDir - n * dn;
           vec2 off = vec2(dot(sT, east) / max(length(n.xz), 0.08), -dot(sT, north) * 2.0) * 0.004;

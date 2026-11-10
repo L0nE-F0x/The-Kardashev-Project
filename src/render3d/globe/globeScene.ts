@@ -56,7 +56,7 @@ export class GlobeScene implements Scene3D {
   private linkRoot = new THREE.Group();
   private chokeRoot = new THREE.Group();
   private ships = new Map<string, { obj: THREE.Object3D; line: Line2; key: string }>();
-  private stars = starField(quality.level === 'low' ? 5000 : 14000);
+  private stars = starField(quality.level === 'high' ? 14000 : quality.level === 'medium' ? 9000 : 5000);
   private sunDisc = new Sun(quality.level !== 'low');
   private aurora: Aurora | null = null;
   private linkKey = '';
@@ -101,10 +101,10 @@ export class GlobeScene implements Scene3D {
     this.scene.add(earth, clouds, atmo);
     this.scene.add(this.sun, this.sun.target, new THREE.HemisphereLight(0xb8c8ff, 0x302a3a, 0.7), new THREE.AmbientLight(0x404060, 0.4));
     this.scene.add(this.stars, this.sunDisc.group);
-    if (quality.level !== 'low') {
-      this.aurora = new Aurora(tex.detail);
-      this.scene.add(milkyWay(tex.detail), this.aurora.mesh);
-    }
+    // (the Milky Way's haze is a lookup or two for every pixel of sky: the high level's; below it the stars'
+    // own crowding along the band stands in)
+    if (quality.level === 'high') this.scene.add(milkyWay(tex.detail));
+    if (quality.level !== 'low') this.scene.add((this.aurora = new Aurora(tex.detail)).mesh);
     this.scene.add(this.halos.mesh, this.markerRoot, this.shipRoot, this.routeRoot, this.linkRoot, this.chokeRoot);
     this.scene.background = new THREE.Color(0x030408);
     this.buildChokepoints();
