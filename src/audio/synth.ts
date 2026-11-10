@@ -419,7 +419,7 @@ export function makeBass(ctx: BaseAudioContext, s: Strip, o: { cut?: number; gri
     const tg = ctx.createGain();
     tg.gain.value = grit;
     const vca = ctx.createGain();
-    const end = held(vca.gain, t, 0.012, vel * 0.5, dur, release);
+    const end = held(vca.gain, t, 0.012, vel * 0.24, dur, release);
     top.connect(lp);
     lp.connect(tg);
     tg.connect(vca);

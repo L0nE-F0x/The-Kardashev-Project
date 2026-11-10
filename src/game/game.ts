@@ -25,7 +25,7 @@ import type { RegionId as Rid } from '../content/mapcodes';
 import type { AdvisorId, Job } from '../sim/types';
 import { refreshStats, tick } from '../sim/tick';
 import * as A from '../sim/actions';
-import { dismissEvent, resolveEvent } from '../sim/events';
+import { dismissEvent, finaleRunning, resolveEvent } from '../sim/events';
 import { offlineAllowed, simulateOffline, type OfflineReport } from '../sim/offline';
 import { buildCost, landCost, linkCost, upgradeCost } from '../sim/model';
 import { OWN_CABLE_COST } from '../content/network';
@@ -40,8 +40,9 @@ import { guideUnseen, unlockGuide } from '../save/guide';
 import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
 import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
-import { musicUnlocked, playMusic, type Track } from '../audio/music';
-import { restartAmbience, setAmbience } from '../audio/ambience';
+import { musicUnlocked, playMusic, setMusicMood, setSoundtrack, type Track } from '../audio/music';
+import { ambienceForScene, restartAmbience, setAmbience } from '../audio/ambience';
+import { installUiSounds } from '../audio/ui';
 import { canFullscreen, canPromptInstall, checkAppUpdate, enterFullscreen, initInstallPrompt, isPhone, isStandalone, onInstallChange, registerServiceWorker } from '../platform/platform';
 import type { AppUpdate, AppUpdateStatus } from '../platform/platform';
 import { kardashev } from '../sim/model';
@@ -187,7 +188,9 @@ export class Game {
   ) {
     migrateLegacySave();
     applyCssSettings(this.settings);
-    setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx });
+    setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
+    setSoundtrack(this.settings.soundtrack);
+    installUiSounds();
     this.stage.setZoomBoost(this.settings.zoom);
     document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
@@ -719,14 +722,14 @@ export class Game {
         sfx('fanfare');
         // a new model is the beat everything else builds toward: say it out loud, not just in the ticker
         if (n.text.includes(' released!')) this.toast(n.text.replace('🤖 ', ''), 'good', 'bit');
-      } else if (n.text.startsWith('🧠') && n.text.includes(' trained')) this.toast(n.text.replace('🧠 ', ''), 'info', 'bit');
-      else if (n.text.startsWith('🏗') && n.text.includes('online')) sfx('build');
+      } else if (n.text.startsWith('🧠') && n.text.includes(' trained')) (sfx('trained'), this.toast(n.text.replace('🧠 ', ''), 'info', 'bit'));
+      else if (n.text.startsWith('🏗') && n.text.includes('online')) sfx('built');
       else if (n.text.startsWith('🔬')) sfx('research');
       else if (n.text.startsWith('📦') && n.text.includes('arrived')) {
         // a big order lands in a dozen batches: one chime a fortnight, not one per ship
         if (s.day - this.lastArrivalChime >= 14) sfx('cash');
         this.lastArrivalChime = s.day;
-      } else if (n.text.startsWith('🔌 Grid connection energised')) sfx('build');
+      } else if (n.text.startsWith('🔌 Grid connection energised')) sfx('built');
       else if (n.text.startsWith('💸 Penny')) this.toast(n.text.replace('💸 Penny: ', ''), 'bad', 'penny');
       else if (n.text.startsWith('📬 Bids are in for ')) this.toast(n.text.replace('📬 ', ''), 'info', 'mira');
       else if (n.text.startsWith('🗂 Bit (Charter desk): pausing') || n.text.startsWith('🗂 Bit (Charter desk): back on') || n.text.startsWith('🧪 Bit can’t start')) this.toast(n.text.replace(/^(🗂|🧪) /, ''), 'info', 'bit');
@@ -735,7 +738,7 @@ export class Game {
     if (s.flags.act1Complete && !s.flags.act1Shown) {
       s.flags.act1Shown = true;
       this.showActComplete = true;
-      sfx('fanfare');
+      sfx('act');
     }
     if ((s.act ?? 1) >= 2 && !this.act2Music) {
       this.act2Music = true;
@@ -748,17 +751,17 @@ export class Game {
     if (s.flags.act2Complete && !s.flags.act2Shown) {
       s.flags.act2Shown = true;
       this.showActComplete = true;
-      sfx('fanfare');
+      sfx('act');
     }
     if (s.flags.act3Complete && !s.flags.act3Shown) {
       s.flags.act3Shown = true;
       this.showActComplete = true;
-      sfx('fanfare');
+      sfx('act');
     }
     if (s.flags.act4Complete && !s.flags.act4Shown) {
       s.flags.act4Shown = true;
       this.showActComplete = true;
-      sfx('fanfare');
+      sfx('act');
     }
     if (s.flags.endingStart && !s.flags.endingShown && !this.ending) this.startEnding();
     if (s.events.active && !this.settings.autoPause && !s.flags[`seen:${s.events.active.id}:${s.events.active.day}`]) {
@@ -937,7 +940,7 @@ export class Game {
 
   openPanel(panel: PanelId): void {
     this.panel = this.panel === panel ? null : panel;
-    sfx('click');
+    sfx(this.panel ? 'open' : 'close');
     this.notify();
   }
 
@@ -1106,7 +1109,8 @@ export class Game {
     this.settings = { ...this.settings, ...patch };
     saveSettings(this.settings);
     applyCssSettings(this.settings);
-    setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx });
+    setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
+    setSoundtrack(this.settings.soundtrack);
     if (patch.zoom !== undefined) this.stage.setZoomBoost(this.settings.zoom * (this.mode === 'diorama' || this.tour?.inCampus() ? 2 : 1));
     this.notify();
   }
@@ -1721,6 +1725,9 @@ export class Game {
     const jumping = !!(s.planet?.jump || s.system?.jump);
     if (jumping && !this.cue.jumping) sfx('jump');
     this.cue.jumping = jumping;
+    // the score follows the clock (rests while paused, drives at speed and through a jump) and the stakes
+    setMusicMood({ paused: this.speed === 0 && !jumping && !this.skip, fast: jumping || !!this.skip || this.speed >= 4, tension: finaleRunning(s) });
+    if (this.mode === 'diorama') ambienceForScene(this.stage.getScene());
     if (s.system) {
       const arcs = segmentsLit(s.system.collectors);
       if (this.cue.arcs >= 0 && arcs > this.cue.arcs && !jumping) sfx('arc');
@@ -1750,7 +1757,7 @@ export class Game {
     st.got[id] = Date.now();
     saveAchievements();
     this.toast(`🏆 ${a.name} — ${a.desc}`, 'good');
-    sfx('fanfare');
+    sfx('achievement');
   }
 
   /** You said hello to an advisor (or Bit) on campus. */

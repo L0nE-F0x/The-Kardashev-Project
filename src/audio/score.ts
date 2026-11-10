@@ -11,7 +11,7 @@ export interface Chord {
   /** Root and bass as pitch classes (0 = C). */
   root: number;
   bass: number;
-  /** Chord tones as semitones above the root, most essential first (third, seventh, colour, root, fifth). */
+  /** Chord tones as semitones above the root, most essential first (third, seventh, colour, fifth, root). */
   tones: number[];
 }
 
@@ -33,8 +33,9 @@ export function chord(sym: string, transpose = 0): Chord {
   if (!m || !QUALITY[m[2]]) throw new Error(`chord? ${sym}`);
   const root = (pc(m[1]) + transpose + 120) % 12;
   const iv = QUALITY[m[2]];
-  // what a chord can least do without comes first: its third (or suspension), its seventh or sixth, its colour
-  const rank = (i: number) => (i === 0 ? 3 : i === 7 ? 4 : i <= 5 ? 0 : i <= 11 ? 1 : 2);
+  // what a chord can least do without comes first: its third (or suspension), its seventh or sixth, its colour;
+  // the root goes last (the bass has it), so a ninth chord is voiced rootless instead of as a cluster round its root
+  const rank = (i: number) => (i === 0 ? 4 : i === 7 ? 3 : i <= 5 ? 0 : i <= 11 ? 1 : 2);
   return { root, bass: m[3] ? (pc(m[3]) + transpose + 120) % 12 : root, tones: [...iv].sort((a, b) => rank(a) - rank(b)) };
 }
 
@@ -47,8 +48,7 @@ export function chords(line: string, transpose = 0): Chord[][] {
 
 /**
  * Voice a chord as `size` notes between `lo` and `hi`, moving as little as possible from the voicing before
- * (common tones stay, the rest step): what a pianist's hands do. Close position; five-note chords drop the root
- * and then the fifth (the bass has the root).
+ * (common tones stay, the rest step): what a pianist's hands do. Close position; a five-note chord drops its root.
  */
 export function voice(c: Chord, prev: number[] | null, lo: number, hi: number, size = 4): number[] {
   const pcs = c.tones.slice(0, size).map((i) => (c.root + i) % 12);

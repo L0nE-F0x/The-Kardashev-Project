@@ -293,6 +293,7 @@ export function setDelayTime(seconds: number): void {
 type Pump = (until: number, now: number) => void;
 const pumps = new Set<Pump>();
 let timer: number | null = null;
+let watching = false;
 
 function pumpAll() {
   if (offline || !live || live.ctx.state !== 'running') return;
@@ -315,7 +316,12 @@ function pumpAll() {
  */
 export function onPump(fn: Pump): () => void {
   pumps.add(fn);
-  if (timer === null) timer = window.setInterval(pumpAll, 90);
+  if (timer === null) {
+    timer = window.setInterval(pumpAll, 90);
+    // going to the background: schedule the long window at once, before the timer slows down
+    if (!watching) document.addEventListener('visibilitychange', pumpAll);
+    watching = true;
+  }
   return () => {
     pumps.delete(fn);
     if (!pumps.size && timer !== null) {

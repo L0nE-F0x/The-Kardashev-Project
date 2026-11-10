@@ -478,7 +478,7 @@ function rnd(): number {
   return (seed >>> 0) / 4294967296;
 }
 
-/** When any sound last played (`performance.now()`), so the UI's own clicks don't double the game's. */
+/** When a sound (hover ticks aside) last played, in `performance.now()` time: the UI's own clicks don't double the game's. */
 export function lastSfxAt(): number {
   return lastAt;
 }
@@ -492,7 +492,7 @@ export function sfx(id: SoundId): void {
     const now = ctx.currentTime;
     if (now - (last.get(id) ?? -99) < (def.gap ?? 0.03)) return;
     last.set(id, now);
-    lastAt = performance.now();
+    if (id !== 'hover') lastAt = performance.now();
     let mine = strips.get(ctx);
     if (!mine) strips.set(ctx, (mine = new Map()));
     let s = mine.get(id);

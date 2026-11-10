@@ -193,7 +193,7 @@ const era1: TrackDef = {
       ch: 'G | D/F# | Em7 | Cadd9 | G | D/F# | Em7 | Cadd9',
       mel: '3:4 2:4 1:4 5,:4 | 2:6 1:2 7,:8 | 1:4 7,:4 5,:4 3,:4 | 5:8 3:8 | 3:4 2:4 1:4 5,:4 | 2:6 1:2 7,:4 2:4 | 5:8 3:8 | 2:12 -:4',
     },
-    b: { ch: 'Cmaj7 | D | Em7 | Bm7 | Cmaj7 | D | Em7 | Dsus4 D', mel: BRIDGE },
+    b: { ch: 'Cmaj7 | D | Em7 | Bm7 | Cmaj7 | D | Am7 | Dsus4 D', mel: BRIDGE },
     t: { ch: 'G | D/F# | Em7 | C | G/B | Cmaj7 | Am7 | Dsus4 D', mel: THEME_OPEN },
     t2: { ch: 'G | D/F# | Em7 | C | G/B | Cmaj7 | Am7 D7 | Gadd9', mel: THEME_HOME },
     // the breakdown: the floor drops out and the pad breathes
@@ -389,8 +389,8 @@ const era4: TrackDef = {
       if (c.v2) c.at(8, (t) => sub(t, c.bass2, c.dur(6), 0.6));
       // the theme is sung; elsewhere bells carry the line an octave up
       if (theme) {
-        for (const n of c.mel) c.at(n.at, (t) => soprano(t, [c.tonic + n.semi + 12], c.dur(n.len) * 0.95, 0.7, 'ah', 'ah'));
-        if (sec === 't2') for (const n of c.mel) c.at(n.at, (t) => bell(t, c.tonic + n.semi + 24, 0.36, c.r() - 0.5));
+        for (const n of c.mel) c.at(n.at, (t) => soprano(t, [c.tonic + n.semi], c.dur(n.len) * 0.95, 0.7, 'ah', 'ah'));
+        if (sec === 't2') for (const n of c.mel) c.at(n.at, (t) => bell(t, c.tonic + n.semi + 12, 0.36, c.r() - 0.5));
       } else if (c.x[2] < 0.85) for (const n of c.mel) c.at(n.at, (t) => bell(t, c.tonic + n.semi + 12, 0.6, c.r() * 0.8 - 0.4), true);
       // the swarm: sixteenths of light climbing the chord two octaves up, thinning and thickening over the minutes
       const density = 0.55 + 0.3 * Math.sin(c.n * 0.23);
@@ -418,7 +418,8 @@ const ending: TrackDef = {
     // the coda winds down and turns back toward D, the piano already humming the four notes
     ec: { tonic: 64, ch: 'Amaj7 | E/G# | F#m7 | Bsus4 | Amaj7 | E/G# | Em7 | A7sus4 A7', mel: "3':8 2':8 | 1':8 7:8 | 6:8 1':8 | 2':16 | 3':8 2':8 | 1':8 7:8 | -:16 | 4:6 b7:4 1':2 2':4" },
   },
-  form: (pass) => (pass === 0 ? ['e1', 'eb', 'e3', 'ec'] : ['e2', 'eb', 'e3', 'ec']),
+  // the first statement is the moment itself; after that the quiet and the full openings take turns
+  form: (pass) => [pass % 2 ? 'e2' : 'e1', 'eb', 'e3', 'ec'],
   setup(k: Setup) {
     const pad = makePad(k.ctx, k.strip('pad', { gain: 0.42, rev: 0.5 }), k.r, { cut: 1700, attack: 1.2, release: 2.6 });
     const choir = makeChoir(k.ctx, k.strip('choir', { gain: 0.44, rev: 0.65 }), k.r, { attack: 0.9, release: 2.4 });

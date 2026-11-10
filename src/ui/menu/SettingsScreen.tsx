@@ -235,8 +235,16 @@ function Audio() {
   return (
     <>
       <Slider label="Master volume" value={st.master} onChange={(v) => game.updateSettings({ master: v })} />
-      <Slider label="Music" hint="The theme on the menu, a chiptune for each era in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
+      <Slider label="Music" hint="A theme on the menu, a piece for each era in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
+      <Choice
+        label="Soundtrack"
+        hint="Cinematic: pads, piano, bells, a choir. Chiptune: the pixel edition's own. Auto picks by edition."
+        value={st.soundtrack}
+        options={[['auto', 'Auto'], ['cinematic', 'Cinematic'], ['chiptune', 'Chiptune']]}
+        onChange={(v) => game.updateSettings({ soundtrack: v })}
+      />
       <Slider label="Sound effects" value={st.sfx} onChange={(v) => game.updateSettings({ sfx: v })} />
+      <Slider label="Ambience" hint="The sound of the place: wind, birds, rain, the halls." value={st.ambience} onChange={(v) => game.updateSettings({ ambience: v })} />
       <Toggle label="Mute in the background" hint="Silence when you switch tabs or apps." value={st.muteInBackground} onChange={(v) => game.updateSettings({ muteInBackground: v })} />
     </>
   );
