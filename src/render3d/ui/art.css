@@ -5,37 +5,6 @@
  * (`--ps` = device pixels per CSS pixel here; without round() the sizes from styles.css and the size props stay.
  * Desktop windows only: a phone's compact rows keep their own sizes.)
  */
-@supports (width: round(nearest, 1px, 1px)) {
-  @media (min-width: 821px) and (min-height: 521px) {
-    /* the portraits' sizes come as inline styles (the size prop), hence !important */
-    html.edition-3d:not(.ui-classic) img.portrait {
-      --p: 40px;
-      width: calc(max(32px, round(nearest, var(--p) * var(--ps), 32px)) / var(--ps)) !important;
-      height: calc(max(32px, round(nearest, var(--p) * var(--ps), 32px)) / var(--ps)) !important;
-    }
-    /* where a face is the point: an advisor speaking on a card, Bit in the tutorial */
-    html.edition-3d:not(.ui-classic) :is(.quote, .tut-main, .modal .head, .advisor-tip) > img.portrait {
-      --p: 64px;
-    }
-    /* no specificity (like the primitives), so a place that sizes its own icon keeps doing so */
-    :where(html.edition-3d:not(.ui-classic)) {
-      & img.px,
-      & img.px.sm,
-      & img.px.lg {
-        --p: 18px;
-        width: calc(max(9px, round(nearest, var(--p) * var(--ps), 9px)) / var(--ps));
-        height: calc(max(9px, round(nearest, var(--p) * var(--ps), 9px)) / var(--ps));
-      }
-      & img.px.lg {
-        --p: 27px;
-      }
-    }
-    html.edition-3d:not(.ui-classic) .menu-logo {
-      width: calc(max(121px, round(nearest, var(--p) * var(--ps), 121px)) / var(--ps));
-    }
-  }
-}
-
 html.edition-3d:not(.ui-classic) {
   /* boxes outside the HUD's zoom count device pixels without it */
   .tut-bubble,

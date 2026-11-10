@@ -1,0 +1,15 @@
+/* Portraits in the interface (see art.css for how the whole-pixel sizes work; art3d/INTERFACE.md for what replaces this). */
+@supports (width: round(nearest, 1px, 1px)) {
+  @media (min-width: 821px) and (min-height: 521px) {
+    /* the portraits' sizes come as inline styles (the size prop), hence !important */
+    html.edition-3d:not(.ui-classic) img.portrait {
+      --p: 40px;
+      width: calc(max(32px, round(nearest, var(--p) * var(--ps), 32px)) / var(--ps)) !important;
+      height: calc(max(32px, round(nearest, var(--p) * var(--ps), 32px)) / var(--ps)) !important;
+    }
+    /* where a face is the point: an advisor speaking on a card, Bit in the tutorial */
+    html.edition-3d:not(.ui-classic) :is(.quote, .tut-main, .modal .head, .advisor-tip) > img.portrait {
+      --p: 64px;
+    }
+  }
+}

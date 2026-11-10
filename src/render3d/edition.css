@@ -6,6 +6,9 @@
  */
 @import './ui/tokens.css';
 @import './ui/art.css';
+@import './ui/art-portraits.css';
+@import './ui/art-icons.css';
+@import './ui/art-logo.css';
 @import './ui/hud.css';
 @import './ui/cards.css';
 @import './ui/menu.css';
