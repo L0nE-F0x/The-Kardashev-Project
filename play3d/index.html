@@ -147,17 +147,34 @@
     <script>
       (() => {
         const root = document.documentElement;
+        // while this is set the title screen holds its entrance (ui/menu.css): the menu slides in as the logo lands
+        root.classList.add('booting');
         const boot = document.getElementById('boot');
         const veil = document.getElementById('bootveil');
         const logo = veil.querySelector('.bv-logo');
         const fill = veil.querySelector('.bv-bar i');
-        // device pixels per CSS pixel: the interface keeps its pixel art on whole device pixels with it (ui/art.css)
-        const scale = () => root.style.setProperty('--dpr', String(window.devicePixelRatio || 1));
+        // device pixels per CSS pixel: the interface keeps its pixel art on whole device pixels with it (ui/art.css);
+        // followed when it changes (another monitor, the browser's zoom)
+        let watchScale = null;
+        const scale = () => {
+          const d = window.devicePixelRatio || 1;
+          root.style.setProperty('--dpr', String(d));
+          watchScale?.removeEventListener('change', scale);
+          watchScale = matchMedia(`(resolution: ${d}dppx)`);
+          watchScale.addEventListener('change', scale);
+        };
         scale();
         addEventListener('resize', scale);
-        // the logo (121×41 art pixels) at a whole number of device pixels per art pixel, the size the menu's will be
+        // the logo (121×41 art pixels) at a whole number of device pixels per art pixel, the size the menu's will be:
+        // the HUD's automatic size on big screens (ui/tokens.css) times the player's Interface size
         const dpr = window.devicePixelRatio || 1;
-        const aim = innerHeight <= 520 ? 242 : innerHeight <= 900 || innerWidth < 1000 ? 363 : 484;
+        let ui = innerWidth >= 3600 && innerHeight >= 2000 ? 2 : innerWidth >= 3000 && innerHeight >= 1700 ? 1.6 : innerWidth >= 2200 && innerHeight >= 1300 ? 1.2 : 1;
+        try {
+          ui *= JSON.parse(localStorage.getItem('kardashev.settings.v1') ?? '{}').uiScale || 1;
+        } catch {
+          /* storage blocked */
+        }
+        const aim = (innerHeight <= 520 ? 242 : innerHeight <= 900 || innerWidth < 1000 ? 363 : 484) * ui;
         const k = Math.max(1, Math.round((aim * dpr) / 121));
         root.style.setProperty('--boot-w', `${(k * 121) / dpr}px`);
         root.style.setProperty('--boot-h', `${(k * 41) / dpr}px`);
@@ -202,6 +219,7 @@
               to.style.visibility = 'hidden';
               logo.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width})`;
             } else logo.style.opacity = '0';
+            setTimeout(() => root.classList.remove('booting'), 420);
             setTimeout(() => {
               if (to) to.style.visibility = '';
               veil.remove();

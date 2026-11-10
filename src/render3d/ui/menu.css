@@ -32,9 +32,14 @@
     .menu-col > * {
       animation: eSlideRight 0.5s var(--e-ease) both;
     }
-    /* the logo doesn't slide: the loading screen's logo lands on it (play3d/index.html) */
+    /* the logo doesn't slide: the loading screen's logo lands on it (play3d/index.html), and the menu waits for it */
     .menu-col > .menu-logo {
       animation: none;
+    }
+    &.booting .menu-col > *,
+    &.booting .tour-caption,
+    &.booting .tour-caption::before {
+      animation-play-state: paused;
     }
     .menu-col > :nth-child(2) {
       animation-delay: 0.06s;
@@ -106,7 +111,8 @@
         opacity 0.16s,
         scale 0.2s var(--e-ease);
     }
-    .btn.menuitem .grow {
+    .btn.menuitem .grow,
+    .btn.continue .grow {
       text-align: left;
     }
     .btn.menuitem > img.px {

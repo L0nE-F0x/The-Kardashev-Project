@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { BuiltBy, Icon, Window, fmtPlaytime, is3d, useGame } from '../components';
 import { logoUrl } from '../logo';
 import { SITE_BY_ID } from '../../content/sites';
@@ -78,6 +78,22 @@ export function MainMenu() {
   const latest = slots[0];
   const screen = game.menuScreen;
   const newVersion = game.settings.lastSeenVersion !== APP_VERSION;
+  // the arrow keys (and a controller's d-pad, which Steam sends as arrows) walk the menu; Enter presses as usual
+  const col = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (screen !== 'main') return;
+    const onKey = (e: KeyboardEvent) => {
+      const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+      if (!step || e.altKey || e.ctrlKey || e.metaKey) return;
+      const items = [...(col.current?.querySelectorAll<HTMLButtonElement>(':scope > button') ?? [])];
+      if (!items.length) return;
+      const at = items.indexOf(document.activeElement as HTMLButtonElement);
+      e.preventDefault();
+      items[at < 0 ? (step > 0 ? 0 : items.length - 1) : (at + step + items.length) % items.length].focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [screen]);
   const install = async () => {
     if (canPromptInstall()) await promptInstall();
     else game.openMenuScreen('install');
@@ -90,7 +106,7 @@ export function MainMenu() {
   );
   return (
     <div class="menu">
-      <div class="menu-col frame interactive">
+      <div class="menu-col frame interactive" ref={col}>
         <img class="menu-logo" src={logoUrl()} alt="The Kardashev Project" draggable={false} />
         {is3d() && <div class="menu-tag">From a garage to a Type I civilisation</div>}
         {latest && !latest.gameOver && (

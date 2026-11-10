@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Icon, Portrait, pct, useGame } from './components';
 import { linkMaxKm } from '../sim/model';
 import { ASTEROID_BY_ID } from '../content/system';
@@ -49,12 +49,31 @@ export function Toasts() {
   );
 }
 
+/**
+ * Keeps a tooltip whole on screen: its place is worked out for a typical size before it renders, so a long one near
+ * the right or bottom edge is nudged back inside once its real size is known.
+ */
+function useOnScreen() {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = r.right - (window.innerWidth - 4);
+    const dy = r.bottom - (window.innerHeight - 4);
+    if (dx > 0) el.style.left = `${Math.max(4, r.left - dx)}px`;
+    if (dy > 0) el.style.top = `${Math.max(4, r.top - dy)}px`;
+  });
+  return ref;
+}
+
 /** Hover card for things on the map. */
 export function MapTooltip() {
   const game = useGame();
   // the hover card has its own subscription (setHover doesn't re-render the whole HUD)
   const [, setV] = useState(0);
   useEffect(() => game.subscribeHover(() => setV((v) => v + 1)), [game]);
+  const ref = useOnScreen();
   const h = game.hover;
   const s = game.state;
   if (!h || !s || h.clientX < 0 || game.mode === 'title') return null;
@@ -107,7 +126,7 @@ export function MapTooltip() {
   const left = Math.min(window.innerWidth - 310, h.clientX + 16);
   const top = Math.min(window.innerHeight - 140, h.clientY + 14);
   return (
-    <div class="tooltip frame" style={{ left: `${left}px`, top: `${top}px` }}>
+    <div class="tooltip frame" ref={ref} style={{ left: `${left}px`, top: `${top}px` }}>
       <h3>{title}</h3>
       {body}
     </div>
@@ -118,6 +137,7 @@ export function MapTooltip() {
 export function TipLayer() {
   const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  const ref = useOnScreen();
   useEffect(() => {
     const over = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
@@ -157,7 +177,7 @@ export function TipLayer() {
   const left = Math.max(4, Math.min(window.innerWidth - 310, tip.x + 14));
   const top = Math.max(4, Math.min(window.innerHeight - 120, tip.y + 16));
   return (
-    <div class="tooltip frame" style={{ left: `${left}px`, top: `${top}px` }}>
+    <div class="tooltip frame" ref={ref} style={{ left: `${left}px`, top: `${top}px` }}>
       {tip.text}
     </div>
   );
