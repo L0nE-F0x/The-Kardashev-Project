@@ -922,7 +922,15 @@ export class CampusScene implements Scene3D {
     return picked;
   }
 
+  /** QA: film in this weather (rebuilds the scene); null = the site's own again. */
+  setWeather(w: Weather | null) {
+    this.forceWeather = w;
+    this.build();
+  }
+  private forceWeather: Weather | null = null;
+
   private pickWeather(): Weather {
+    if (this.forceWeather) return this.forceWeather;
     if (!this.game.settings.weather) return 'clear';
     // the menu tour films in fair weather (a few shots under cloud, for variety)
     if (this.game.mode === 'title') return noise(this.site.lon * 0.37 + 0.5, this.site.lat * 0.53 + 0.5, 23) > 0.74 ? 'cloudy' : 'clear';

@@ -300,6 +300,7 @@ export class CampusSky {
     this.hemi.color.copy(g(k.hemiSky, '#9a9aa6'));
     this.hemi.groundColor.copy(k.hemiGround);
     this.hemi.intensity = k.hemiI * (1 + grey * 1.1);
+    atmo.uAtmoWet.value = this.weather === 'rain' ? 1 : this.weather === 'snow' ? 0.3 : 0;
     cloudUniforms.uCloudTime.value += dt;
     cloudUniforms.uCloudK.value = (this.weather === 'clear' ? 0.34 : 0.45) * (1 - k.night);
     this.lamps(Math.max(0, k.night - 0.2) * 1.25);
@@ -332,6 +333,7 @@ export class CampusSky {
     atmo.uAtmoSkyTop.value.copy(u.top.value);
     atmo.uAtmoSkyHor.value.copy(u.hor.value);
     atmo.uAtmoHaze.value.set(1 / 1500, 0, 0, 0.9);
+    atmo.uAtmoWet.value = 0;
     this.sun.position.copy(this.sun.target.position).add(new THREE.Vector3(60, 500, 80));
     this.sun.color.set(0xfff4e0);
     this.sun.intensity = 2.4;
@@ -367,6 +369,7 @@ export class CampusSky {
     atmo.uAtmoSkyTop.value.set(0x000000);
     atmo.uAtmoSkyHor.value.set(0x000000);
     atmo.uAtmoHaze.value.set(0, 0, 0, 0);
+    atmo.uAtmoWet.value = 0;
     this.sun.position.copy(this.sun.target.position).addScaledVector(sunLocal, 500);
     this.sun.color.set(0xfff8ee);
     this.sun.intensity = 3.6;

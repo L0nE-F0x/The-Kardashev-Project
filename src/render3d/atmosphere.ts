@@ -18,6 +18,8 @@ export const atmo = {
   uAtmoGlow: { value: new THREE.Color(0xffffff) },
   /** x: 1 / the distance the haze takes hold at (at the base height), y: falloff with height (1/m), z: base height, w: the most it may hide. */
   uAtmoHaze: { value: new THREE.Vector4(0, 0.01, 0, 1) },
+  /** How wet the land is (rain: 1): level ground darkens and turns glossy, so it mirrors the sky. */
+  uAtmoWet: { value: 0 },
   /** The sky as water and glass see it: its zenith and horizon colours as lit now. */
   uAtmoSkyTop: { value: new THREE.Color(0x3a7fd8) },
   uAtmoSkyHor: { value: new THREE.Color(0xcfe6f6) },
@@ -58,6 +60,7 @@ export const LAMP_LAYER = 5;
   uniform vec4 uAtmoHaze;
   uniform vec3 uAtmoSkyTop;
   uniform vec3 uAtmoSkyHor;
+  uniform float uAtmoWet;
   uniform sampler2D uLampTex;
   uniform vec4 uLampBox;
   uniform vec3 uLampK;
@@ -77,6 +80,18 @@ export const LAMP_LAYER = 5;
     // the same sum the sky dome makes at the horizon, so land and sky meet without a seam
     vec3 hcol = fogColor + uAtmoGlow * ( pow( hsun, 5.0 ) * 0.42 );
     gl_FragColor.rgb = mix( gl_FragColor.rgb, hcol, hf );
+  }
+#endif`;
+  // rain: whatever lies level is wet (darker, and glossy where the water stands in patches)
+  C.lights_physical_fragment += /* glsl */ `
+#if defined( USE_FOG )
+  if ( uAtmoWet > 0.0 ) {
+    float wetUp = inverseTransformDirection( normal, viewMatrix ).y;
+    float wetK = uAtmoWet * smoothstep( 0.8, 0.97, wetUp );
+    // water only stands on what is truly level (roads, yards, roofs): rough ground and grass just darken
+    float wetPatch = smoothstep( 0.1, 0.6, sin( vFogWorld.x * 0.21 + sin( vFogWorld.z * 0.13 ) * 2.0 ) * sin( vFogWorld.z * 0.17 + sin( vFogWorld.x * 0.09 ) * 2.0 ) );
+    material.diffuseColor *= 1.0 - 0.3 * wetK;
+    material.roughness = mix( material.roughness, 0.16, uAtmoWet * smoothstep( 0.992, 0.9995, wetUp ) * ( 0.25 + 0.75 * wetPatch ) );
   }
 #endif`;
   // the lamps join the indirect light
