@@ -52,12 +52,6 @@ body.landing {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-/* the game's pixel interface icons keep their hard edges (the logo and the app icon are 3D renders: smooth) */
-body.landing img.px-art,
-body.landing .tile-icon {
-  image-rendering: pixelated;
-}
-
 .wrap {
   width: min(var(--wrap), calc(100% - 32px));
   margin-inline: auto;
