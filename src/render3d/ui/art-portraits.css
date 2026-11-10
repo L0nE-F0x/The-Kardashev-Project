@@ -1,15 +1,32 @@
-/* Portraits in the interface (see art.css for how the whole-pixel sizes work; art3d/INTERFACE.md for what replaces this). */
-@supports (width: round(nearest, 1px, 1px)) {
-  @media (min-width: 821px) and (min-height: 521px) {
-    /* the portraits' sizes come as inline styles (the size prop), hence !important */
-    html.edition-3d:not(.ui-classic) img.portrait {
-      --p: 40px;
-      width: calc(max(32px, round(nearest, var(--p) * var(--ps), 32px)) / var(--ps)) !important;
-      height: calc(max(32px, round(nearest, var(--p) * var(--ps), 32px)) / var(--ps)) !important;
-    }
-    /* where a face is the point: an advisor speaking on a card, Bit in the tutorial */
-    html.edition-3d:not(.ui-classic) :is(.quote, .tut-main, .modal .head, .advisor-tip) > img.portrait {
-      --p: 64px;
-    }
+/*
+ * Portraits in the interface: 3D busts rendered at 240 px (src/render3d/portraits/), shown smooth on a softly
+ * rounded plate at two plain sizes: 40 px in lists and rows, 64 px where someone speaks. No whole-pixel snapping
+ * any more: the picture has four to six pixels for each one shown, and the browser's own scaling is the right one.
+ * The direction is in art3d/INTERFACE.md.
+ */
+html.edition-3d:not(.ui-classic) img.portrait {
+  image-rendering: auto;
+  object-fit: cover;
+  aspect-ratio: 1;
+  border: 0;
+  /* a share of the size, so the plate keeps its shape from the smallest row to an advisor speaking */
+  border-radius: 20%;
+  background: var(--c-ink1, #16141f);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.16),
+    0 3px 10px -3px rgb(0 0 0 / 0.6);
+}
+
+/* Desktop windows only: a small window's compact rows keep the sizes their rules and props give them. */
+@media (min-width: 821px) and (min-height: 521px) {
+  /* the portraits' sizes come as inline styles (the size prop), hence !important */
+  html.edition-3d:not(.ui-classic) img.portrait {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  /* where a face is the point: an advisor speaking on a card, Bit in the tutorial */
+  html.edition-3d:not(.ui-classic) :is(.quote, .tut-main, .modal .head, .advisor-tip) > img.portrait {
+    width: 64px !important;
+    height: 64px !important;
   }
 }

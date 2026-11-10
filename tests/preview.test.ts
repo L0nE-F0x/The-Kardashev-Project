@@ -41,17 +41,3 @@ describe.skipIf(!dir)('art previews', () => {
     setEra(0);
   });
 });
-
-describe.skipIf(!dir)('portrait previews', () => {
-  it('advisors × moods', async () => {
-    const { portraitCanvas } = await import('../src/render/sprites/portraits');
-    const ids = ['juno', 'penny', 'mira', 'sol', 'iris', 'kip', 'bit'] as const;
-    const moods = ['neutral', 'happy', 'worried', 'angry', 'excited'] as const;
-    const sheet = new PixelCanvas(34 * moods.length + 34 * 3, 34 * ids.length);
-    ids.forEach((id, row) => {
-      moods.forEach((m, col) => sheet.blit(portraitCanvas(id, m, 2), col * 34, row * 34));
-    });
-    [0, 1, 3].forEach((g, i) => sheet.blit(portraitCanvas('bit', 'neutral', g), (moods.length + i) * 34, 6 * 34));
-    fs.writeFileSync(path.join(dir!, 'portraits.png'), pixelCanvasToPng([sheet], 4));
-  });
-});

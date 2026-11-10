@@ -4,7 +4,7 @@ import type { Game } from '../game/game';
 import type { AdvisorId } from '../sim/types';
 import type { Mood } from '../content/events';
 import { iconUrl, type IconName } from './icons';
-import { ceoPortraitUrl, portraitUrl } from '../render/sprites/portraits';
+import { ceoPortraitUrl, portraitUrl } from '../render3d/portraits/portraits';
 import type { Speaker } from '../content/events';
 import { DELEGATES, PARTNERS } from '../content/charter';
 import { CAST4 } from '../content/planet';
