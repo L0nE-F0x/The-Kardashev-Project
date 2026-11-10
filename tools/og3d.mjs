@@ -15,12 +15,12 @@ html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; backgrou
 .bg { position: absolute; inset: 0; background: url(data:image/png;base64,${b64('art3d/site/og-source.png')}) center 62% / cover; }
 .fade { position: absolute; inset: 0; background: linear-gradient(90deg, rgb(7 6 13 / 0.92) 0%, rgb(7 6 13 / 0.78) 34%, rgb(7 6 13 / 0.15) 62%, transparent 75%); }
 .text { position: absolute; left: 56px; top: 92px; width: 520px; font-family: 'A'; color: #eeeaf6; }
-img { width: 484px; image-rendering: pixelated; display: block; }
+img { width: 484px; display: block; }
 p { font-size: 30px; line-height: 1.32; margin: 30px 0 0; font-weight: 600; }
 p b { color: #7ff0d3; font-weight: 800; }
 .url { position: absolute; right: 26px; bottom: 20px; font-family: 'A'; font-size: 18px; font-weight: 700; color: rgb(255 255 255 / 0.82); text-shadow: 0 1px 6px rgb(0 0 0 / 0.7); }
 </style></head><body><div class="bg"></div><div class="fade"></div>
-<div class="text"><img src="data:image/png;base64,${b64('public/logo.png')}"><p>A cozy-but-real sim of the AI boom, <b>now in 3D</b>. Build power, chips and compute — and climb the Kardashev scale.</p></div>
+<div class="text"><img src="data:image/png;base64,${b64('public/logo.png')}"><p>A cozy-but-real sim of the AI boom, <b>in 3D</b>. Build power, chips and compute — and climb the Kardashev scale.</p></div>
 <div class="url">thekardashevproject.netlify.app</div></body></html>`;
 const browser = await chromium.launch({ executablePath: process.env.CHROME ?? '/usr/bin/google-chrome-stable', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 if (process.argv[2] === 'globe') {

@@ -1,6 +1,6 @@
 /* The public home page (2026 redesign, 3D shots since v0.10.1). The game's fonts come from base.css; the look here
-   is the site's own: deep space, soft glows, glass panels and big screenshots from the 3D edition. The hero keeps the
-   game's pixel logo; its globe is the 3D edition's (the pixel one where WebGL is missing). */
+   is the site's own: deep space, soft glows, glass panels and big screenshots from the 3D edition. The hero has the
+   game's logo (a 3D wordmark); its globe is the game's own (a still of it where WebGL is missing). */
 
 :root {
   --site-bg: #07060d;
@@ -52,11 +52,9 @@ body.landing {
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-/* the game's own pixel art (the logo, the app icon, the interface icons) keeps its hard edges */
+/* the game's pixel interface icons keep their hard edges (the logo and the app icon are 3D renders: smooth) */
 body.landing img.px-art,
-body.landing .tile-icon,
-body.landing .logo,
-body.landing .brand img {
+body.landing .tile-icon {
   image-rendering: pixelated;
 }
 
@@ -270,6 +268,8 @@ section {
   width: 100%;
   max-width: 540px;
   height: auto;
+  /* the picture is empty for 8/121 of its width at the left: the letters stand on the text's left edge */
+  margin-left: calc(min(100%, 540px) * -8 / 121);
 }
 .tagline {
   font-size: clamp(19px, 1.8vw, 22px);
