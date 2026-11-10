@@ -260,16 +260,20 @@ export function dress(fig: THREE.Object3D, L: Look) {
   if (L.stethoscope !== undefined) {
     // round the neck, the chest piece hanging on one side
     const tubeM = matte(L.stethoscope, 0.5);
-    part(geo.torus(0.07, PI * 1.3), tubeM, [0, -1.33, -0.02], { s: [0.52, 0.5, 0.5], r: [PI / 2 + 0.25, 0, PI * 0.85] });
-    stick(fig, tubeM, chest(-0.4, -1.42, 0.04), chest(-0.3, -2.02, 0.05), 0.035);
-    stick(fig, tubeM, chest(0.4, -1.42, 0.04), chest(0.36, -1.9, 0.05), 0.035);
-    part(geo.cyl(), gloss(C.ink8, 0.3), chest(0.36, -1.97, 0.07), { s: [0.1, 0.05, 0.1], r: [PI / 2 - 0.3, 0, 0] });
-    put(fig, geo.ball(), lit(C.white, 0.9), chest(0.33, -1.94, 0.11), { s: 0.022, ghost: true });
+    part(geo.torus(0.075, PI * 1.24), tubeM, [0, -1.36, -0.02], { s: [0.6, 0.58, 0.6], r: [PI / 2 + 0.2, 0, PI * 0.88] });
+    stick(fig, tubeM, chest(-0.52, -1.46, 0.07), chest(-0.4, -2.0, 0.08), 0.042);
+    stick(fig, tubeM, chest(0.52, -1.46, 0.07), chest(0.46, -1.86, 0.08), 0.042);
+    part(geo.ball(), gloss(C.ink8, 0.3), chest(-0.4, -2.04, 0.09), { s: [0.06, 0.06, 0.05] });
+    part(geo.cyl(), gloss(C.ink8, 0.3), chest(0.46, -1.95, 0.1), { s: [0.12, 0.06, 0.12], r: [PI / 2 - 0.3, 0, 0] });
+    put(fig, geo.ball(), lit(C.white, 0.9), chest(0.42, -1.91, 0.15), { s: 0.026, ghost: true });
   }
   if (L.pillow) {
     // a travel pillow round the neck, open under the chin
     const [dark, light] = L.pillow;
-    part(geo.torus(0.4, PI * 1.56), matte(blend(dark, light, 0.6), 0.95), [0, -1.14, -0.06], { s: [0.56, 0.56, 0.52], r: [PI / 2 + 0.06, 0, PI * 0.72] });
+    const foam = matte(blend(dark, light, 0.6), 0.95);
+    part(geo.torus(0.36, PI * 1.5), foam, [0, -1.2, -0.08], { s: [0.62, 0.62, 0.62], r: [PI / 2, 0, PI * 0.75] });
+    // its two rounded ends, either side of the chin
+    for (const side of [-1, 1]) part(geo.ball(), foam, [side * 0.44, -1.2, 0.36], { s: 0.225 });
   }
   if (L.mask !== undefined) {
     // a face mask (or a bandana) pulled down under the chin

@@ -2,13 +2,13 @@
  * The portrait contact sheet (dev only: /play/portraits.html, not part of the build). Every face at the two sizes
  * the interface shows it, on the panel colour:
  *   ?set=advisors (five moods) · ages (0–3) · ceos · governors · bit (0–11 × moods) · ais · moods (everyone, five moods)
- *   &big=120&small=40 sizes · &only=juno,penny · &mood=happy
+ *   &big=120&small=40 sizes · &only=juno,penny · &mood=happy · &per=8 a row · &lazy paced as in the game
  * `window.portraitTimes` holds how long each render took (ms), first to last.
  */
 import type { AdvisorId } from '../../sim/types';
 import type { Mood } from '../../content/events';
 import { AVATAR_IDS, CEO_LOOKS, GOVERNOR_LOOKS, LOOKS } from './looks';
-import { ceoPortraitUrl, governorPortraitUrl, portraitUrl } from './portraits';
+import { ceoPortraitUrl, governorPortraitUrl, portraitsPending, portraitUrl, setPortraitBudget } from './portraits';
 
 const q = new URLSearchParams(location.search);
 const set = q.get('set') ?? 'advisors';
@@ -18,6 +18,8 @@ const only = q.get('only')?.split(',');
 const oneMood = (q.get('mood') ?? 'neutral') as Mood;
 const MOODS: Mood[] = ['neutral', 'happy', 'worried', 'angry', 'excited'];
 const sheet = document.getElementById('sheet')!;
+// every face rendered before its cell is made, so the timings mean something; ?lazy = paced as in the game
+if (!q.has('lazy')) setPortraitBudget(Infinity);
 const times: number[] = [];
 (window as unknown as { portraitTimes: number[] }).portraitTimes = times;
 
@@ -92,6 +94,10 @@ if (set === 'advisors') {
     for (const m of MOODS) cell(r, m, timed(() => ceoPortraitUrl(id, m)));
   }
 }
-(window as unknown as { portraitApi: unknown }).portraitApi = await import("./portraits");
+(window as unknown as { portraitApi: unknown }).portraitApi = await import('./portraits');
 document.title = `Portrait sheet: ${set} (${times.length})`;
-document.body.dataset.ready = '1';
+const ready = () => {
+  if (portraitsPending()) setTimeout(ready, 30);
+  else document.body.dataset.ready = '1';
+};
+ready();

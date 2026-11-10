@@ -132,7 +132,7 @@ function open(): Studio | null {
     rim.position.set(4.6, 2.6, -5);
     scene.add(rim);
     // a little fill from the front right so the shadow side keeps its colour
-    const fill = new THREE.DirectionalLight(0xcfd8ff, 0.5);
+    const fill = new THREE.DirectionalLight(0xcfd8ff, 0.8);
     fill.position.set(4, 0.5, 6);
     scene.add(fill);
 

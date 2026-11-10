@@ -129,7 +129,7 @@ function next(root: THREE.Group, fig: THREE.Group, gen: number, mood: Mood) {
   put(fig, geo.cyl(), under, [0, -1.5, 0], { s: [0.32, 0.5, 0.32] });
   put(fig, geo.torus(0.12), five ? lit(C.cyn5) : matte(C.ice1, 0.5), [0, -1.52, 0], { s: [0.36, 0.36, 0.4], r: [PI / 2, 0, 0], ghost: true });
   const head = group(fig, [0, -0.3, 0], [mood === 'worried' ? 0.08 : mood === 'excited' ? -0.08 : 0, 0, mood === 'happy' ? 0.07 : mood === 'worried' ? -0.07 : 0]);
-  if (five) halo(root, C.cyn5, [0, -0.3, -1.2], 3.3, 0.2);
+  if (five) halo(root, C.cyn5, [0, -0.3, -1.2], 3.2, 0.14);
   put(head, geo.orb(), shell, [0, 0, 0], { s: [1.26, 1.1, 1.12] });
   // the face plate, set into the shell
   put(head, plate(0.98, 0.74), gloss(five ? C.night0 : C.vio0, 0.22), [0, 0, 0], { s: [1.26, 1.1, 1.12] });

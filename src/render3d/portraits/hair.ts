@@ -92,10 +92,10 @@ export function hair(head: THREE.Object3D, L: Look) {
   const fall = (length: number, width = 1) => {
     ball([0, -0.55 - length * 0.4, -0.42], [0.92 * width, 0.5 + length * 0.55, 0.52]);
     for (const side of [-1, 1]) {
-      ball([side * 0.8 * width, -0.5 - length * 0.42, -0.05], [0.27, 0.45 + length * 0.5, 0.44]);
-      if (tipC) ball([side * 0.8 * width, -0.62 - length * 0.82, -0.03], [0.275, 0.3, 0.45], tipC);
+      // the lengths at the front come forward over the shoulders
+      ball([side * 0.82 * width, -0.5 - length * 0.42, 0.1], [0.26, 0.45 + length * 0.5, 0.42], main, [0.12, 0, 0]);
+      if (tipC) ball([side * 0.82 * width, -0.62 - length * 0.74, 0.19], [0.265, 0.34, 0.43], tipC, [0.12, 0, 0]);
     }
-    if (tipC) ball([0, -0.7 - length * 0.82, -0.42], [0.93 * width, 0.3, 0.53], tipC);
   };
 
   switch (L.style) {
@@ -452,8 +452,9 @@ export function hair(head: THREE.Object3D, L: Look) {
   }
   if (L.temples !== undefined) {
     for (const side of [-1, 1]) {
-      const t = mount(head, side * 1.2, 0.36, 0.06);
-      put(t, geo.ball(), matte(L.temples, 0.92), [0, 0, 0], { s: [0.2, 0.17, 0.03] });
+      // a wing of grey above each ear, lying in the hair
+      const t = mount(head, side * 1.16, 0.3, L.style === 'bob' ? 0.1 : 0.055);
+      put(t, geo.ball(), matte(L.temples, 0.92), [0, 0, 0], { s: [0.2, 0.12, 0.035], r: [0, 0, side * -0.35] });
     }
   }
 }

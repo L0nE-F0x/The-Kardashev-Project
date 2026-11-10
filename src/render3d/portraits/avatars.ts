@@ -60,7 +60,7 @@ function apex(root: THREE.Group, fig: THREE.Group, mood: Mood) {
       put(g, geo.box(0.3), eye, [0, 0, 0], { s: [0.56, 0.1, 0.03], r: [0, 0, slant], ghost: true });
       put(g, geo.ball(), lit(C.org2), [side * 0.3, slant * side * 0.3, 0], { s: 0.04, ghost: true });
     }
-    halo(g, mood === 'angry' ? C.yel1 : C.org2, [0, 0, 0.04], 0.9, 0.5);
+    halo(g, mood === 'angry' ? C.yel1 : C.org2, [0, 0, 0.04], 0.6, 0.45);
   }
   if (mood === 'excited') for (const [x, y] of [[-1.5, 0.5], [1.5, 0.5], [-1.62, -0.42], [1.62, -0.42]] as const) sparkle(root, [x, y, 0.2], 0.12, C.yel1, C.org1);
   // a mouth: a notch across the two lower front facets (u toward the side corner, v toward the bottom tip)
@@ -210,12 +210,12 @@ function chorus(root: THREE.Group, fig: THREE.Group, mood: Mood) {
   put(fig, geo.cyl(), matte(C.blu3, 0.7), [0, -1.3, 0], { s: [0.26, 0.5, 0.26] });
   const head = group(fig, [0, -0.1, 0], nod(mood));
   // the face: a pale oval in slices, each a little out of step with the next, like a waveform
-  const n = 15;
+  const n = 17;
   for (let i = 0; i < n; i++) {
     const t = ((i + 0.5) / n) * 2 - 1;
     const ripple = Math.abs(t) < 0.8 ? [0, 0.045, 0, -0.045][i % 4] : 0;
     const w = Math.sqrt(1 - t * t) * 0.98 + ripple;
-    put(head, geo.orb(), matte(i % 3 === 0 ? C.ice2 : C.white, 0.55), [0, t * 1.24, 0], { s: [w, 0.074, w * 0.9] });
+    put(head, geo.orb(), matte(i % 3 === 0 ? C.ice2 : C.white, 0.55), [0, t * 1.24, 0], { s: [w, 0.068, w * 0.9] });
   }
   put(head, geo.orb(), matte(blend(C.ice1, C.ice2, 0.5), 0.7), [0, 0, 0], { s: [0.93, 1.21, 0.83] });
   const ink = matte(C.blu0, 0.6);
@@ -226,20 +226,15 @@ function chorus(root: THREE.Group, fig: THREE.Group, mood: Mood) {
     const x = side * 0.36;
     if (mood === 'happy' || mood === 'excited') {
       // eyes closed in a smile
-      dash(`ch-smile${side}`, [[-0.13, -0.05], [0, 0.05], [0.13, -0.05]], x, ey);
-      put(head, geo.plate(), soft(C.pnk1, 0.6), [side * 0.56, -0.2, z - 0.14], { s: [0.2, 0.13, 1], r: [0, side * 0.5, 0], order: 2 });
-    } else if (mood === 'worried') {
-      put(head, geo.ball(), ink, [x, ey, z - 0.1], { s: [0.12, 0.14, 0.07], ghost: true });
-      put(head, geo.ball(), lit(C.cyn6), [x - 0.035, ey + 0.045, z - 0.02], { s: 0.04, ghost: true });
-      dash(`ch-brow-w${side}`, [[side * 0.16, 0], [side * -0.12, 0.13]], x, ey + 0.22);
-    } else if (mood === 'angry') {
-      dash(`ch-eye-a${side}`, [[-0.13, 0], [0.13, 0]], x, ey, ink, 0.055);
-      dash(`ch-brow-a${side}`, [[side * 0.17, 0.13], [side * -0.13, 0]], x, ey + 0.16);
+      dash(`ch-smile${side}`, [[-0.15, -0.06], [0, 0.06], [0.15, -0.06]], x, ey, ink, 0.05);
+      put(head, geo.plate(), soft(C.pnk1, 0.7), [side * 0.56, -0.2, z - 0.14], { s: [0.22, 0.14, 1], r: [0, side * 0.5, 0], order: 2 });
     } else {
-      // a little sad: the outer corners low, the brows raised in the middle
-      dash(`ch-eye-n${side}`, [[side * 0.14, -0.06], [side * 0.03, 0.025], [side * -0.12, 0.025]], x, ey, ink, 0.052);
-      put(head, geo.ball(), lit(C.cyn5), [x, ey - 0.1, z - 0.07], { s: 0.026, ghost: true });
-      dash(`ch-brow-n${side}`, [[side * 0.13, 0], [side * -0.1, 0.07]], x, ey + 0.24, matte(C.blu3, 0.6), 0.034);
+      // dark, glassy eyes; a little sad even at rest (the outer corners low, the brows raised in the middle)
+      const big = mood === 'angry' ? 0.8 : 1;
+      put(head, geo.ball(), gloss(C.blu0, 0.2), [x, ey, z - 0.1], { s: [0.12, 0.15 * big, 0.07], r: [0, 0, side * -0.18], ghost: true });
+      put(head, geo.ball(), lit(mood === 'worried' ? C.cyn6 : C.white), [x - 0.035, ey + 0.05, z - 0.02], { s: 0.036, ghost: true });
+      const slope = mood === 'angry' ? -0.16 : mood === 'worried' ? 0.17 : 0.08;
+      dash(`ch-brow-${mood}${side}`, [[side * 0.17, 0], [side * -0.13, slope]], x, ey + (mood === 'angry' ? 0.2 : 0.27), mood === 'neutral' ? matte(C.blu3, 0.6) : ink, mood === 'neutral' ? 0.032 : 0.042);
     }
   }
   if (mood === 'worried') {

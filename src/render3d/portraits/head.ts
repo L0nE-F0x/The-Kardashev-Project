@@ -227,7 +227,7 @@ export function browOf(L: Look): string {
   tone.getHSL(hsl);
   // silver and white hair: a grey brow that still shows; blond: a sandy brown one
   if (hsl.l > 0.5 && hsl.s < 0.25) return blend(C.ink5, L.hair[0], 0.3);
-  if (hsl.l > 0.5) return blend(L.hair[0], C.snd3, 0.6);
+  if (hsl.l > 0.5) return blend(L.hair[0], C.snd3, 0.78);
   return shade(blend(L.hair[0], L.hair[1], 0.25), -0.03);
 }
 
@@ -256,7 +256,7 @@ export function quirksOf(L: Look): Quirks {
   for (const ch of JSON.stringify([L.bg, L.skin, L.cloth, L.style])) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   const r = rand(h);
   const around = (spread: number) => 1 + (r() * 2 - 1) * spread;
-  return { wide: around(0.04), long: around(0.035), eyeGap: (r() * 2 - 1) * 0.03, eyeSize: around(0.1), eyeTall: around(0.1), nose: around(0.2), brow: around(0.18), mouth: around(0.1) };
+  return { wide: around(0.05), long: around(0.04), eyeGap: (r() * 2 - 1) * 0.035, eyeSize: around(0.12), eyeTall: around(0.12), nose: around(0.22), brow: around(0.2), mouth: around(0.12) };
 }
 
 /** The skull, ears, nose and the face in a mood. `head` is centred on the skull. */
@@ -341,7 +341,7 @@ export function face(head: THREE.Object3D, L: Look, mood: Mood) {
   }
 
   // what a life leaves on a face
-  const lineMat = sheer(skin.crease, 0.34);
+  const lineMat = sheer(skin.crease, 0.26);
   if (L.lines || L.age === 1 || L.age === 2) {
     const deep = L.age === 2 ? 1.25 : 1;
     for (const side of [-1, 1]) {
@@ -370,7 +370,8 @@ export function face(head: THREE.Object3D, L: Look, mood: Mood) {
   }
   if (L.scar) {
     // an old cut through the brow and down the cheek
-    put(head, seam('scar', [[0.5, 0.36], [0.47, 0.1], [0.5, -0.12], [0.55, -0.26]], 0.016, 0.006), matte(blend(skin.light, C.pnk1, 0.35), 0.7), [0, 0, 0], { ghost: true });
+    put(head, seam('scar-brow', [[0.52, 0.38], [0.5, 0.26], [0.5, 0.14]], 0.014, 0.014), matte(blend(skin.light, C.pnk1, 0.3), 0.7), [0, 0, 0], { ghost: true });
+    put(head, seam('scar-cheek', [[0.53, -0.2], [0.56, -0.3], [0.62, -0.42]], 0.014, 0.006), matte(blend(skin.light, C.pnk1, 0.3), 0.7), [0, 0, 0], { ghost: true });
   }
 }
 
@@ -387,8 +388,8 @@ export function glasses(head: THREE.Object3D, thin: boolean) {
     const e = mount(head, side * EYE.az, EYE.el, 0.1);
     put(e, geo.torus(tube), frame, [0, 0, 0], { s: R, ghost: true });
     // a glint on the glass
-    put(e, geo.plate(), sheer(C.white, 0.14), [0, 0, 0], { s: R, ghost: true, order: 4 });
-    put(e, geo.pill(), lit(C.white, 0.5), [-0.05, 0.07, 0.002], { s: [0.11, 0.1, 0.02], r: [0, 0, 0.7], ghost: true, order: 5 });
+    put(e, geo.plate(), lit(C.white, 0.07), [0, 0, 0], { s: R, ghost: true, order: 4 });
+    put(e, geo.pill(), lit(C.white, 0.4), [-0.06, 0.08, 0.002], { s: [0.09, 0.08, 0.02], r: [0, 0, 0.7], ghost: true, order: 5 });
     // the arm back to the ear
     const a = surf(side * (EYE.az + 0.24), EYE.el + 0.02, 0.1);
     const b = surf(side * 1.5, 0.04, 0.03);
