@@ -4,7 +4,7 @@
  *
  *   /play/icons.html                 everything, by family
  *   …?only=cash,power,dock:compute   just these (a `dock:` prefix picks the dock's drawing)
- *   …?group=power                    one family (the start of its title; `dock`, `medals`)
+ *   …?group=power,dock               some families (the start of each title; `dock`, `medals`)
  *   …?mag=6                          also what a 16 px and a 20 px icon really look like, magnified 6× pixel for pixel
  *   …?bg=hud | gold | light          the icons on the top bar's plate, on a gold button, on a light surface
  *   …?sizes=18,96                    other sizes than the usual four (a big one shows the drawing itself)
@@ -15,7 +15,7 @@ import { MEDAL_TIERS, medalUrl } from '../ui/medals';
 
 const q = new URLSearchParams(location.search);
 const only = (q.get('only') ?? '').split(',').filter(Boolean);
-const group = (q.get('group') ?? '').toLowerCase();
+const groups = (q.get('group') ?? '').toLowerCase().split(',').filter(Boolean);
 const mag = Math.max(0, Math.min(12, Number(q.get('mag')) || 0));
 const sizes = (q.get('sizes') ?? '')
   .split(',')
@@ -86,23 +86,26 @@ function cell(box: HTMLElement, name: string, url: string, sizes: number[], magS
   box.append(c);
 }
 
-const wants = (title: string, key: string) => (only.length ? only.includes(key) : !group || title.toLowerCase().startsWith(group));
+const wants = (title: string, key: string) => (only.length ? only.includes(key) : !groups.length || groups.some((g) => title.toLowerCase().startsWith(g)));
 
 for (const [title, names] of Object.entries(ICON_GROUPS) as [string, IconName[]][]) {
   const list = names.filter((nm) => wants(title, nm));
   if (!list.length) continue;
-  const box = section(title, `${list.length} · 16, 20, 27, 48 px`);
-  for (const nm of list) cell(box, nm, iconUrl(nm), sizes.length ? sizes : [16, 20, 27, 48], [16, 20]);
+  const px = sizes.length ? sizes : [16, 20, 27, 48];
+  const box = section(title, `${list.length} · ${px.join(', ')} px`);
+  for (const nm of list) cell(box, nm, iconUrl(nm), px, [16, 20]);
 }
 
 const dock = DOCK_ICON_NAMES.filter((nm) => wants('dock', `dock:${nm}`));
 if (dock.length) {
-  const box = section('Dock', `${dock.length} · 16, 20, 27, 48 px (the dock shows them at 24–34)`);
-  for (const nm of dock) cell(box, `dock:${nm}`, dockIconUrl(nm as DockIconName), sizes.length ? sizes : [16, 20, 27, 48], [24, 30]);
+  const px = sizes.length ? sizes : [24, 28, 34, 48];
+  const box = section('Dock', `${dock.length} · ${px.join(', ')} px (the dock shows them at 24–34)`);
+  for (const nm of dock) cell(box, `dock:${nm}`, dockIconUrl(nm as DockIconName), px, [24, 30]);
 }
 
 const medals = MEDAL_TIERS.filter((t) => wants('medals', `medal:${t}`));
 if (medals.length) {
-  const box = section('Medals', '24, 36, 48, 72 px');
-  for (const t of medals) cell(box, `medal:${t}`, medalUrl(t), sizes.length ? sizes : [24, 36, 48, 72], [24]);
+  const px = sizes.length ? sizes : [34, 48, 68, 96];
+  const box = section('Medals', `${px.join(', ')} px (the achievements list shows them at 68)`);
+  for (const t of medals) cell(box, `medal:${t}`, medalUrl(t), px, [34]);
 }
