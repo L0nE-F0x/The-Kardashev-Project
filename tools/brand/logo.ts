@@ -94,7 +94,7 @@ function shapesOf(cut: Cut, text: string, track: number, gap = 0): { shapes: THR
     last = x + g.adv;
     x += (adv?.[i] ?? g.adv) + track + gap;
   });
-  return { shapes: path.toShapes(false), width: last };
+  return { shapes: path.toShapes(), width: last };
 }
 
 /** Extruded letters with the front face at z = 0 and the body behind it, scaled so the caps are `cap` tall. */

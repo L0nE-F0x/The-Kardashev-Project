@@ -72,7 +72,9 @@ function icnsOf(entries: [type: string, png: Buffer][]): Buffer {
 }
 
 if (doing('logo') || doing('icons')) {
-  const { chromium } = (await import(process.env.PLAYWRIGHT ?? 'playwright')) as typeof import('playwright');
+  // (Playwright isn't one of the project's packages: it comes from the machine, so it has no types here)
+  const playwright: string = process.env.PLAYWRIGHT ?? 'playwright';
+  const { chromium } = await import(playwright);
   // the tool pages are TypeScript that imports the game's own code: Vite serves them
   let base = process.env.BASE;
   let server: import('vite').ViteDevServer | null = null;
@@ -91,7 +93,7 @@ if (doing('logo') || doing('icons')) {
     ? await chromium.connectOverCDP(process.env.CDP)
     : await chromium.launch({ executablePath: process.env.CHROME ?? '/usr/bin/google-chrome-stable', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await (process.env.CDP ? browser.contexts()[0] : await browser.newContext()).newPage();
-  page.on('pageerror', (e) => console.error('page error:', e.message));
+  page.on('pageerror', (e: Error) => console.error('page error:', e.message));
   try {
     if (doing('logo')) {
       console.log('logo');
