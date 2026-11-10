@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { BuiltBy, Icon, Window, fmtPlaytime, useGame } from '../components';
+import { BuiltBy, Icon, Window, fmtPlaytime, is3d, useGame } from '../components';
 import { logoUrl } from '../logo';
 import { SITE_BY_ID } from '../../content/sites';
 import { DIFFICULTIES, FOUNDERS } from '../../content/difficulty';
@@ -58,6 +58,18 @@ function ago(ms: number): string {
   return `${Math.round(h / 24)} days ago`;
 }
 
+/** The 3D edition's caption: the place in bold, the rest under it (a lower third); keyed by its text, so each shot's eases in. */
+function TourCaption({ text }: { text: string }) {
+  const cut = text.indexOf(' · ');
+  return (
+    <div class="tour-caption frame">
+      <b>{cut < 0 ? text : text.slice(0, cut)}</b>
+      {cut >= 0 && <i> · </i>}
+      {cut >= 0 && <span>{text.slice(cut + 3)}</span>}
+    </div>
+  );
+}
+
 /** The front door: menu column over the cinematic tour, plus the menu's windows. */
 export function MainMenu() {
   const game = useGame();
@@ -80,6 +92,7 @@ export function MainMenu() {
     <div class="menu">
       <div class="menu-col frame interactive">
         <img class="menu-logo" src={logoUrl()} alt="The Kardashev Project" draggable={false} />
+        {is3d() && <div class="menu-tag">From a garage to a Type I civilisation</div>}
         {latest && !latest.gameOver && (
           <button class="btn primary continue" onClick={() => game.continueSlot(latest.id)}>
             <Icon name="play" />
@@ -126,7 +139,7 @@ export function MainMenu() {
           </div>
         </div>
       </div>
-      {game.tourCaption && <div class="tour-caption frame">{game.tourCaption}</div>}
+      {game.tourCaption && (is3d() ? <TourCaption text={game.tourCaption} key={game.tourCaption} /> : <div class="tour-caption frame">{game.tourCaption}</div>)}
       <AppBanner />
 
       {screen === 'new' && <NewCompany tutorialDefault={tutorialNew ? true : undefined} key={tutorialNew ? 't' : 'n'} />}

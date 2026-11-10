@@ -1,0 +1,162 @@
+/* The 3D edition's late-game screens: the plan and era screens, the time-lapse bar, the Type I ending. */
+
+html.edition-3d:not(.ui-classic) {
+  .planmodal .buildcard.active {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--cyan) 30%, transparent),
+      0 0 20px -8px var(--cyan);
+  }
+  .planmodal .buildcard.active .m {
+    color: var(--cyan);
+    font-weight: 700;
+  }
+  .jump {
+    border-color: var(--e-gold-line);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--gold) 10%, transparent), transparent 70px),
+      var(--e-glass-solid);
+    box-shadow:
+      var(--e-shadow),
+      0 0 60px -22px var(--gold);
+    animation: eRise 0.3s var(--e-ease);
+  }
+
+  /* ── Type I ──────────────────────────────────────────────────────────────────── */
+  .ending {
+    background:
+      linear-gradient(180deg, rgb(5 5 12 / 0.25) 0%, transparent 30%, rgb(5 5 12 / 0.7) 100%),
+      radial-gradient(ellipse at 50% 45%, transparent 40%, rgb(5 5 12 / 0.5) 100%);
+  }
+  .ending.cinematic {
+    background: linear-gradient(180deg, rgb(5 5 12 / 0.45) 0%, transparent 16%, transparent 58%, rgb(5 5 12 / 0.78) 100%);
+  }
+  .ending-k {
+    text-shadow: none;
+    animation: eEnding 3.2s ease-out both;
+  }
+  .ending-k .label {
+    color: var(--cyan);
+    letter-spacing: 0.5em;
+    margin-right: -0.5em; /* the tracking's trailing gap, so the word stays centred */
+    text-shadow: 0 1px 12px rgb(0 0 0 / 0.9);
+  }
+  .ending-k .big {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    line-height: 1.02;
+    color: var(--gold);
+    filter: drop-shadow(0 0 34px color-mix(in srgb, var(--c-org1, #f08a46) 60%, transparent)) drop-shadow(0 3px 0 rgb(0 0 0 / 0.5));
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .ending-k .big {
+      background: var(--e-sun);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  }
+  .ending-k .sub {
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--c-white, #fbf7f0);
+    text-shadow: 0 1px 12px rgb(0 0 0 / 0.9);
+  }
+  .ending-hint {
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    animation: eFade 2s ease-out 3.5s both;
+  }
+  .ending .modal {
+    animation: ePop 0.5s var(--e-ease);
+  }
+  .credits-roll {
+    background: linear-gradient(180deg, rgb(5 5 12 / 0.9), rgb(5 5 12 / 0.62) 30%, rgb(5 5 12 / 0.62) 70%, rgb(5 5 12 / 0.9));
+  }
+  .credits-roll .roll h2 {
+    font-weight: 800;
+    letter-spacing: 0.01em;
+  }
+  .credits-roll .roll h4 {
+    letter-spacing: 0.3em;
+  }
+  & img.endcard {
+    border: 0;
+    border-radius: var(--e-r-sm);
+    box-shadow:
+      0 0 0 1px var(--e-line-strong),
+      0 16px 40px -16px #000;
+  }
+}
+
+@keyframes eEnding {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+}
+
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    .modal.planmodal {
+      width: min(780px, 100%) !important;
+    }
+    .planmodal .body > p {
+      font-size: 14.5px;
+      line-height: 1.46;
+      color: color-mix(in srgb, var(--text) 86%, transparent);
+    }
+    .planmodal h4 {
+      margin: 14px 0 7px;
+    }
+    .ending {
+      padding: 20px;
+    }
+    .ending.cinematic {
+      padding-bottom: 9vh;
+    }
+    .ending-k .label {
+      font-size: 15px;
+    }
+    .ending-k .big {
+      font-size: clamp(72px, 11.5vw, 190px);
+    }
+    .ending-k .sub {
+      font-size: 22px;
+      margin-top: 6px;
+    }
+    .ending-hint {
+      bottom: 22px;
+      right: 28px;
+      font-size: 12px;
+    }
+    .ending .modal.epilogue {
+      width: min(720px, 100%);
+    }
+    .ending .modal .story {
+      font-size: 17.5px;
+      line-height: 1.58;
+    }
+    .credits-roll .roll {
+      width: min(640px, 100%);
+      font-size: 17px;
+      line-height: 1.5;
+    }
+    .credits-roll .roll h2 {
+      font-size: 34px;
+      margin: 24px 0 8px;
+    }
+    .credits-roll .roll h4 {
+      font-size: 13px;
+      margin: 34px 0 10px;
+    }
+  }
+}
+/* the end card (480×270 pixel art) at exactly twice its size where the screen is tall enough for it */
+@media (min-width: 1080px) and (min-height: 941px) {
+  html.edition-3d:not(.ui-classic) {
+    .modal:has(> .body > img.endcard) {
+      width: min(1002px, 100%) !important;
+    }
+  }
+}

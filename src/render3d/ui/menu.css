@@ -1,0 +1,626 @@
+/*
+ * The 3D edition's title screen: the menu tour is the film, the interface frames it. The logo and the menu stand
+ * straight on the picture at the left (no box), shaded so they read over any shot; the shot's caption is a
+ * lower third at the right; the version and the credits sit small at the foot. Then the windows the menu opens.
+ */
+
+/* the title screen proper is for desktop windows; a phone keeps its compact two-column menu in a glass frame */
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    /* the shade: dark at the left for the menu, a soft letterbox top and bottom, a vignette in the corners */
+    .menu::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, rgb(5 5 12 / 0.9) 0%, rgb(5 5 12 / 0.7) 20%, rgb(5 5 12 / 0.24) 40%, transparent 56%),
+        linear-gradient(180deg, rgb(5 5 12 / 0.6) 0%, transparent 15%, transparent 76%, rgb(5 5 12 / 0.74) 100%),
+        radial-gradient(ellipse at 62% 50%, transparent 52%, rgb(5 5 12 / 0.4) 100%);
+      animation: eFade 0.9s ease-out;
+    }
+    .menu-col {
+      background: none;
+      border: 0;
+      box-shadow: none;
+      border-radius: 0;
+      scrollbar-width: none;
+    }
+    .menu-col::-webkit-scrollbar {
+      display: none;
+    }
+    .menu-col > * {
+      animation: eSlideRight 0.5s var(--e-ease) both;
+    }
+    /* the logo doesn't slide: the loading screen's logo lands on it (play3d/index.html) */
+    .menu-col > .menu-logo {
+      animation: none;
+    }
+    .menu-col > :nth-child(2) {
+      animation-delay: 0.06s;
+    }
+    .menu-col > :nth-child(3) {
+      animation-delay: 0.1s;
+    }
+    .menu-col > :nth-child(4) {
+      animation-delay: 0.14s;
+    }
+    .menu-col > :nth-child(5) {
+      animation-delay: 0.18s;
+    }
+    .menu-col > :nth-child(6) {
+      animation-delay: 0.22s;
+    }
+    .menu-col > :nth-child(7) {
+      animation-delay: 0.26s;
+    }
+    .menu-col > :nth-child(8) {
+      animation-delay: 0.3s;
+    }
+    .menu-col > :nth-child(9) {
+      animation-delay: 0.34s;
+    }
+    .menu-col > :nth-child(10) {
+      animation-delay: 0.38s;
+    }
+    .menu-col > :nth-child(n + 11) {
+      animation-delay: 0.42s;
+    }
+    .menu-logo {
+      filter: drop-shadow(0 10px 28px rgb(0 0 0 / 0.6));
+    }
+    .menu-tag {
+      font-weight: 600;
+      letter-spacing: 0.26em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--gold) 72%, var(--text));
+      text-shadow: 0 1px 8px rgb(0 0 0 / 0.8);
+    }
+    /* the menu: words on the picture; the one under the pointer (or the keys) steps forward */
+    .btn.menuitem {
+      position: relative;
+      width: auto;
+      background: none;
+      border: 0;
+      box-shadow: none;
+      color: color-mix(in srgb, var(--text) 82%, transparent);
+      text-shadow: 0 1px 10px rgb(0 0 0 / 0.75);
+      transition:
+        color 0.16s,
+        background-color 0.16s,
+        transform 0.2s var(--e-ease);
+    }
+    .btn.menuitem::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 22%;
+      bottom: 22%;
+      width: 3px;
+      border-radius: 2px;
+      background: var(--gold);
+      box-shadow: 0 0 10px var(--gold);
+      opacity: 0;
+      scale: 1 0.3;
+      transition:
+        opacity 0.16s,
+        scale 0.2s var(--e-ease);
+    }
+    .btn.menuitem .grow {
+      text-align: left;
+    }
+    .btn.menuitem > img.px {
+      opacity: 0.72;
+      transition: opacity 0.16s;
+    }
+    .btn.menuitem:hover:not(:disabled),
+    .btn.menuitem:focus-visible {
+      color: #fff;
+      background: linear-gradient(90deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.04) 60%, transparent);
+      border: 0;
+      transform: translateX(8px);
+      outline: none;
+    }
+    .btn.menuitem:hover::before,
+    .btn.menuitem:focus-visible::before {
+      opacity: 1;
+      scale: 1 1;
+    }
+    .btn.menuitem:hover > img.px,
+    .btn.menuitem:focus-visible > img.px {
+      opacity: 1;
+    }
+    .btn.menuitem:active:not(:disabled) {
+      transform: translateX(8px) scale(0.985);
+      box-shadow: none;
+    }
+    /* the first thing to press: Continue when there is a save, New company when there isn't */
+    .btn.continue,
+    .menu-tag + .btn.menuitem,
+    .menu-logo + .btn.menuitem {
+      color: #f6fffc;
+      background: var(--e-accent-fill);
+      border: 1px solid color-mix(in srgb, var(--c-cyn5, #5fd3b5) 62%, transparent);
+      box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.26),
+        0 14px 34px -14px color-mix(in srgb, var(--c-cyn4, #2fae9b) 95%, transparent),
+        0 3px 10px rgb(0 0 0 / 0.4);
+      text-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+      transition:
+        filter 0.16s,
+        border-color 0.16s,
+        transform 0.2s var(--e-ease);
+    }
+    .menu-tag + .btn.menuitem::before,
+    .menu-logo + .btn.menuitem::before {
+      display: none;
+    }
+    .btn.continue:hover:not(:disabled),
+    .btn.continue:focus-visible,
+    .menu-tag + .btn.menuitem:hover:not(:disabled),
+    .menu-tag + .btn.menuitem:focus-visible,
+    .menu-logo + .btn.menuitem:hover:not(:disabled),
+    .menu-logo + .btn.menuitem:focus-visible {
+      background: var(--e-accent-fill);
+      border: 1px solid var(--c-cyn6, #a3f0d6);
+      filter: brightness(1.1);
+      transform: translateX(8px);
+      outline: none;
+    }
+    .btn.continue:focus-visible,
+    .menu-tag + .btn.menuitem:focus-visible,
+    .menu-logo + .btn.menuitem:focus-visible {
+      box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.26),
+        0 0 0 3px color-mix(in srgb, var(--c-yel1, #fde9a4) 80%, transparent),
+        0 14px 34px -14px var(--c-cyn4, #2fae9b);
+    }
+    .continue .c1 {
+      font-family: var(--font);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+    .continue .c2 {
+      opacity: 1;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .continue > img.px,
+    .menu-tag + .btn.menuitem > img.px,
+    .menu-logo + .btn.menuitem > img.px {
+      opacity: 1;
+      border-radius: 2px;
+      background: rgb(0 0 0 / 0.2);
+      box-shadow: 0 0 0 9px rgb(0 0 0 / 0.2);
+      margin: 0 9px;
+      filter: none;
+    }
+    .menu-foot {
+      color: color-mix(in srgb, var(--muted) 82%, transparent);
+      text-shadow: 0 1px 6px rgb(0 0 0 / 0.8);
+      text-align: left;
+    }
+
+    /* the shot's caption: a lower third */
+    .tour-caption {
+      background: none;
+      border: 0;
+      box-shadow: none;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+      font-family: var(--font);
+      text-shadow:
+        0 1px 2px rgb(0 0 0 / 0.9),
+        0 2px 18px rgb(0 0 0 / 0.75);
+      animation: eCaption 0.9s var(--e-ease) both;
+      pointer-events: none;
+    }
+    .tour-caption::before {
+      content: '';
+      width: 56px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--gold);
+      box-shadow: 0 0 10px color-mix(in srgb, var(--gold) 70%, transparent);
+      transform-origin: 100% 50%;
+      animation: eRule 1s var(--e-ease) both;
+    }
+    .tour-caption b {
+      font-weight: 800;
+      letter-spacing: 0.005em;
+      color: #fff;
+    }
+    /* the dot between the two, for the one-line caption a phone keeps */
+    .tour-caption i {
+      display: none;
+    }
+    .tour-caption span {
+      color: color-mix(in srgb, var(--text) 88%, transparent);
+      font-weight: 500;
+    }
+  }
+}
+
+html.edition-3d:not(.ui-classic) {
+  /* ── the windows the menu opens (and the same pages in play) ─────────────────── */
+  .menu-scrim {
+    background: radial-gradient(ellipse at 50% 45%, rgb(6 6 14 / 0.55), rgb(6 6 14 / 0.86));
+  }
+  .pickcard .n {
+    font-weight: 700;
+  }
+  .pickcard .b {
+    font-weight: 400;
+    line-height: 1.34;
+  }
+  .pickcard.active {
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--cyan) 30%, transparent),
+      0 0 22px -8px var(--cyan);
+  }
+  .pickcard img.preview {
+    border: 0;
+    border-radius: var(--e-r-sm);
+    box-shadow: 0 0 0 1px var(--e-line);
+  }
+  .setting .l {
+    font-weight: 600;
+  }
+  & button.setting.toggle {
+    border-radius: 0;
+    transition: background-color 0.14s;
+  }
+  & button.setting.toggle:hover {
+    background: var(--e-raise);
+  }
+  & button.setting.toggle:hover .l {
+    color: var(--text);
+  }
+  .slotcard .n {
+    font-weight: 700;
+  }
+  .guide-item {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    color: color-mix(in srgb, var(--text) 86%, transparent);
+    font-weight: 500;
+    white-space: normal;
+  }
+  .guide-item:hover:not(:disabled) {
+    background: var(--e-raise);
+    border-color: transparent;
+    color: var(--text);
+  }
+  .guide-item.active,
+  .guide-item.active:hover:not(:disabled) {
+    color: #effffa;
+    font-weight: 700;
+    background: var(--e-accent-soft);
+    border-color: var(--e-accent-line);
+  }
+  .guide-entry h2 {
+    font-weight: 800;
+  }
+  .release h3 {
+    padding-top: 12px;
+    border-top: 1px solid var(--e-line-soft);
+  }
+  .release:first-of-type h3,
+  .release h3:first-child {
+    border-top: 0;
+  }
+  .achievement.got {
+    border-color: var(--e-gold-line);
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--gold) 12%, transparent), transparent 70%),
+      var(--e-raise);
+  }
+  .ht-steps li {
+    border-left: 1px solid var(--e-line-soft);
+  }
+  .ht-steps .n {
+    border-radius: 50%;
+    font-weight: 800;
+  }
+  .ht-arrow {
+    border-radius: 50%;
+  }
+  .ht-tip {
+    border-color: color-mix(in srgb, var(--good) 36%, transparent);
+    background: color-mix(in srgb, var(--good) 10%, transparent);
+  }
+  .ht-act.now {
+    border-color: var(--e-gold-line);
+    background: var(--e-gold-soft);
+  }
+  .ht-act .r {
+    font-weight: 800;
+  }
+  .ht-beats {
+    border-left: 1px solid var(--e-line);
+  }
+  .ht-beat::before {
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px var(--c-ink1, #16141f);
+    left: -4.5px;
+  }
+  .ht-nav {
+    border-top: 1px solid var(--e-line-soft);
+  }
+  .ach-badge .glyph b {
+    font-weight: 800;
+  }
+}
+
+@keyframes eCaption {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+@keyframes eRule {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    .menu-col {
+      left: 0;
+      top: 0;
+      bottom: 0;
+      transform: none;
+      width: min(46%, 640px);
+      max-height: none;
+      padding: 28px 24px 0 6%;
+      gap: 2px;
+      align-items: flex-start;
+      overflow-x: hidden;
+    }
+    .menu-logo {
+      --p: 484px;
+      width: 484px;
+      max-width: none;
+      /* the art has 8 empty pixels at its left: pull it so the letters stand on the menu's left edge */
+      margin: auto 0 6px calc(var(--p) * -8 / 121 + 2px);
+    }
+    .menu-tag {
+      font-size: 13px;
+      margin: 0 0 28px 2px;
+    }
+    .btn.menuitem {
+      min-width: 320px;
+      padding: 9px 26px 9px 16px;
+      gap: 15px;
+      font-size: 20px;
+      font-weight: 600;
+      border-radius: 10px;
+    }
+    .btn.continue,
+    .menu-tag + .btn.menuitem,
+    .menu-logo + .btn.menuitem {
+      width: 400px;
+      min-width: 0;
+      padding: 15px 20px;
+      gap: 12px;
+      margin-bottom: 14px;
+      border-radius: 14px;
+    }
+    .menu-tag + .btn.menuitem,
+    .menu-logo + .btn.menuitem {
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .continue .c1 {
+      font-size: 23px;
+      line-height: 1.15;
+    }
+    .continue .c2 {
+      font-size: 14px;
+      margin-top: 3px;
+    }
+    .menu-foot {
+      margin-top: auto;
+      padding: 22px 0 22px 2px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      max-width: 430px;
+    }
+    .menu-foot-links {
+      margin-top: 1px;
+    }
+    .tour-caption {
+      right: 4.2%;
+      bottom: 7%;
+      padding: 0;
+      gap: 7px;
+      max-width: 44%;
+    }
+    .tour-caption b {
+      font-size: 30px;
+      line-height: 1.1;
+    }
+    .tour-caption span {
+      font-size: 16px;
+      letter-spacing: 0.01em;
+    }
+
+    .window {
+      width: min(720px, 100%);
+    }
+    .window.wide {
+      width: min(1120px, 100%);
+    }
+    .window .head h2 {
+      font-size: 22px;
+    }
+    .cardgrid {
+      gap: 8px;
+    }
+    .pickcard {
+      padding: 11px 12px 12px;
+      gap: 4px;
+    }
+    .pickcard .n {
+      font-size: 15.5px;
+      gap: 7px;
+    }
+    .pickcard .b {
+      font-size: 12.5px;
+    }
+    .pickcard img.preview {
+      margin-bottom: 7px;
+    }
+    .settings .tabs {
+      margin-bottom: 12px;
+    }
+    .tabs > .btn {
+      font-size: 14.5px;
+      padding: 8px 14px 9px;
+    }
+    .tabbody {
+      min-height: 300px;
+    }
+    .setting {
+      gap: 14px;
+      padding: 10px 6px;
+    }
+    .setting .l {
+      font-size: 15.5px;
+    }
+    .setting .h {
+      font-size: 13px;
+      line-height: 1.36;
+      margin-top: 1px;
+    }
+    .setting .val {
+      font-size: 14px;
+      width: 52px;
+    }
+    .setting.slider input {
+      width: 200px;
+    }
+    .slots {
+      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    .slotcard {
+      padding: 14px;
+    }
+    .slotcard .n {
+      font-size: 17px;
+    }
+    .guide {
+      grid-template-columns: 280px 1fr;
+      gap: 22px;
+      min-height: 420px;
+    }
+    .guide-item {
+      padding: 6px 10px;
+      margin-bottom: 2px;
+      font-size: 14.5px;
+    }
+    .guide-entry h2 {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    .guide-entry p {
+      font-size: 16px;
+      line-height: 1.56;
+      margin-bottom: 12px;
+    }
+    .ingame {
+      padding: 12px 14px;
+    }
+    .ingame p {
+      font-size: 15px;
+    }
+    .release li,
+    & ul.credits li,
+    & ol.steps li {
+      margin: 6px 0;
+      line-height: 1.46;
+    }
+    .achievements {
+      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    .achievement {
+      gap: 14px;
+      padding: 10px 12px;
+    }
+    .achievement .d {
+      font-size: 13.5px;
+      line-height: 1.34;
+    }
+    .ht-list li {
+      line-height: 1.52;
+    }
+    .ht-steps li,
+    .ht-tip {
+      padding: 8px 12px;
+    }
+    .ht-node {
+      padding: 12px 6px 10px;
+    }
+    .ht-node b {
+      font-size: 14px;
+    }
+    .ht-node span {
+      font-size: 12px;
+    }
+    .ht-part,
+    .ht-panel {
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .ht-beat,
+    .ht-keys {
+      font-size: 15px;
+    }
+    .ht-panel .when,
+    .ht-side {
+      font-size: 13px;
+    }
+  }
+}
+/* a short desktop window or a Steam Deck: a smaller logo, a tighter menu */
+@media (min-width: 821px) and (min-height: 521px) and (max-height: 900px) {
+  html.edition-3d:not(.ui-classic) {
+    .menu-logo {
+      --p: 363px;
+      width: 363px;
+    }
+    .menu-tag {
+      font-size: 11.5px;
+      margin-bottom: 18px;
+    }
+    .btn.menuitem {
+      font-size: 17.5px;
+      padding: 6px 22px 6px 14px;
+    }
+    .btn.continue,
+    .menu-tag + .btn.menuitem,
+    .menu-logo + .btn.menuitem {
+      width: 350px;
+      padding: 11px 18px;
+      margin-bottom: 10px;
+    }
+    .continue .c1 {
+      font-size: 20px;
+    }
+    .menu-foot {
+      padding: 12px 0 14px 2px;
+    }
+    .tour-caption b {
+      font-size: 25px;
+    }
+    .tour-caption span {
+      font-size: 14.5px;
+    }
+  }
+}
