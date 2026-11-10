@@ -975,8 +975,8 @@ function Credits({ onDone }: { onDone: () => void }) {
         ))}
         <p class="small">…with Ade Bello, Tobias Lund, Marisol “Dusty” Vega, Chorus, Apex, Weft, Sapling, and every partner CEO and delegate who argued with you.</p>
         <h4>Thanks to</h4>
-        <p class="small">Natural Earth for the map data · Atkinson Hyperlegible Next, Silkscreen and Pixelify Sans · PixiJS, Preact, Vite and Tauri · Nikolai Kardashev and Carl Sagan, for the scale.</p>
-        <p class="small muted">All art and sound is generated in code. Companies, people and events are fictional; the geography and physics are real.</p>
+        <p class="small">Natural Earth for the map data · Atkinson Hyperlegible Next and Inter, the typefaces · three.js, Preact, Vite and Tauri · Nikolai Kardashev and Carl Sagan, for the scale.</p>
+        <p class="small muted">The people, trees and rocks were modelled with Meshy; the rest of the world, the interface art and the sound are generated in code. Companies, people and events are fictional; the geography and physics are real.</p>
         <h2 style={{ marginTop: '40px' }}>Thank you for playing.</h2>
       </div>
     </div>

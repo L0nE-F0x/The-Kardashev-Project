@@ -73,54 +73,41 @@ export interface EndCardBackdrop {
 interface EndingScene {
   scene?: THREE.Object3D;
   camera?: THREE.Camera;
-  /** Seconds into the pull-back: past its end the camera drifts on round the Sun. */
-  cineT?: number;
-  update?(dt: number, now: number): void;
+  /** Runs `shoot` with the camera on the pull-back's held frame (the ring closed, the Earth lower right). */
+  atCardPose?<T>(shoot: () => T): T | null;
 }
-
-/** The pull-back's held frame (system/cinematic.ts: the ring closed, the ribs strung, the Earth lower right). */
-const POSE_T = 16;
 
 /**
  * A picture of the stage for the card, or null when the stage isn't showing the ending's solar system (the card
- * then paints its own sky). The camera has been drifting for as long as the epilogues took: it is put back on the
- * held frame for the shot, then returned.
+ * then paints its own sky).
  */
 export function endCardBackdrop(stage: GameStage): EndCardBackdrop | null {
   const sc = stage.getScene() as (EndingScene & object) | null;
-  if (!sc || !stage.capture || typeof sc.cineT !== 'number' || sc.cineT <= 0) return null;
-  const was = sc.cineT;
-  const pose = typeof sc.update === 'function' && was > POSE_T;
+  if (!sc || !stage.capture || typeof sc.atCardPose !== 'function') return null;
+  const capture = () => stage.capture!();
   try {
-    if (pose) {
-      sc.cineT = POSE_T;
-      sc.update!(0, performance.now());
-    }
-    const url = stage.capture();
-    if (!url) return null;
-    let sun: [number, number] | null = null;
-    let earth: [number, number] | null = null;
-    if (sc.camera && sc.scene) {
-      const at = (p: THREE.Vector3): [number, number] | null => {
-        p.project(sc.camera!);
-        return p.z < 1 ? [(p.x + 1) / 2, (1 - p.y) / 2] : null;
-      };
-      sc.camera.updateMatrixWorld();
-      sun = at(new THREE.Vector3(0, 0, 0));
-      // the Earth is the mesh that wears the globe's material (it has the land texture)
-      sc.scene.traverse((o) => {
-        const u = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
-        if (!earth && u?.tLand && u?.tColor) earth = at(o.getWorldPosition(new THREE.Vector3()));
-      });
-    }
-    return { url, sun, earth };
+    return sc.atCardPose((): EndCardBackdrop | null => {
+      const url = capture();
+      if (!url) return null;
+      let sun: [number, number] | null = null;
+      let earth: [number, number] | null = null;
+      if (sc.camera && sc.scene) {
+        const at = (p: THREE.Vector3): [number, number] | null => {
+          p.project(sc.camera!);
+          return p.z < 1 ? [(p.x + 1) / 2, (1 - p.y) / 2] : null;
+        };
+        sc.camera.updateMatrixWorld();
+        sun = at(new THREE.Vector3(0, 0, 0));
+        // the Earth is the mesh that wears the globe's material (it has the land texture)
+        sc.scene.traverse((o) => {
+          const u = ((o as THREE.Mesh).material as THREE.ShaderMaterial | undefined)?.uniforms;
+          if (!earth && u?.tLand && u?.tColor) earth = at(o.getWorldPosition(new THREE.Vector3()));
+        });
+      }
+      return { url, sun, earth };
+    });
   } catch {
     return null;
-  } finally {
-    if (pose) {
-      sc.cineT = was;
-      sc.update!(0, performance.now());
-    }
   }
 }
 

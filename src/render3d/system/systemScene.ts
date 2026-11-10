@@ -354,6 +354,31 @@ export class SystemScene3D implements Scene3D {
     return out.set(Math.cos(a) * SWARM_R, 0, Math.sin(a) * SWARM_R);
   }
 
+  /**
+   * The ending's held frame (the end of the pull-back: the ring closed, the Earth lower right), for the end card.
+   * The camera has drifted on for as long as the epilogues took: it is put on that frame while `shoot` runs, then
+   * returned. Null outside the ending.
+   */
+  atCardPose<T>(shoot: () => T): T | null {
+    if (!this.opts.cinematic || this.cineT <= 0) return null;
+    // 16 s in: just past the pull-back's end (CINE_DONE), the frame the card was composed for
+    const POSE_T = 16;
+    const was = this.cineT;
+    const pose = was > POSE_T;
+    if (pose) {
+      this.cineT = POSE_T;
+      this.update(0);
+    }
+    try {
+      return shoot();
+    } finally {
+      if (pose) {
+        this.cineT = was;
+        this.update(0);
+      }
+    }
+  }
+
   update(dt: number) {
     this.time += dt;
     const cine = !!this.opts.cinematic;

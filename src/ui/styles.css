@@ -884,7 +884,6 @@ select:focus {
   text-align: center;
 }
 .logo {
-  image-rendering: pixelated;
   width: min(100%, 560px);
   margin: 4px auto 6px;
   display: block;
@@ -1155,7 +1154,6 @@ html.reduced-motion *::after {
 }
 .menu-logo {
   width: 100%;
-  image-rendering: pixelated;
   margin: 2px 0 10px;
 }
 .btn.menuitem {
@@ -1259,7 +1257,6 @@ html.reduced-motion *::after {
 }
 .pickcard img.preview {
   width: 100%;
-  image-rendering: pixelated;
   border: 2px solid #0b0a12;
   aspect-ratio: 72 / 40;
   margin-bottom: 4px;
@@ -2038,7 +2035,6 @@ ol.steps li {
 }
 img.endcard {
   width: 100%;
-  image-rendering: pixelated;
   border: 2px solid #0b0a12;
   display: block;
 }
