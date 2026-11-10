@@ -7,6 +7,7 @@ One game, in 3D, on your computer. The pixel-art edition and every way of playin
 - **Desktop only: Windows, macOS and Linux.** The browser version, the installable web app and the Android app are retired. Old links to the web game lead to the home page.
 - **Settings tidied.** Gone: Edition, Pixel size, Clouds on the map and Fullscreen on phones (none of them did anything in 3D). Soundtrack is a plain choice now: Cinematic (the default) or Chiptune.
 - **The website** shows the 3D Earth from the first moment (no pixel globe first), and offers one download per system, with yours picked out.
+- **Saving files works in the app.** Photos and the Type I end card go to Pictures/The Kardashev Project; exported companies and the playtest log go to Documents/The Kardashev Project. The game tells you where, and never overwrites a file. (Before, the buttons did nothing inside the desktop app.)
 - **A lighter app.** The pixel renderer and its engine are no longer shipped or loaded.
 - Kept from the pixel days, on purpose: the logo, the advisors' portraits, the small interface icons and the Type I end card are still pixel art.
 

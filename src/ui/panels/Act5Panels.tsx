@@ -31,7 +31,7 @@ import { pickEpilogues, campaignStats } from '../../sim/ending';
 import { drawEndCard } from '../../render/endcard';
 import { toDataUrl } from '../../render/pixels';
 import { terrainCanvas } from '../../render/worldMap/terrain';
-import { saveImage } from '../../platform/platform';
+import { savedNote, saveImage } from '../../platform/platform';
 import { OpenWork, PostContract } from './Act4Panels';
 import { SITE_BY_ID } from '../../content/sites';
 
@@ -1065,7 +1065,7 @@ function EndCard({ year }: { year: number }) {
           <img class="endcard" src={url} alt={text} />
           {note && <div class="small muted">{note}</div>}
           <div class="row wrap" style={{ gap: '8px', marginTop: '8px' }}>
-            <button class="btn" onClick={() => setNote(saveImage(name, url) ? 'Saved.' : 'Couldn’t save it: take a screenshot instead.')}>
+            <button class="btn" onClick={() => void saveImage(name, url).then((p) => setNote(savedNote(p, 'Couldn’t save it: take a screenshot instead.')))}>
               <Icon name="arrow" size="sm" /> Save the picture
             </button>
           </div>

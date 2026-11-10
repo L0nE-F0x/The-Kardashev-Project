@@ -2280,13 +2280,28 @@ and were happy with the look, the speed and the sound. The old code was to be de
 - The website and the release must ship together: v0.11.0's installers still open the pixel edition by default.
 - The Android signing key and its repo secrets are unused now. Left in place.
 
+**Saving files (found while checking the desktop build):** inside the app a download link does nothing, so photo
+mode, the end card, "File" and "Log" in Settings → Data all failed silently (they always had; the browser hid it).
+The app now writes the file itself (`save_file` in src-tauri/src/savefile.rs, no new dependencies, no dialog):
+pictures into Pictures/The Kardashev Project, the rest into Documents/The Kardashev Project, never over an existing
+file, and the game says where it went. Checked in a debug build on Linux: a 4K photo, an exported company, the log.
+
 **Checked:** type check; 22 test files (the bots for every act, the planner, the 3D layouts); the game in headless
 Chrome on the RTX at High from the dev server and from the production bundle (menu, settings, Act I, Act III and Act V
 places, orbit, the solar system: no console errors); the website from both (hero, downloads, a narrow window).
-Not checked: the desktop app itself (a Tauri build) and the Netlify redirects, which only exist once deployed.
+The desktop app as a debug build (WebKitGTK): it opens on the 3D menu at v0.12.0, 0.11-style settings migrate, a
+saved company continues, a campus renders. Not checked before shipping: the Netlify redirects, which only exist once
+deployed; Windows and macOS.
 
-**Open (asked 2026-11-11)**
+**The user's answers (2026-11-11)**
+- "Coming to Steam" on the website: yes. The new sound: great.
+- Nobody else has the game (the link was never shared), so cutting off browser saves costs nobody anything.
+- Versions keep going up in small steps; v1.0.0 waits until they start the Steam page. The full playthrough comes
+  when they are fully happy with the game; the small unexercised bits (Act III's satellite and liftoff on the globe)
+  wait for it.
+- They can test the Windows build (dual boot); there is no Mac in the house, so macOS stays unverified.
+
+**Still open (asked 2026-11-11, not answered yet)**
 - Redo the logo, the app icon, the portraits and the end card in the 3D style, or keep the pixel art as the game's
   signature?
 - Drop the Chiptune soundtrack, the Classic look and the Pixel font too?
-- "Coming to Steam" on the website: yes, or not yet?

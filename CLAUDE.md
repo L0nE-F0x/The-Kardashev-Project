@@ -242,7 +242,10 @@ src/
               `tools/og3d.mjs`. public/sw.js + the redirects in netlify.toml retire the old web game for browsers that
               had it installed (the worker deletes the old caches and unregisters itself): keep both for a good while
   platform/   platform.ts: the desktop shell (quit, fullscreen, in-app updates, opening links, saving files); a plain
-              browser tab in dev falls through to downloads and document fullscreen
+              browser tab in dev falls through to downloads and document fullscreen. Files (`saveImage`,
+              `saveTextFile` → a `Saved` path, `savedNote` for the message): a download link does nothing in the
+              app's webview, so the app writes them itself (src-tauri/src/savefile.rs, the `save_file` command:
+              pictures → Pictures/The Kardashev Project, the rest → Documents/The Kardashev Project, no overwrites)
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
               achievements.ts (per-device achievement store: unlocked, advisors met, places visited)
   audio/      All synthesised in WebAudio (v0.11: SPEC §29). engine.ts (the mix: sfx / music / ambience buses, each
@@ -429,27 +432,29 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 **Next:** v0.12.0 "All In" (SPEC §30) is built on the local branch `desktop-only`: ship it when the user says so
 (merge, push, tag; the website and the release must go out together, because the website no longer offers the web
 game and the 0.11.0 installers still open the pixel edition by default). The user played 0.11.0 on 2026-11-11 and
-is happy with the look, the speed and the sound. Open questions put to them that day (SPEC §30 "Open"): redo the
-pixel-art logo, app icon, portraits and end card in the 3D style or keep them; keep or drop the Chiptune soundtrack,
-the Classic interface look and the Pixel text font; whether the website should say "coming to Steam".
-Then, as before: their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the
-log and v1.0.0 (SPEC §21–22), and Steam prep (SPEC §27: controller and Steam Deck, a demo, the store page, an
+is happy with the look, the speed and the sound. Two questions are still unanswered (SPEC §30): redo the pixel-art
+logo, app icon, portraits and end card in the 3D style or keep them; keep or drop the Chiptune soundtrack, the
+Classic interface look and the Pixel text font.
+**Versions (the user, 2026-11-11):** keep bumping small versions while the game is being perfected; v1.0.0 only when
+they start the Steam page. Nobody else has the game, so there are no other players' saves or installs to protect.
+They test Windows themselves (dual boot); there is no Mac, so macOS stays unverified.
+Then, when they are fully happy with the game: their playthrough (Settings → Gameplay → Playtest notes, J to note;
+Data → Log), the retune from the log and v1.0.0 (SPEC §21–22), and Steam prep (SPEC §27: controller and Steam Deck, a demo, the store page, an
 Electron/Steamworks wrapper if Tauri can't do the overlay). Later: Type II as an Act VI that continues a finished save
 (SPEC §20 hooks), the real theme song, code signing (Windows/macOS).
 
 **Still open:**
 - From SPEC §29: a Settings switch to run the app on the discrete GPU on hybrid laptops (today it renders on the
-  integrated one; `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia` works by hand on Linux); photo mode and
-  the end card save through the webview's download path (`saveImage` in platform.ts), never tried inside the desktop
-  app: a native save dialog would be the proper fix; Act III's satellite, beam and liftoff on the globe were not
+  integrated one; `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia` works by hand on Linux); Act III's
+  satellite, beam and liftoff on the globe were not
   exercised; power beams in the ending only show with beam capacity; the cinematic is capped at 16 s by `tickEnding`;
   the 4K-at-150% interface survey was partial.
 - M5 (SPEC §21): steps 1–7 shipped in v0.7.0; v0.8.0 (SPEC §22) is the whole-game audit and its fixes. Waiting for the
   user's full playthrough, then the retune and v1.0.0. Known numbers to watch in the retune: Act I's long wait for
   Bit-2 (~415 days with nothing to research), Act II now 3.8–5 years (the bot stopped falling into the export trap),
   Act IV's bot reaches its Heat Wall on the stage-3 limit rather than the full checklist.
-- The Windows and macOS installers build in CI but have never been launched on a real machine (in-app updates there
-  are untested too; CI also signs the .deb, untested). The Linux AppImage runs on the dev machine (Omarchy/Arch,
+- The Windows and macOS installers build in CI but have never been launched on a real machine (in-app updates and
+  the `save_file` command there are untested too; CI also signs the .deb, untested). The user can test Windows. The Linux AppImage runs on the dev machine (Omarchy/Arch,
   installed to ~/Applications with a launcher entry).
 - Leftovers from the phone days that still work and were left alone: the HUD's compact CSS for short or narrow
   windows, touch input, the safe-area variables. Prune only with a look at the Steam Deck.

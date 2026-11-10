@@ -6,26 +6,59 @@
 
 export const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-/** Save a text file (a save export, the playtest log) as a download. */
-export function saveTextFile(name: string, text: string, type = 'application/json'): void {
+// ── saving files ────────────────────────────────────────────────────────────────────────────
+// A download link does nothing inside the app's webview, so the app writes the file itself
+// (src-tauri/src/savefile.rs): pictures into Pictures/The Kardashev Project, the rest into
+// Documents/The Kardashev Project, never over an existing file. A browser tab (development) downloads it.
+
+/** Where a saved file went: its full path in the app, '' for a browser download, null when it failed. */
+export type Saved = string | null;
+
+async function saveFile(name: string, data: Uint8Array, kind: 'picture' | 'document', type: string): Promise<Saved> {
+  if (isDesktopApp) {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      // header values are plain ASCII; the app cleans the name again on its side
+      const safe = name.replace(/[^\w .()-]+/g, '-');
+      return await invoke<string>('save_file', data, { headers: { 'x-name': safe, 'x-kind': kind } });
+    } catch (err) {
+      console.warn('[platform] could not save', name, err);
+      return null;
+    }
+  }
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.href = URL.createObjectURL(new Blob([data as BlobPart], { type }));
   a.download = name;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return '';
 }
 
-/** Save a PNG (the Type I end card, a photo) as a download. */
-export function saveImage(name: string, dataUrl: string): boolean {
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  return true;
+/** Save a text file (an exported company, the playtest log). */
+export function saveTextFile(name: string, text: string, type = 'application/json'): Promise<Saved> {
+  return saveFile(name, new TextEncoder().encode(text), 'document', type);
+}
+
+/** Save a PNG given as a data URL (a photo, the Type I end card). */
+export function saveImage(name: string, dataUrl: string): Promise<Saved> {
+  try {
+    const bin = atob(dataUrl.slice(dataUrl.indexOf(',') + 1));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return saveFile(name, bytes, 'picture', 'image/png');
+  } catch {
+    return Promise.resolve(null);
+  }
+}
+
+/** A short line for the player: "Saved to Pictures/The Kardashev Project." (the last two folders of the path). */
+export function savedNote(saved: Saved, failed: string): string {
+  if (saved === null) return failed;
+  if (!saved) return 'Saved to your downloads.';
+  const parts = saved.split(/[\\/]/).filter(Boolean);
+  return `Saved to ${parts.slice(-3, -1).join('/')}.`;
 }
 
 // ── in-app updates ──────────────────────────────────────────────────────────────────────────

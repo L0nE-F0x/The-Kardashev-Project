@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'preact/hooks';
 import { Icon, useGame } from './components';
-import { saveImage } from '../platform/platform';
+import { savedNote, saveImage } from '../platform/platform';
 
 type Weather = 'clear' | 'cloudy' | 'rain' | 'snow' | 'dust';
 
@@ -51,8 +51,13 @@ export function PhotoBar() {
   const again = () => redraw((n) => n + 1);
   const save = () => {
     const url = game.stage.capture?.();
-    const name = `kardashev-${game.dioramaSite ?? 'campus'}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
-    setNote(url && saveImage(name, url) ? 'Saved to your downloads.' : 'The picture could not be saved here — take a screenshot instead.');
+    // the player's own clock in the name, so the pictures sort the way they were taken
+    const d = new Date();
+    const stamp = [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join('-');
+    const name = `kardashev-${game.dioramaSite ?? 'campus'}-${stamp}.png`;
+    const failed = 'The picture could not be saved: take a screenshot instead.';
+    if (!url) return setNote(failed);
+    void saveImage(name, url).then((p) => setNote(savedNote(p, failed)));
   };
   if (bare)
     return (

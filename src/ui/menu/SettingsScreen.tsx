@@ -5,7 +5,7 @@ import { defaultSettings, saveSettings } from '../../save/settings';
 import { downloadSave, exportSave, importSave, loadSlot, wipeAllData } from '../../save/save';
 import { EVENT_RATES, type EventRate } from '../../content/difficulty';
 import { SITE_BY_ID } from '../../content/sites';
-import { saveTextFile, toggleFullscreen } from '../../platform/platform';
+import { savedNote, saveTextFile, toggleFullscreen } from '../../platform/platform';
 import { playtestReport } from '../../game/playtest';
 import { APP_VERSION } from '../../content/changelog';
 
@@ -343,22 +343,23 @@ function Data() {
           </button>
           <button
             class="btn small"
-            data-tip="Download as a file"
+            data-tip="Save as a file"
             onClick={() => {
               const s = loadSlot(sl.id);
-              if (s) downloadSave(s);
+              if (s) void downloadSave(s).then((p) => setMsg(savedNote(p, `Couldn’t save ${sl.name} as a file: use Code instead.`)));
             }}
           >
             File
           </button>
           <button
             class="btn small"
-            data-tip="Download the playtest log: real time per act and your playtest notes"
+            data-tip="Save the playtest log: real time per act and your playtest notes"
             onClick={() => {
               const s = loadSlot(sl.id);
               if (!s) return;
-              saveTextFile(`${s.company.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'company'}-playtest.md`, playtestReport(s, APP_VERSION), 'text/markdown');
-              setMsg(`Playtest log for ${sl.name} saved.`);
+              void saveTextFile(`${s.company.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'company'}-playtest.md`, playtestReport(s, APP_VERSION), 'text/markdown').then((p) =>
+                setMsg(savedNote(p, `Couldn’t save the playtest log for ${sl.name}.`)),
+              );
             }}
           >
             Log
