@@ -1,45 +1,13 @@
 import { Icon, Window, useGame } from '../components';
-import { ACHIEVEMENTS, type AchievementDef, type Tier } from '../../content/achievements';
+import { ACHIEVEMENTS, type AchievementDef } from '../../content/achievements';
 import { achievements } from '../../save/achievements';
-import { C } from '../../render/palette';
-import { PixelCanvas, toDataUrl } from '../../render/pixels';
+import { medalUrl } from '../medals';
 
-const TIER_COLS: Record<Tier | 'locked', [number, number, number]> = {
-  bronze: [C.snd2, C.snd4, C.snd6],
-  silver: [C.ink5, C.ink8, C.white],
-  gold: [C.org0, C.yel0, C.yel2],
-  locked: [C.ink2, C.ink3, C.ink4],
-};
-
-const medals = new Map<string, string>();
-
-/** A 24×24 pixel medal: a rimmed disc lit from the upper left, with two ribbon tails. */
-function medalUrl(tier: Tier | 'locked'): string {
-  let url = medals.get(tier);
-  if (url) return url;
-  const [rim, mid, hi] = TIER_COLS[tier];
-  const pc = new PixelCanvas(24, 24);
-  // ribbon tails
-  const ribbon = tier === 'locked' ? C.ink3 : C.red2;
-  const ribbon2 = tier === 'locked' ? C.ink2 : C.blu3;
-  for (let y = 15; y < 24; y++) {
-    pc.hline(6 - Math.floor((y - 15) / 3), y, 4, ribbon);
-    pc.hline(14 + Math.floor((y - 15) / 3), y, 4, ribbon2);
-  }
-  pc.circle(12, 11, 10.5, C.ink1);
-  pc.circle(12, 11, 9.5, rim);
-  pc.circle(12, 11, 8.5, mid);
-  for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) if (pc.get(x, y) === mid && Math.hypot(x - 9, y - 8) < 4.5) pc.set(x, y, hi);
-  pc.ring(12, 11, 7.5, rim);
-  url = toDataUrl(pc);
-  medals.set(tier, url);
-  return url;
-}
-
+/** A medal of the achievement's tier (medals.ts), its icon on the medal's plate. */
 export function AchievementBadge({ a, got }: { a: AchievementDef; got: boolean }) {
   return (
     <span class={`ach-badge ${got ? '' : 'locked'}`}>
-      <img class="px medal" src={medalUrl(got ? a.tier : 'locked')} alt="" draggable={false} />
+      <img class="medal" src={medalUrl(got ? a.tier : 'locked')} alt="" draggable={false} />
       <span class="glyph">{got || !a.secret ? <Icon name={a.icon} size="sm" /> : <b>?</b>}</span>
     </span>
   );

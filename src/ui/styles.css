@@ -187,7 +187,7 @@ body {
     --dock-b: round(down, clamp(30px, calc((100dvh / var(--z) - 128px) / var(--dock-n, 10) - 4px), 46px), 1px);
   }
 }
-/* a long dock on a short screen: tighter, with the small icons (still a whole-number scale) */
+/* a long dock on a short screen: tighter */
 @media (max-height: 940px) {
   .dock.many {
     gap: 2px;
@@ -195,18 +195,14 @@ body {
   .dock.many .sep {
     margin: 0;
   }
-  .dock.many .btn img.px.lg {
-    width: 18px;
-    height: 18px;
-  }
 }
-/* the v0.9.3 icons: a canvas filling its box (a dock button, How to Play's panel list), drawn in whole device
-   pixels (DockIcon.tsx) */
-canvas.dock-ic {
+/* the dock's own icons (ui/dockIcons.ts, DockIcon.tsx): vector art sized by its box, a dock button or How to
+   Play's panel list */
+img.dock-ic {
   display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
+  flex: none;
+  width: 74%;
+  height: 74%;
   pointer-events: none;
 }
 .dock .btn .badge {
@@ -1720,10 +1716,6 @@ ol.steps li {
   .dock .btn {
     width: 34px;
     height: 34px;
-  }
-  .dock .btn img.px.lg {
-    width: 18px;
-    height: 18px;
   }
   .dock .sep {
     margin: 0;

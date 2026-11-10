@@ -33,7 +33,6 @@ function useScrollHint(n: number) {
 export function Dock() {
   const game = useGame();
   const s = game.state!;
-  const classic = game.settings.uiStyle === 'classic';
   const items: [PanelId, IconName, string, number?][] = [
     ['compute', 'compute', 'Compute & models (C)', s.training ? undefined : s.models.length < 2 ? 1 : undefined],
     ['orders', 'orders', 'Chip orders & shipping (O)', s.shipments.length || undefined],
@@ -70,24 +69,24 @@ export function Dock() {
     <div ref={ref} data-tut="dock" class={`dock frame ${n >= 15 ? 'many' : ''} ${more ? 'more' : ''}`} style={{ '--dock-n': n }}>
       {items.map(([id, icon, tip, badge]) => (
         <button key={id} class={`btn ${game.panel === id ? 'active' : ''}`} onClick={() => game.openPanel(id)} data-tip={tip} aria-label={tip} data-tut={`dock-${id}`}>
-          <DockIcon name={icon} classic={classic} />
+          <DockIcon name={icon} />
           {badge ? <span class="badge">{badge > 9 ? '9+' : badge}</span> : null}
         </button>
       ))}
       <div class="sep" />
       <button class={`btn ${game.tool?.kind === 'link' ? 'active' : ''}`} onClick={() => game.setTool(game.tool?.kind === 'link' ? null : { kind: 'link', from: null })} data-tip={'Draw a transmission line between two of your sites (L).\nPools their power; costs ~$0.4M/km.'} aria-label="Transmission line tool">
-        <DockIcon name="link" classic={classic} />
+        <DockIcon name="link" />
       </button>
       {s.act >= 2 && (
         <button class={`btn ${game.tool?.kind === 'fiber' ? 'active' : ''}`} onClick={() => game.setTool(game.tool?.kind === 'fiber' ? null : { kind: 'fiber', from: null })} data-tut="dock-fiber" data-tip={'Lay fiber between two of your sites (I).\nJoins their regions into your private network: halls sell into both markets at low latency. ~$0.08M/km.'} aria-label="Fiber tool">
-          <DockIcon name="fiber" classic={classic} />
+          <DockIcon name="fiber" />
         </button>
       )}
       <button class={`btn ${game.panel === 'howto' ? 'active' : ''}`} onClick={() => game.openHowTo()} data-tip="How to play (?)" aria-label="How to play" data-tut="dock-howto">
-        <DockIcon name="help" classic={classic} />
+        <DockIcon name="help" />
       </button>
       <button class={`btn ${game.panel === 'settings' ? 'active' : ''}`} onClick={() => game.openPanel('settings')} data-tip="Settings & save" aria-label="Settings">
-        <DockIcon name="settings" classic={classic} />
+        <DockIcon name="settings" />
       </button>
     </div>
   );
