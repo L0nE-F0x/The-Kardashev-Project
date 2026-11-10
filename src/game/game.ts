@@ -473,6 +473,7 @@ export class Game {
   }
 
   enterDiorama(siteId: string): void {
+    this.togglePhoto(false);
     this.mode = 'diorama';
     this.dioramaSite = siteId;
     // ten different places seen up close: a world tour
@@ -558,6 +559,7 @@ export class Game {
     const s = this.state;
     if (!s) return true;
     return (
+      this.photo ||
       (!!s.events.active && (this.settings.autoPause || this.eventOpen)) ||
       !!s.planet?.jump ||
       !!this.jumpReport ||
@@ -1114,6 +1116,17 @@ export class Game {
   setEraOverride(era: Era | null): void {
     this.eraOverride = era;
     this.updateEra();
+    this.notify();
+  }
+
+  /** Photo mode (the 3D edition's campuses): the interface steps aside for a camera bar, and the clock waits. */
+  photo = false;
+  togglePhoto(on = !this.photo): void {
+    if (on === this.photo) return;
+    this.photo = on;
+    document.documentElement.classList.toggle('photo-mode', on);
+    if (!on) (this.stage.getScene() as { photoReset?: () => void } | null)?.photoReset?.();
+    sfx('click');
     this.notify();
   }
 

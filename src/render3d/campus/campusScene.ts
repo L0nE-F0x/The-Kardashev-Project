@@ -339,8 +339,7 @@ export class CampusScene implements Scene3D {
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
     this.sky.focus(new THREE.Vector3((this.layout.bounds.x0 + this.layout.bounds.x1) / 2, 0, (this.layout.bounds.z0 + this.layout.bounds.z1) / 2), reach);
-    this.camera.fov = this.scenery === 'habitat' ? 54 : 30;
-    this.camera.updateProjectionMatrix();
+    if (!this.game.photo) this.setLens(this.scenery === 'habitat' ? 54 : 30);
     this.lamps.fit(Math.min(this.layout.bounds.x0, -40) - 80, this.layout.bounds.z0, Math.max(this.layout.bounds.x1, flat.x1), Math.max(this.layout.bounds.z1, HIGHWAY_Z + 20));
     this.lampAge = 0;
     this.scene.add(this.world, this.roads, this.hitboxes, this.crowd.group, this.traffic.group);
@@ -945,12 +944,29 @@ export class CampusScene implements Scene3D {
     return picked;
   }
 
-  /** QA: film in this weather (rebuilds the scene); null = the site's own again. */
+  /** Photo mode and QA: film in this weather (rebuilds the scene); null = the site's own again. */
   setWeather(w: Weather | null) {
+    if (w === this.forceWeather) return;
     this.forceWeather = w;
     this.build();
   }
   private forceWeather: Weather | null = null;
+  /** The weather chosen in photo mode (null = the site's own). */
+  get weatherChoice() { return this.forceWeather; }
+
+  /** Photo mode: the lens (field of view in degrees; the game's own is a long 30°) and how strong the blur is (1 = the game's). */
+  setLens(fov: number) {
+    this.camera.fov = Math.max(14, Math.min(70, fov));
+    this.camera.updateProjectionMatrix();
+  }
+  get lens() { return this.camera.fov; }
+  blur = 1;
+  /** Leaving photo mode: the game's own lens, blur and weather again (the hour stays: time passes anyway). */
+  photoReset() {
+    this.blur = 1;
+    this.setLens(this.scenery === 'habitat' ? 54 : 30);
+    this.setWeather(null);
+  }
 
   private pickWeather(): Weather {
     if (this.forceWeather) return this.forceWeather;
@@ -1121,7 +1137,7 @@ export class CampusScene implements Scene3D {
     // the miniature read: sharp where the camera looks, soft before and behind it (strongest from up high; close
     // in, almost none: a close-up should be crisp). Inside the habitat the land overhead must stay sharp.
     const focus = this.camera.position.distanceTo(this.target);
-    this.look.dof = { focus, range: 0.24, max: this.scenery === 'habitat' ? 1.5 : 1.5 + 4.5 * THREE.MathUtils.smoothstep(this.dist, 60, 300) };
+    this.look.dof = { focus, range: 0.24, max: (this.scenery === 'habitat' ? 1.5 : 1.5 + 4.5 * THREE.MathUtils.smoothstep(this.dist, 60, 300)) * this.blur };
   }
 
   resize(w: number, h: number) {

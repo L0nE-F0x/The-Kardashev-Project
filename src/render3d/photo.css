@@ -1,0 +1,26 @@
+/* Photo mode (the 3D edition's campuses): the interface steps aside for the camera bar. */
+html.photo-mode #ui > :not(.photobar) { display: none !important; }
+
+.photo-open { position: absolute; left: 84px; bottom: 46px; }
+
+.photobar {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 8px 14px;
+  max-width: 92%;
+  padding: 8px 12px;
+}
+.photobar label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
+.photobar label > span { opacity: 0.8; font-variant-numeric: tabular-nums; }
+.photobar input[type='range'] { width: 150px; }
+.photobar select { font: inherit; padding: 3px 6px; color: inherit; background: rgb(0 0 0 / 0.35); border: 1px solid rgb(255 255 255 / 0.2); border-radius: 4px; }
+.photobar-note { flex-basis: 100%; text-align: center; }
+/* the bar put away for a clean screenshot: a faint handle in the corner brings it back */
+.photobar-bare { left: auto; right: 16px; bottom: 16px; transform: none; opacity: 0.25; }
+.photobar-bare:hover { opacity: 1; }

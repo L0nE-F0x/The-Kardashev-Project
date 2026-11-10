@@ -90,8 +90,12 @@ export const LAMP_LAYER = 5;
     float wetK = uAtmoWet * smoothstep( 0.8, 0.97, wetUp );
     // water only stands on what is truly level (roads, yards, roofs): rough ground and grass just darken
     float wetPatch = smoothstep( 0.1, 0.6, sin( vFogWorld.x * 0.21 + sin( vFogWorld.z * 0.13 ) * 2.0 ) * sin( vFogWorld.z * 0.17 + sin( vFogWorld.x * 0.09 ) * 2.0 ) );
+    // (and only on made surfaces: asphalt, concrete and roofs are near grey, where grass and soil have colour)
+    float wetHi = max( material.diffuseColor.r, max( material.diffuseColor.g, material.diffuseColor.b ) );
+    float wetLo = min( material.diffuseColor.r, min( material.diffuseColor.g, material.diffuseColor.b ) );
+    float wetMade = 1.0 - smoothstep( 0.14, 0.36, ( wetHi - wetLo ) / max( wetHi, 1e-3 ) );
     material.diffuseColor *= 1.0 - 0.3 * wetK;
-    material.roughness = mix( material.roughness, 0.16, uAtmoWet * smoothstep( 0.992, 0.9995, wetUp ) * ( 0.25 + 0.75 * wetPatch ) );
+    material.roughness = mix( material.roughness, 0.16, uAtmoWet * smoothstep( 0.992, 0.9995, wetUp ) * ( 0.25 + 0.75 * wetPatch ) * wetMade );
   }
 #endif`;
   // the lamps join the indirect light

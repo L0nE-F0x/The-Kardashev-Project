@@ -177,6 +177,29 @@ export class Stage3D implements GameStage {
     }
   }
 
+  /**
+   * A PNG of the scene alone (the interface is DOM, so it isn't in the picture), drawn for the shot at up to twice
+   * the screen's resolution (4K at most), then the stage goes back to its own.
+   */
+  capture(): string | null {
+    if (!this.scene || !this.post) return null;
+    const was = this.renderer.getPixelRatio();
+    const want = Math.min(Math.max(was, 2), 3840 / this.width, 2160 / this.height);
+    try {
+      if (want > was) {
+        this.renderer.setPixelRatio(want);
+        this.renderer.setSize(this.width, this.height);
+        this.post.resize();
+      }
+      this.post.render(0, this.scene.look ?? defaultLook(), 0, getEra());
+      return this.canvas.toDataURL('image/png');
+    } catch {
+      return null;
+    } finally {
+      if (want > was) this.layout();
+    }
+  }
+
   private bindInput() {
     const c = this.canvas;
     c.style.touchAction = 'none';

@@ -66,7 +66,8 @@ function back(game: Game): boolean {
     return true;
   }
   // the topmost overlay first: a dialog, a note, a report — and a card waits for its answer (back never answers it)
-  if (game.confirm) game.cancelConfirm();
+  if (game.photo) game.togglePhoto(false);
+  else if (game.confirm) game.cancelConfirm();
   else if (game.noteOpen) game.closeNote();
   else if (game.awayReport) game.dismissAway();
   else if (game.showActComplete) game.dismissActComplete();

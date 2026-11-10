@@ -16,6 +16,7 @@ import { HeatWallTracker, JumpOverlay, JumpReportModal, PlanModal, PlanetPanel }
 import { EndingOverlay, EraOverlay, EraPlanModal, EraReportModal, SolarMaxTracker, SystemPanel } from './panels/Act5Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
 import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, LinkHint, MapTooltip, NoteModal, RotateOverlay, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
+import { PhotoBar, PhotoButton } from './PhotoMode';
 import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
 import { FieldGuideBody } from './menu/FieldGuide';
@@ -82,6 +83,8 @@ function Hud() {
         </Panel>
       )}
       <DioramaBar />
+      <PhotoButton />
+      <PhotoBar />
       <LinkHint />
       <DecisionPill />
       <SkipBar />
