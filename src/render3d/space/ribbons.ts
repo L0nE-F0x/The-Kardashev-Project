@@ -67,7 +67,7 @@ export function orbitLine(radius: number, o: OrbitLineOpts) {
         float a = clamp(uWidth * 0.5 + 0.5 - abs(vEdge), 0.0, 1.0);
         // bodies move towards +angle: the line is brightest just behind them and fades round the lap
         float back = mod(uHead - vAng, 6.2831853) / 6.2831853;
-        a *= uBase + (1.0 - uBase) * pow(1.0 - back, 5.0);
+        a *= uBase + (1.0 - uBase) * pow(max(1.0 - back, 0.0), 5.0);
         if (uDash > 0.0) a *= smoothstep(0.2, 0.28, abs(fract(vAng * uDash / 6.2831853) - 0.5));
         // the far side of an orbit sits back
         a *= uOpacity * mix(1.0, 0.45, smoothstep(uFade.x, uFade.y, vDist));
@@ -130,7 +130,7 @@ export class Beams {
           // pulses running down the shaft, and soft ends
           float along = vUv.x * vLen;
           I *= 0.72 + 0.28 * sin(along * 0.5 - uTime * 5.0 + vPhase) * sin(along * 0.13 - uTime * 1.7 + vPhase * 2.0);
-          I *= smoothstep(0.0, 0.03, vUv.x) * smoothstep(1.0, 0.985, vUv.x) * (1.0 - x);
+          I *= smoothstep(0.0, 0.03, vUv.x) * (1.0 - smoothstep(0.985, 1.0, vUv.x)) * (1.0 - x);
           gl_FragColor = vec4(vCol * I, 1.0);
           ${OUTPUT}
         }`,

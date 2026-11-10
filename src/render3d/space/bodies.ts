@@ -2,8 +2,10 @@
  * The worlds of the space views, drawn from maths rather than pictures so they hold up at any size:
  * the Moon (the near side's real seas, rayed craters, a far side of highlands), Mercury, Mars (dark
  * basalt plains, polar caps, a dusty limb) and Venus (cloud lanes sweeping round under a thick haze).
- * Each is lit by the Sun where it really is, with a hard airless terminator or a soft one through air.
- * Small detail fades out as a body gets small on screen (no shimmer).
+ * Each is lit by the Sun where it really is, with a hard airless terminator or a soft one through air;
+ * relief is a height field whose slope tilts the light, so craters show as they really do: hardly at
+ * all under a high Sun, in long shadow near the terminator. Small detail fades out as a body gets
+ * small on screen (no shimmer).
  */
 import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -23,58 +25,66 @@ const MARIA: [number, number, number][] = [
 /** Young craters with bright rays: Tycho, Copernicus, Kepler, Aristarchus, and one on the far side. */
 const RAYS: [number, number, number][] = [[-11, -43, 1.0], [-20, 10, 0.7], [-38, 8, 0.45], [-47, 24, 0.5], [150, 20, 0.6]];
 
+// (everything is worked out in the body's own frame: the light, the eye and the neighbour's glow are brought into it)
 const vertex = /* glsl */ `
-  varying vec3 vP; varying vec3 vWn; varying vec3 vWp;
-  void main(){ vP = position; vWn = mat3(modelMatrix) * normal; vec4 wp = modelMatrix * vec4(position, 1.0); vWp = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`;
+  uniform vec4 uSun; uniform vec3 uFillDir; varying vec3 vP; varying vec3 vL; varying vec3 vV; varying vec3 vF;
+  void main(){
+    vP = position;
+    vec4 wp = modelMatrix * vec4(position, 1.0);
+    mat3 home = transpose(mat3(modelMatrix));
+    vL = home * (uSun.w > 0.5 ? uSun.xyz - wp.xyz : uSun.xyz);
+    vV = home * (cameraPosition - wp.xyz);
+    vF = home * uFillDir;
+    gl_Position = projectionMatrix * viewMatrix * wp;
+  }`;
 
 const COMMON = /* glsl */ `
-  uniform vec4 uSun; uniform vec3 uLight, uFill, uFillDir; uniform float uTime, uRadius;
-  varying vec3 vP; varying vec3 vWn; varying vec3 vWp;
+  uniform vec3 uLight, uFill; uniform float uTime;
+  varying vec3 vP; varying vec3 vL; varying vec3 vV; varying vec3 vF;
   ${NOISE}
-  /** Impact craters scattered at one size: bowls with raised rims. */
+  /** Impact craters scattered at one size (about f across a radius): shallow bowls with raised rims, in radii of the body. */
   float craters(vec3 p, float f, float seed){
     vec3 q = p * f, i = floor(q), fr = fract(q); float h = 0.0;
     for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
       vec3 g = vec3(x, y, z), o = hash33(i + g + seed * 13.7);
-      float rad = 0.15 + 0.36 * o.z * o.z;
+      // (most are small)
+      float rad = 0.09 + 0.27 * o.z * o.z * o.z;
       float d = length(g + 0.15 + o * 0.7 - fr) / rad;
-      if (d < 1.7) h += rad * (-(1.0 - d * d) * step(d, 1.0) * 0.9 + exp(-pow((d - 1.0) / 0.17, 2.0)) * 0.5);
+      if (d < 1.7) h += rad * (-(1.0 - d * d) * step(d, 1.0) * 0.3 + exp(-(d - 1.0) * (d - 1.0) / 0.03) * 0.11);
     }
-    return h;
+    return h / f;
   }
   /** How much of a feature size is left at this many radians a pixel (1 = all of it). */
-  float lod(float f, float px){ return clamp(1.6 - f * px * 4.5, 0.0, 1.0); }
-  /** A height field's slope tilts the normal (from screen-space derivatives, so one height lookup is enough). */
-  vec3 bumped(vec3 N, float h, float k){
-    vec3 sx = dFdx(vWp), sy = dFdy(vWp);
-    vec3 r1 = cross(sy, N), r2 = cross(N, sx);
-    float det = dot(sx, r1);
-    vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
-    return normalize(abs(det) * N - k * grad);
-  }`;
+  float lod(float f, float px){ return clamp(1.6 - f * px * 4.5, 0.0, 1.0); }`;
 
+/** Per kind: the height field (`aux` carries what it needs from the albedo pass) and the surface colour. */
 const SURFACE: Record<BodyKind, string> = {
   moon: /* glsl */ `
     uniform vec4 uMaria[${MARIA.length}]; uniform vec4 uRays[${RAYS.length}];
-    void surface(vec3 p, float px, out vec3 alb, out float h){
+    // aux: how much of a sea this is (young lava: smoother, with far fewer craters than the highlands)
+    float relief(vec3 p, float px, float aux){
+      float young = 1.0 - aux * 0.8;
+      float h = craters(p, 4.0, 1.0) * young * lod(4.0, px);
+      float l2 = lod(10.0, px), l3 = lod(24.0, px);
+      if (l2 > 0.0) h += craters(p, 10.0, 2.0) * young * l2;
+      #ifdef FINE
+      if (l3 > 0.0) h += craters(p, 24.0, 3.0) * (1.0 - aux * 0.5) * l3;
+      #endif
+      return h + (fbm(p * 7.0 + 4.0, 3) - 0.5) * 0.012 * young;
+    }
+    void surface(vec3 p, float px, out vec3 alb, out float h, out float aux){
       float warp = fbm(p * 3.0 + 2.0, 4) - 0.5;
       float mare = 0.0;
       for (int i = 0; i < ${MARIA.length}; i++) {
         float ang = acos(clamp(dot(p, uMaria[i].xyz), -1.0, 1.0));
-        mare = max(mare, 1.0 - smoothstep(uMaria[i].w * 0.7, uMaria[i].w * 1.1, ang + warp * 0.2));
+        mare = max(mare, 1.0 - smoothstep(uMaria[i].w * 0.72, uMaria[i].w * 1.08, ang + warp * 0.22));
       }
-      // the seas are young lava: smoother, with far fewer craters than the highlands
-      float young = 1.0 - mare * 0.8;
-      h = craters(p, 3.0, 1.0) * young * lod(3.0, px);
-      float l2 = lod(8.0, px), l3 = lod(21.0, px);
-      if (l2 > 0.0) h += craters(p, 8.0, 2.0) * 0.55 * young * l2;
-      #ifdef FINE
-      if (l3 > 0.0) h += craters(p, 21.0, 3.0) * 0.26 * (1.0 - mare * 0.5) * l3;
-      #endif
+      aux = mare;
+      h = relief(p, px, aux);
       float hl = fbm(p * 5.0 + 9.0, 5);
-      vec3 high = mix(vec3(0.50, 0.48, 0.45), vec3(0.74, 0.72, 0.68), hl);
-      vec3 low = mix(vec3(0.17, 0.18, 0.2), vec3(0.28, 0.28, 0.29), fbm(p * 9.0, 3));
-      alb = mix(high, low, mare);
+      vec3 high = mix(vec3(0.5, 0.48, 0.45), vec3(0.76, 0.74, 0.7), hl);
+      vec3 low = mix(vec3(0.19, 0.2, 0.22), vec3(0.29, 0.29, 0.3), fbm(p * 9.0, 3));
+      alb = mix(high, low, mare * 0.94);
       // rayed craters: a bright splash and streaks flung across the surface
       for (int i = 0; i < ${RAYS.length}; i++) {
         vec3 c = uRays[i].xyz; float ang = acos(clamp(dot(p, c), -1.0, 1.0));
@@ -82,45 +92,53 @@ const SURFACE: Record<BodyKind, string> = {
         float phi = atan(dot(p, e2), dot(p, e1));
         float streak = pow(vnoise(vec3(cos(phi), sin(phi), float(i)) * 5.0), 3.0);
         float reach = uRays[i].w;
-        alb += vec3(0.3) * (streak * exp(-ang / (0.42 * reach)) * smoothstep(0.02, 0.06, ang) * 1.6 + exp(-pow(ang / 0.035, 2.0)) * 0.8) * reach;
+        alb += vec3(0.3) * (streak * exp(-ang / (0.42 * reach)) * smoothstep(0.02, 0.06, ang) * 1.6 + exp(-ang * ang / 0.0012) * 0.8) * reach;
       }
-      alb *= 1.0 + h * 1.4;
-      h -= mare * 0.04;
+      // fresh rock on the rims
+      alb *= 1.0 + max(h, 0.0) * 9.0;
     }`,
   mercury: /* glsl */ `
-    void surface(vec3 p, float px, out vec3 alb, out float h){
-      float n = fbm(p * 3.2 + 3.0, 5), plains = smoothstep(0.52, 0.66, fbm(p * 1.7 + 20.0, 4));
-      float young = 1.0 - plains * 0.6;
-      h = craters(p, 3.5, 5.0) * young * lod(3.5, px);
+    float relief(vec3 p, float px, float aux){
+      float young = 1.0 - aux * 0.6;
+      float h = craters(p, 3.5, 5.0) * 1.2 * young * lod(3.5, px);
       float l2 = lod(9.0, px), l3 = lod(22.0, px);
-      if (l2 > 0.0) h += craters(p, 9.0, 6.0) * 0.5 * young * l2;
+      if (l2 > 0.0) h += craters(p, 9.0, 6.0) * 1.1 * young * l2;
       #ifdef FINE
-      if (l3 > 0.0) h += craters(p, 22.0, 7.0) * 0.24 * l3;
+      if (l3 > 0.0) h += craters(p, 22.0, 7.0) * l3;
       #endif
+      return h + (fbm(p * 6.0 + 4.0, 3) - 0.5) * 0.014;
+    }
+    void surface(vec3 p, float px, out vec3 alb, out float h, out float aux){
+      float n = fbm(p * 3.2 + 3.0, 5);
+      aux = smoothstep(0.52, 0.66, fbm(p * 1.7 + 20.0, 4));
+      h = relief(p, px, aux);
       alb = mix(vec3(0.36, 0.33, 0.3), vec3(0.62, 0.57, 0.5), n);
-      alb = mix(alb, vec3(0.3, 0.27, 0.25), plains * 0.55);
+      alb = mix(alb, vec3(0.3, 0.27, 0.25), aux * 0.55);
       // bright young splashes
       alb += vec3(0.24, 0.22, 0.2) * pow(vnoise(p * 6.0 + 40.0), 7.0) * 3.0;
-      alb *= 1.0 + h * 1.5;
+      alb *= 1.0 + max(h, 0.0) * 9.0;
     }`,
   mars: /* glsl */ `
-    void surface(vec3 p, float px, out vec3 alb, out float h){
+    // old ground: gentle relief and worn craters, nothing like the Moon's (aux: the polar caps, smooth ice)
+    float relief(vec3 p, float px, float aux){
+      float h = (fbm(p * 5.5 + 1.0, 4) - 0.5) * 0.03 + (fbm(p * 13.0 + 6.0, 4) - 0.5) * 0.012;
+      float l = lod(9.0, px);
+      if (l > 0.0) h += craters(p, 9.0, 4.0) * 0.8 * l * (1.0 - aux);
+      return h;
+    }
+    void surface(vec3 p, float px, out vec3 alb, out float h, out float aux){
       float n1 = fbm(p * 1.9 + 5.0, 5), n2 = fbm(p * 5.5 + 1.0, 4), n3 = fbm(p * 13.0 + 6.0, 4);
       // dark basalt plains wind-swept out of the bright dust, pale dust basins
-      float dark = smoothstep(0.48, 0.62, n1 + (n2 - 0.5) * 0.3) * smoothstep(0.95, 0.6, abs(p.y));
+      float dark = smoothstep(0.48, 0.62, n1 + (n2 - 0.5) * 0.3) * (1.0 - smoothstep(0.6, 0.95, abs(p.y)));
       alb = mix(vec3(0.66, 0.3, 0.14), vec3(0.92, 0.58, 0.33), n2 * 0.7 + n3 * 0.3);
       alb = mix(alb, vec3(0.27, 0.15, 0.11), dark * 0.85);
       alb = mix(alb, vec3(0.97, 0.7, 0.45), smoothstep(0.6, 0.75, fbm(p * 1.3 + 30.0, 4)) * (1.0 - dark) * 0.5);
-      float cap = smoothstep(0.87, 0.93, abs(p.y) + (n2 - 0.5) * 0.1);
-      alb = mix(alb, vec3(0.96, 0.94, 0.92), cap);
-      // old ground: gentle relief and worn craters, nothing like the Moon's
-      h = (n2 - 0.5) * 0.06 + (n3 - 0.5) * 0.02;
-      float l = lod(9.0, px);
-      if (l > 0.0) h += craters(p, 9.0, 4.0) * 0.1 * l * (1.0 - cap);
-      alb *= 1.0 + h * 0.8;
+      aux = smoothstep(0.87, 0.93, abs(p.y) + (n2 - 0.5) * 0.1);
+      alb = mix(alb, vec3(0.96, 0.94, 0.92), aux);
+      h = relief(p, px, aux);
     }`,
   venus: /* glsl */ `
-    void surface(vec3 p, float px, out vec3 alb, out float h){
+    void surface(vec3 p, float px, out vec3 alb, out float h, out float aux){
       // the cloud tops race round the planet, fastest at the equator: the lanes sweep back towards the poles
       float a = uTime * 0.035 + (1.0 - p.y * p.y) * 1.7;
       vec3 q = vec3(p.x * cos(a) - p.z * sin(a), p.y, p.x * sin(a) + p.z * cos(a));
@@ -129,29 +147,29 @@ const SURFACE: Record<BodyKind, string> = {
       float v = lanes * 0.68 + fine * 0.32;
       alb = mix(vec3(0.72, 0.56, 0.3), vec3(0.99, 0.93, 0.76), smoothstep(0.3, 0.72, v));
       alb = mix(alb, vec3(1.0, 0.96, 0.84), smoothstep(0.78, 0.95, abs(p.y)) * 0.5);
-      h = 0.0;
+      h = 0.0; aux = 0.0;
     }`,
 };
 
-/** Per kind: how dusty the light falls off (Lommel–Seeliger share), bump strength, the air's wrap and haze. */
+/** Per kind: how dusty the light falls off (Lommel–Seeliger share), how far the relief tilts it, the air's wrap and haze. */
 const LOOK: Record<BodyKind, { dusty: number; bump: number; wrap: number; haze: [number, number, number]; hazeK: number }> = {
-  moon: { dusty: 0.7, bump: 2.2, wrap: 0, haze: [0, 0, 0], hazeK: 0 },
-  mercury: { dusty: 0.6, bump: 2.0, wrap: 0, haze: [0, 0, 0], hazeK: 0 },
-  mars: { dusty: 0.25, bump: 1.6, wrap: 0.12, haze: [0.95, 0.66, 0.5], hazeK: 0.4 },
+  moon: { dusty: 0.7, bump: 1.5, wrap: 0, haze: [0, 0, 0], hazeK: 0 },
+  mercury: { dusty: 0.6, bump: 1.5, wrap: 0, haze: [0, 0, 0], hazeK: 0 },
+  mars: { dusty: 0.25, bump: 1.5, wrap: 0.12, haze: [0.95, 0.66, 0.5], hazeK: 0.4 },
   venus: { dusty: 0, bump: 0, wrap: 0.42, haze: [1.0, 0.9, 0.66], hazeK: 0.9 },
 };
 
 /**
  * A world's material. Set `uSun` each frame: xyz = the Sun's position with w = 1, or the direction
- * to it with w = 0. `uFill`/`uFillDir` is light from a neighbour (earthshine on the Moon).
+ * to it with w = 0. `uFill`/`uFillDir` is light from a neighbour (earthshine on the Moon), in world space.
  */
-export function bodyMaterial(kind: BodyKind, radius: number) {
+export function bodyMaterial(kind: BodyKind) {
   const k = LOOK[kind];
-  const m = new THREE.ShaderMaterial({
+  return new THREE.ShaderMaterial({
     defines: quality.level === 'low' ? {} : { FINE: 1 },
     uniforms: {
       uSun: { value: new THREE.Vector4(0, 0, 0, 1) }, uLight: { value: new THREE.Color(1.2, 1.15, 1.08) }, uFill: { value: new THREE.Color(0.012, 0.014, 0.02) },
-      uFillDir: { value: new THREE.Vector3(0, 1, 0) }, uTime: { value: 0 }, uRadius: { value: radius },
+      uFillDir: { value: new THREE.Vector3(0, 1, 0) }, uTime: { value: 0 },
       uMaria: { value: MARIA.map(([lon, lat, w]) => new THREE.Vector4(...sel(lon, lat).toArray(), w * RAD)) },
       uRays: { value: RAYS.map(([lon, lat, w]) => new THREE.Vector4(...sel(lon, lat).toArray(), w)) },
     },
@@ -160,32 +178,36 @@ export function bodyMaterial(kind: BodyKind, radius: number) {
       ${COMMON}
       ${SURFACE[kind]}
       void main(){
-        vec3 p = normalize(vP), N = normalize(vWn), V = normalize(cameraPosition - vWp);
-        vec3 L = normalize(uSun.w > 0.5 ? uSun.xyz - vWp : uSun.xyz);
+        vec3 p = normalize(vP), L = normalize(vL), V = normalize(vV), N = p;
         float px = length(fwidth(p));
-        vec3 alb; float h;
-        surface(p, px, alb, h);
-        vec3 Nb = ${k.bump > 0 ? `bumped(N, h * uRadius, ${k.bump.toFixed(2)} * lod(4.0, px))` : 'N'};
-        float ndl = dot(Nb, L), ndlG = dot(N, L), ndv = max(dot(N, V), 0.0);
+        vec3 alb; float h, aux;
+        surface(p, px, alb, h, aux);
+        ${k.bump > 0 ? /* glsl */ `
+        // the slope of the height field, from two more soundings a step along the ground, tilts the normal
+        float e = max(px * 0.8, 0.0012), tilt = ${k.bump.toFixed(2)} * lod(4.0, px);
+        if (tilt > 0.0) {
+          vec3 t1 = normalize(cross(p, vec3(0.31, 1.0, 0.17))), t2 = cross(p, t1);
+          N = normalize(p - (t1 * (relief(normalize(p + t1 * e), px, aux) - h) + t2 * (relief(normalize(p + t2 * e), px, aux) - h)) / e * tilt);
+        }` : ''}
+        float ndl = dot(N, L), ndlG = dot(p, L), ndv = max(dot(p, V), 0.0);
         // airless: a crisp terminator; through air: light creeps round it
         float term = smoothstep(${(-0.015 - k.wrap).toFixed(3)}, ${(0.06 + k.wrap * 0.9).toFixed(3)}, ndlG);
         float lam = max(mix(ndl, ndlG * 0.5 + 0.5, ${k.wrap.toFixed(2)}), 0.0);
         // dust scatters back the way the light came: a full disc is evenly bright, with no dark limb
         float seel = min(2.0 * lam / (lam + ndv + 0.001), 1.5);
         float diff = mix(lam, seel, ${k.dusty.toFixed(2)}) * term;
-        vec3 c = alb * (uLight * diff + uFill * (0.6 + 0.4 * dot(N, uFillDir)));
+        vec3 c = alb * (uLight * diff + uFill * (0.6 + 0.4 * dot(p, normalize(vF))));
         // haze piling up towards the limb on the sunlit side
-        c += vec3(${k.haze.join(', ')}) * pow(1.0 - ndv, 3.0) * smoothstep(-0.1, 0.35, ndlG) * ${k.hazeK.toFixed(2)};
+        c += vec3(${k.haze.join(', ')}) * pow(max(1.0 - ndv, 0.0), 3.0) * smoothstep(-0.1, 0.35, ndlG) * ${k.hazeK.toFixed(2)};
         gl_FragColor = vec4(c, 1.0);
         ${OUTPUT}
       }`,
   });
-  return m;
 }
 
 /**
  * A halo of air round a planet (a back-face shell `shell` × its radius): a thin bright rim, on the
- * lit side only. Set `uSun` as for the body, and `uCenter` to where the planet is.
+ * lit side only. Set `uSun` as for the body.
  */
 export function airMaterial(color: THREE.ColorRepresentation, strength: number, shell = 1.12) {
   return new THREE.ShaderMaterial({

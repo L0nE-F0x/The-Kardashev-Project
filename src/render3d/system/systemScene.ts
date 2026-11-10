@@ -61,7 +61,7 @@ function eruptionMaterial() {
       ${NOISE}
       void main(){
         // seen edge-on a shell is a bright rim; noise tears it into arcs
-        float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 3.0);
+        float rim = pow(max(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0), 3.0);
         float torn = smoothstep(0.42, 0.7, fbm(normalize(vP) * 2.2 + uSeed, 4));
         gl_FragColor = vec4(vec3(1.0, 0.5, 0.22) * rim * torn * uK, 1.0);
         ${OUTPUT}
@@ -143,7 +143,7 @@ export class SystemScene3D implements Scene3D {
         holder.add(this.earth.object);
         ball = this.earth.globe;
       } else {
-        ball = new THREE.Mesh(new THREE.SphereGeometry(p.r, 64, 32), bodyMaterial(p.id as BodyKind, p.r));
+        ball = new THREE.Mesh(new THREE.SphereGeometry(p.r, 64, 32), bodyMaterial(p.id as BodyKind));
         holder.add(ball);
         if (p.id !== 'mercury') {
           air = p.id === 'venus' ? airMaterial(0xffe2a8, 0.75, 1.14) : airMaterial(0xf2a27a, 0.3, 1.08);
@@ -153,7 +153,7 @@ export class SystemScene3D implements Scene3D {
       this.scene.add(line, holder);
       this.planets.set(p.id, { def: p, holder, ball, q, line, air, angle: 0 });
     }
-    this.moon = new THREE.Mesh(new THREE.SphereGeometry(MOON_R, 48, 24), bodyMaterial('moon', MOON_R));
+    this.moon = new THREE.Mesh(new THREE.SphereGeometry(MOON_R, 48, 24), bodyMaterial('moon'));
     (this.moon.material as THREE.ShaderMaterial).uniforms.uFill.value.setRGB(0.045, 0.06, 0.09);
     this.moonLine = orbitLine(MOON_ORBIT, { color: 0xb9c2d6, width: 1, opacity: 0.3, base: 0.5 });
     this.scene.add(this.moon, this.moonLine);
@@ -201,7 +201,7 @@ export class SystemScene3D implements Scene3D {
           vK = (0.03 + 0.3 * pow(aRock.w, 5.0)) * smoothstep(40.0, 200.0, -mv.z);
         }`,
       fragmentShader: /* glsl */ `varying float vK;
-        void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; gl_FragColor = vec4(vec3(0.95, 0.82, 0.68) * vK * smoothstep(1.0, 0.2, d), 1.0);
+        void main(){ float d = length(gl_PointCoord - 0.5) * 2.0; gl_FragColor = vec4(vec3(0.95, 0.82, 0.68) * vK * (1.0 - smoothstep(0.2, 1.0, d)), 1.0);
           ${OUTPUT} }`,
     });
     const p = new THREE.Points(g, m);
@@ -388,7 +388,7 @@ export class SystemScene3D implements Scene3D {
     sizeRibbons(this.camera, this.h);
     const lines = shot ? shot.system : 1;
     for (const p of this.planets.values()) p.line.material.uniforms.uOpacity.value = (p.def.id === 'earth' ? 0.62 : 0.46) * lines;
-    this.moonLine.material.uniforms.uOpacity.value = 0.3 * lines * THREE.MathUtils.smoothstep(this.camera.position.distanceTo(earth), 900, 300);
+    this.moonLine.material.uniforms.uOpacity.value = 0.3 * lines * (1 - THREE.MathUtils.smoothstep(this.camera.position.distanceTo(earth), 300, 900));
     // the swarm; where it stands between the viewer and the Sun, the Sun comes through dimmer and redder
     const storm = v.storm ?? 0;
     this.swarm.update(this.time, v.segments, earthAngle, v.damage, shot ? shot.wave : 10, shot ? shot.ribs : 1);

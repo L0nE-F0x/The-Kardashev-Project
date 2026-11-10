@@ -22,7 +22,7 @@ const surfaceFS = /* glsl */ `
     float gran = smoothstep(0.0, 0.42, c1.y - c1.x) * 0.6 + smoothstep(0.0, 0.45, c2.y - c2.x) * 0.4;
     float mottle = fbm(p * 2.6 + vec3(0.0, uTime * 0.012, 0.0), 4);
     // sunspots in the two active belts (a dark heart, a paler skirt), bright faculae round them; more in a storm
-    float belt = smoothstep(0.06, 0.2, abs(p.y)) * smoothstep(0.64, 0.42, abs(p.y));
+    float belt = smoothstep(0.06, 0.2, abs(p.y)) * (1.0 - smoothstep(0.42, 0.64, abs(p.y)));
     float sn = vnoise(p * 4.2 + vec3(11.0 + uTime * 0.004, 3.0, 7.0)) + (fbm(p * 14.0, 3) - 0.5) * 0.08;
     float spot = smoothstep(0.79 - uStorm * 0.07, 0.83, sn) * belt, heart = smoothstep(0.83, 0.87, sn) * belt;
     float fac = smoothstep(0.62, 0.78, sn) * belt * (1.0 - spot) * gran;
@@ -55,7 +55,7 @@ const coronaFS = /* glsl */ `
     float inner = exp(-h * 4.6) * 1.25;
     float outer = pow(r, -2.5) * (0.3 + streamer * smoothstep(0.0, 1.3, h) * 1.25 + rays * rays * 0.4);
     float I = (fringe * 1.6 + inner + outer) * (1.0 + uStorm * 0.9);
-    I *= smoothstep(${CORONA.toFixed(1)}, ${(CORONA * 0.45).toFixed(1)}, r);
+    I *= 1.0 - smoothstep(${(CORONA * 0.45).toFixed(1)}, ${CORONA.toFixed(1)}, r);
     vec3 c = mix(vec3(1.0, 0.84, 0.58), vec3(1.0, 0.55, 0.24), smoothstep(0.0, 3.2, h)) * uTint;
     c = mix(c, vec3(1.0, 0.36, 0.2) * uTint, fringe * 0.5);
     gl_FragColor = vec4(c * I * uGain, 1.0);
@@ -228,13 +228,13 @@ export class SunFlare {
         void main(){
           float d = length(vUv), I;
           int s = int(vShape + 0.5);
-          if (s == 0) I = exp(-d * d * 9.0) + 0.22 / (1.0 + d * d * 60.0) * smoothstep(1.0, 0.6, d);
+          if (s == 0) I = exp(-d * d * 9.0) + 0.22 / (1.0 + d * d * 60.0) * (1.0 - smoothstep(0.6, 1.0, d));
           else if (s == 1) I = exp(-abs(vUv.y) * 90.0) * exp(-abs(vUv.x) * 3.4) + exp(-abs(vUv.y) * 22.0) * exp(-abs(vUv.x) * 9.0) * 0.3;
           else if (s == 2) { float a = atan(vUv.y, vUv.x) + uSpin;
             I = (pow(abs(cos(a * 3.0)), 90.0) + pow(abs(cos(a * 7.0 + 0.6)), 40.0) * 0.22 + pow(abs(sin(a * 11.0)), 24.0) * 0.1) * exp(-d * 4.2); }
-          else if (s == 3) I = smoothstep(1.0, 0.9, d) * (0.35 + 0.65 * smoothstep(0.4, 1.0, d));
-          else if (s == 4) I = exp(-pow((d - 0.8) / 0.07, 2.0));
-          else I = smoothstep(1.0, 0.0, d) * smoothstep(1.0, 0.0, d);
+          else if (s == 3) I = (1.0 - smoothstep(0.9, 1.0, d)) * (0.35 + 0.65 * smoothstep(0.4, 1.0, d));
+          else if (s == 4) I = exp(-(d - 0.8) * (d - 0.8) / 0.0049);
+          else I = (1.0 - smoothstep(0.0, 1.0, d)) * (1.0 - smoothstep(0.0, 1.0, d));
           gl_FragColor = vec4(vCol * I, 1.0);
           ${OUTPUT}
         }`,
