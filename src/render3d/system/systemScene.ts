@@ -72,7 +72,7 @@ function eruptionMaterial() {
 export class SystemScene3D implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(32, 1, 1, 20000);
-  readonly look: Look = { ...defaultLook(), bloom: BLOOM, bloomThreshold: 1.1, vignette: 0.42 };
+  readonly look: Look = { ...defaultLook(), bloom: BLOOM, bloomThreshold: 1.1, vignette: 0.42, contrast: 0.08, sharpen: 0.2 };
   /** The ending's pull-back has finished (the UI waits for it). */
   cinematicDone: boolean;
   private backdrop: Backdrop;
@@ -100,7 +100,7 @@ export class SystemScene3D implements Scene3D {
   /** Orbital time, in game days since the scene opened (it runs slow in the ending). */
   private clock = 0;
   private cineT = 0;
-  private shot: CineShot = { pos: new THREE.Vector3(), look: new THREE.Vector3(), wave: 10, system: 1, glow: 0 };
+  private shot: CineShot = { pos: new THREE.Vector3(), look: new THREE.Vector3(), wave: 10, system: 1, glow: 0, ribs: 1 };
   private w = 1;
   private h = 1;
   private az = -1.0;
@@ -112,6 +112,8 @@ export class SystemScene3D implements Scene3D {
   /** The body the camera circles (null = the Sun), and how far its centre still is from there. */
   private focus: PlanetId | null = null;
   private lag = new THREE.Vector3();
+  private glide: { az: number; el: number } | null = null;
+  private sunward: number | null = null;
   private down: { x: number; y: number; moved: boolean; t: number } | null = null;
   private hover: string | null = null;
   private last: { v: SystemView; targets: Target[] } | null = null;
@@ -152,10 +154,10 @@ export class SystemScene3D implements Scene3D {
       this.planets.set(p.id, { def: p, holder, ball, q, line, air, angle: 0 });
     }
     this.moon = new THREE.Mesh(new THREE.SphereGeometry(MOON_R, 48, 24), bodyMaterial('moon', MOON_R));
-    (this.moon.material as THREE.ShaderMaterial).uniforms.uFill.value.setRGB(0.02, 0.03, 0.05);
+    (this.moon.material as THREE.ShaderMaterial).uniforms.uFill.value.setRGB(0.045, 0.06, 0.09);
     this.moonLine = orbitLine(MOON_ORBIT, { color: 0xb9c2d6, width: 1, opacity: 0.3, base: 0.5 });
     this.scene.add(this.moon, this.moonLine);
-    this.swarm = new Swarm(SWARM_R, 0.85);
+    this.swarm = new Swarm(SWARM_R, 0.7);
     this.belt = this.makeBelt();
     this.scene.add(this.swarm.object, this.belt, this.beams.object, this.dyn, this.flare.object);
     // Solar Maximum: eruptions rolling out from the Sun
@@ -238,7 +240,7 @@ export class SystemScene3D implements Scene3D {
   }
 
   private lagrange(which: 'l4' | 'l5', earth: THREE.Vector3) {
-    return this.station(which === 'l4' ? 0.085 : -0.085, earth);
+    return this.station(which === 'l4' ? 0.12 : -0.12, earth);
   }
 
   /** A lamp: a tiny ball that glows far past white, so the bloom finds it. */
@@ -389,7 +391,7 @@ export class SystemScene3D implements Scene3D {
     this.moonLine.material.uniforms.uOpacity.value = 0.3 * lines * THREE.MathUtils.smoothstep(this.camera.position.distanceTo(earth), 900, 300);
     // the swarm; where it stands between the viewer and the Sun, the Sun comes through dimmer and redder
     const storm = v.storm ?? 0;
-    this.swarm.update(this.time, v.segments, earthAngle, v.damage, shot ? shot.wave : 10);
+    this.swarm.update(this.time, v.segments, earthAngle, v.damage, shot ? shot.wave : 10, shot ? shot.ribs : 1);
     const cam = this.camera.position, camR = Math.hypot(cam.x, cam.z);
     let veil = 0;
     if (camR > SWARM_R) {
@@ -397,11 +399,13 @@ export class SystemScene3D implements Scene3D {
       veil = (1 - THREE.MathUtils.smoothstep(y, 12, 44)) * (v.segments[Math.min(11, Math.floor((behind / (Math.PI * 2)) * 12))] ?? 0) * (shot ? THREE.MathUtils.smoothstep(shot.wave, 0, 1) : 1);
     }
     this.tint.setRGB(1, 1 - veil * 0.3, 1 - veil * 0.52);
-    this.sun.update(dt, this.time, this.camera, storm, this.tint);
+    // (close in, the view stops down: the Sun's own grain instead of a white-out)
+    const near = THREE.MathUtils.smoothstep(this.pixels(SUN_R, ORIGIN) / this.h, 0.05, 0.28);
+    this.sun.update(dt, this.time, this.camera, storm, this.tint, near);
     const bodies = [{ at: earth, r: E.def.r }, { at: this.moon.position, r: MOON_R }, ...[...this.planets.values()].filter((p) => p.def.id !== 'earth').map((p) => ({ at: p.holder.position, r: p.def.r }))];
     const { vis } = sunVisibility(cam, ORIGIN, SUN_R, bodies);
-    this.flare.update(this.camera, ORIGIN, vis, (0.9 + storm * 0.5 + Math.sin(this.time * 0.7) * 0.03) * (1 - veil * 0.4), this.tint);
-    this.look.bloom = BLOOM + storm * 0.2 + (shot ? shot.glow : 0);
+    this.flare.update(this.camera, ORIGIN, vis, (0.9 + storm * 0.5 + Math.sin(this.time * 0.7) * 0.03) * (1 - veil * 0.4) * (1 - near * 0.6), this.tint);
+    this.look.bloom = (BLOOM + storm * 0.2) * (1 - near * 0.5) + (shot ? shot.glow : 0);
     this.belt.material.uniforms.uClock.value = ((this.clock + day) / 365.25) * Math.PI * 2;
     this.belt.material.uniforms.uPx.value = this.game.stage.scale;
     this.backdrop.resize(this.game.stage.scale);
@@ -471,7 +475,22 @@ export class SystemScene3D implements Scene3D {
 
   /** Free flight: round the Sun (or the planet you clicked), with a little weight to it. */
   private freeCamera(dt: number) {
-    if (!this.down) {
+    const centre = this.focusPos();
+    // round a planet the view turns with it, so its light stays where you put it (Mercury laps the Sun in seconds)
+    const sunward = this.focus ? Math.atan2(-centre.z, -centre.x) : null;
+    if (sunward !== null && this.sunward !== null) {
+      const d = Math.atan2(Math.sin(sunward - this.sunward), Math.cos(sunward - this.sunward));
+      this.az += d;
+      if (this.glide) this.glide.az += d;
+    }
+    this.sunward = sunward;
+    if (this.glide) {
+      // flying to a planet: swing round to its sunlit side on the way
+      const k = Math.min(1, dt * 2.6), da = Math.atan2(Math.sin(this.glide.az - this.az), Math.cos(this.glide.az - this.az));
+      this.az += da * k;
+      this.el += (this.glide.el - this.el) * k;
+      if (Math.abs(da) + Math.abs(this.glide.el - this.el) < 0.004) this.glide = null;
+    } else if (!this.down) {
       // a flick keeps turning and settles; left alone, the view drifts slowly round
       this.az += this.vAz * dt + dt * 0.008;
       this.el += this.vEl * dt;
@@ -481,7 +500,6 @@ export class SystemScene3D implements Scene3D {
     }
     this.dist += (this.goalDist - this.dist) * Math.min(1, dt * 4);
     this.el = Math.max(0.04, Math.min(1.45, this.el));
-    const centre = this.focusPos();
     this.lag.multiplyScalar(Math.exp(-dt * 3));
     centre.add(this.lag);
     // (the Sun sits a little above the middle: the near arc of the orbits gets the room)
@@ -502,8 +520,13 @@ export class SystemScene3D implements Scene3D {
   private setFocus(f: PlanetId | null) {
     const from = this.focusPos().add(this.lag);
     this.focus = f;
-    this.lag.copy(from).sub(this.focusPos());
+    this.sunward = null;
+    const to = this.focusPos();
+    this.lag.copy(from).sub(to);
     this.goalDist = f ? this.focusRadius() * 9 : 880;
+    // a planet is best seen three-quarters lit: the Sun over one shoulder (whichever side is the shorter way round)
+    const sunward = Math.atan2(-to.z, -to.x), turn = (a: number) => Math.abs(Math.atan2(Math.sin(a - this.az), Math.cos(a - this.az)));
+    this.glide = f ? { az: turn(sunward + 0.95) < turn(sunward - 0.95) ? sunward + 0.95 : sunward - 0.95, el: 0.2 } : { az: this.az, el: 0.46 };
   }
 
   private screenOf(p: THREE.Vector3) {
@@ -557,9 +580,14 @@ export class SystemScene3D implements Scene3D {
   }
 
   resize(w: number, h: number) { this.w = w; this.h = h; }
-  busy() { return !this.cinematicDone || !!this.down?.moved || Math.abs(this.goalDist - this.dist) > 1 || this.lag.lengthSq() > 4 || Math.abs(this.vAz) + Math.abs(this.vEl) > 0.05; }
+  busy() { return !this.cinematicDone || !!this.down?.moved || !!this.glide || Math.abs(this.goalDist - this.dist) > 1 || this.lag.lengthSq() > 4 || Math.abs(this.vAz) + Math.abs(this.vEl) > 0.05; }
 
-  pointerDown(p: PixelPointer) { if (!this.opts.cinematic) { this.down = { x: p.x, y: p.y, moved: false, t: performance.now() }; this.vAz = this.vEl = 0; } }
+  pointerDown(p: PixelPointer) {
+    if (this.opts.cinematic) return;
+    this.down = { x: p.x, y: p.y, moved: false, t: performance.now() };
+    this.vAz = this.vEl = 0;
+    this.glide = null;
+  }
   pointerMove(p: PixelPointer) {
     if (this.down) {
       const dx = p.x - this.down.x, dy = p.y - this.down.y;

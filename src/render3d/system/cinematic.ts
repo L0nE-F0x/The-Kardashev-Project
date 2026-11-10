@@ -54,10 +54,12 @@ export interface CineShot {
   system: number;
   /** Bloom on top of the scene's own (the sunrise, the ring closing). */
   glow: number;
+  /** 0..1: the ribs over the Sun, strung last of all. */
+  ribs: number;
 }
 
 /** The held frame: where the camera ends up, in the Earth's turning frame (distance from the Sun, bearing, height). */
-const END = { dist: 930, az: 0.62, el: 0.4 };
+const END = { dist: 670, az: 0.55, el: 0.31 };
 
 /** The way the held frame looks, given the Earth's angle round its orbit by then (the sky is composed for it). */
 export function cineEndView(earthAngle: number) {
@@ -76,8 +78,8 @@ export function cineShot(t: number, earth: THREE.Vector3, re: number, out: CineS
   const nearLook = earth.clone().addScaledVector(z, side(t) * re);
   // the held frame, drifting on round the Sun for as long as it is watched
   const drift = Math.max(0, t - CINE_LENGTH + 2);
-  const far = at(END.az + drift * 0.011, END.el + Math.sin(drift * 0.05) * 0.02, END.dist - Math.min(120, drift * 1.6));
-  const farLook = new THREE.Vector3(0, -34, 0).addScaledVector(x, 26);
+  const far = at(END.az + drift * 0.011, END.el + Math.sin(drift * 0.05) * 0.02, END.dist - Math.min(70, drift * 1.2));
+  const farLook = new THREE.Vector3(0, -34, 0).addScaledVector(x, 18);
   const w = smoother(4.4, CINE_LENGTH, t);
   out.pos.copy(near).lerp(far, w);
   out.look.copy(nearLook).lerp(farLook, smoother(4.8, CINE_LENGTH - 1.2, t));
@@ -85,5 +87,6 @@ export function cineShot(t: number, earth: THREE.Vector3, re: number, out: CineS
   out.system = smoother(5, 10, t);
   // the sunrise at ~2 s, the fronts meeting at ~11 s
   out.glow = Math.exp(-Math.pow((t - 2.3) / 0.9, 2)) * 0.35 + Math.exp(-Math.pow((t - 11.3) / 1.1, 2)) * 0.4;
+  out.ribs = smoother(11, 14.5, t);
   return out;
 }

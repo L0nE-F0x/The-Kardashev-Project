@@ -59,10 +59,10 @@ export class Swarm {
       side: THREE.DoubleSide,
       uniforms: {
         ...ribbonUniforms, uFill: { value: this.fill }, uLon: { value: 0 }, uTime: { value: 0 }, uSize: { value: size }, uDamage: { value: 0 },
-        uWave: { value: 10 }, uGain: { value: 1 }, uRibs: { value: 0 },
+        uWave: { value: 10 }, uRibs: { value: 0 },
       },
       vertexShader: /* glsl */ `
-        attribute vec4 aOrb, aSeed; uniform float uFill[${SEGS}]; uniform float uLon, uTime, uSize, uPx, uDamage, uWave, uGain, uRibs;
+        attribute vec4 aOrb, aSeed; uniform float uFill[${SEGS}]; uniform float uLon, uTime, uSize, uPx, uDamage, uWave, uRibs;
         varying vec3 vCol; varying vec2 vUv;
         void main(){
           float rib = step(15.5, aSeed.x), fill = uFill[int(aSeed.x - rib * 16.0 + 0.5)];
@@ -77,26 +77,29 @@ export class Swarm {
           vec3 t1 = normalize(cross(S, vec3(0.0, 1.0, 0.0))), t2 = cross(S, t1);
           float psi = aSeed.z * 6.2831853 + uTime * (0.22 + aSeed.w * 0.8);
           vec3 n = normalize(S + (t1 * cos(psi) + t2 * sin(psi)) * (0.1 + 0.55 * fract(aSeed.z * 7.13 + aSeed.w * 3.7)));
-          // the ending's wave: until it passes (counted in radians round the ring from the Earth) a collector is
-          // feathered edge-on and dark; as it passes, it swings to the Sun and flares
+          // the ending's wave: until it passes (counted in radians round the ring from the Earth) a collector lies
+          // feathered, flat in its orbit and edge-on to the Sun, dark; as it passes, it swings to the Sun and flares
           float lon = aOrb.w + aOrb.z; float away = abs(atan(sin(lon), cos(lon)));
-          float lit = smoothstep(away - 0.02, away + 0.1, uWave), flash = exp(-max(uWave - away, 0.0) * 5.5) * lit;
-          vec3 b1 = normalize(cross(n, t2)), b2 = cross(n, b1);
+          float lit = smoothstep(away - 0.02, away + 0.1, uWave), flash = exp(-max(uWave - away, 0.0) * 7.0) * lit;
+          n = normalize(mix(vec3(0.0, 1.0, 0.0) + t1 * (aSeed.z - 0.5) * 0.3, n, lit));
+          vec3 b1 = normalize(cross(n, t1)), b2 = cross(n, b1);
           // never smaller than a pixel or so (far off they'd shimmer), never in the lens's face
           float px = dist * uPx, size = max(uSize, px * 0.85);
-          float k = grow * smoothstep(30.0, 70.0, dist) * mix(0.55, 1.0, lit);
+          float k = grow * smoothstep(30.0, 70.0, dist) * mix(0.7, 1.0, lit);
           vec3 wp = pos + (b1 * position.x + b2 * position.y) * size * k;
           vUv = position.xy;
           float face = dot(n, V), ndl = max(dot(n, S), 0.0);
           float spec = pow(max(dot(reflect(-S, n), V), 0.0), 70.0);
           vec3 front = vec3(1.0, 0.7, 0.28) * (0.2 + 0.5 * ndl) + vec3(1.0, 0.88, 0.66) * spec * 11.0;
-          vec3 back = vec3(0.5, 0.13, 0.04) * (0.35 + 0.4 * ndl);
+          // from behind, sunlight soaks through the film: brightest looking straight through it at the Sun
+          float through = max(dot(-V, S), 0.0);
+          vec3 back = mix(vec3(0.2, 0.035, 0.012), vec3(0.75, 0.24, 0.07), through * through * through) * (0.55 + 0.45 * ndl) * (0.55 + 0.45 * aSeed.z);
           vec3 c = (face > 0.0 ? front : back) * min(1.0, (uSize / size) * (uSize / size) + 0.3);
-          c = mix(vec3(0.05, 0.022, 0.012), c, lit) + vec3(1.0, 0.82, 0.5) * flash * 7.0;
+          c = mix(vec3(0.02, 0.009, 0.005), c, lit) + vec3(1.0, 0.82, 0.5) * flash * 4.5;
           // knocked dark by the storm: dead, with the odd spark
           float dead = step(aSeed.w, uDamage);
           c = mix(c, vec3(0.5, 0.75, 1.0) * step(0.965, fract(uTime * 2.3 + aSeed.z * 31.0)) * 3.0 + c * 0.06, dead);
-          vCol = c * uGain;
+          vCol = c;
           gl_Position = k > 0.001 ? projectionMatrix * viewMatrix * vec4(wp, 1.0) : vec4(2.0, 2.0, 2.0, 1.0);
         }`,
       fragmentShader: /* glsl */ `
@@ -115,18 +118,18 @@ export class Swarm {
 
   /**
    * `segments`: the sim's twelve arcs. `earthAngle`: where the Earth is on its orbit (the ring keeps station with it).
-   * `wave`: the ending's ignition front in radians from the Earth (≥ π: all lit).
+   * `wave`: the ending's ignition front in radians from the Earth (≥ π: all lit). `ribs` 0..1: how much of
+   * the ribs the ending lets show yet.
    */
-  update(time: number, segments: number[], earthAngle: number, damage: number, wave = 10, gain = 1) {
+  update(time: number, segments: number[], earthAngle: number, damage: number, wave = 10, ribs = 1) {
     let sum = 0;
     for (let i = 0; i < SEGS; i++) sum += this.fill[i] = segments[i] ?? 0;
     const u = this.object.material.uniforms;
     // the ribs string themselves over the Sun as the last arcs of the ring close
-    u.uRibs.value = THREE.MathUtils.smoothstep(sum / SEGS, 0.72, 1);
+    u.uRibs.value = THREE.MathUtils.smoothstep(sum / SEGS, 0.72, 1) * ribs;
     u.uTime.value = time;
     u.uLon.value = earthAngle - 0.09;
     u.uDamage.value = damage;
     u.uWave.value = wave;
-    u.uGain.value = gain;
   }
 }

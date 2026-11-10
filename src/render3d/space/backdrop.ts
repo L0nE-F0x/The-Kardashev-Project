@@ -39,21 +39,21 @@ function milkyWay(gain: number) {
         float core = exp(-pow(acos(clamp(d.x, -1.0, 1.0)) / 0.8, 2.0));
         float w1 = fbm(d * 2.3 + 3.1, 3) - 0.5;
         float y = d.y + w1 * 0.17;
-        float width = mix(0.085, 0.21, core);
+        float width = mix(0.06, 0.135, core);
         float band = exp(-y * y / (width * width));
-        float wide = exp(-y * y / (width * width * 8.0));
+        float wide = exp(-y * y / (width * width * 7.0));
         // star clouds along the band, dark dust lanes threading its middle
         float clouds = fbm(d * vec3(7.0, 11.0, 7.0) + w1 * 1.5 + 9.0, ${oct});
         float lanes = fbm(d * vec3(9.0, 26.0, 9.0) + w1 * 3.0 + 4.0, ${oct});
         float dust = smoothstep(0.47, 0.7, lanes) * exp(-y * y / (width * width * 0.4));
-        float I = band * (0.22 + 1.7 * clouds * clouds) * (0.42 + 1.7 * core) + wide * 0.09 * (0.5 + core);
-        I *= 1.0 - dust * 0.84;
+        float I = band * (0.2 + 1.8 * clouds * clouds) * (0.42 + 1.5 * core) + wide * 0.07 * (0.5 + core);
+        I *= 1.0 - dust * 0.86;
         vec3 col = mix(vec3(0.44, 0.55, 0.88), vec3(1.0, 0.79, 0.55), clamp(core * 1.15 + (clouds - 0.5) * 0.35, 0.0, 1.0));
         col = mix(col, vec3(0.78, 0.36, 0.2), dust * 0.55);
         // nebulae: rose emission knots in the band, a cold teal haze off it
-        float k1 = pow(fbm(d * 5.0 + 21.0, 3), 4.0) * band * 6.0;
+        float k1 = pow(fbm(d * 6.0 + 21.0, 3), 5.0) * band * 9.0;
         float k2 = pow(fbm(d * 1.9 + 37.0, 3), 3.0) * (1.0 - band);
-        vec3 c = (col * I + vec3(0.9, 0.2, 0.36) * k1 * 0.55 + vec3(0.08, 0.3, 0.42) * k2 * 0.42) * uGain;
+        vec3 c = (col * I + vec3(0.9, 0.2, 0.36) * k1 * 0.4 + vec3(0.08, 0.3, 0.42) * k2 * 0.42) * uGain;
         // (never quite black: a deep blue floor reads as space, pure black as a missing picture)
         gl_FragColor = vec4(c + vec3(0.0035, 0.0045, 0.011), 1.0);
         ${OUTPUT}
@@ -100,7 +100,7 @@ function stars(count: number, gain: number) {
         gl_Position = projectionMatrix * vec4(mv.xyz, 1.0);
         gl_Position.z = gl_Position.w * 0.99999;
         // bright stars are bigger discs with a soft skirt; faint ones a couple of pixels
-        float s = 1.7 + aMag * aMag * 7.0;
+        float s = 1.7 + aMag * aMag * 5.0;
         gl_PointSize = s * uPx;
         vSoft = s;
         vCol = color * (0.2 + 2.8 * pow(aMag, 1.7)) * uGain;
@@ -138,7 +138,7 @@ export class Backdrop {
 
   /** `lie`: how the galaxy lies across this view's sky (see `galaxyFor`). `gain`: 1 = the default brightness. */
   constructor(lie: THREE.Quaternion, gain = 1) {
-    const dome = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), milkyWay(0.085 * gain));
+    const dome = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 3), milkyWay(0.062 * gain));
     dome.material.side = THREE.BackSide;
     dome.frustumCulled = false;
     dome.renderOrder = -1000;

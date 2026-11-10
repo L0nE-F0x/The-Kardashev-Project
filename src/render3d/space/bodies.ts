@@ -105,16 +105,18 @@ const SURFACE: Record<BodyKind, string> = {
     }`,
   mars: /* glsl */ `
     void surface(vec3 p, float px, out vec3 alb, out float h){
-      float n1 = fbm(p * 1.9 + 5.0, 5), n2 = fbm(p * 5.5 + 1.0, 4);
-      // dark basalt plains wind-swept out of the bright dust
-      float dark = smoothstep(0.5, 0.64, n1 + (n2 - 0.5) * 0.3) * smoothstep(0.95, 0.6, abs(p.y));
-      alb = mix(vec3(0.7, 0.33, 0.16), vec3(0.9, 0.56, 0.32), n2);
-      alb = mix(alb, vec3(0.3, 0.17, 0.12), dark * 0.82);
+      float n1 = fbm(p * 1.9 + 5.0, 5), n2 = fbm(p * 5.5 + 1.0, 4), n3 = fbm(p * 13.0 + 6.0, 4);
+      // dark basalt plains wind-swept out of the bright dust, pale dust basins
+      float dark = smoothstep(0.48, 0.62, n1 + (n2 - 0.5) * 0.3) * smoothstep(0.95, 0.6, abs(p.y));
+      alb = mix(vec3(0.66, 0.3, 0.14), vec3(0.92, 0.58, 0.33), n2 * 0.7 + n3 * 0.3);
+      alb = mix(alb, vec3(0.27, 0.15, 0.11), dark * 0.85);
+      alb = mix(alb, vec3(0.97, 0.7, 0.45), smoothstep(0.6, 0.75, fbm(p * 1.3 + 30.0, 4)) * (1.0 - dark) * 0.5);
       float cap = smoothstep(0.87, 0.93, abs(p.y) + (n2 - 0.5) * 0.1);
       alb = mix(alb, vec3(0.96, 0.94, 0.92), cap);
-      h = (n2 - 0.5) * 0.05;
-      float l = lod(6.0, px);
-      if (l > 0.0) h += craters(p, 6.0, 4.0) * 0.4 * l * (1.0 - cap);
+      // old ground: gentle relief and worn craters, nothing like the Moon's
+      h = (n2 - 0.5) * 0.06 + (n3 - 0.5) * 0.02;
+      float l = lod(9.0, px);
+      if (l > 0.0) h += craters(p, 9.0, 4.0) * 0.1 * l * (1.0 - cap);
       alb *= 1.0 + h * 0.8;
     }`,
   venus: /* glsl */ `
@@ -135,7 +137,7 @@ const SURFACE: Record<BodyKind, string> = {
 const LOOK: Record<BodyKind, { dusty: number; bump: number; wrap: number; haze: [number, number, number]; hazeK: number }> = {
   moon: { dusty: 0.7, bump: 2.2, wrap: 0, haze: [0, 0, 0], hazeK: 0 },
   mercury: { dusty: 0.6, bump: 2.0, wrap: 0, haze: [0, 0, 0], hazeK: 0 },
-  mars: { dusty: 0.25, bump: 1.4, wrap: 0.12, haze: [0.95, 0.62, 0.42], hazeK: 0.5 },
+  mars: { dusty: 0.25, bump: 1.6, wrap: 0.12, haze: [0.95, 0.66, 0.5], hazeK: 0.4 },
   venus: { dusty: 0, bump: 0, wrap: 0.42, haze: [1.0, 0.9, 0.66], hazeK: 0.9 },
 };
 
