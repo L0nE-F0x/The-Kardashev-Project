@@ -328,18 +328,19 @@ export class CampusSky {
     u.sunDisc.value = 0;
     u.moonK.value = 0;
     u.stars.value = 0;
-    this.fog.color.set(0xd6e6f0);
+    // the air of a closed world: the far end stands a couple of kilometres off in blue
+    this.fog.color.set(0x9fc2ea);
     atmo.uAtmoGlow.value.set(0x000000);
     atmo.uAtmoSkyTop.value.copy(u.top.value);
     atmo.uAtmoSkyHor.value.copy(u.hor.value);
-    atmo.uAtmoHaze.value.set(1 / 1500, 0, 0, 0.9);
+    atmo.uAtmoHaze.value.set(1 / 2100, 0, 0, 0.78);
     atmo.uAtmoWet.value = 0;
     this.sun.position.copy(this.sun.target.position).add(new THREE.Vector3(60, 500, 80));
-    this.sun.color.set(0xfff4e0);
-    this.sun.intensity = 2.4;
+    this.sun.color.set(0xfff0d8);
+    this.sun.intensity = 3.0;
     this.hemi.color.set(0xcfe8c8);
     this.hemi.groundColor.set(0x5a8a4a);
-    this.hemi.intensity = 1.5;
+    this.hemi.intensity = 1.15;
     cloudUniforms.uCloudTime.value += dt;
     cloudUniforms.uCloudK.value = 0.18;
     this.lamps(0);

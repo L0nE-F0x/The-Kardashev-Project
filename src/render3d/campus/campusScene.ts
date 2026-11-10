@@ -38,7 +38,7 @@ import { Precip } from './weather';
 import { Crowd, makeBit } from './life';
 import { Traffic } from './vehicles';
 import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
-import { GrassPatch, grassColours } from './grass';
+import { GrassPatch, grassColours, grassMaterial, sharedClump } from './grass';
 import { fieldMesh, hedgePoints, inField } from './fields';
 import { CampusPeople, shapeOf, type CarObj } from './people';
 import { FENCED, placeKind, placeOf, sitePlan, type Place, type Rect as WRect } from './paths';
@@ -157,7 +157,12 @@ export class CampusScene implements Scene3D {
     // a mine's pit floor hides behind its near rim from low down; in space and inside the habitat the camera
     // looks out level, so the Earth hangs behind the station and Aurora's land rises up overhead
     this.pitch = this.site.kind === 'mine' ? 1.0 : this.scenery === 'space' ? 1.3 : this.scenery === 'habitat' ? 1.42 : 1.16;
-    if (this.scenery === 'habitat') this.dist = Math.min(this.dist, 150);
+    if (this.scenery === 'habitat') {
+      // down the cylinder's axis, through a wider lens: the land curving up both sides, the sky windows, the sun-line
+      this.dist = Math.min(this.dist, 130);
+      this.yaw = -1.12;
+      this.pitch = 1.45;
+    }
     // Aurora's town and Geneva's plaza have townsfolk (children, people in everyday clothes): load them, then
     // rebuild with them in place of the stand-ins
     if ((this.scenery === 'habitat' || this.scenery === 'geneva') && !TOWNSFOLK.every(hasModel)) {
@@ -325,6 +330,8 @@ export class CampusScene implements Scene3D {
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
     this.sky.focus(new THREE.Vector3((this.layout.bounds.x0 + this.layout.bounds.x1) / 2, 0, (this.layout.bounds.z0 + this.layout.bounds.z1) / 2), reach);
+    this.camera.fov = this.scenery === 'habitat' ? 54 : 30;
+    this.camera.updateProjectionMatrix();
     this.lamps.fit(Math.min(this.layout.bounds.x0, -40) - 80, this.layout.bounds.z0, Math.max(this.layout.bounds.x1, flat.x1), Math.max(this.layout.bounds.z1, HIGHWAY_Z + 20));
     this.lampAge = 0;
     this.scene.add(this.world, this.roads, this.hitboxes, this.crowd.group, this.traffic.group);
@@ -425,7 +432,14 @@ export class CampusScene implements Scene3D {
   /** The menu tour directs a shot: the light it's filmed in, and a camera move played over its `secs`. */
   direct(d: { light?: TourLight; move?: TourMove; secs: number }) {
     if (d.light && this.scenery !== 'moon' && this.scenery !== 'space' && this.scenery !== 'asteroid' && this.scenery !== 'habitat') this.setLight(d.light);
-    if (!d.move || this.scenery === 'space' || this.scenery === 'habitat') return;
+    if (this.scenery === 'habitat') {
+      // a slow turn toward the axis: the town first, then the whole drum
+      const f = this.layout.focus;
+      this.shot = { t: 0, secs: d.secs, from: { x: f.x - 10, z: f.z + 4, dist: 105, yaw: -0.8, pitch: 1.45 }, to: { x: f.x + 8, z: f.z + 4, dist: 135, yaw: -1.36, pitch: 1.44 } };
+      this.runShot(0);
+      return;
+    }
+    if (!d.move || this.scenery === 'space') return;
     const f = this.layout.focus, W = this.layout.bounds.x1 - this.layout.bounds.x0, D = this.dist;
     const at = (x: number, z: number, dist: number, yaw: number, pitch: number): Cam => ({ x: f.x + x, z: f.z + z, dist, yaw, pitch });
     const moves: Record<TourMove, [Cam, Cam]> = {
@@ -1303,7 +1317,23 @@ function habitatMeadow(seed: number, b: Rect, rects: Rect[]): THREE.Group {
     kinds[kind].push({ x, y: habFloor(z) - 0.05, z, s, ry: r() * Math.PI * 2, rx: -Math.asin(Math.max(-0.98, Math.min(0.98, z / HAB_R))), tint: 0.88 + r() * 0.24 });
   }
   const mat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
-  for (const [k, at] of Object.entries(kinds)) if (at.length) g.add(treeField(k as TreeKind, at, mat));
+  for (const [k, at] of Object.entries(kinds)) if (at.length && k !== 'tuft') g.add(treeField(k as TreeKind, at, mat));
+  // the meadow's grass: clumps of blades, swaying, in the land's own greens
+  const tufts = kinds.tuft;
+  if (tufts.length) {
+    const im = new THREE.InstancedMesh(sharedClump(), grassMaterial('carpet'), tufts.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+    tufts.forEach((p, i) => {
+      q.setFromEuler(new THREE.Euler(p.rx ?? 0, p.ry, 0));
+      m.compose(new THREE.Vector3(p.x, p.y, p.z), q, new THREE.Vector3(p.s * 1.5, p.s * 1.3, p.s * 1.5));
+      im.setMatrixAt(i, m);
+      im.setColorAt(i, c.set(r() < 0.5 ? 0x86b84e : 0x6ea544).multiplyScalar(0.9 + r() * 0.2));
+    });
+    im.castShadow = false;
+    im.receiveShadow = true;
+    im.computeBoundingSphere();
+    g.add(im);
+  }
   return g;
 }
 

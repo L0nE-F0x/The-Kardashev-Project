@@ -5,7 +5,7 @@
  * of sky, with the sun-line running down the axis.
  */
 import * as THREE from 'three';
-import { col, fbm, mix, rng, withClouds } from '../kit';
+import { col, fbm, mix, rng, withClouds, withGrain } from '../kit';
 
 export const HAB_R = 260;
 
@@ -169,6 +169,47 @@ function landTexture(lived: number): THREE.CanvasTexture {
   return tex;
 }
 
+/** The bulkhead closing each end of the cylinder, seen from inside. */
+function capTexture(): THREE.CanvasTexture {
+  const N = 1024, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d')!;
+  const bg = g.createRadialGradient(N / 2, N / 2, 0, N / 2, N / 2, N / 2);
+  bg.addColorStop(0, '#dfe9f2');
+  bg.addColorStop(0.12, '#a9bccf');
+  bg.addColorStop(1, '#6f8299');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, N, N);
+  g.translate(N / 2, N / 2);
+  // terraces: rings, and spokes between them
+  g.strokeStyle = 'rgba(40,52,70,0.5)';
+  for (let i = 1; i <= 6; i++) { g.lineWidth = i % 2 ? 3 : 1.5; g.beginPath(); g.arc(0, 0, (N / 2) * (i / 6.2), 0, Math.PI * 2); g.stroke(); }
+  g.lineWidth = 4;
+  for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * 40, Math.sin(a) * 40); g.lineTo(Math.cos(a) * N * 0.49, Math.sin(a) * N * 0.49); g.stroke(); }
+  // lit windows along the terraces
+  const r = rng(5);
+  for (let i = 1; i <= 5; i++) {
+    const rad = (N / 2) * ((i + 0.45) / 6.2), n = 30 + i * 22;
+    for (let k = 0; k < n; k++) {
+      if (r() < 0.35) continue;
+      const a = (k / n) * Math.PI * 2;
+      g.fillStyle = r() < 0.7 ? '#fff3c8' : '#bfe6ff';
+      g.fillRect(Math.cos(a) * rad - 2, Math.sin(a) * rad - 2, 4, 4);
+    }
+  }
+  // the hub
+  const hub = g.createRadialGradient(0, 0, 0, 0, 0, 46);
+  hub.addColorStop(0, '#ffffff');
+  hub.addColorStop(0.5, '#fff1c8');
+  hub.addColorStop(1, 'rgba(255,241,200,0)');
+  g.fillStyle = hub;
+  g.beginPath(); g.arc(0, 0, 46, 0, Math.PI * 2); g.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 export function habitatShell(lived: number): THREE.Group {
   const g = new THREE.Group();
   const len = 2400, segA = 360, segL = 60;
@@ -186,9 +227,17 @@ export function habitatShell(lived: number): THREE.Group {
     cols.set([c.r, c.g, c.b], i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-  const shell = new THREE.Mesh(geo, withClouds(new THREE.MeshStandardMaterial({ map: landTexture(lived), vertexColors: true, roughness: 0.95, side: THREE.BackSide })));
+  const shell = new THREE.Mesh(geo, withGrain(withClouds(new THREE.MeshStandardMaterial({ map: landTexture(lived), vertexColors: true, roughness: 0.95, side: THREE.BackSide })), 0.16));
   shell.receiveShadow = true;
   g.add(shell);
+  // the end caps: a ribbed bulkhead with rings of lit windows and the hub the sun-line runs from
+  const cap = capTexture();
+  for (const sx of [-1, 1]) {
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(HAB_R, 72), new THREE.MeshStandardMaterial({ map: cap, emissiveMap: cap, emissive: 0xffffff, emissiveIntensity: 0.22, roughness: 0.85 }));
+    disc.position.set((sx * len) / 2, HAB_R, 0);
+    disc.rotation.y = (-sx * Math.PI) / 2;
+    g.add(disc);
+  }
   // the sun-line down the axis
   const line = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, len, 12).rotateZ(Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 2.7, 2.2), toneMapped: true }));
   line.position.y = HAB_R;
