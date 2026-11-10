@@ -17,7 +17,7 @@ import { MAX_EXTRA_SLOTS } from '../../sim/model';
 import type { AdvisorId, Facility, GameState } from '../../sim/types';
 import { subsolar } from '../../world/sun';
 import { dir } from '../globe/earth';
-import { closeScope, disposeObject, fbm, Kit, openScope, rng, noise, withClouds, withGrain } from '../kit';
+import { closeScope, disposeObject, fbm, Kit, openScope, rng, noise, smooth, withClouds, withGrain } from '../kit';
 import { hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
@@ -33,6 +33,7 @@ import { quality } from '../quality';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
 import { act3Key } from '../../render/diorama/act3Pieces';
 import { CampusSky, type Weather } from './sky';
+import { atmo, LampField } from '../atmosphere';
 import { Precip } from './weather';
 import { Crowd, makeBit } from './life';
 import { Traffic } from './vehicles';
@@ -86,7 +87,7 @@ const ADVISOR_FIGURE: Partial<Record<AdvisorId, PersonName>> = { juno: 'engineer
 export class CampusScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(30, 1, 1, 6000);
-  readonly look: Look = { ...defaultLook(), ao: true, tilt: 1.5, focus: 0.45 };
+  readonly look: Look = { ...defaultLook(), ao: true, tone: 'filmic', contrast: 0.12, sharpen: 0.35, saturation: 1.14, vignette: 0.26 };
   readonly wantsAO = true;
   /** The menu tour: the camera drifts on its own. */
   autoPan = false;
@@ -94,6 +95,9 @@ export class CampusScene implements Scene3D {
   private site: SiteDef;
   private ground!: Ground;
   private sky!: CampusSky;
+  /** The campus's lamps as a texture (the night's light on the ground and walls). */
+  private lamps = new LampField();
+  private lampAge = 0;
   private layout!: CampusLayout;
   private world = new THREE.Group();
   private roads = new THREE.Group();
@@ -185,6 +189,7 @@ export class CampusScene implements Scene3D {
     let backdrop = (this.site.backdrop ?? 'plains') as Backdrop;
     let carve: ((x: number, z: number) => number | null) | undefined;
     let seaZ: number | undefined;
+    let open: ((x: number, z: number) => number) | undefined;
     this.scenery = 'campus';
     if (this.viewOnly) {
       // the set pieces come first: a mine's pit has to be dug into the ground before it's built
@@ -209,6 +214,7 @@ export class CampusScene implements Scene3D {
             return -0.2 - Math.min(1, d / 14) * 5;
           };
           carve = shore;
+          open = (x) => smooth(lakeX + 20, lakeX - 320, x);
           // a water level for the lake (Geneva's mountain backdrop has none of its own); no sea comes in
           seaZ = -4000;
         }
@@ -263,7 +269,7 @@ export class CampusScene implements Scene3D {
       this.ground = { mesh: habitatShell((ex.lived ?? 0) / 3) as unknown as THREE.Mesh, water: null, plants: habitatMeadow(seed, this.layout.bounds, this.setPieces.map((sp) => sp.item.rect)), h: (_x, z) => habFloor(z), tint: (_x, _z, c) => c.setRGB(0.45, 0.6, 0.3), def: BACKDROPS.temperate };
     } else {
       this.groundOpts = {
-        backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ,
+        backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ, open,
         curve: this.scenery === 'asteroid' ? 160 + Math.sqrt(ex.km ?? 10) * 30 : undefined,
         // the highway runs along its own valley; the access road is graded after it, so it meets the highway level
         roads: roadless ? [] : [
@@ -312,6 +318,8 @@ export class CampusScene implements Scene3D {
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
     this.sky.focus(new THREE.Vector3((this.layout.bounds.x0 + this.layout.bounds.x1) / 2, 0, (this.layout.bounds.z0 + this.layout.bounds.z1) / 2), reach);
+    this.lamps.fit(Math.min(this.layout.bounds.x0, -40) - 80, this.layout.bounds.z0, Math.max(this.layout.bounds.x1, flat.x1), Math.max(this.layout.bounds.z1, HIGHWAY_Z + 20));
+    this.lampAge = 0;
     this.scene.add(this.world, this.roads, this.hitboxes, this.crowd.group, this.traffic.group);
     this.hoverRing = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xfde9a4, transparent: true, opacity: 0.9 }));
     this.hoverRing.visible = false;
@@ -955,9 +963,15 @@ export class CampusScene implements Scene3D {
       (f.m.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 - f.t * 0.9);
       if (f.t > 1) { this.scene.remove(f.m); this.flashes.splice(this.flashes.indexOf(f), 1); }
     }
-    // night: stronger bloom; the miniature blur stays
-    this.look.bloom = 0.16 + this.sky.night * 0.42;
-    this.look.bloomThreshold = 1.5 - this.sky.night * 0.7;
+    // the lamp field: lamps come with buildings, so it's redrawn now and then (a few hundred quads)
+    if (atmo.uLampK.value.x > 0 && (this.lampAge -= dt) <= 0) {
+      this.lampAge = 0.5;
+      this.lamps.render((this.game.stage as unknown as { renderer: THREE.WebGLRenderer }).renderer, this.scene);
+    }
+    // the picture is developed for the hour; at night the lamps and windows bloom
+    this.look.exposure = this.sky.exposure;
+    this.look.bloom = 0.14 + this.sky.night * 0.3;
+    this.look.bloomThreshold = 1.3 - this.sky.night * 0.35;
     // the camera
     if (this.autoPan && !this.down) {
       this.yaw = -0.35 + Math.sin(this.time * 0.05) * 0.3;
@@ -982,7 +996,8 @@ export class CampusScene implements Scene3D {
     this.target.x = Math.max(b.x0 - 20, Math.min(b.x1 + 20, this.target.x));
     this.target.z = Math.max(b.z0 - 20, Math.min(b.z1, this.target.z));
     this.target.y = 0;
-    this.pitch = Math.max(0.45, Math.min(this.scenery === 'habitat' || this.scenery === 'space' ? 1.48 : 1.28, this.pitch));
+    // down to just above the horizon: the sky, the far land and the weather are part of the view
+    this.pitch = Math.max(0.45, Math.min(1.5, this.pitch));
     this.dist = Math.max(22, Math.min(460, this.dist));
   }
 
@@ -994,9 +1009,10 @@ export class CampusScene implements Scene3D {
     // inside the habitat look up over the town, so the land curving overhead fills the sky
     if (this.scenery === 'habitat') this.camera.lookAt(this.target.x, this.target.y + this.dist * 0.14, this.target.z);
     else this.camera.lookAt(this.target);
-    // the miniature read is strongest when you're up high (inside the habitat the land overhead must stay sharp)
-    // (close in, almost none: a close-up should be crisp, not a smear above and below a thin band)
-    this.look.tilt = this.scenery === 'habitat' ? 0.35 : 0.2 + 1.3 * THREE.MathUtils.smoothstep(this.dist, 60, 300);
+    // the miniature read: sharp where the camera looks, soft before and behind it (strongest from up high; close
+    // in, almost none: a close-up should be crisp). Inside the habitat the land overhead must stay sharp.
+    const focus = this.camera.position.distanceTo(this.target);
+    this.look.dof = { focus, range: 0.24, max: this.scenery === 'habitat' ? 1.5 : 1.5 + 4.5 * THREE.MathUtils.smoothstep(this.dist, 60, 300) };
   }
 
   resize(w: number, h: number) {
@@ -1175,6 +1191,8 @@ export class CampusScene implements Scene3D {
     this.people?.destroy();
     closeScope(this.scope);
     this.game.stage.canvas.style.cursor = '';
+    this.lamps.dispose();
+    atmo.uLampK.value.x = 0;
     disposeObject(this.scene);
   }
 }

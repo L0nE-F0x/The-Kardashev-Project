@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PALETTE, type ColorKey } from '../render/palette';
+import { LAMP_LAYER } from './atmosphere';
 
 export type Paint = ColorKey | THREE.Color | string;
 
@@ -111,7 +112,8 @@ export function withClouds<M extends THREE.MeshStandardMaterial>(m: M): M {
 
 // ── ground grain ─────────────────────────────────────────────────────────────────────────────
 let grainTex: THREE.DataTexture | null = null;
-function grainTexture() {
+/** Tileable noise (r, g: two soft fields; b: fine speckle), shared by the ground, the cliffs and the water. */
+export function grainTexture() {
   if (grainTex) return grainTex;
   const n = 256, data = new Uint8Array(n * n * 4);
   for (let y = 0; y < n; y++)
@@ -204,7 +206,10 @@ export function closeScope(id: number) {
   if (scope === id) scope = 0;
 }
 
-/** Pools of light on the ground at night (additive decals; opacity follows the night). */
+/**
+ * Pools of light at night. They aren't drawn in the view: the scene draws them from above into its lamp field
+ * (atmosphere.ts), which then lights the ground, walls, cars and people near each lamp.
+ */
 let poolTex: THREE.Texture | null = null;
 function poolTexture() {
   if (poolTex) return poolTex;
@@ -212,9 +217,8 @@ function poolTexture() {
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
   const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  grd.addColorStop(0, 'rgba(255,255,255,1)');
-  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  // bright under the lamp, then a long soft skirt (roughly the inverse square from a lamp a few metres up)
+  for (const [at, a] of [[0, 1], [0.12, 0.86], [0.25, 0.56], [0.4, 0.3], [0.6, 0.12], [0.8, 0.035], [1, 0]]) grd.addColorStop(at, `rgba(255,255,255,${a})`);
   g.fillStyle = grd;
   g.fillRect(0, 0, 128, 128);
   poolTex = new THREE.CanvasTexture(c);
@@ -224,7 +228,7 @@ function poolTexture() {
 }
 export const poolMats: THREE.MeshBasicMaterial[] = [];
 export function poolMat(c: Paint, strength = 0.8) {
-  const m = new THREE.MeshBasicMaterial({ color: col(c), map: poolTexture(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const m = new THREE.MeshBasicMaterial({ color: col(c), map: poolTexture(), transparent: true, opacity: strength, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false });
   m.userData.strength = strength;
   m.userData.scope = scope;
   poolMats.push(m);
@@ -235,7 +239,7 @@ export function lightPool(parent: THREE.Object3D, x: number, y: number, z: numbe
   const m = new THREE.Mesh(poolGeo, mat);
   m.scale.set(r * 2 * sx, 1, r * 2);
   m.position.set(x, y + 0.12, z);
-  m.renderOrder = 2;
+  m.layers.set(LAMP_LAYER);
   parent.add(m);
   return m;
 }

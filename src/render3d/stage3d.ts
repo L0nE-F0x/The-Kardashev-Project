@@ -45,7 +45,8 @@ export class Stage3D implements GameStage {
 
   constructor(host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-    this.renderer.toneMapping = THREE.NeutralToneMapping;
+    // scenes render linear HDR into the post pipeline, which develops the picture (exposure, tone curve, grade)
+    this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.localClippingEnabled = true;
