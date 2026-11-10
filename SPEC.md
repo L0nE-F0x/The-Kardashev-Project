@@ -2114,7 +2114,7 @@ colours, speed; and realism of the mechanics, not just the graphics. What change
 place directly (Moon astronauts, some Aurora townsfolk) hold a walk frame; Act II plants and Act III–V set pieces have a
 guessed front door only. The website went 3D the same day (hero globe, shots, OG card, Play → /play3d/).
 
-## 29. v0.11.0 "Golden Hour": the grand polish pass (built 2026-11-10 on branch `grand-polish`, not shipped)
+## 29. v0.11.0 "Golden Hour": the grand polish pass (built and shipped 2026-11-10)
 
 The brief, with the user away: "100x this game … aesthetics, quality, performance, graphics, sound … this is the model
 we publish this game to Steam with. Polish it until it's perfect." No questions could be asked, so every call below is
@@ -2186,7 +2186,7 @@ redesigned in layers plus 7 new ones, in the music's key; nine living ambience b
 button clicks and hover ticks (`installUiSounds` in game.ts), effects that shift with the music's key.
 
 **Calls you may want to change**
-- Version and name are mine: 0.11.0 "Golden Hour". Nothing is merged to `main`, pushed or tagged.
+- Version and name are mine: 0.11.0 "Golden Hour" (the user said "when this is done, ship it").
 - Campuses use the ACES curve with exposure by the hour; nights are brighter and bluer than real ("day for night").
 - The menu tour films each campus in a chosen light instead of the site's real hour (in play, campuses still follow
   the real sun at the site); the tour's weather is fair or cloudy only.
@@ -2206,6 +2206,11 @@ they did, and the space views 2–3 ms more. (While the helpers were running, id
 a quiet machine or not at all.) What made medium level again after the new effects went in: four unguarded blur taps
 a side below high, the sharpen done on brightness before the tone curve, the ground bump on high only, no blur on low.
 The high preset was only run on the RTX 4050.
+Before shipping, a debug desktop build of the branch ran the 3D edition in WebKitGTK (scratch XDG dirs, the WebKit
+inspector): the title, a campus at golden hour, dusk and night, Geneva, the Moon, the habitat, the orbit and system
+views all drew correctly (read back from the game's own frames: `Page.snapshotRect` can catch the canvas between
+frames and show black), with no console errors, and the new audio graph built and ran (context running, convolver,
+compressors, panners). Chrome on the Intel GPU drew the same views correctly too. Not run: Windows, macOS, Android.
 
 **Open**
 - The desktop app renders on the integrated GPU on hybrid laptops. Launched with `__NV_PRIME_RENDER_OFFLOAD=1
@@ -2213,7 +2218,9 @@ The high preset was only run on the RTX 4050.
   (picture not checked). A Settings switch (read before the webview starts) would make it a click; on Windows the
   equivalent is `--force_high_performance_gpu` for WebView2. Not built: too risky as a default, untestable on Windows here.
 - Photo mode saves through the browser's download path, like the end card: not tried in the desktop app.
-- The website still shows the old screenshots (16 WebP shots in `public/screenshots/`, the OG card): re-shoot at ship time.
+- (Done at ship time: the website's 16 screenshots, the OG card and the fallback globe were re-shot from this build.
+  Scene shots came from `Stage3D.capture()` at 4K scaled to 1600×900; the garage break and the building crew from a
+  real Act II game with a hall under construction and the campus clock at 10:24.)
 - From the helpers: the website hero runs the globe's high shaders on phones (`earthMaterial(t, W, H, level?)` takes a
   level now); Act III's satellite, beam and liftoff on the globe were not exercised; power beams in the ending only show
   with beam capacity; the cinematic is capped at 16 s by `tickEnding`; the 4K-at-150% interface survey was partial.

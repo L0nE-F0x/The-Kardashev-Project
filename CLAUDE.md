@@ -18,7 +18,7 @@ and cleaned up the off-world dither. v0.4.2 "Easy Reading" added the readable fo
 Android app; v0.5.1 added in-app updates for the installed desktop and Android apps (an Update toast in the game).
 Live at https://thekardashevproject.netlify.app (Netlify auto-deploys `main`).
 
-## The 3D edition (branch `3d`, SPEC §28)
+## The 3D edition (SPEC §28, §29)
 
 A second front end on the same game: `play3d/index.html` → `src/main3d.ts` builds the same `Game` with
 `render3d/stage3d.ts` (three.js) and 3D scenes behind `SceneFactory`; sim, UI, tutorial, saves and audio are shared,
@@ -461,10 +461,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.11.0 "Golden Hour" is built on branch `grand-polish` (SPEC §29) and waits for the user's look and their
-"ship it" (merge, push, tag). Then, from SPEC §29 "Open": frame cost A/B on a quiet machine (Intel iGPU, medium), the
-desktop app on the discrete GPU, the website's screenshots re-shot. After that, as before: the user plays, then their
-choice of edition. The website shows the 3D look since 2026-11-10 (3D hero globe, 3D shots, OG card,
+**Next:** the user plays v0.11.0 "Golden Hour" (SPEC §29: shipped 2026-11-10) and listens to the new sound, which
+nobody had heard when it shipped (rendered WAVs: `~/Music/The Kardashev Project - sound renders/`). From SPEC §29
+"Open": a Settings switch to run the desktop app on the discrete GPU, photo mode's save inside the desktop app, the
+Windows and macOS builds unseen. After that, as before: their choice of edition. The website shows the 3D look since 2026-11-10 (3D hero globe, 3D shots, OG card,
 copy; Play opens /play3d/). Still pending after that:
 their playthrough (Settings → Gameplay → Playtest notes, J to note; Data → Log), the retune from the log and v1.0.0
 (SPEC §21–22). Later: Type II as an Act VI that continues a finished save (SPEC §20 hooks). Then the real theme song, code signing (Windows/macOS), a feedback form
