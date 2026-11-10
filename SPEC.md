@@ -2196,13 +2196,16 @@ button clicks and hover ticks (`installUiSounds` in game.ts), effects that shift
 - Space keeps the neutral curve (ACES greyed the gold); the swarm sits at 0.9 AU; four sparse "ribs" over the Sun
   appear once the ring is about 72% built.
 
-**Measured, and what is not**: `npm test` passes (the people test needs a longer timeout on a busy machine), the
-production build passes. Frame cost could not be measured cleanly: the machine was saturated by the helpers and an
-Unreal editor, and runs of the same build differed by 3×. Best-case GPU times on the Intel iGPU at medium, 1080p,
-new against old: campus 33 / 43 / 15 / 31 ms against 35 / 32 / 50 / 40, globe 8 against 14. **To do on a quiet machine:**
-the same A/B (the kit is in the session's scratchpad; `EXT_disjoint_timer_query_webgl2` works in Chrome on Intel).
-Nothing was run in WebKitGTK (the desktop app) or on Windows/macOS: the theme uses `:has()` and `round()` with
-fallbacks, and the shaders were only seen on ANGLE (NVIDIA and Intel).
+**Measured, and what is not**: `npm test` passes on the merged branch (119 tests; the people test needs a longer
+timeout on a busy machine), the production build passes, the sim is untouched (no diff under `src/sim`, `src/content`).
+Frame cost on the dev laptop's Intel iGPU, medium preset (what Auto picks there), 1920×1080, GPU time per frame from
+`EXT_disjoint_timer_query_webgl2`, two runs each on a quiet machine, new against 0.10.1: the Wyoming campus 22–26 ms
+(golden hour) and 23–31 (night) against 23–25 and 24–26; Geneva 16–22 and 17–23 against 19–21 and 19–23; the globe
+5–7 against 6–7; the orbit view 9 against 6; the system view 5–7 against 3–5. So the campuses and the globe cost what
+they did, and the space views 2–3 ms more. (While the helpers were running, identical runs differed by 3×: measure on
+a quiet machine or not at all.) What made medium level again after the new effects went in: four unguarded blur taps
+a side below high, the sharpen done on brightness before the tone curve, the ground bump on high only, no blur on low.
+The high preset was only run on the RTX 4050.
 
 **Open**
 - The desktop app renders on the integrated GPU on hybrid laptops. Launched with `__NV_PRIME_RENDER_OFFLOAD=1
