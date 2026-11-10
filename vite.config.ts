@@ -74,7 +74,7 @@ export default defineConfig({
           { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
         screenshots: [
-          { src: '/screenshots/globe-asia.webp', sizes: '1600x900', type: 'image/webp', form_factor: 'wide', label: 'The globe at dusk over East Asia' },
+          { src: '/screenshots/globe-asia.webp', sizes: '1600x900', type: 'image/webp', form_factor: 'wide', label: 'East Asia at night on the globe' },
           { src: '/screenshots/act2-wyoming.webp', sizes: '1600x900', type: 'image/webp', form_factor: 'wide', label: 'A gigawatt data center campus' },
         ],
       },
