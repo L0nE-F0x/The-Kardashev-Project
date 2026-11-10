@@ -6,14 +6,14 @@
  */
 import * as THREE from 'three';
 import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { softLine } from './soft';
+import { softLine, type LineLook } from './soft';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
 import { charterView, liftoffActive, mainKind, orbitAngle, orbitPoint } from '../../render/worldMap/act3Layers';
 import type { MegaView } from '../../sim/charterView';
 import { dir, R } from './earth';
-import { along, globePath } from './layers2';
+import { dropLine, globePath, POWER_PULSE } from './layers2';
+import { model } from './markers';
 import { Kit, rng } from '../kit';
 import { PALETTE } from '../../render/palette';
 
@@ -30,12 +30,6 @@ function frameAt(lon: number, lat: number, lift = 0) {
   return m;
 }
 
-function lengths(pts: THREE.Vector3[]) {
-  const acc = [0];
-  for (let i = 1; i < pts.length; i++) acc.push(acc[i - 1] + pts[i].distanceTo(pts[i - 1]));
-  return acc;
-}
-
 /**
  * Rows of solar panels with sandy tracks between them, as a tiling texture (64 × 16: one 0.9 × 0.22 block).
  * Mipmapped, so from far out the field fades to its average colour: drawn as geometry, rows a pixel apart
@@ -45,7 +39,7 @@ let solarTex: THREE.DataTexture | null = null;
 function solarTexture() {
   if (solarTex) return solarTex;
   const w = 64, h = 16, a = new Uint8Array(w * h * 4);
-  const sand = new THREE.Color('#c9a879'), panel = new THREE.Color('#2c3f6e'), glint = new THREE.Color('#4a6aa8');
+  const sand = new THREE.Color('#c9a879'), panel = new THREE.Color('#34508c'), glint = new THREE.Color('#6f93d6');
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const onPanel = x >= 2 && x < 58 && y >= 4 && y < 10;
     const c = onPanel ? (y === 4 ? glint : panel) : sand;
@@ -80,6 +74,12 @@ function bendToGlobe(g: THREE.Object3D) {
   }
 }
 
+/**
+ * A flat disc lying on the ground, in rings out from the centre: bent onto the globe it follows the curve (one fan
+ * of triangles from the centre sagged under the surface halfway out).
+ */
+const disk = (radius: number, segs: number) => new THREE.RingGeometry(0, radius, segs, 6).rotateX(-Math.PI / 2);
+
 /** The patch at a megaproject: its main kind's kit, spread over a disc that grows with the stage. */
 function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE.Object3D[] } {
   const site = siteDef(v.siteId);
@@ -100,8 +100,8 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
   if (kind === 'solar') {
     // rows of dark panels in blocks, with sandy tracks between them (a textured disc: see solarTexture)
     const t = solarTexture();
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 48).rotateX(-Math.PI / 2).translate(0, 0.006, 0), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 }));
-    // CircleGeometry's uv spans the disc's diameter: one block is 0.9 wide, a row 0.22 deep
+    const disc = new THREE.Mesh(disk(radius, 48).translate(0, 0.006, 0), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 }));
+    // the disc's uv spans its diameter: one block is 0.9 wide, a row 0.22 deep
     const geo = disc.geometry;
     const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) * radius * 2) / 0.9, (uv.getY(i) * radius * 2) / 0.22);
@@ -129,7 +129,7 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
       k.cyl(0.07, 0.1, 0.28, '#d8cfc3', x + 0.22, 0, z - 0.05, 10);
     }
   } else if (kind === 'hydro') {
-    k.geo(new THREE.CircleGeometry(radius * 0.7, 24).rotateX(-Math.PI / 2).translate(0, 0.004, 0), '#3b7fae', 0.02);
+    k.geo(disk(radius * 0.7, 24).translate(0, 0.004, 0), '#3b7fae', 0.02);
     k.box(radius * 0.5, 0.06, 0.05, '#bfae9f', 0, 0, radius * 0.7, { r: 0, jitter: 0 });
   } else {
     // geothermal and the rest: pads of plant with steam
@@ -141,7 +141,7 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
     }
   }
   // the cleared ground under it all
-  if (!offshore) k.geo(new THREE.CircleGeometry(radius * 1.05, 28).rotateX(-Math.PI / 2).translate(0, -0.004, 0), kind === 'solar' ? '#c9a879' : '#a8a070', 0.02);
+  if (!offshore) k.geo(disk(radius * 1.05, 28).translate(0, -0.004, 0), kind === 'solar' ? '#c9a879' : '#a8a070', 0.02);
   const m = k.build(mat);
   m.castShadow = false;
   m.receiveShadow = false;
@@ -158,35 +158,23 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
   return { obj: g, rotors };
 }
 
-function fat(pts: THREE.Vector3[], color: string, width: number, dashed = false) {
-  return softLine(pts, { color, width, dashed, dashSize: 0.8, gapSize: 0.6, opacity: 0.95 });
+function fat(pts: THREE.Vector3[], color: string, width: number, o: Partial<LineLook> = {}) {
+  return softLine(pts, { color, width, dashSize: 0.8, gapSize: 0.6, opacity: 0.95, ...o });
 }
 
 export class CharterLayer {
   readonly group = new THREE.Group();
   private patches = new Map<string, { obj: THREE.Group; rotors: THREE.Object3D[]; key: string }>();
-  private hvdc = new Map<string, { lines: Line2[]; key: string; pts: THREE.Vector3[]; acc: number[] }>();
-  private pulses: { mesh: THREE.Mesh; path: { pts: THREE.Vector3[]; acc: number[] }; t: number }[] = [];
-  private pulseKey = '';
+  private hvdc = new Map<string, { lines: Line2[]; key: string; pts: THREE.Vector3[] }>();
   private sat: THREE.Group | null = null;
   private track: Line2 | null = null;
   private beam: THREE.Group | null = null;
   private rocket: THREE.Group | null = null;
   private trail: THREE.Mesh[] = [];
-  private mats: LineMaterial[] = [];
   private time = 0;
-
-  private res = new THREE.Vector2(1280, 720);
-  setResolution(w: number, h: number) {
-    this.res.set(w, h);
-  }
-  private applyRes() {
-    for (const m of this.mats) m.resolution.copy(this.res);
-  }
 
   update(s: GameState | null, day: number, dt: number, scale: (p: THREE.Vector3, px: number) => number, facing: (n: THREE.Vector3) => number, near: boolean) {
     this.time += dt;
-    this.applyRes();
     const on = !!s?.charter;
     this.group.visible = on;
     if (!on || !s) return;
@@ -219,51 +207,31 @@ export class CharterLayer {
       const key = `${h.status}|${Math.round(h.progress * 20)}`;
       const o = this.hvdc.get(h.route.id);
       if (o && o.key === key) continue;
-      if (o) for (const l of o.lines) this.group.remove(l);
+      if (o) for (const l of o.lines) dropLine(this.group, l);
       const pts = o?.pts ?? globePath([[h.route.a[1], h.route.a[0]], [h.route.b[1], h.route.b[0]]], 1.004, 0.6).map((p, i, arr) => p.multiplyScalar(1 + Math.sin((Math.PI * i) / (arr.length - 1)) * 0.012));
       const lines: Line2[] = [];
-      if (h.status === 'online') lines.push(fat(pts, PALETTE.yel0, 3));
+      // power runs along a finished link
+      if (h.status === 'online') lines.push(fat(pts, PALETTE.yel0, 2.8, { pulse: POWER_PULSE, glow: 0.4 }));
       else {
         const n = Math.max(2, Math.round(h.progress * (pts.length - 1)) + 1);
-        lines.push(fat(pts.slice(0, n), PALETTE.org2, 2.6));
-        if (n < pts.length) lines.push(fat(pts.slice(n - 1), PALETTE.ink8, 1.4, true));
+        lines.push(fat(pts.slice(0, n), PALETTE.org2, 2.4));
+        if (n < pts.length) lines.push(fat(pts.slice(n - 1), PALETTE.ink8, 1.4, { dashed: true, glow: 0 }));
       }
-      for (const l of lines) { this.group.add(l); this.mats.push(l.material as LineMaterial); }
-      this.hvdc.set(h.route.id, { lines, key, pts, acc: lengths(pts) });
+      for (const l of lines) this.group.add(l);
+      this.hvdc.set(h.route.id, { lines, key, pts });
     }
-    for (const [id, o] of this.hvdc) if (!hseen.has(id)) { for (const l of o.lines) this.group.remove(l); this.hvdc.delete(id); }
-    const online = [...this.hvdc.values()].filter((o) => o.key.startsWith('online'));
-    const pk = online.map((o) => o.key).join(',') + online.length;
-    if (pk !== this.pulseKey) {
-      this.pulseKey = pk;
-      for (const p of this.pulses) this.group.remove(p.mesh);
-      this.pulses = [];
-      for (const path of online) for (let i = 0; i < 4; i++) {
-        const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), new THREE.MeshBasicMaterial({ color: '#fff6d8', toneMapped: false }));
-        this.group.add(mesh);
-        this.pulses.push({ mesh, path, t: i / 4 });
-      }
-    }
-    for (const p of this.pulses) {
-      p.t = (p.t + dt * 0.12) % 1;
-      const { p: pos } = along(p.path.pts, p.path.acc, p.t);
-      p.mesh.position.copy(pos);
-      p.mesh.visible = facing(pos.clone().normalize()) > 0.05;
-      p.mesh.scale.setScalar(scale(pos, 5) * 1.3);
-    }
+    for (const [id, o] of this.hvdc) if (!hseen.has(id)) { for (const l of o.lines) dropLine(this.group, l); this.hvdc.delete(id); }
     // the orbital compute test: a satellite on an inclined orbit, its ground track dotted below
     if (v.orbitalTest && !this.sat) {
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 240; i++) { const p = orbitPoint((i / 240) * Math.PI * 2); pts.push(dir(p.lon, p.lat).multiplyScalar(R * 1.004)); }
-      this.track = fat(pts, PALETTE.ice1, 1, true);
-      (this.track.material as LineMaterial).opacity = 0.5;
-      this.mats.push(this.track.material as LineMaterial);
+      this.track = fat(pts, PALETTE.ice1, 1, { dashed: true, opacity: 0.5, glow: 0 });
       this.group.add(this.track);
       const k = new Kit(rng(5));
       k.box(0.5, 0.35, 0.35, '#e6e0e3', 0, 0, 0, { r: 0.05 });
       k.box(1.6, 0.03, 0.55, '#345c96', 0, 0.16, 0, { r: 0, jitter: 0 });
       this.sat = new THREE.Group();
-      this.sat.add(k.build(mat));
+      this.sat.add(model(k));
       this.group.add(this.sat);
     }
     if (this.sat) {
@@ -282,7 +250,7 @@ export class CharterLayer {
       const craft = new Kit(rng(6));
       craft.box(4, 0.05, 4, '#345c96', 0, 0, 0, { r: 0, jitter: 0.05 });
       craft.box(0.6, 0.5, 0.6, '#e6e0e3', 0, -0.4, 0, { r: 0.08 });
-      const cm = craft.build(mat);
+      const cm = model(craft);
       cm.position.copy(n).multiplyScalar(R * 1.16);
       cm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
       const len = R * 0.16;
@@ -300,7 +268,7 @@ export class CharterLayer {
         k.cyl(0.12, 0.12, 1.4, '#efe8de', 0, 0, 0, 10);
         k.geo(new THREE.ConeGeometry(0.12, 0.35, 10).translate(0, 1.57, 0), '#df5f3e', 0);
         this.rocket = new THREE.Group();
-        this.rocket.add(k.build(mat));
+        this.rocket.add(model(k));
         const flame = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 8).rotateX(Math.PI).translate(0, -0.25, 0), new THREE.MeshBasicMaterial({ color: '#fde9a4', toneMapped: false }));
         this.rocket.add(flame);
         this.group.add(this.rocket);
