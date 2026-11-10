@@ -1089,10 +1089,12 @@ export class CampusScene implements Scene3D {
     if (this.arrival) {
       const a = this.arrival;
       if (this.down || this.goal.dist !== undefined || this.pointers.size) this.arrival = null;
-      else if (dt < 0.1) {
-        a.t += dt;
+      else {
+        // (long frames count as short ones: the move takes a few more of them on a slow machine, never a jump)
+        const step = Math.min(dt, 0.05);
+        a.t += step;
         // ease out: quick at first, settling gently
-        const k = 1 - Math.exp(-dt * 3.2);
+        const k = 1 - Math.exp(-step * 3.2);
         this.dist += (a.dist - this.dist) * k;
         this.pitch += (a.pitch - this.pitch) * k;
         if (a.t > 2.2) this.arrival = null;
