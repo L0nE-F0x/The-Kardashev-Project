@@ -2111,24 +2111,29 @@ img.endcard {
 .achievement .d.gold {
   color: var(--gold);
 }
+/* a medal (ui/medals.ts) with the achievement's icon on its plate: the plate's centre is 21/48 down the picture */
 .ach-badge {
   position: relative;
   flex: none;
-  width: calc(var(--px, 3px) * 24);
-  height: calc(var(--px, 3px) * 24);
+  width: 68px;
+  height: 68px;
 }
 .ach-badge .medal {
+  display: block;
   width: 100%;
   height: 100%;
 }
 .ach-badge .glyph {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--px, 3px) * 3);
-  height: calc(var(--px, 3px) * 16);
+  left: 50%;
+  top: 43.75%;
+  translate: -50% -50%;
   display: grid;
   place-items: center;
+}
+.ach-badge .glyph img.px {
+  width: 22px;
+  height: 22px;
 }
 .ach-badge.locked .glyph {
   opacity: 0.45;
@@ -2411,6 +2416,10 @@ kbd {
   place-items: center;
   width: 36px;
   height: 36px;
+}
+.ht-panel .ht-ic img.dock-ic {
+  width: 32px;
+  height: 32px;
 }
 .ht-panel .grow {
   display: flex;

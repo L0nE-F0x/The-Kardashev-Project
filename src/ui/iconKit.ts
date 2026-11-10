@@ -108,7 +108,7 @@ export const ball = ([lit, base, shade]: Tones, cx: number, cy: number, rad: num
     o(base, cx, cy, rad),
     o(shade, cx, cy, rad),
     o(base, cx - rad * 0.2, cy - rad * 0.22, rad * 1.02),
-    glint ? o(lit, cx - rad * 0.36, cy - rad * 0.4, rad * 0.34, rad * 0.26) : '',
+    glint ? o(lit, cx - rad * 0.4, cy - rad * 0.46, rad * 0.27, rad * 0.19) : '',
   );
 
 /** A rounded block lit from above: a lit band along the top (`top` units), a shaded band along the bottom. */

@@ -7,6 +7,7 @@
  *   …?group=power                    one family (the start of its title; `dock`, `medals`)
  *   …?mag=6                          also what a 16 px and a 20 px icon really look like, magnified 6× pixel for pixel
  *   …?bg=hud | gold | light          the icons on the top bar's plate, on a gold button, on a light surface
+ *   …?sizes=18,96                    other sizes than the usual four (a big one shows the drawing itself)
  */
 import { ICON_GROUPS, iconUrl, type IconName } from '../ui/icons';
 import { DOCK_ICON_NAMES, dockIconUrl, type DockIconName } from '../ui/dockIcons';
@@ -16,6 +17,10 @@ const q = new URLSearchParams(location.search);
 const only = (q.get('only') ?? '').split(',').filter(Boolean);
 const group = (q.get('group') ?? '').toLowerCase();
 const mag = Math.max(0, Math.min(12, Number(q.get('mag')) || 0));
+const sizes = (q.get('sizes') ?? '')
+  .split(',')
+  .map(Number)
+  .filter((v) => v >= 8 && v <= 256);
 const BG: Record<string, string> = { hud: '#2a2637', gold: '#fbd46e', light: '#e6e0e3' };
 const bg = BG[q.get('bg') ?? ''] ?? 'linear-gradient(180deg, #211d2d, #17151f)';
 
@@ -87,17 +92,17 @@ for (const [title, names] of Object.entries(ICON_GROUPS) as [string, IconName[]]
   const list = names.filter((nm) => wants(title, nm));
   if (!list.length) continue;
   const box = section(title, `${list.length} · 16, 20, 27, 48 px`);
-  for (const nm of list) cell(box, nm, iconUrl(nm), [16, 20, 27, 48], [16, 20]);
+  for (const nm of list) cell(box, nm, iconUrl(nm), sizes.length ? sizes : [16, 20, 27, 48], [16, 20]);
 }
 
 const dock = DOCK_ICON_NAMES.filter((nm) => wants('dock', `dock:${nm}`));
 if (dock.length) {
   const box = section('Dock', `${dock.length} · 16, 20, 27, 48 px (the dock shows them at 24–34)`);
-  for (const nm of dock) cell(box, `dock:${nm}`, dockIconUrl(nm as DockIconName), [16, 20, 27, 48], [24, 30]);
+  for (const nm of dock) cell(box, `dock:${nm}`, dockIconUrl(nm as DockIconName), sizes.length ? sizes : [16, 20, 27, 48], [24, 30]);
 }
 
 const medals = MEDAL_TIERS.filter((t) => wants('medals', `medal:${t}`));
 if (medals.length) {
   const box = section('Medals', '24, 36, 48, 72 px');
-  for (const t of medals) cell(box, `medal:${t}`, medalUrl(t), [24, 36, 48, 72], [24]);
+  for (const t of medals) cell(box, `medal:${t}`, medalUrl(t), sizes.length ? sizes : [24, 36, 48, 72], [24]);
 }

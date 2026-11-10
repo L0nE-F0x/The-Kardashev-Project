@@ -10,6 +10,10 @@
   & img.px {
     filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.4));
   }
+  /* on a coloured button (teal, gold, red) the art has no outline to stand on: a tight dark halo does that job */
+  .btn:is(.primary, .gold, .danger) img.px {
+    filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.55)) drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45));
+  }
   & img.dock-ic {
     filter: drop-shadow(0 1.5px 2px rgb(0 0 0 / 0.45));
   }

@@ -12,8 +12,8 @@ import { T, ball, box, clip, earth, flip, gearPath, l, move, o, p, poly, r, ring
 type Group = Record<string, Shape[]>;
 
 /** A play-style arrowhead pointing right: lit above the middle, shaded below. */
-const tri = (lit: Tone, shade: Tone, x: number, w: number, h = 13): Shape =>
-  clip(poly(lit, `${x},${12 - h / 2} ${x + w},12 ${x},${12 + h / 2}`, 2.4), r(lit, 0, 0, 24, 12), r(shade, 0, 12, 24, 12));
+const tri = (lit: Tone, shade: Tone, x: number, w: number, h = 13, soft = 2.4): Shape =>
+  clip(poly(lit, `${x},${12 - h / 2} ${x + w},12 ${x},${12 + h / 2}`, soft), r(lit, 0, 0, 24, 12), r(shade, 0, 12, 24, 12));
 
 const speaker = clip(poly('ink9', '3.5,9.6 7.4,9.6 11.8,5.6 11.8,18.4 7.4,14.4 3.5,14.4', 1.8), r('ink9', 0, 0, 24, 12.4), r('ink7', 0, 12.4, 24, 12));
 
@@ -21,8 +21,8 @@ const speaker = clip(poly('ink9', '3.5,9.6 7.4,9.6 11.8,5.6 11.8,18.4 7.4,14.4 3
 const INTERFACE = {
   pause: [box(['white', 'ink9', 'ink7'], 5.6, 4.5, 4.8, 15, 1.6, 0, 2.2), box(['white', 'ink9', 'ink7'], 13.6, 4.5, 4.8, 15, 1.6, 0, 2.2)],
   play: [tri('grn7', 'grn6', 7.5, 10.5, 13.5)],
-  ff: [tri('yel1', 'yel0', 4, 7.2), tri('yel1', 'yel0', 13, 7.2)],
-  fff: [tri('org2', 'org1', 2.8, 4.8), tri('org2', 'org1', 9.6, 4.8), tri('org2', 'org1', 16.4, 4.8)],
+  ff: [tri('yel1', 'yel0', 3.4, 6.4, 13, 2), tri('yel1', 'yel0', 13.2, 6.4, 13, 2)],
+  fff: [tri('org2', 'org1', 2.6, 4.2, 12.4, 1.6), tri('org2', 'org1', 9.8, 4.2, 12.4, 1.6), tri('org2', 'org1', 17, 4.2, 12.4, 1.6)],
   check: [l('grn4', 3.4, 'M5 13.6L10 18.6L19.5 7.6'), l('grn6', 3.4, 'M5 12.2L10 17.2L19.5 6.2')],
   close: [l('ink6', 3, 'M6.5 7.7L17.5 18.7M17.5 7.7L6.5 18.7'), l('ink9', 3, 'M6.5 6.3L17.5 17.3M17.5 6.3L6.5 17.3')],
   arrow: [clip(poly('ink9', '4.2,12 11,5.6 11,9.8 19.6,9.8 19.6,14.2 11,14.2 11,18.4', 1.8), r('ink9', 0, 0, 24, 12), r('ink7', 0, 12, 24, 12))],
@@ -30,7 +30,7 @@ const INTERFACE = {
   sound: [speaker, l('cyn5', 2.2, 'M15.4 9.2a4.2 4.2 0 0 1 0 5.6'), l('cyn4', 2.2, 'M18.2 6.2a8.6 8.6 0 0 1 0 11.6')],
   mute: [speaker, l('red3', 2.6, 'M15.2 9.2l5.6 5.6m0-5.6l-5.6 5.6')],
   settings: [clip(p('ink8', gearPath(12, 12, 10.2, 7.6, 8, 3.3)), r('ink9', 0, 0, 24, 24), p('ink7', 'M24 3V24H3Z'), p('white', 'M0 0H13L0 13Z'))],
-  help: [ball(['cyn6', 'cyn4', 'cyn3'], 12, 12, 10), l('white', 2.4, 'M9 9.4a3.1 3.1 0 1 1 4.7 2.6c-1.1.7-1.7 1.3-1.7 2.6'), o('white', 12, 17.7, 1.45)],
+  help: [ball(['cyn6', 'cyn4', 'cyn3'], 12, 12, 10, false), l('white', 2.4, 'M9 9.4a3.1 3.1 0 1 1 4.7 2.6c-1.1.7-1.7 1.3-1.7 2.6'), o('white', 12, 17.7, 1.45)],
   warn: [clip(poly('yel0', '12,4.6 20.4,18.8 3.6,18.8', 3.2), r('yel0', 0, 0, 24, 24), p('yel1', 'M0 0H13L4 24H0Z'), r('org2', 0, 17.6, 24, 7)), r('ink1', 10.85, 8.6, 2.3, 6.2, 1.15), o('ink1', 12, 17, 1.35)],
   clock: [o('ink6', 12, 12, 10), ball(['white', 'ink9', 'ink8'], 12, 12, 7.9, false), l('ink3', 2, 'M12 7.4V12L15.2 14')],
   lock: [l('ink8', 2.6, 'M8 11.5V8a4 4 0 0 1 8 0V11.5'), box(T.gold, 4.5, 10.5, 15, 11, 2.6), o('snd3', 12, 14.9, 1.7), r('snd3', 11.1, 15, 1.8, 3.6, 0.9)],
@@ -137,9 +137,9 @@ const MONEY = {
     o('cyn4', 12, 9.6, 2.1),
   ],
   crunch: [
-    l('grn6', 3.2, 'M4 15.5A8 8 0 0 1 7 9.3'),
-    l('yel0', 3.2, 'M9.6 7.9A8 8 0 0 1 14.4 7.9'),
-    l('red3', 3.2, 'M17 9.3A8 8 0 0 1 20 15.5'),
+    l('grn6', 3, 'M4 15.5A8 8 0 0 1 6.65 9.55'),
+    l('yel0', 3, 'M9 8.1A8 8 0 0 1 15 8.1'),
+    l('red3', 3, 'M17.35 9.55A8 8 0 0 1 20 15.5'),
     l('white', 2.2, 'M12 15.5L16 10.6'),
     o('ink9', 12, 15.6, 2.2),
     r('ink7', 3, 19, 18, 1.8, 0.9),
@@ -158,7 +158,7 @@ const tower = (x0: number, x1: number, y0: number, y1: number): string => {
 /** A wind turbine: the hub at (x, y), blades `len` long, the tower down to `foot`. */
 const turbine = (x: number, y: number, len: number, foot: number): Shape[] => [
   p('ink7', `M${x - 0.8} ${y}H${x + 0.8}L${x + 1.6} ${foot}H${x - 1.6}Z`),
-  ...[0, 120, 240].map((a) => rot(a, x, y, p(a === 120 ? 'ink8' : 'white', `M${x} ${y}C${x - len * 0.26} ${y - len * 0.3} ${x - len * 0.18} ${y - len * 0.72} ${x} ${y - len}C${x + len * 0.18} ${y - len * 0.72} ${x + len * 0.26} ${y - len * 0.3} ${x} ${y}Z`))),
+  ...[0, 120, 240].map((a) => rot(a, x, y, p(a === 120 ? 'ink8' : 'white', `M${x} ${y}C${x - len * 0.23} ${y - len * 0.3} ${x - len * 0.16} ${y - len * 0.72} ${x} ${y - len}C${x + len * 0.16} ${y - len * 0.72} ${x + len * 0.23} ${y - len * 0.3} ${x} ${y}Z`))),
   o('ink9', x, y, len * 0.2),
 ];
 /** A solar panel: a tilted slab of cells, top edge x0…x1 at y0, bottom edge wider by `splay` at y1. */
@@ -221,7 +221,7 @@ const POWER = {
     p('pnk1/80', 'M11 8.4H13L15.6 17.6H8.4Z'),
     l('ink8', 2.2, 'M5.4 17.2Q12 23.4 18.6 17.2'),
   ],
-  co2: [clip(cloud(0, -1, 'ink8'), r('ink6', 0, 0, 24, 24), cloud(-0.5, -2.6, 'ink8'), o('ink9', 10.6, 7.4, 3.4, 2.4)), o('ink6', 7.6, 19.6, 1.4), o('ink6', 12.4, 19.6, 1.4), o('ink6', 17.2, 19.6, 1.4)],
+  co2: [move(9.4, 11.2, 0.56, cloud(0, 0, 'ink6')), clip(cloud(-1.2, -2.6, 'ink8'), r('ink7', 0, 0, 24, 24), cloud(-1.8, -4.2, 'ink8'), o('ink9', 9.4, 5.6, 3.2, 2.2))],
   dac: [
     l('ink6', 1.8, 'M4.6 4.4q1.7-1.7 3.4 0t3.4 0M12.8 3.2q1.7-1.7 3.4 0t3.4 0'),
     box(T.iron, 2.8, 7.2, 18.4, 10.4, 2, 1.6, 1.8),
@@ -277,7 +277,7 @@ const COMPUTE = {
     o('cyn2', 16.2, 9.8, 1.5),
   ],
   train: [
-    move(4.2, 0, 0.65, p('vio5', LOBE), flip(12, p('vio4', LOBE))),
+    move(3.6, -0.6, 0.7, p('vio5', LOBE), flip(12, p('vio4', LOBE)), l('vio3', 1.6, 'M6.8 8.8C8 8.2 9 8.8 9 10M6 13.2C7.4 12.6 8.6 13.4 8.4 14.8'), flip(12, l('vio2', 1.6, 'M6.8 8.8C8 8.2 9 8.8 9 10M6 13.2C7.4 12.6 8.6 13.4 8.4 14.8'))),
     l('yel0', 2.6, 'M7.6 18.2L12 14.8L16.4 18.2'),
     l('org2', 2.6, 'M7.6 21.8L12 18.4L16.4 21.8'),
   ],
@@ -371,7 +371,7 @@ const SUPPLY = {
   ],
   copper: [clip(poly('org0', '7.6,7.6 16.4,7.6 20.6,16.8 3.4,16.8', 1.6), r('org0', 0, 0, 24, 24), p('org2', 'M0 0H24V11.6H0Z'), p('org1', 'M6 9H13L11.6 10.4H5.4Z'), r('red3', 0, 15.6, 24, 4))],
   helium: [l('ink7', 1.6, 'M12 18C11 19.2 13 20.4 12 21.8'), poly('sky3', '12,16.2 10.6,18.4 13.4,18.4', 0.6), ball(['white', 'sky4', 'sky3'], 12, 9.4, 7.2)],
-  neon: [l('pnk0/30', 6.6, 'M7 18V6L17 18V6'), l('pnk0', 4, 'M7 18V6L17 18V6'), l('white', 1.4, 'M7 18V6L17 18V6')],
+  neon: [l('pnk0', 4.4, 'M7 18V6L17 18V6'), l('pnk1', 2.4, 'M7 18V6L17 18V6'), l('white', 1, 'M7 18V6L17 18V6')],
   cable: [
     l('sky4', 2.2, 'M2.6 6.4q2.35-2.6 4.7 0t4.7 0t4.7 0t4.7 0'),
     l('cyn5', 2.6, 'M3.2 10.6C5 17.4 19 17.4 20.8 10.6'),
@@ -430,7 +430,7 @@ const PEOPLE = {
     r('blu6', 10.8, 6.6, 2.4, 10.2, 1.1),
     r('blu6', 7.4, 9.6, 9.2, 2.4, 1.1),
   ],
-  evals: [l('snd5', 3.2, 'M15.4 15.4L20.4 20.4'), o('blu2', 10, 10, 6.4), ring('ink9', 2.4, 10, 10, 6.6), l('white', 2.4, 'M4.4 7.6A6.6 6.6 0 0 1 7.6 4.4'), l('grn6', 2.2, 'M7.2 10.2L9.4 12.4L13 8')],
+  evals: [l('snd5', 3.2, 'M15.4 15.4L20.4 20.4'), o('blu2', 10, 10, 6.4), ring('ink9', 2.4, 10, 10, 6.6), l('white', 2.4, 'M3.5 9A6.6 6.6 0 0 1 9 3.5'), l('grn6', 2.2, 'M7.2 10.2L9.4 12.4L13 8')],
   minds: [l('vio4', 1.8, 'M12 12L4.8 5M12 12L19.6 6.4M12 12L5.6 19.2M12 12L18.6 18.4M4.8 5L19.6 6.4'), o('cyn5', 4.8, 5, 2.3), o('cyn5', 19.6, 6.4, 2), o('cyn4', 5.6, 19.2, 2), o('cyn5', 18.6, 18.4, 2.4), o('white', 12, 12, 2.8)],
   threshold: [
     p('org1', 'M4.6 20.6V9.6A7.4 7.4 0 0 1 19.4 9.6V20.6Z'),
