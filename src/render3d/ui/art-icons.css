@@ -1,18 +1,20 @@
-/* Icons in the interface (see art.css for how the whole-pixel sizes work; art3d/INTERFACE.md for what replaces this). */
-@supports (width: round(nearest, 1px, 1px)) {
-  @media (min-width: 821px) and (min-height: 521px) {
-    /* no specificity (like the primitives), so a place that sizes its own icon keeps doing so */
-    :where(html.edition-3d:not(.ui-classic)) {
-      & img.px,
-      & img.px.sm,
-      & img.px.lg {
-        --p: 18px;
-        width: calc(max(9px, round(nearest, var(--p) * var(--ps), 9px)) / var(--ps));
-        height: calc(max(9px, round(nearest, var(--p) * var(--ps), 9px)) / var(--ps));
-      }
-      & img.px.lg {
-        --p: 27px;
-      }
-    }
+/*
+ * Icons in the interface (art3d/INTERFACE.md): vector art (ui/icons.ts on a 24-unit grid, ui/dockIcons.ts on 32,
+ * ui/medals.ts), so any size is sharp and nothing here snaps to device pixels. The sizes are base.css's: 18 px in
+ * running text, rows and buttons, 27 px (`lg`) in window and card headers; a place that wants another size sets
+ * width and height on its own `img.px`. The sheet to check them on: /play/icons.html.
+ */
+/* no specificity (like the primitives), so a place that styles its own icon keeps doing so */
+:where(html.edition-3d:not(.ui-classic)) {
+  /* a soft contact shadow lifts an icon off the glass; icons on a plate (the top bar, card headers) drop it */
+  & img.px {
+    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.4));
+  }
+  /* on a coloured button (teal, gold, red) the art has no outline to stand on: a tight dark halo does that job */
+  .btn:is(.primary, .gold, .danger) img.px {
+    filter: drop-shadow(0 0 1px rgb(0 0 0 / 0.55)) drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45));
+  }
+  & img.dock-ic {
+    filter: drop-shadow(0 1.5px 2px rgb(0 0 0 / 0.45));
   }
 }

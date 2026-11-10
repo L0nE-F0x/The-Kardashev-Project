@@ -1,111 +1,150 @@
 /**
- * The dock icons: every one is 15×15 with its outline closed (nothing but outline on the border). With PREVIEW_DIR
- * set it writes dock-icons.png: each icon at 2×, 3× and 4× on a dock button, the old 9×9 icon beside it, and a
- * mock of the whole dock.
+ * The interface's vector art (ui/icons.ts, ui/dockIcons.ts, ui/medals.ts): every name draws, the markup is
+ * well-formed SVG on the right grid, every colour is the palette's, and the dock's names match the small icons.
+ * How they look is checked on the sheet (/play/icons.html in dev). With PREVIEW_DIR set this also writes
+ * icon-sheet.svg, the whole set in one picture any browser opens:
  *   PREVIEW_DIR=/some/dir npx vitest run tests/dock-icons.test.ts
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { C, paletteTable } from '../src/render/palette';
-import type { PixelCanvas } from '../src/render/pixels';
-import { encodePngRgba } from '../tools/lib/png';
-import { DOCK_ICON_NAMES, DOCK_SIZE, dockIconCanvas } from '../src/ui/dockIcons';
-import { iconCanvas, ICON_NAMES, type IconName } from '../src/ui/icons';
+import { PALETTE } from '../src/render/palette';
+import { DOCK_ICON_NAMES, DOCK_SIZE, dockIconSvg, dockIconUrl, hasDockIcon } from '../src/ui/dockIcons';
+import { ICON_GROUPS, ICON_NAMES, ICON_SIZE, iconSvg, iconUrl, type IconName } from '../src/ui/icons';
+import { MEDAL_SIZE, MEDAL_TIERS, medalSvg, medalUrl } from '../src/ui/medals';
 
-describe('dock icons', () => {
-  it('draws every icon at 15×15 inside a closed outline', () => {
-    for (const name of DOCK_ICON_NAMES) {
-      const pc = dockIconCanvas(name);
-      expect([pc.w, pc.h]).toEqual([DOCK_SIZE, DOCK_SIZE]);
-      let filled = 0;
-      for (let y = 0; y < pc.h; y++)
-        for (let x = 0; x < pc.w; x++) {
-          const c = pc.get(x, y);
-          if (c && c !== C.ink0) filled++;
-          const edge = x === 0 || y === 0 || x === pc.w - 1 || y === pc.h - 1;
-          if (edge) expect(c === 0 || c === C.ink0, `${name} ${x},${y}`).toBe(true);
+const HEXES = new Set<string>(Object.values(PALETTE));
+/** What the kit draws with: anything else in an icon is a mistake (or needs a helper in iconKit.ts). */
+const TAGS = new Set(['svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'polygon', 'mask']);
+
+/** Checks `markup` is one well-formed <svg> on a `size`-unit grid and returns what it uses. */
+function inspect(markup: string, size: number, what: string) {
+  const open: string[] = [];
+  const colours: string[] = [];
+  const ids: string[] = [];
+  const refs: string[] = [];
+  let shapes = 0;
+  let at = 0;
+  const tag = /<(\/?)([a-zA-Z]+)((?:\s+[a-zA-Z:-]+='[^'<>]*')*)\s*(\/?)>/y;
+  while (at < markup.length) {
+    tag.lastIndex = at;
+    const m = tag.exec(markup);
+    expect(m, `${what}: not a tag at ${at}: "${markup.slice(at, at + 40)}"`).toBeTruthy();
+    const [, closing, name, attrs, selfClosing] = m!;
+    expect(TAGS.has(name), `${what}: <${name}>`).toBe(true);
+    if (closing) expect(open.pop(), `${what}: </${name}>`).toBe(name);
+    else {
+      if (!selfClosing) open.push(name);
+      else shapes++;
+      for (const [, key, value] of attrs.matchAll(/([a-zA-Z:-]+)='([^']*)'/g)) {
+        if (key === 'id') ids.push(value);
+        if (key === 'mask') refs.push(value.replace(/^url\(#(.*)\)$/, '$1'));
+        if (key === 'fill' || key === 'stroke') {
+          if (value.startsWith('#')) colours.push(value);
+          else expect(['none', 'white'], `${what}: ${key}='${value}'`).toContain(value);
         }
-      expect(filled, name).toBeGreaterThan(40);
+        // numbers must be numbers: a NaN or an undefined from a helper would land here
+        expect(value, `${what}: ${key}`).not.toMatch(/NaN|undefined|Infinity/);
+      }
+    }
+    at = tag.lastIndex;
+  }
+  expect(open, `${what}: unclosed`).toEqual([]);
+  expect(markup.startsWith(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${size} ${size}'>`), `${what}: the root`).toBe(true);
+  expect(markup.endsWith('</svg>'), `${what}: the end`).toBe(true);
+  expect(shapes, `${what}: shapes`).toBeGreaterThan(0);
+  expect(new Set(ids).size, `${what}: mask ids`).toBe(ids.length);
+  for (const ref of refs) expect(ids, `${what}: mask ${ref}`).toContain(ref);
+  for (const c of colours) expect(HEXES.has(c), `${what}: ${c} is not a palette colour`).toBe(true);
+  return { colours: new Set(colours), shapes };
+}
+
+describe('interface icons', () => {
+  it('draws every icon as well-formed SVG in palette colours', () => {
+    expect(ICON_NAMES.length).toBeGreaterThanOrEqual(123);
+    for (const name of ICON_NAMES) {
+      const { colours } = inspect(iconSvg(name), ICON_SIZE, name);
+      // flat one-colour art is what the direction rules out: lit, base, shade
+      expect(colours.size, `${name}: tones`).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('has a 9×9 icon of the same name for the classic look', () => {
+  it('has unique names, each in exactly one family', () => {
+    expect(new Set(ICON_NAMES).size).toBe(ICON_NAMES.length);
+    const grouped = Object.values(ICON_GROUPS).flat();
+    expect(grouped.length).toBe(ICON_NAMES.length);
+    expect(new Set(grouped)).toEqual(new Set(ICON_NAMES));
+  });
+
+  it('gives every icon its own picture, as a cached data URL', () => {
+    const seen = new Map<string, string>();
+    for (const name of ICON_NAMES) {
+      const url = iconUrl(name);
+      expect(url.startsWith('data:image/svg+xml,'), name).toBe(true);
+      expect(url, name).not.toMatch(/[#<>"]/);
+      expect(decodeURIComponent(url.slice('data:image/svg+xml,'.length)), name).toBe(iconSvg(name));
+      expect(iconUrl(name), name).toBe(url);
+      expect(seen.get(url), `${name} is drawn exactly like ${seen.get(url)}`).toBeUndefined();
+      seen.set(url, name);
+    }
+  });
+});
+
+describe('dock icons', () => {
+  it('draws every dock icon as well-formed SVG in palette colours, richer than the small one', () => {
+    expect(DOCK_ICON_NAMES.length).toBeGreaterThanOrEqual(19);
+    for (const name of DOCK_ICON_NAMES) {
+      const { colours } = inspect(dockIconSvg(name), DOCK_SIZE, `dock:${name}`);
+      expect(colours.size, `dock:${name}: tones`).toBeGreaterThanOrEqual(3);
+      expect(dockIconUrl(name).startsWith('data:image/svg+xml,'), name).toBe(true);
+      expect(dockIconUrl(name), name).not.toBe(iconUrl(name as IconName));
+    }
+  });
+
+  it('has a small icon of the same name for every dock icon', () => {
+    expect(new Set(DOCK_ICON_NAMES).size).toBe(DOCK_ICON_NAMES.length);
     for (const name of DOCK_ICON_NAMES) expect(ICON_NAMES, name).toContain(name as IconName);
   });
 
-  it.runIf(!!process.env.PREVIEW_DIR)('writes the contact sheet', () => {
-    const table = paletteTable();
-    const W = 900;
-    const rowH = 80;
-    const H = 20 + DOCK_ICON_NAMES.length * rowH;
-    const rgba = new Uint8Array(W * H * 4);
-    const fill = (x0: number, y0: number, w: number, h: number, [r, g, b]: number[]) => {
-      for (let y = y0; y < y0 + h; y++)
-        for (let x = x0; x < x0 + w; x++) {
-          if (x < 0 || y < 0 || x >= W || y >= H) continue;
-          const i = (y * W + x) * 4;
-          rgba.set([r, g, b, 255], i);
-        }
-    };
-    const blit = (pc: PixelCanvas, x0: number, y0: number, k: number) => {
-      for (let y = 0; y < pc.h; y++)
-        for (let x = 0; x < pc.w; x++) {
-          const c = pc.get(x, y);
-          if (!c) continue;
-          fill(x0 + x * k, y0 + y * k, k, k, [table[c * 4], table[c * 4 + 1], table[c * 4 + 2]]);
-        }
-    };
-    const bg = [0x16, 0x14, 0x1f];
-    const btn = [0x2a, 0x25, 0x38];
-    fill(0, 0, W, H, bg);
-    DOCK_ICON_NAMES.forEach((name, i) => {
-      const y = 10 + i * rowH;
-      let x = 10;
-      for (const k of [2, 3, 4]) {
-        const b = DOCK_SIZE * k + 14;
-        fill(x, y, b, b, btn);
-        blit(dockIconCanvas(name), x + 7, y + 7, k);
-        x += b + 12;
-      }
-      // the old 9×9 at 3× for comparison
-      fill(x + 20, y, 41, 41, btn);
-      blit(iconCanvas(name as IconName), x + 27, y + 7, 3);
+  it('covers every button the dock and How to Play show', () => {
+    // Dock.tsx's buttons (the panels of all five acts, the two tools, How to play, Settings)
+    const dock = ['compute', 'orders', 'research', 'finance', 'chart', 'team', 'deal', 'blocs', 'charter', 'council', 'globe', 'swarm', 'goals', 'guide', 'news', 'link', 'fiber', 'help', 'settings'];
+    for (const name of dock) expect(hasDockIcon(name), name).toBe(true);
+  });
+});
+
+describe('medals', () => {
+  it('draws every tier as well-formed SVG in palette colours', () => {
+    const urls = new Set<string>();
+    for (const tier of MEDAL_TIERS) {
+      inspect(medalSvg(tier), MEDAL_SIZE, `medal:${tier}`);
+      urls.add(medalUrl(tier));
+    }
+    expect(urls.size).toBe(MEDAL_TIERS.length);
+  });
+});
+
+describe('the sheet', () => {
+  it.runIf(!!process.env.PREVIEW_DIR)('writes icon-sheet.svg', () => {
+    const cell = 96;
+    const cols = 12;
+    const all: [string, string][] = [
+      ...ICON_NAMES.map((n): [string, string] => [n, iconSvg(n)]),
+      ...DOCK_ICON_NAMES.map((n): [string, string] => [`dock:${n}`, dockIconSvg(n)]),
+      ...MEDAL_TIERS.map((t): [string, string] => [`medal:${t}`, medalSvg(t)]),
+    ];
+    const rows = Math.ceil(all.length / cols);
+    let out = `<svg xmlns='http://www.w3.org/2000/svg' width='${cols * cell}' height='${rows * cell}' font-family='sans-serif' font-size='10'><rect width='100%' height='100%' fill='${PALETTE.ink1}'/>`;
+    all.forEach(([name, markup], i) => {
+      const x = (i % cols) * cell;
+      const y = Math.floor(i / cols) * cell;
+      // each icon at 48 px and, beside it, at the 18 px most of the interface shows
+      const nested = (px: number, dx: number, dy: number) => markup.replace('<svg ', `<svg x='${x + dx}' y='${y + dy}' width='${px}' height='${px}' `);
+      out += nested(48, 10, 12) + nested(18, 66, 27) + `<text x='${x + 10}' y='${y + 78}' fill='${PALETTE.ink7}'>${name}</text>`;
     });
-    // a mock dock: the whole set in a column at 3×, the way it sits on screen
-    const dx = 620;
-    fill(dx - 6, 4, 60, DOCK_ICON_NAMES.length * 51 + 8, [0x0b, 0x0a, 0x12]);
-    DOCK_ICON_NAMES.forEach((name, i) => {
-      fill(dx, 10 + i * 51, 47, 47, btn);
-      blit(dockIconCanvas(name), dx + 1, 11 + i * 51, 3);
-    });
+    out += '</svg>';
     const dir = process.env.PREVIEW_DIR!;
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'dock-icons.png'), encodePngRgba(W, H, rgba));
-
-    // DOCK_ZOOM=deal,blocs → dock-zoom.png: those icons at 10× on a grid, for pixel work
-    const zoom = (process.env.DOCK_ZOOM ?? '').split(',').filter((n) => DOCK_ICON_NAMES.includes(n as never));
-    if (zoom.length) {
-      const k = 10;
-      const cell = DOCK_SIZE * k + 20;
-      const zw = cell * Math.min(4, zoom.length);
-      const zh = cell * Math.ceil(zoom.length / 4);
-      const z = new Uint8Array(zw * zh * 4);
-      for (let i = 0; i < zw * zh; i++) z.set([0x2a, 0x25, 0x38, 255], i * 4);
-      zoom.forEach((name, n) => {
-        const pc = dockIconCanvas(name as never);
-        const ox = (n % 4) * cell + 10;
-        const oy = Math.floor(n / 4) * cell + 10;
-        for (let y = 0; y < pc.h * k; y++)
-          for (let x = 0; x < pc.w * k; x++) {
-            const c = pc.get(Math.floor(x / k), Math.floor(y / k));
-            const grid = x % k === 0 || y % k === 0;
-            const i = ((oy + y) * zw + ox + x) * 4;
-            if (c) z.set([table[c * 4] * (grid ? 0.8 : 1), table[c * 4 + 1] * (grid ? 0.8 : 1), table[c * 4 + 2] * (grid ? 0.8 : 1), 255], i);
-            else if (grid) z.set([0x34, 0x2f, 0x44, 255], i);
-          }
-      });
-      fs.writeFileSync(path.join(dir, 'dock-zoom.png'), encodePngRgba(zw, zh, z));
-    }
+    fs.writeFileSync(path.join(dir, 'icon-sheet.svg'), out);
   });
 });

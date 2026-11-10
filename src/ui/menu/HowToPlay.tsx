@@ -155,13 +155,12 @@ function Screen() {
 
 function Panels({ act }: { act: number }) {
   // the same icons as the dock buttons
-  const classic = false;
   return (
     <div class="ht-panels">
       {PANEL_GUIDE.filter((p) => p.act <= act).map((p) => (
         <div class="ht-panel" key={p.name}>
           <span class="ht-ic">
-            <DockIcon name={p.icon} classic={classic} />
+            <DockIcon name={p.icon} />
           </span>
           <div class="grow">
             <div class="row between">

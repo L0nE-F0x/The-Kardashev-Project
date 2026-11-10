@@ -1,207 +1,647 @@
-import { PixelCanvas, toDataUrl } from '../render/pixels';
-import { onEraChange, type ColorKey } from '../render/palette';
+/**
+ * The interface's icons: vector art on a 24×24 grid (art3d/INTERFACE.md), a few shapes each, built with iconKit.ts.
+ * Solid shapes in two or three tones of the subject's colour, light from the upper left, no outlines. They are
+ * shown at 16–20 px on dark glass (27 px in headers), so a silhouette has to read at 16 px: check every new or
+ * changed icon on the sheet, /play/icons.html (add `?mag=6` to see the 16 px picture pixel for pixel).
+ *
+ * The hues carry meaning and stay: power yellow, compute cyan, research violet, safety blue, money gold.
+ * To add one: a line or a few in the family it belongs to. No DOM here (the content files and tests import it).
+ */
+import { T, ball, box, clip, earth, flip, gearPath, l, move, o, p, poly, r, ring, rot, starPath, svg, svgUrl, torus, type Shape, type Tone } from './iconKit';
 
-type Grid = [string, Record<string, ColorKey>];
-/** One row per argument — easier to read than `\n`-joined strings. */
-const g = (...rows: string[]) => rows.join('\n');
+type Group = Record<string, Shape[]>;
 
-/** 9×9 pixel UI icons. */
-const ICONS = {
-  cash: [`..aaaaa..\n.abbbbba.\nabbcbcbba\nabcbbbbba\nabbcccbba\nabbbbbcba\nabbcbcbba\n.abbbbba.\n..aaaaa..`, { a: 'snd3', b: 'yel0', c: 'snd2' }],
-  power: [`.....aa..\n....aba..\n...aba...\n..abbaaa.\n.abbbbba.\n.aaabba..\n...aba...\n..aba....\n..aa.....`, { a: 'org0', b: 'yel1' }],
-  compute: [`.a.a.a.a.\naaaaaaaaa\n.abbbbba.\naabcccbaa\n.abcccba.\naabcccbaa\n.abbbbba.\naaaaaaaaa\n.a.a.a.a.`, { a: 'ink6', b: 'cyn3', c: 'cyn5' }],
-  brain: [`..aa.aa..\n.abbabba.\nabcbbbcba\nabbbcbbba\nabcbbbbca\nabbbcbbba\n.abcbbba.\n..abbba..\n...aaa...`, { a: 'vio1', b: 'pnk1', c: 'vio4' }],
-  shield: [`aaaaaaaaa\nabbbcbbba\nabbbcbbba\nabcccccba\nabbbcbbba\n.abbcbba.\n.abbbbba.\n..abbba..\n...aaa...`, { a: 'blu1', b: 'blu4', c: 'blu6' }],
-  k: [`...aaa...\n.aabbbaa.\n.abcbbba.\nabbbcbbba\nabcbbbcba\nabbbbbbba\n.abbcbba.\n.aabbbaa.\n...aaa...`, { a: 'blu1', b: 'sea6', c: 'grn6' }],
-  research: [`..aaaaa..\n...aba...\n...aba...\n...aba...\n..abbba..\n.abccbba.\nabcccccba\nabbbbbbba\n.aaaaaaa.`, { a: 'ink8', b: 'vio2', c: 'vio5' }],
-  orders: [`.aaaaaaa.\nabbbbbbba\nacccccccA\nabbbabbba\nabbbabbba\nabbbabbba\nabbbbbbba\nabbbbbbba\n.aaaaaaa.`, { a: 'snd2', b: 'snd5', c: 'snd6', A: 'snd2' }],
-  finance: [`a........\na......b.\na.....bb.\na..b.bb..\na.bbbb...\nabb......\na........\naaaaaaaaa\n.........`, { a: 'ink7', b: 'grn6' }],
-  news: [`aaaaaaa..\nabbbbbaa.\nabcccbaba\nabbbbbaba\nabcbcbaba\nabbbbbaba\nabcccbaba\nabbbbbbba\n.aaaaaaa.`, { a: 'ink6', b: 'ink9', c: 'ink5' }],
-  settings: [`...aaa...\n.a.aba.a.\n..abbba..\naabcccbaa\nabbc.cbba\naabcccbaa\n..abbba..\n.a.aba.a.\n...aaa...`, { a: 'ink5', b: 'ink8', c: 'ink6' }],
-  goals: [`ab.......\nabbbb....\nabbbbbbb.\nabbbbbb..\nabbb.....\na........\na........\na........\naa.......`, { a: 'ink8', b: 'red3' }],
-  pause: [`.........\n.aa...aa.\n.ab...ab.\n.ab...ab.\n.ab...ab.\n.ab...ab.\n.ab...ab.\n.aa...aa.\n.........`, { a: 'ink9', b: 'ink6' }],
-  play: [`.........\n..a......\n..aa.....\n..aba....\n..abba...\n..aba....\n..aa.....\n..a......\n.........`, { a: 'ink9', b: 'grn6' }],
-  ff: [`.........\n.a...a...\n.aa..aa..\n.aba.aba.\n.abbaabba\n.aba.aba.\n.aa..aa..\n.a...a...\n.........`, { a: 'ink9', b: 'yel0' }],
-  fff: [`.........\na..a..a..\naa.aa.aa.\nabaababab\nabbabbabb\nabaababab\naa.aa.aa.\na..a..a..\n.........`, { a: 'ink9', b: 'org1' }],
-  globe: [`...aaa...\n.aabbcaa.\n.abccbba.\nabbcbbcba\nacccbbbba\nabbbbccba\n.abbbcca.\n.aabbbaa.\n...aaa...`, { a: 'sea2', b: 'sea6', c: 'grn5' }],
-  solar: [`.........\naaaaaaaaa\nabcbcbcba\naaaaaaaaa\nabcbcbcba\naaaaaaaaa\n....d....\n...ddd...\n.........`, { a: 'blu1', b: 'blu3', c: 'sky4', d: 'ink6' }],
-  wind: [`....a....\n....a....\n....a....\n..aabaa..\n.a..c..a.\na...c...a\n....c....\n....c....\n...ccc...`, { a: 'white', b: 'ink6', c: 'ink9' }],
-  gas: [`....a....\n...aba...\n...aba...\n..abcba..\n.abcccba.\n.abcccba.\n.abbcbba.\n..abbba..\n...aaa...`, { a: 'red2', b: 'org1', c: 'yel0' }],
-  battery: [`...aaa...\n.aaaaaaa.\n.abbbbba.\n.abbcbba.\n.abcccba.\n.abbcbba.\n.abbbbba.\n.abbbbba.\n.aaaaaaa.`, { a: 'ink1', b: 'grn5', c: 'yel1' }],
-  datacenter: [`aaaaaaaaa\nabbbbbbba\nabcbcbcba\nabbbbbbba\naaaaaaaaa\nabbbbbbba\nabcbcbcba\nabbbbbbba\naaaaaaaaa`, { a: 'ink1', b: 'ink4', c: 'cyn5' }],
-  lab: [`..aaaaa..\n...aba...\n...aba...\n..abbba..\n.abbcbba.\nabcccccba\nabcccccba\nabbbbbbba\n.aaaaaaa.`, { a: 'ink8', b: 'ink9', c: 'vio4' }],
-  hq: [`....a....\n...aaa...\n..aabaa..\n.aabbbaa.\naabbbbbaa\n.acbbbca.\n.acbdbca.\n.abbdbba.\n.aaaaaaa.`, { a: 'snd2', b: 'yel0', c: 'sky4', d: 'snd3' }],
-  grid: [`..a...a..\n..a...a..\n.aaaaaaa.\n.abbbbba.\n.abbbbba.\n..abbba..\n...aba...\n....a....\n....a....`, { a: 'ink8', b: 'ink5' }],
-  link: [`.........\n.aa......\nabba.....\n.aaba....\n...aba...\n....abaa.\n.....abba\n......aa.\n.........`, { a: 'yel0', b: 'org1' }],
-  ship: [`.........\n....a....\n...aab...\n..aaabb..\n....a....\nccccccccc\n.ccccccc.\n..ccccc..\n.........`, { a: 'cyn4', b: 'org1', c: 'red2' }],
-  plane: [`....a....\n....a....\n...aaa...\naaaaaaaaa\n...aaa...\n....a....\n...aaa...\n.........\n.........`, { a: 'white' }],
-  warn: [`....a....\n...aba...\n...aba...\n..abcba..\n..abcba..\n.abbcbba.\n.abbbbba.\nabbbcbbba\naaaaaaaaa`, { a: 'org0', b: 'yel0', c: 'ink1' }],
-  check: [`.........\n.......aa\n......aba\n.a...aba.\naba.aba..\n.ababa...\n..aba....\n...a.....\n.........`, { a: 'grn2', b: 'grn6' }],
-  close: [`.........\n.aa...aa.\n.aba.aba.\n..abaaa..\n...aba...\n..aaaba..\n.aba.aba.\n.aa...aa.\n.........`, { a: 'ink1', b: 'ink9' }],
-  clock: [`..aaaaa..\n.abbbbba.\nabbbcbbba\nabbbcbbba\nabbbcccba\nabbbbbbba\nabbbbbbba\n.abbbbba.\n..aaaaa..`, { a: 'ink5', b: 'ink9', c: 'ink1' }],
-  train: [`..aa.aa..\n.abbabba.\nabbbbbbba\nabbbbbbba\n.abbbbba.\n..aaaaa..\n....c....\n...ccc...\n..ccccc..`, { a: 'vio1', b: 'vio4', c: 'yel0' }],
-  infer: [`.aaaaaaa.\nabbbbbbba\nabcbcbcba\nabbbbbbba\n.aaaaaaa.\n..aa.....\n.aa......\n.........\n.........`, { a: 'cyn2', b: 'cyn5', c: 'ink1' }],
-  people: [`..a...a..\n.aaa.aaa.\n..a...a..\n.bbb.bbb.\nbbbbbbbbb\nbbbbbbbbb\n.........\n.........\n.........`, { a: 'skn4', b: 'blu4' }],
-  map: [`aaaaaaaaa\nabbbcbbba\nabcccbbba\nabbcccbba\nabbbbcbba\nabbbbbbba\nabbcbbbba\nabbbbbbba\naaaaaaaaa`, { a: 'ink1', b: 'sea5', c: 'grn5' }],
-  sound: [`....a....\n...aa..b.\n.aaba.b..\n.abba.b.b\n.abba.b.b\n.aaba.b..\n...aa..b.\n....a....\n.........`, { a: 'ink8', b: 'cyn5' }],
-  mute: [`....a....\n...aa....\n.aaba.b.b\n.abba..b.\n.abba..b.\n.aaba.b.b\n...aa....\n....a....\n.........`, { a: 'ink8', b: 'red3' }],
-  fullscreen: [g('aaa...aaa', 'ab.....ba', 'a.......a', '.........', '.........', '.........', 'a.......a', 'ab.....ba', 'aaa...aaa'), { a: 'ink9', b: 'ink6' }],
-  arrow: [`.........\n....a....\n...aa....\n..aaaaaa.\n.aaaaaaa.\n..aaaaaa.\n...aa....\n....a....\n.........`, { a: 'ink9' }],
-  co2: [`.........\n..aaa....\n.abbba...\nabbbbbaa.\nabbbbbbba\n.aaaaaaa.\n.........\n.c.c.c...\n.........`, { a: 'ink5', b: 'ink7', c: 'ink6' }],
-  chart: [`.........\n.......c.\n.......c.\n....b..c.\n....b..c.\n.a..b..c.\n.a..b..c.\n.a..b..c.\nddddddddd`, { a: 'cyn4', b: 'yel0', c: 'vio4', d: 'ink7' }],
-  help: [`..aaaaa..\n.abbbbba.\nabbcccbba\nabcbbbcba\nabbbbcbba\nabbbcbbba\nabbbbbbba\n.abbcbba.\n..aaaaa..`, { a: 'cyn1', b: 'cyn3', c: 'white' }],
-  guide: [`.aaa.aaa.\nabbbcbbba\nabddcddba\nabbbcbbba\nabddcddba\nabbbcbbba\nabddcddba\naaaacaaaa\n.........`, { a: 'ink1', b: 'ink9', c: 'cyn4', d: 'ink6' }],
-  trust: [`.........\n.aa...aa.\nabba.abba\nabbbabbba\nabbbbbbba\n.abbbbba.\n..abbba..\n...aba...\n....a....`, { a: 'red1', b: 'pnk0' }],
-  // ── Act II ──
-  hydro: [g('....a....', '...aba...', '..abbba..', '.abbbcba.', '.adbcbba.', 'adbcccbba', 'abbbcbbba', '.abcbbba.', '..aaaaa..'), { a: 'sea3', b: 'sea6', c: 'yel1', d: 'sea8' }],
-  geothermal: [g('.b.....b.', 'b.b...b.b', '.b.b.b.b.', '...b.b...', '..aaaaa..', '..acaca..', 'ddddddddd', 'deddedded', 'ddddddddd'), { a: 'rck5', b: 'ice2', c: 'ink3', d: 'snd3', e: 'org0' }],
-  nuclear: [g('..bbbbb..', '.ccbbbcc.', 'cccbbbccc', 'cccbbbccc', 'cccbcbccc', 'bbbbbbbbb', 'bbbcccbbb', '.bbcccbb.', '..ccccc..'), { b: 'yel0', c: 'ink1' }],
-  reactor: [g('.....bbb.', '....bbbbb', '.....bbb.', '....aaacc', '.ddd.acc.', 'deeed.ac.', 'deeed.acc', 'deeedaacc', 'fffffffff'), { a: 'ink8', b: 'white', c: 'ink6', d: 'ink5', e: 'ice2', f: 'ink4' }],
-  smr: [g('.........', '..a...a..', '.aba.aba.', '.aba.aba.', '.aca.aca.', '.aba.aba.', '.aba.aba.', 'ddddddddd', '.........'), { a: 'ink5', b: 'ink9', c: 'yel0', d: 'ink4' }],
-  restart: [g('.b....e..', 'b.b.e.e.e', '.aace.e.e', '..ace...e', '..ac.eee.', '.aacc....', 'aaacc....', 'ddddddddd', '.........'), { a: 'ink8', b: 'white', c: 'ink6', d: 'ink4', e: 'grn6' }],
-  packaging: [g('.........', 'dd.ccc.dd', 'ee.cfc.ee', 'dd.ccc.dd', 'ee.ccc.ee', 'bbbbbbbbb', 'gbbbbbbbg', '.h.h.h.h.', '.........'), { b: 'grn4', c: 'cyn3', d: 'vio2', e: 'vio4', f: 'cyn6', g: 'grn2', h: 'snd6' }],
-  fab: [g('.a.....a.', '.a..a..a.', '.a..a..a.', 'bbbbbbbbb', 'bcccccccb', 'bcdcdcdcb', 'bcccccccb', 'bcdcdcdcb', 'bbbbbbbbb'), { a: 'ink7', b: 'ink5', c: 'ice2', d: 'cyn4' }],
-  campus: [g('.........', '...bbb...', '...bcb...', 'aaabbb...', 'acabcb...', 'aaabbbaaa', 'acabcbaca', 'aaabbbaaa', 'acabcbaca'), { a: 'ink4', b: 'ink2', c: 'yel1' }],
-  mine: [g('.........', '...cd.c..', '..ccdccc.', 'aaaaaaaaa', 'abbbbbbba', '.abbbbba.', '.aaaaaaa.', '..d...d..', '.........'), { a: 'ink2', b: 'ink5', c: 'snd4', d: 'ink8' }],
-  cable: [g('.........', '..aa...aa', 'aa..aaa..', '.........', 'b.......b', '.b.....b.', '..bbbbb..', '.........', 'ccccccccc'), { a: 'sky4', b: 'cyn5', c: 'snd3' }],
-  fiber: [g('c...c...c', '.b..b..b.', '..b.b.b..', '...bbb...', '....b....', '...aaa...', '...aaa...', '...aaa...', '...aaa...'), { a: 'vio2', b: 'pnk0', c: 'white' }],
-  deal: [g('.........', '.....a...', '.....aa..', 'aaaaaaaa.', '.....aa..', '..b..a...', '.bb......', 'bbbbbbbb.', '.bb......'), { a: 'grn6', b: 'org1' }],
-  board: [g('..aaaaa..', '..abbba..', '..abbba..', '..abbba..', '.aaaaaaa.', '.abbbbba.', '..aacaa..', '...ccc...', '..c.c.c..'), { a: 'snd1', b: 'snd3', c: 'ink6' }],
-  blocs: [g('a........', 'abbb.....', 'abbbc....', 'abbbcddd.', 'a...cddd.', 'a...cddd.', 'a...c....', 'a...c....', 'aa..cc...'), { a: 'ink8', b: 'blu4', c: 'ink8', d: 'red3' }],
-  team: [g('.b.....b.', 'bbb.a.bbb', '.b.aaa.b.', '.b..a..b.', 'ccc.d.ccc', 'cccdddccc', 'ccdddddcc', '..ddddd..', '.........'), { a: 'skn5', b: 'skn3', c: 'blu3', d: 'org1' }],
-  contract: [g('aaaaaaa..', 'abbbbbaa.', 'abcccbbba', 'abbbbbbba', 'abcccccba', 'abbbbbbba', 'abccbddba', 'abbbbddda', 'aaaaaaaaa'), { a: 'snd3', b: 'snd8', c: 'ink6', d: 'red3' }],
-  upgrade: [g('....a....', '...aba...', '..abbba..', '.abbbbba.', 'aaabbbaaa', '..abbba..', '..abbba..', '..abbba..', '..aaaaa..'), { a: 'grn2', b: 'grn6' }],
-  land: [g('.....ab..', '.....abb.', '.....a...', 'c.c.cac.c', '.ddddadd.', 'cdddddddc', '.ddddddd.', 'cdddddddc', '.c.c.c.c.'), { a: 'ink8', b: 'red3', c: 'white', d: 'grn5' }],
-  rival: [g('a.......a', '.a.....a.', '..a...a..', '...a.a...', '....a....', '...a.a...', '.cba.abc.', '.dc...cd.', 'd.......d'), { a: 'ink9', b: 'ink6', c: 'org1', d: 'snd3' }],
-  talent: [g('....c....', '...ccc...', '....c....', '...aaa...', '...aaa...', '....a....', '.bbbbbbb.', 'bbbbbbbbb', 'bbbbbbbbb'), { a: 'skn4', b: 'vio4', c: 'yel0' }],
-  treaty: [g('.aaaaaaa.', 'abbbbbbba', '.accccca.', '.adddcca.', '.accccca.', '.addeeea.', '.acceeea.', 'abbbbebba', '.aaaaaaa.'), { a: 'snd3', b: 'snd6', c: 'snd8', d: 'ink6', e: 'blu4' }],
-  startup: [g('....a....', '...aba...', '...aba...', '...aca...', '...aba...', '..faaaf..', '.ff.a.ff.', '....d....', '...ded...'), { a: 'ink5', b: 'white', c: 'cyn4', d: 'org1', e: 'yel1', f: 'red3' }],
-  crunch: [g('.........', '..aaaaa..', '.aggyyra.', 'aggbbbrra', 'agbbbbdra', 'abbbbdbba', 'abbbdbbba', 'aaaaaaaaa', '.........'), { a: 'ink3', b: 'ink9', g: 'grn5', y: 'yel0', r: 'red3', d: 'ink1' }],
-  ipo: [g('....a....', '...aba...', '..abbba..', '..abcba..', '..abbba..', '.abbbbba.', 'aabbbbbaa', 'aaaaaaaaa', '....d....'), { a: 'snd3', b: 'yel0', c: 'yel2', d: 'snd3' }],
-  lithium: [g('.........', '....a....', '...aba...', '...abc.a.', '.a.abcaba', 'abaabcabc', 'abcabcabc', 'abcabcabc', 'aaaaaaaaa'), { a: 'cyn1', b: 'cyn6', c: 'cyn4' }],
-  copper: [g('.........', '.........', '..aaaaa..', '.abccbba.', 'abbbbbbba', 'abbbbbbba', 'aaaaaaaaa', '.........', '.........'), { a: 'red1', b: 'org0', c: 'org2' }],
-  helium: [g('..aaaa...', '.abbbba..', 'abcbbbba.', 'abbbbbba.', 'abbbbbba.', '.abbbba..', '..abba...', '...aa....', '....d....'), { a: 'blu2', b: 'sky4', c: 'white', d: 'ink7' }],
-  neon: [g('.........', '.a....a..', 'aba..aba.', 'abba.aba.', 'ababaaba.', 'aba.abba.', 'aba..aba.', '.a....a..', '.........'), { a: 'pnk0', b: 'white' }],
-  // ── Act III ──
-  // the Charter: a gold sunburst round a small blue-green globe (the map's HQ emblem)
-  charter: [g('....r....', '.r.ggg.r.', '..gbbbg..', '.gbcceg..', 'rgbceebgr', '.gbccdbg.', '..gbbbg..', '.r.ggg.r.', '....r....'), { r: 'yel0', g: 'org2', b: 'sea4', c: 'sea6', d: 'sea5', e: 'grn6' }],
-  // the Council: a marble hall, pediment and columns, a gold seal over the door
-  council: [g('....a....', '..aabaa..', '.abbcbba.', 'aaaaaaaaa', '.d.d.d.d.', '.d.d.d.d.', '.d.d.d.d.', 'aaaaaaaaa', 'eeeeeeeee'), { a: 'ink6', b: 'ink9', c: 'yel0', d: 'white', e: 'ink7' }],
-  // a mission: a round patch with a gold star
-  mission: [g('..aaaaa..', '.abbbbba.', 'abbbcbbba', 'abbcccbba', 'abcccccba', 'abbcbcbba', 'abcbbbcba', '.abbbbba.', '..aaaaa..'), { a: 'blu1', b: 'blu4', c: 'yel0' }],
-  // partners: a handshake
-  partner: [g('.........', '.........', 'aa.....bb', 'aacc.ddbb', 'acccdddbb', 'a.cccddb.', '...cdd...', '.........', '.........'), { a: 'blu4', b: 'org1', c: 'skn5', d: 'skn3' }],
-  // the World screen: the Earth with its meridians, and the sun's glint
-  world: [g('...aaa...', '.aabbcaa.', '.abccbdc.', 'acbcbbcda', 'accccbbba', 'abbbcccba', '.abbbcca.', '.aabbbaa.', '...aaa...'), { a: 'sea2', b: 'sea6', c: 'grn6', d: 'yel1' }],
-  // Legitimacy: a gold seal with ribbons
-  legit: [g('..a.a.a..', '.abbbbba.', 'abbcccbba', '.bcbbbcb.', 'abcbbbcba', '.abcccba.', '..abbba..', '..d...d..', '.dd...dd.'), { a: 'snd3', b: 'yel0', c: 'yel1', d: 'red3' }],
-  // political capital: a faceted violet gem
-  capital: [g('.........', '..aaaaa..', '.abbcdda.', 'aaaaaaaaa', '.abbcdda.', '..abcda..', '...acd...', '....a....', '.........'), { a: 'vio1', b: 'vio3', c: 'vio4', d: 'vio5' }],
-  // compute access: signal arcs reaching out
-  access: [g('.........', '..aaaaa..', '.a.....a.', 'a..bbb..a', '..b...b..', '....c....', '...ccc...', '....c....', '.........'), { a: 'cyn3', b: 'cyn5', c: 'cyn6' }],
-  // a vote: a ballot going into the box
-  vote: [g('...aaa...', '...aba...', '...aba...', '.ccaaacc.', '.cdddddc.', '.ceeeeec.', '.cdddddc.', '.cdddddc.', '.ccccccc.'), { a: 'ink6', b: 'white', c: 'blu1', d: 'blu4', e: 'ink1' }],
-  // HVDC: a lattice pylon carrying glowing lines
-  hvdc: [g('b.......b', 'aacaaacaa', '.b.aca.b.', '...a.a...', '..aacaa..', '..a.a.a..', '.a..a..a.', '.aa...aa.', 'a.......a'), { a: 'ink6', b: 'yel0', c: 'ink8' }],
-  // the launch complex: a service tower beside a rocket on its pad
-  launch: [g('.a...c...', '.ab.cdc..', '.a..cdc..', '.ab.cec..', '.a..cdc..', '.abbcdc..', '.a.ccdcc.', 'ffffgffff', 'f..hhh..f'), { a: 'ink6', b: 'ink8', c: 'ink9', d: 'white', e: 'blu4', f: 'ink5', g: 'org0', h: 'yel1' }],
-  // a satellite: solar wings either side of a gold bus, a dish
-  satellite: [g('.........', 'aba...aba', 'bab...bab', 'abacccaba', 'bab.d.bab', 'aba...aba', '....e....', '...eee...', '.........'), { a: 'blu3', b: 'blu5', c: 'ink8', d: 'yel0', e: 'ink9' }],
-  // fusion: plasma held in a ring
-  fusion: [g('...aaa...', '.aa...aa.', 'a..bbb..a', 'a.bcccb.a', 'abcdedcba', 'a.bcccb.a', 'a..bbb..a', '.aa...aa.', '...aaa...'), { a: 'vio3', b: 'pnk0', c: 'pnk1', d: 'yel1', e: 'white' }],
-  // the blind trust: a padlock
-  lock: [g('..aaaaa..', '.ab...ba.', '.a.....a.', 'ccccccccc', 'cdddddddc', 'cddeeeddc', 'cdddedddc', 'cdddddddc', 'ccccccccc'), { a: 'ink6', b: 'ink8', c: 'snd2', d: 'yel0', e: 'snd3' }],
-  // the Threshold: light pouring through a doorway
-  threshold: [g('.aaaaaaa.', '.abbbbba.', '.abcccba.', '.abcdcba.', '.abcdcba.', '.abcdcba.', '.abcccba.', 'aaecdceaa', 'eeeeeeeee'), { a: 'rck2', b: 'org1', c: 'yel1', d: 'white', e: 'yel0' }],
-  // a megaproject: a solar field under a wind turbine and the sun
-  mega: [g('dd....c.c', 'd......h.', '......cbc', '.......b.', 'cccccc.b.', 'aaaaaa.b.', '.cccccc.b', '.aaaaaa.b', 'eeeeeeeee'), { a: 'blu2', b: 'ink9', c: 'blu4', d: 'yel0', e: 'grn5', h: 'ink7' }],
-  // frontier evals: a magnifier over a model, passing
-  evals: [g('..aaa....', '.abbba...', 'abbbcba..', 'abbcbba..', 'acbbbba..', '.abbba...', '..aaada..', '.....dd..', '......dd.'), { a: 'ink8', b: 'blu2', c: 'grn6', d: 'snd4' }],
-  // a tender: a sealed envelope of bids
-  tender: [g('.........', 'aaaaaaaaa', 'acbbbbbca', 'abcbbbcba', 'abbcbcbba', 'abbbdbbba', 'abbbbbbba', 'aaaaaaaaa', '.........'), { a: 'snd3', b: 'snd8', c: 'snd5', d: 'red3' }],
-  // the Charter desk: a desk with a terminal and a lamp
-  desk: [g('.......a.', '.bbbb..a.', '.bccb.aa.', '.bbbb.dd.', '..bb.....', 'eeeeeeeee', 'e.f...f.e', 'e.f...f.e', 'e.......e'), { a: 'ink7', b: 'ink4', c: 'cyn5', d: 'yel1', e: 'snd4', f: 'snd2' }],
-  // factions: three banners, Atlantic blue, Eastern red, Non-aligned green
-  faction: [g('a..a..a..', 'abbaccadd', 'abbaccadd', 'ab.ac.ad.', 'a..a..a..', 'a..a..a..', 'a..a..a..', 'a..a..a..', 'aa.aa.aa.'), { a: 'ink6', b: 'blu4', c: 'red3', d: 'grn6' }],
-  // ── Act IV ──
-  // the supergrid: a glowing band of power wrapped round the Earth, a node where it lands
-  supergrid: [g('...aaa...', '.aabbcaa.', 'abbbccbba', 'eeefeeefe', 'abccbbbba', 'abbcbbbba', '.abbbbba.', '..aaaaa..', '.........'), { a: 'sea2', b: 'sea5', c: 'grn5', e: 'cyn5', f: 'white' }],
-  // a fusion fleet: three rings of plasma
-  fusionfleet: [g('.........', '.aaa.aaa.', 'abcbabcba', '.aaa.aaa.', '...aaa...', '..abcba..', '...aaa...', '.........', 'eeeeeeeee'), { a: 'vio3', b: 'pnk0', c: 'white', e: 'ink6' }],
-  // direct air capture: CO₂ drawn into a bank of fans, clean air out
-  dac: [g('.a..a..a.', 'a..a..a..', 'bbbbbbbbb', 'bdcdbdcdb', 'bcecbcecb', 'bdcdbdcdb', 'bbbbbbbbb', '.fffffff.', '.........'), { a: 'ink6', b: 'ink5', c: 'ink8', d: 'ink2', e: 'white', f: 'grn6' }],
-  // desalination: a fresh drop lifted out of the waves
-  desal: [g('....a....', '...aba...', '..abbba..', '.abbcbba.', '.abbbcba.', '..abbba..', 'dd..a..dd', '.ddd.ddd.', 'e.e.e.e.e'), { a: 'sea3', b: 'sea7', c: 'white', d: 'sea5', e: 'ink8' }],
-  // a spaceport: three rockets on a long pad
-  spaceport: [g('....a....', '.a..b..a.', '.b..b..b.', '.c..c..c.', '.b..b..b.', '.b..b..b.', 'ddddddddd', 'd.e.e.e.d', '.........'), { a: 'org0', b: 'white', c: 'blu4', d: 'ink5', e: 'yel1' }],
-  // an orbital data centre: a lit rack between two solar wings, radiators below
-  odc: [g('.........', 'aa.ccc.aa', 'ba.cdc.ab', 'aabcecbaa', 'ba.cdc.ab', 'aa.ccc.aa', '....f....', '...fff...', '....f....'), { a: 'blu3', b: 'blu5', c: 'ink6', d: 'cyn5', e: 'cyn6', f: 'ink8' }],
-  // space solar: a gold array beaming power down to a rectenna
-  sps: [g('aaaa.aaaa', 'abab.baba', 'aaaacaaaa', '....d....', '...ded...', '....e....', '...e.e...', '....e....', '.fffffff.'), { a: 'org2', b: 'yel1', c: 'ink8', d: 'ink9', e: 'pnk1', f: 'ink6' }],
-  // orbital debris: fragments tumbling along a crowded orbit
-  debris: [g('a.....b..', '..c......', 'dd...a..c', '..ddd....', '.b...ddd.', '......a.d', 'c..a.....', '...c...b.', '.a....c..'), { a: 'ink8', b: 'org1', c: 'ink6', d: 'ink4' }],
-  // the Moon, a base light on its shadow side
-  moon: [g('..aaaaa..', '.abbbbca.', 'abcbbbbca', 'abbbbccda', 'abbcbbcda', 'abbbbbcda', '.abbbcde.', '..aaaaa..', '.........'), { a: 'ink5', b: 'ink9', c: 'ink7', d: 'ink6', e: 'yel1' }],
-  // the mass driver: a rail of glowing coils flinging a payload off the Moon
-  massdriver: [g('.......ba', '......c..', '.....dcd.', '....dcd..', '...dcd...', '..dcd....', '.dcd.....', 'eeeeeeeee', 'fefffefff'), { a: 'white', b: 'yel1', c: 'cyn5', d: 'ink6', e: 'ink7', f: 'ink5' }],
-  // the five-year plan: a clipboard of priorities, two ticked
-  plan: [g('...fff...', '.aafgfaa.', 'abbbbbbba', 'abcbdddba', 'abbbbbbba', 'abcbddbba', 'abbbbbbba', 'abebdddba', 'aaaaaaaaa'), { a: 'snd3', b: 'snd8', c: 'grn5', d: 'ink6', e: 'yel0', f: 'ink6', g: 'ink8' }],
-  // a jump: years running through the hourglass, streaking forward
-  jump: [g('.aaaaaaa.', '..bbbbb..', 'd..bbb...', '.d..c....', 'dd..c....', '.d.c.c...', 'd.cbbbc..', '.aaaaaaa.', '.........'), { a: 'snd3', b: 'yel1', c: 'sky5', d: 'cyn5' }],
-  // heat: a thermometer near the top, the air shimmering beside it
-  heat: [g('..aa.....', '.abba.c..', '.abba..c.', '.abba.c..', '.acca..c.', '.acca.c..', 'acccca...', 'acddca...', '.aaaa....'), { a: 'ink8', b: 'white', c: 'red3', d: 'org2' }],
-  // warming: the Earth with a rising red arrow
-  warming: [g('.......e.', '......eee', '..aaa.ded', '.abbca.d.', 'abcbbcad.', 'abbccba..', 'abbbbba..', '.abbba...', '..aaa....'), { a: 'sea2', b: 'sea5', c: 'grn5', d: 'red3', e: 'org1' }],
-  // wellbeing: a contented green face
-  wellbeing: [g('..aaaaa..', '.abbbbba.', 'abcbbbcba', 'abbbbbbba', 'abcbbbcba', 'abbcccbba', '.abbbbba.', '..aaaaa..', '.........'), { a: 'grn2', b: 'grn6', c: 'grn1' }],
-  // an AI: a four-point spark in a rounded chip
-  ai: [g('.aaaaaaa.', 'ab.....ba', 'a...c...a', 'a..cec..a', 'a.ceded.a', 'a..cec..a', 'a...c...a', 'ab.....ba', '.aaaaaaa.'), { a: 'vio3', b: 'vio2', c: 'cyn4', d: 'white', e: 'cyn6' }],
-  // a province: a stretch of land inside its dotted border, the capital starred
-  province: [g('.a.a.a...', 'a.bbb.a..', '.bbcbbb.a', 'abbbbcbb.', '.bbcbbbba', 'abbbbdbb.', '.bbbbbbba', '..bbcbb..', '...a.a.a.'), { a: 'ink9', b: 'grn5', c: 'grn4', d: 'yel0' }],
-  // orbit: the Earth inside a tilted ring, a satellite riding it
-  orbit: [g('......ded', '..aaaaa..', '.abbccba.', 'fabcbbcaf', 'fabbbbbaf', '.fffffff.', '..abbba..', '...aaa...', '.........'), { a: 'sea2', b: 'sea5', c: 'grn5', d: 'blu5', e: 'white', f: 'ink7' }],
-  // ── Act V ──
-  // the swarm: the Sun ringed by glinting collectors
-  swarm: [g('.a..b..a.', '....b....', 'a..ccc..a', '..cdddc..', 'bbcdedcbb', '..cdddc..', 'a..ccc..a', '....b....', '.a..b..a.'), { a: 'cyn5', b: 'org0', c: 'org1', d: 'yel0', e: 'white' }],
-  // a foundry: a block of machinery with an arm, its copy taking shape beside it
-  foundry: [g('.........', '.aaa.....', '.aba.ccc.', '.aaa.cdc.', '..e..ccc.', '..eeee...', '.fffffff.', '.fgfgfgf.', '.fffffff.'), { a: 'ink6', b: 'cyn5', c: 'ink4', d: 'cyn3', e: 'org1', f: 'ink5', g: 'yel0' }],
-  // an asteroid: a lumpy rock with craters, lit from one side
-  asteroid: [g('.........', '...aaa...', '..abbba..', '.abcbbda.', '.abbbbda.', '.abbcbda.', '..abdda..', '...aaa...', '.........'), { a: 'rck1', b: 'rck4', c: 'rck2', d: 'rck3' }],
-  // a compute ring: a band of glowing racks with radiator fins
-  ring: [g('..aaaaa..', '.ab...ba.', 'ab.c.c.ba', 'a..ddd..a', 'a.cdedc.a', 'a..ddd..a', 'ab.c.c.ba', '.ab...ba.', '..aaaaa..'), { a: 'ink7', b: 'cyn5', c: 'ink5', d: 'vio3', e: 'cyn6' }],
-  // a habitat: a cylinder seen end-on, green land curving round inside
-  habitat: [g('..aaaaa..', '.abbbbba.', 'abcccccba', 'abc...cba', 'abc.d.cba', 'abc...cba', 'abcccccba', '.abbbbba.', '..aaaaa..'), { a: 'ink6', b: 'ink8', c: 'grn5', d: 'sky4' }],
-  // longevity: a heart with a sprouting leaf
-  longevity: [g('....bb...', '...bcb...', '.aa.b.aa.', 'adeaaadea', 'aeeeeeeea', '.aeeeeea.', '..aeeea..', '...aea...', '....a....'), { a: 'red1', b: 'grn3', c: 'grn6', d: 'pnk1', e: 'red3' }],
-  // Mercury: a small cratered grey planet close to a blazing limb
-  mercury: [g('aa.......', 'ba..ccc..', 'aa.cdddc.', 'b.cdedddc', 'a.cddddec', 'b.cdeddcc', 'aa.cdddc.', 'ba..ccc..', 'aa.......'), { a: 'yel1', b: 'org1', c: 'ink4', d: 'ink6', e: 'ink5' }],
-  // a solar storm: a flare looping off the Sun's limb
-  storm: [g('aa.......', 'aab..cc..', 'aab.c..c.', 'aabc....c', 'aab.....c', 'aab....c.', 'aabd..c..', 'aab.dd...', 'aa.......'), { a: 'yel1', b: 'org1', c: 'red3', d: 'org0' }],
-  // the Thermal Line: the Earth under a heat bar with its limit marked
-  thermal: [g('aaaaaaaaa', 'bbbbbbcd.', 'aaaaaaaaa', '.........', '..eeeee..', '.effgffe.', '.efggffe.', '.effffge.', '..eeeee..'), { a: 'ink6', b: 'org1', c: 'red3', d: 'white', e: 'sea2', f: 'sea5', g: 'grn5' }],
-  // a garden province: a tree and grass under the sun
-  garden: [g('......a..', '..bbb....', '.bcbcb...', 'bcbbbcb..', '.bbcbb...', '...d.....', '...d.....', 'eefeeefee', 'eeeeeeeee'), { a: 'yel0', b: 'grn5', c: 'grn6', d: 'snd2', e: 'grn3', f: 'grn6' }],
-  // minds: a constellation of linked points
-  minds: [g('a.......a', '.b.....b.', '..b...b..', '...cac...', '..b.e.b..', '...cac...', '..b...b..', '.b.....b.', 'a.......a'), { a: 'cyn6', b: 'vio3', c: 'cyn4', e: 'white' }],
-} satisfies Record<string, Grid>;
+/** A play-style arrowhead pointing right: lit above the middle, shaded below. */
+const tri = (lit: Tone, shade: Tone, x: number, w: number, h = 13, soft = 2.4): Shape =>
+  clip(poly(lit, `${x},${12 - h / 2} ${x + w},12 ${x},${12 + h / 2}`, soft), r(lit, 0, 0, 24, 12), r(shade, 0, 12, 24, 12));
+
+const speaker = clip(poly('ink9', '3.5,9.6 7.4,9.6 11.8,5.6 11.8,18.4 7.4,14.4 3.5,14.4', 1.8), r('ink9', 0, 0, 24, 12.4), r('ink7', 0, 12.4, 24, 12));
+
+// ── the interface itself: the clock's buttons, ticks and crosses, the panels' own signs ──────────────────────────
+const INTERFACE = {
+  pause: [box(['white', 'ink9', 'ink7'], 5.6, 4.5, 4.8, 15, 1.6, 0, 2.2), box(['white', 'ink9', 'ink7'], 13.6, 4.5, 4.8, 15, 1.6, 0, 2.2)],
+  play: [tri('grn7', 'grn6', 7.5, 10.5, 13.5)],
+  ff: [tri('yel1', 'yel0', 3.4, 6.4, 13, 2), tri('yel1', 'yel0', 13.2, 6.4, 13, 2)],
+  fff: [tri('org2', 'org1', 2.6, 4.2, 12.4, 1.6), tri('org2', 'org1', 9.8, 4.2, 12.4, 1.6), tri('org2', 'org1', 17, 4.2, 12.4, 1.6)],
+  check: [l('grn4', 3.4, 'M5 13.6L10 18.6L19.5 7.6'), l('grn6', 3.4, 'M5 12.2L10 17.2L19.5 6.2')],
+  close: [l('ink6', 3, 'M6.5 7.7L17.5 18.7M17.5 7.7L6.5 18.7'), l('ink9', 3, 'M6.5 6.3L17.5 17.3M17.5 6.3L6.5 17.3')],
+  arrow: [clip(poly('ink9', '4.2,12 11,5.6 11,9.8 19.6,9.8 19.6,14.2 11,14.2 11,18.4', 1.8), r('ink9', 0, 0, 24, 12), r('ink7', 0, 12, 24, 12))],
+  fullscreen: [l('white', 2.6, 'M4.2 9.6V4.2H9.6'), l('ink9', 2.6, 'M14.4 4.2H19.8V9.6M9.6 19.8H4.2V14.4'), l('ink7', 2.6, 'M19.8 14.4V19.8H14.4')],
+  sound: [speaker, l('cyn5', 2.2, 'M15.4 9.2a4.2 4.2 0 0 1 0 5.6'), l('cyn4', 2.2, 'M18.2 6.2a8.6 8.6 0 0 1 0 11.6')],
+  mute: [speaker, l('red3', 2.6, 'M15.2 9.2l5.6 5.6m0-5.6l-5.6 5.6')],
+  settings: [clip(p('ink8', gearPath(12, 12, 10.2, 7.6, 8, 3.3)), r('ink9', 0, 0, 24, 24), p('ink7', 'M24 3V24H3Z'), p('white', 'M0 0H13L0 13Z'))],
+  help: [ball(['cyn6', 'cyn4', 'cyn3'], 12, 12, 10, false), l('white', 2.4, 'M9 9.4a3.1 3.1 0 1 1 4.7 2.6c-1.1.7-1.7 1.3-1.7 2.6'), o('white', 12, 17.7, 1.45)],
+  warn: [clip(poly('yel0', '12,4.6 20.4,18.8 3.6,18.8', 3.2), r('yel0', 0, 0, 24, 24), p('yel1', 'M0 0H13L4 24H0Z'), r('org2', 0, 17.6, 24, 7)), r('ink1', 10.85, 8.6, 2.3, 6.2, 1.15), o('ink1', 12, 17, 1.35)],
+  clock: [o('ink6', 12, 12, 10), ball(['white', 'ink9', 'ink8'], 12, 12, 7.9, false), l('ink3', 2, 'M12 7.4V12L15.2 14')],
+  lock: [l('ink8', 2.6, 'M8 11.5V8a4 4 0 0 1 8 0V11.5'), box(T.gold, 4.5, 10.5, 15, 11, 2.6), o('snd3', 12, 14.9, 1.7), r('snd3', 11.1, 15, 1.8, 3.6, 0.9)],
+  upgrade: [clip(poly('grn6', '12,3.8 19.4,11.4 15,11.4 15,19.8 9,19.8 9,11.4 4.6,11.4', 1.8), r('grn7', 0, 0, 12, 24), r('grn6', 12, 0, 12, 24), r('grn5', 0, 17.8, 24, 7))],
+  goals: [l('ink8', 2.2, 'M5.6 3.6V20.8'), clip(p('red3', 'M6.7 4.6C10.5 2.6 13.5 6.8 19.6 4.8V13C13.5 15 10.5 10.8 6.7 12.8Z'), r('org0', 0, 0, 24, 9), r('red3', 0, 9, 24, 15), p('red2', 'M14 0H24V24H14Q16 10 14 0Z'))],
+  guide: [
+    r('cyn4', 1.6, 6.6, 20.8, 13.8, 1.8),
+    p('white', 'M2.8 5.4C6.2 4.2 9.6 4.8 12 6.6V19.6C9.6 17.8 6.2 17.2 2.8 18.4Z'),
+    p('ink8', 'M21.2 5.4C17.8 4.2 14.4 4.8 12 6.6V19.6C14.4 17.8 17.8 17.2 21.2 18.4Z'),
+    l('ink6', 1.3, 'M5 8.6C6.8 8.2 8.4 8.5 9.8 9.3M5 11.8C6.8 11.4 8.4 11.7 9.8 12.5'),
+    l('ink5', 1.3, 'M19 8.6C17.2 8.2 15.6 8.5 14.2 9.3M19 11.8C17.2 11.4 15.6 11.7 14.2 12.5'),
+  ],
+  news: [
+    p('ink7', 'M16 7.6H19.6A1.6 1.6 0 0 1 21.2 9.2V18.4A2.6 2.6 0 0 1 16 18.4Z'),
+    p('ink9', 'M4.4 3.6H16.4A1.6 1.6 0 0 1 18 5.2V18.4A2.6 2.6 0 0 0 18.6 21H5.4A2.6 2.6 0 0 1 2.8 18.4V5.2A1.6 1.6 0 0 1 4.4 3.6Z'),
+    r('ink4', 5.2, 6, 10.4, 2.6, 0.7),
+    r('blu4', 5.2, 10.6, 4.8, 4.8, 0.8),
+    l('ink6', 1.5, 'M12.2 11.4H15.4M12.2 14.6H15.4M5.4 18H15.4'),
+  ],
+  map: [
+    clip(
+      poly('sea5', '3.2,6.4 8.6,4.4 15.4,6.8 20.8,4.8 20.8,17.6 15.4,19.6 8.6,17.2 3.2,19.2', 1.6),
+      r('sea7', 0, 0, 24, 24),
+      p('grn7', 'M0 7C3 6 5 8.4 6.6 10.6C8 12.6 6.4 15 3.6 15.4L0 16Z'),
+      p('grn7', 'M24 9.4C21 8.6 18.4 9.6 17.4 12C16.6 14.2 19 16.4 24 16Z'),
+      p('sea1/40', 'M8.6 0H15.4V24H8.6Z'),
+    ),
+    l('red3', 1.8, 'M11 9.4L13 11.4M13 9.4L11 11.4'),
+  ],
+  chart: [box(['cyn5', 'cyn4', 'cyn3'], 3.8, 12.6, 4.4, 6.6, 1.1, 1.4, 0), box(['yel1', 'yel0', 'org2'], 9.8, 8.4, 4.4, 10.8, 1.1, 1.4, 0), box(['vio5', 'vio4', 'vio3'], 15.8, 4, 4.4, 15.2, 1.1, 1.4, 0), r('ink7', 2.4, 19.8, 19.2, 1.8, 0.9)],
+  plan: [
+    box(T.wood, 3.6, 4.2, 16.8, 17.4, 2.2, 0, 2),
+    r('snd8', 5.6, 6.8, 12.8, 12.8, 1),
+    r('ink7', 8.6, 2.4, 6.8, 4.2, 1.4),
+    l('grn5', 1.8, 'M7.2 11l1.3 1.3l2.2-2.6M7.2 15.6l1.3 1.3l2.2-2.6'),
+    l('ink6', 1.6, 'M12.8 11.2H16.4M12.8 15.8H16.4'),
+  ],
+  jump: [
+    l('cyn5', 2, 'M2.6 8H6M1.8 12H5M2.6 16H6'),
+    p('sky5', 'M9 5H19C19 9 16.2 10.4 15.2 12C16.2 13.6 19 15 19 19H9C9 15 11.8 13.6 12.8 12C11.8 10.4 9 9 9 5Z'),
+    p('yel0', 'M10.6 7.4H17.4C16.6 9.2 15 10 14 11.4C13 10 11.4 9.2 10.6 7.4Z'),
+    p('yel0', 'M10 19C10.4 17 12.2 16 14 15.2C15.8 16 17.6 17 18 19Z'),
+    r('snd5', 7.6, 3, 12.8, 2.6, 1.3),
+    r('snd4', 7.6, 18.4, 12.8, 2.6, 1.3),
+  ],
+} satisfies Group;
+
+// ── money and markets ────────────────────────────────────────────────────────────────────────────────────────────
+const MONEY = {
+  cash: [
+    o('snd5', 12, 12.5, 9.8),
+    ball(T.gold, 12, 11.6, 9.6),
+    l('snd4', 2.1, 'M14.8 9.3C14.8 7.9 13.6 7.2 12 7.2C10.3 7.2 9.2 8.1 9.2 9.4C9.2 10.9 10.5 11.3 12 11.6C13.6 11.9 14.9 12.4 14.9 13.9C14.9 15.2 13.7 16 12 16C10.3 16 9.1 15.3 9.1 13.9M12 5.4V17.8'),
+  ],
+  finance: [l('ink7', 2.2, 'M3.6 3.6V20.4H21'), l('grn6', 2.8, 'M7 16L11 11.6L14 14.2L19.4 7.4'), poly('grn6', '16.2,5.6 20.6,5 20.4,9.6', 1.4)],
+  orders: [
+    box(['snd6', 'snd5', 'snd4'], 3.6, 8.6, 16.8, 12.2, 1.6, 0, 2.2),
+    r('snd7', 2.4, 4.6, 19.2, 5.2, 1.6),
+    r('snd8', 10.4, 4.6, 3.2, 9.6),
+    r('snd8', 5.4, 15.6, 4.4, 2.8, 0.6),
+  ],
+  deal: [l('grn6', 2.8, 'M3.8 8H16'), poly('grn6', '15.4,4.6 20.2,8 15.4,11.4', 1.6), l('org1', 2.8, 'M20.2 16H8'), poly('org1', '8.6,12.6 3.8,16 8.6,19.4', 1.6)],
+  contract: [
+    p('snd8', 'M5.6 2.8H14.8L19.6 7.6V19.6A1.6 1.6 0 0 1 18 21.2H5.6A1.6 1.6 0 0 1 4 19.6V4.4A1.6 1.6 0 0 1 5.6 2.8Z'),
+    p('snd6', 'M14.8 2.8L19.6 7.6H16.2A1.4 1.4 0 0 1 14.8 6.2Z'),
+    l('ink6', 1.6, 'M7 8.4H12M7 11.8H16.4M7 15.2H11.6'),
+    ball(T.red, 15.6, 16.8, 3.4),
+  ],
+  ipo: [
+    o('snd5', 12, 20.4, 2),
+    clip(
+      p('yel0', 'M12 2.6A1.7 1.7 0 0 1 13.7 4.3C16.8 5.2 18 8.4 18 12C18 14.8 19.4 16 20.6 17.4A1 1 0 0 1 19.8 19H4.2A1 1 0 0 1 3.4 17.4C4.6 16 6 14.8 6 12C6 8.4 7.2 5.2 10.3 4.3A1.7 1.7 0 0 1 12 2.6Z'),
+      r('yel0', 0, 0, 24, 24),
+      p('yel1', 'M0 0H10.6C8.4 6 9 12 6.6 16H0Z'),
+      p('snd6', 'M24 0H15C17 6 16.6 12 19 16.2H0V24H24Z'),
+    ),
+  ],
+  capital: [
+    p('vio4', 'M3 9.8L7.6 4.6L9.6 9.8Z'),
+    p('vio5', 'M7.6 4.6H16.4L14.4 9.8H9.6Z'),
+    p('vio3', 'M16.4 4.6L21 9.8H14.4Z'),
+    p('vio4', 'M3 9.8H9.6L12 21Z'),
+    p('vio3', 'M9.6 9.8H14.4L12 21Z'),
+    p('vio2', 'M14.4 9.8H21L12 21Z'),
+  ],
+  tender: [
+    box(['snd8', 'snd8', 'snd6'], 2.6, 5.4, 18.8, 13.6, 2, 0, 2),
+    p('snd7', 'M2.6 7.4A2 2 0 0 1 4.6 5.4H19.4A2 2 0 0 1 21.4 7.4L12 14Z'),
+    p('snd5', 'M3 6.6L12 13L21 6.6L21.4 7.6L12 14.4L2.6 7.6Z'),
+    ball(T.red, 12, 13.4, 3),
+  ],
+  board: [
+    box(['snd6', 'snd5', 'snd4'], 7, 2.6, 10, 10.4, 2.4, 2, 0),
+    r('snd4', 5, 12.2, 14, 3.6, 1.6),
+    r('ink7', 11, 15.8, 2, 3),
+    l('ink7', 2, 'M6.4 21C7.6 19.2 16.4 19.2 17.6 21'),
+  ],
+  startup: [
+    p('red3', 'M8.4 12L4.6 17V19.6L8.4 17.6Z'),
+    p('red2', 'M15.6 12L19.4 17V19.6L15.6 17.6Z'),
+    p('org1', 'M9.4 17.4H14.6L12 22.6Z'),
+    p('yel1', 'M10.8 17.4H13.2L12 20.2Z'),
+    clip(p('white', 'M12 1.8C15.2 5 16.2 9 16.2 13V17.6H7.8V13C7.8 9 8.8 5 12 1.8Z'), r('white', 0, 0, 24, 24), r('ink8', 13.2, 0, 12, 24)),
+    o('cyn4', 12, 9.6, 2.1),
+  ],
+  crunch: [
+    l('grn6', 3, 'M4 15.5A8 8 0 0 1 6.65 9.55'),
+    l('yel0', 3, 'M9 8.1A8 8 0 0 1 15 8.1'),
+    l('red3', 3, 'M17.35 9.55A8 8 0 0 1 20 15.5'),
+    l('white', 2.2, 'M12 15.5L16 10.6'),
+    o('ink9', 12, 15.6, 2.2),
+    r('ink7', 3, 19, 18, 1.8, 0.9),
+  ],
+} satisfies Group;
+
+// ── power, plants and the climate ────────────────────────────────────────────────────────────────────────────────
+const DROP = 'M12 2.4C14.8 7 19 10.4 19 14.6A7 7 0 0 1 5 14.6C5 10.4 9.2 7 12 2.4Z';
+const FLAME = 'M12.4 2.2C12.8 6 18.4 8.6 18.4 14.4A6.4 6.4 0 0 1 5.6 14.4C5.6 11.4 7.2 9.6 8.4 8C8.8 9.6 9.6 10.4 10.6 10.8C10.2 7.6 11 4.4 12.4 2.2Z';
+const TREFOIL = 'M13.6 14.8L16.2 19.3A8.4 8.4 0 0 1 7.8 19.3L10.4 14.8A3.2 3.2 0 0 0 13.6 14.8Z';
+/** A cooling tower between x0 and x1 (its waist a little narrower), from y0 down to y1. */
+const tower = (x0: number, x1: number, y0: number, y1: number): string => {
+  const w = (x1 - x0) * 0.13;
+  return `M${x0 + w} ${y0}H${x1 - w}C${x1 - w * 1.9} ${y0 + (y1 - y0) * 0.4} ${x1 - w * 1.4} ${y0 + (y1 - y0) * 0.7} ${x1} ${y1}H${x0}C${x0 + w * 1.4} ${y0 + (y1 - y0) * 0.7} ${x0 + w * 1.9} ${y0 + (y1 - y0) * 0.4} ${x0 + w} ${y0}Z`;
+};
+/** A wind turbine: the hub at (x, y), blades `len` long, the tower down to `foot`. */
+const turbine = (x: number, y: number, len: number, foot: number): Shape[] => [
+  p('ink7', `M${x - 0.8} ${y}H${x + 0.8}L${x + 1.6} ${foot}H${x - 1.6}Z`),
+  ...[0, 120, 240].map((a) => rot(a, x, y, p(a === 120 ? 'ink8' : 'white', `M${x} ${y}C${x - len * 0.23} ${y - len * 0.3} ${x - len * 0.16} ${y - len * 0.72} ${x} ${y - len}C${x + len * 0.16} ${y - len * 0.72} ${x + len * 0.23} ${y - len * 0.3} ${x} ${y}Z`))),
+  o('ink9', x, y, len * 0.2),
+];
+/** A solar panel: a tilted slab of cells, top edge x0…x1 at y0, bottom edge wider by `splay` at y1. */
+const panel = (x0: number, x1: number, y0: number, y1: number, splay: number): Shape => {
+  const ym = (y0 + y1) / 2;
+  const third = (x1 - x0) / 3;
+  return clip(
+    poly('blu5', `${x0},${y0} ${x1},${y0} ${x1 + splay},${y1} ${x0 - splay},${y1}`, 1.2),
+    r('blu5', 0, 0, 24, ym),
+    r('blu4', 0, ym, 24, 24),
+    l('blu2', 1, `M0 ${ym}H24M${x0 + third} ${y0 - 1}L${x0 + third - splay / 3} ${y1 + 1}M${x1 - third} ${y0 - 1}L${x1 - third + splay / 3} ${y1 + 1}`),
+  );
+};
+const cloud = (dx: number, dy: number, tone: Tone): Shape => move(dx, dy, 1, o(tone, 12.6, 9.4, 5.4), o(tone, 7.2, 12, 4.2), o(tone, 17.6, 12.2, 3.8), r(tone, 7.2, 11.4, 10.4, 4.8));
+
+const POWER = {
+  power: [clip(poly('yel0', '14.6,3 5.6,13 10.6,13 9.2,21 18.4,10.6 13.4,10.6', 1.5), r('yel0', 0, 0, 24, 24), p('yel1', 'M0 0H15.4L8 24H0Z'), p('org2', 'M17 10.6L8.4 20.4L9 24H24V10.6Z'))],
+  solar: [l('ink7', 2.2, 'M12 15.4V20.2M8 20.4H16'), panel(6.2, 17.8, 4.6, 15, 2.8)],
+  wind: turbine(12, 10, 8.6, 21.6),
+  gas: [p('red3', FLAME), clip(p('red3', FLAME), move(-1.3, -0.4, 1, p('org1', FLAME))), p('yel0', 'M12 11.6C12.6 13.8 15 14.8 15 17.4A3 3 0 0 1 9 17.4C9 15.2 11 14 12 11.6Z')],
+  battery: [r('ink8', 9.4, 2.4, 5.2, 3.4, 1), box(T.green, 5.8, 4.8, 12.4, 16.8, 2.6, 2.2, 2.4), poly('yel1', '13.2,8.4 9.2,13.4 11.8,13.4 10.8,18 14.8,12.6 12.2,12.6', 0.9)],
+  grid: [
+    r('ink8', 7.8, 2.4, 2.4, 6, 1.1),
+    r('ink8', 13.8, 2.4, 2.4, 6, 1.1),
+    l('ink7', 2.4, 'M12 17.6V21.6'),
+    clip(p('ink9', 'M7.2 7.4H16.8A1.6 1.6 0 0 1 18.4 9V11.6A6.4 6.4 0 0 1 5.6 11.6V9A1.6 1.6 0 0 1 7.2 7.4Z'), r('ink7', 0, 0, 24, 24), o('ink9', 10, 9, 8.2), r('white', 0, 7.4, 24, 1.8)),
+  ],
+  link: [l('yel0', 2, 'M5.2 6.6C8 12.4 16 12.4 18.8 6.6'), l('org2', 2, 'M5.2 10.8C8 16 16 16 18.8 10.8'), l('ink8', 2.2, 'M5.2 4V21M2.6 6.6H7.8M3 10.8H7.4'), l('ink7', 2.2, 'M18.8 4V21M16.2 6.6H21.4M16.6 10.8H21')],
+  hydro: [clip(p('sea7', DROP), p('sea5', DROP), move(-1.4, -1, 1, p('sea7', DROP)), o('sea8', 8.6, 13.4, 1.5, 2.6)), poly('yel1', '13.6,9.8 10,14.6 12.2,14.6 11.2,18.8 15,13.6 12.8,13.6', 0.8)],
+  geothermal: [
+    l('ice1', 2.2, 'M7 13.4C5.4 11.6 8.6 10 7 8.2C5.8 6.8 6.4 5.6 7 4.6'),
+    l('white', 2.2, 'M12 13.4C10.4 11.2 13.6 9.4 12 7.2C10.8 5.6 11.4 4 12 2.8'),
+    l('ice1', 2.2, 'M17 13.4C15.4 11.6 18.6 10 17 8.2C15.8 6.8 16.4 5.6 17 4.6'),
+    box(['snd5', 'snd4', 'snd3'], 2.6, 15.6, 18.8, 6, 1.6, 1.6, 0),
+    l('org1', 1.8, 'M5.4 19.4q1.65-1.6 3.3 0t3.3 0t3.3 0t3.3 0'),
+  ],
+  nuclear: [ball(T.gold, 12, 12, 10, false), ...[0, 120, 240].map((a) => rot(a, 12, 12, p('ink1', TREFOIL))), o('ink1', 12, 12, 1.7)],
+  reactor: [
+    o('white', 11.4, 5.8, 2.5),
+    o('white', 14.6, 4.6, 3),
+    o('ink9', 17.8, 6, 2.3),
+    clip(p('ink9', tower(8.2, 20.8, 9.6, 21.2)), r('ink9', 0, 0, 24, 24), p('ink7', 'M16.2 0H24V24H17.4C15.8 18 15.8 13 16.2 0Z'), r('white', 0, 9.6, 24, 1.6)),
+    clip(p('ice0', 'M2.6 21.2V17.6A3.8 3.8 0 0 1 10.2 17.6V21.2Z'), r('ice0', 0, 0, 24, 24), o('ice2', 5.2, 16.4, 3)),
+  ],
+  smr: [
+    ...[5, 13.2].map((x) => clip(r('ink9', x, 3.4, 5.8, 15.8, 2.9), r('ink9', 0, 0, 24, 24), r('yel0', x, 9.6, 5.8, 2.8), r('white', x, 0, 1.8, 9.6), r('ink3/30', x + 3.9, 0, 2, 24))),
+    r('ink6', 2.6, 19.2, 18.8, 2.6, 1.3),
+  ],
+  restart: [l('grn6', 2.6, 'M19.27 7.8A8.4 8.4 0 1 1 12 3.6'), poly('grn6', '12.6,1.2 16.6,3.9 12.6,6.6', 1.2), p('ink9', tower(8.2, 15.8, 8.4, 16.2))],
+  fusion: [torus(T.violet, 3.2, 12, 12, 8.6), o('pnk0', 12, 12, 4.3), o('yel1', 12, 12, 2.7), o('white', 12, 12, 1.2)],
+  fusionfleet: [
+    ...([[7, 7.4], [17, 7.4], [12, 16.6]] as const).flatMap(([x, y]) => [torus(T.violet, 2.4, x, y, 3.5), o('pnk1', x, y, 1.3)]),
+  ],
+  hvdc: [l('ink7', 2, 'M12 3.6L7.2 21M12 3.6L16.8 21M9.2 14.4H14.8'), l('ink9', 2, 'M3.6 7.4H20.4M6.4 11H17.6'), o('yel0', 3.8, 9.8, 1.6), o('yel0', 20.2, 9.8, 1.6), o('yel0', 12, 3.4, 1.6)],
+  supergrid: [earth(12, 12, 9.6), l('cyn5', 2.6, 'M1.8 11C6 15.4 18 15.4 22.2 11'), o('white', 12, 14.3, 1.8)],
+  sps: [
+    box(['yel1', 'org2', 'org1'], 2.2, 2.8, 8, 5.6, 1, 1.5, 0),
+    box(['yel1', 'org2', 'org1'], 13.8, 2.8, 8, 5.6, 1, 1.5, 0),
+    r('ink8', 10.2, 4, 3.6, 3.2, 0.8),
+    p('pnk1/80', 'M11 8.4H13L15.6 17.6H8.4Z'),
+    l('ink8', 2.2, 'M5.4 17.2Q12 23.4 18.6 17.2'),
+  ],
+  co2: [move(9.4, 11.2, 0.56, cloud(0, 0, 'ink6')), clip(cloud(-1.2, -2.6, 'ink8'), r('ink7', 0, 0, 24, 24), cloud(-1.8, -4.2, 'ink8'), o('ink9', 9.4, 5.6, 3.2, 2.2))],
+  dac: [
+    l('ink6', 1.8, 'M4.6 4.4q1.7-1.7 3.4 0t3.4 0M12.8 3.2q1.7-1.7 3.4 0t3.4 0'),
+    box(T.iron, 2.8, 7.2, 18.4, 10.4, 2, 1.6, 1.8),
+    o('ink3', 7.9, 12.4, 3.5),
+    o('ink3', 16.1, 12.4, 3.5),
+    l('ink9', 1.5, 'M7.9 9.9V14.9M5.4 12.4H10.4M16.1 9.9V14.9M13.6 12.4H18.6'),
+    l('grn6', 2.2, 'M5.4 20.6H18.6'),
+  ],
+  desal: [
+    move(4.32, 0.6, 0.64, clip(p('sea7', DROP), p('sea6', DROP), move(-1.6, -1.2, 1, p('sea8', DROP)), o('white', 9, 13.4, 1.5, 2.6))),
+    l('sea6', 2.4, 'M2.6 17.6q2.35-2.6 4.7 0t4.7 0t4.7 0t4.7 0'),
+    l('sea5', 2.4, 'M2.6 21.4q2.35-2.6 4.7 0t4.7 0t4.7 0t4.7 0'),
+  ],
+  heat: [
+    clip([r('white', 5.8, 2.4, 5.6, 14, 2.8), o('white', 8.6, 17.4, 4.4)], r('white', 0, 0, 24, 24), r('ink8', 9.8, 0, 6, 24)),
+    r('red3', 7.5, 7.4, 2.2, 10, 1.1),
+    o('red3', 8.6, 17.4, 2.7),
+    l('org1', 2, 'M15.6 5.6q2 1.8 0 3.6t0 3.6t0 3.6'),
+    l('org0', 2, 'M19.6 7.4q2 1.8 0 3.6t0 3.6'),
+  ],
+  warming: [earth(9.6, 14.2, 7.6), l('red3', 2.6, 'M19 14.4V6.6'), poly('org0', '15.8,7.6 19,3.8 22.2,7.6', 1.3)],
+  thermal: [r('ink5', 2.4, 2.6, 19.2, 4.2, 2.1), clip(r('ink5', 2.4, 2.6, 19.2, 4.2, 2.1), r('org1', 0, 0, 12.6, 10), r('red3', 12.6, 0, 3.6, 10)), r('white', 15.6, 1.6, 1.9, 6.2, 0.95), earth(12, 15.8, 6.4)],
+  mega: [o('yel0', 5, 5, 2.8), ...turbine(17.6, 8.2, 6, 19.4), panel(4.4, 11, 12.2, 17.6, 1.6), r('grn5', 2.4, 19, 19.2, 2.6, 1.3)],
+} satisfies Group;
+
+// ── compute, models and the people who build them ────────────────────────────────────────────────────────────────
+const LOBE = 'M11.2 4.2C9.4 2.8 6.4 3.4 5.6 5.8C3.4 6.6 2.6 9.2 3.8 11.2C2.6 13.4 3.6 16.2 6 16.8C6.8 19.6 9.6 20.6 11.2 19.4Z';
+const COMPUTE = {
+  compute: [
+    l('ink7', 2, 'M8.2 2.6V6M12 2.6V6M15.8 2.6V6M8.2 18V21.4M12 18V21.4M15.8 18V21.4M2.6 8.2H6M2.6 12H6M2.6 15.8H6M18 8.2H21.4M18 12H21.4M18 15.8H21.4'),
+    box(['cyn4', 'cyn3', 'cyn2'], 4.8, 4.8, 14.4, 14.4, 2.6, 1.8, 2),
+    box(['cyn6', 'cyn5', 'cyn4'], 8.4, 8.4, 7.2, 7.2, 1.2, 1.6, 0),
+  ],
+  datacenter: [
+    box(T.slate, 3.4, 3.2, 17.2, 8, 1.8, 1.5, 1.6),
+    box(T.slate, 3.4, 12.8, 17.2, 8, 1.8, 1.5, 1.6),
+    o('cyn5', 7, 7.4, 1.4),
+    o('cyn6', 10.6, 7.4, 1.4),
+    l('ink4', 1.6, 'M14.4 7.4H17.6'),
+    o('cyn5', 7, 17, 1.4),
+    o('grn7', 10.6, 17, 1.4),
+    l('ink4', 1.6, 'M14.4 17H17.6'),
+  ],
+  infer: [
+    clip(
+      p('cyn5', 'M5.2 3.4H18.8A2.6 2.6 0 0 1 21.4 6V13.4A2.6 2.6 0 0 1 18.8 16H11.6L6.4 20.8V16H5.2A2.6 2.6 0 0 1 2.6 13.4V6A2.6 2.6 0 0 1 5.2 3.4Z'),
+      r('cyn5', 0, 0, 24, 24),
+      r('cyn6', 0, 0, 24, 5.4),
+      r('cyn4', 0, 14, 24, 10),
+    ),
+    o('cyn2', 7.8, 9.8, 1.5),
+    o('cyn2', 12, 9.8, 1.5),
+    o('cyn2', 16.2, 9.8, 1.5),
+  ],
+  train: [
+    move(3.6, -0.6, 0.7, p('vio5', LOBE), flip(12, p('vio4', LOBE)), l('vio3', 1.6, 'M6.8 8.8C8 8.2 9 8.8 9 10M6 13.2C7.4 12.6 8.6 13.4 8.4 14.8'), flip(12, l('vio2', 1.6, 'M6.8 8.8C8 8.2 9 8.8 9 10M6 13.2C7.4 12.6 8.6 13.4 8.4 14.8'))),
+    l('yel0', 2.6, 'M7.6 18.2L12 14.8L16.4 18.2'),
+    l('org2', 2.6, 'M7.6 21.8L12 18.4L16.4 21.8'),
+  ],
+  brain: [
+    p('pnk1', LOBE),
+    flip(12, p('pnk0', LOBE)),
+    l('vio4', 1.5, 'M6.8 8.8C8 8.2 9 8.8 9 10M6 13.2C7.4 12.6 8.6 13.4 8.4 14.8'),
+    flip(12, l('vio3', 1.5, 'M6.8 8.8C8 8.2 9 8.8 9 10M6 13.2C7.4 12.6 8.6 13.4 8.4 14.8')),
+  ],
+  ai: [
+    l('vio4', 2.2, 'M7.2 3.4H16.8A3.8 3.8 0 0 1 20.6 7.2V16.8A3.8 3.8 0 0 1 16.8 20.6H7.2A3.8 3.8 0 0 1 3.4 16.8V7.2A3.8 3.8 0 0 1 7.2 3.4Z'),
+    p('cyn5', 'M12 5.8C12.5 9.4 14.6 11.5 18.2 12C14.6 12.5 12.5 14.6 12 18.2C11.5 14.6 9.4 12.5 5.8 12C9.4 11.5 11.5 9.4 12 5.8Z'),
+    o('white', 12, 12, 1.5),
+  ],
+  access: [l('cyn3', 2.4, 'M3.6 10.4A11.6 11.6 0 0 1 20.4 10.4'), l('cyn5', 2.4, 'M7 14A7 7 0 0 1 17 14'), o('cyn6', 12, 18.2, 2.3)],
+  lab: [
+    clip(p('white', 'M9.8 2.6H14.2V8.6A7 7 0 1 1 9.8 8.6Z'), r('ink9', 0, 0, 24, 24), r('white', 0, 0, 11, 24), r('vio4', 0, 12.6, 24, 12), o('vio5', 9.4, 15.4, 1.6), r('vio3', 15.4, 12.6, 6, 12)),
+    r('ink8', 8.6, 2.2, 6.8, 2.2, 1.1),
+  ],
+  research: [
+    clip(p('vio4', 'M9.6 2.6H14.4V8.4L20.2 18.6A1.8 1.8 0 0 1 18.6 21.4H5.4A1.8 1.8 0 0 1 3.8 18.6L9.6 8.4Z'), r('vio3', 0, 0, 24, 24), p('vio4', 'M0 0H12.4L16.6 24H0Z'), p('vio5', 'M0 0H10.6L6 24H0Z'), r('ink8', 0, 0, 24, 4.4)),
+    r('ink9', 8.4, 2.2, 7.2, 2.2, 1.1),
+    o('white', 10.6, 16.6, 1.5),
+    o('pnk1', 14, 13.8, 1.1),
+  ],
+  hq: [
+    r('snd5', 10.9, 1.6, 2.2, 3),
+    clip(r('yel0', 4.4, 9, 15.2, 12.2, 1.2), r('yel0', 0, 0, 24, 24), r('snd6', 14.6, 0, 6, 24)),
+    poly('yel1', '12,3.6 20.6,9.4 3.4,9.4', 1.6),
+    r('snd4', 10.3, 15, 3.4, 6.2, 0.8),
+    r('sky4', 6.2, 12.2, 2.8, 2.8, 0.6),
+    r('sky3', 15, 12.2, 2.8, 2.8, 0.6),
+  ],
+  campus: [
+    box(['ink8', 'ink7', 'ink6'], 8.8, 3, 6.8, 18.2, 1.3, 1.4, 0),
+    box(['ink7', 'ink6', 'ink5'], 2.6, 9.6, 6.6, 11.6, 1.3, 1.4, 0),
+    box(['ink6', 'ink5', 'ink4'], 15.2, 12, 6.2, 9.2, 1.3, 1.4, 0),
+    r('yel1', 10.6, 6.4, 3.2, 2, 0.5),
+    r('yel1', 10.6, 10.2, 3.2, 2, 0.5),
+    r('yel0', 10.6, 14, 3.2, 2, 0.5),
+    r('yel1', 4.4, 12.8, 3, 2, 0.5),
+    r('yel0', 4.4, 16.4, 3, 2, 0.5),
+    r('yel0', 16.8, 15, 3, 2, 0.5),
+  ],
+  desk: [
+    r('ink7', 4.6, 4.4, 10, 7.4, 1.4),
+    r('cyn5', 5.9, 5.7, 7.4, 4.8, 0.7),
+    r('ink7', 8.8, 11.6, 1.6, 2.6),
+    l('ink8', 1.8, 'M19 14V8.6L17 6.6'),
+    poly('yel1', '14.6,6.2 17.6,4.2 18.8,7.6', 1),
+    r('snd5', 2.4, 13.8, 19.2, 2.8, 1.2),
+    r('snd4', 4, 16.6, 2.4, 5),
+    r('snd4', 17.6, 16.6, 2.4, 5),
+  ],
+} satisfies Group;
+
+// ── chips and their supply chain, the network, materials ─────────────────────────────────────────────────────────
+const SUPPLY = {
+  packaging: [
+    ...[5.4, 9.8, 14.2, 18.6].map((x) => o('snd6', x, 19.8, 1.4)),
+    box(['grn6', 'grn5', 'grn4'], 2.4, 14, 19.2, 4, 1.2, 1.4, 0),
+    box(['cyn5', 'cyn4', 'cyn3'], 8.4, 5.6, 7.2, 8.4, 1.1, 1.6, 0),
+    r('vio5', 3, 7.2, 4.2, 2.9, 0.7),
+    r('vio4', 3, 10.5, 4.2, 2.9, 0.7),
+    r('vio4', 16.8, 7.2, 4.2, 2.9, 0.7),
+    r('vio3', 16.8, 10.5, 4.2, 2.9, 0.7),
+  ],
+  fab: [
+    r('ink7', 16.6, 3, 3.2, 9, 1),
+    clip(p('ice2', 'M2.6 20.8V11.4L8.4 7.4V11.4L14.2 7.4V11.4H20A1.4 1.4 0 0 1 21.4 12.8V20.8Z'), r('ice2', 0, 0, 24, 24), r('ice0', 0, 18.8, 24, 4), p('white', 'M2.6 11.4L8.4 7.4V9L2.6 13ZM8.4 11.4L14.2 7.4V9L8.4 13Z')),
+    r('cyn4', 5, 14, 3.2, 3.2, 0.7),
+    r('cyn4', 10.4, 14, 3.2, 3.2, 0.7),
+    r('cyn3', 15.8, 14, 3.2, 3.2, 0.7),
+  ],
+  mine: [
+    poly('snd6', '6.4,9 8.2,5.4 11.2,6.2 12,9', 0.9),
+    poly('yel0', '11.2,9 12.6,4.6 15.6,5.2 16.4,9', 0.9),
+    poly('snd5', '15.6,9.2 17,6.8 18.8,7.4 19,9.2', 0.9),
+    clip(p('ink7', 'M2.8 9.6H21.2L18.9 16.5A1.6 1.6 0 0 1 17.4 17.6H6.6A1.6 1.6 0 0 1 5.1 16.5Z'), r('ink7', 0, 0, 24, 24), r('ink8', 0, 9.6, 24, 2), p('ink6', 'M15 9.6H24V24H12Z')),
+    o('ink9', 8, 19.8, 2),
+    o('ink8', 16, 19.8, 2),
+  ],
+  lithium: [
+    p('cyn5', 'M3 19.6V13.6L5.6 10.6V19.6Z'),
+    p('cyn3', 'M5.6 10.6L8.2 13.6V19.6H5.6Z'),
+    p('cyn6', 'M8.6 19.6V7L11.6 3V19.6Z'),
+    p('cyn4', 'M11.6 3L14.6 7V19.6H11.6Z'),
+    p('cyn5', 'M15 19.6V11.4L18 8V19.6Z'),
+    p('cyn3', 'M18 8L21 11.4V19.6H18Z'),
+    r('cyn2', 2.4, 19.2, 19.2, 2.2, 1.1),
+  ],
+  copper: [clip(poly('org0', '7.6,7.6 16.4,7.6 20.6,16.8 3.4,16.8', 1.6), r('org0', 0, 0, 24, 24), p('org2', 'M0 0H24V11.6H0Z'), p('org1', 'M6 9H13L11.6 10.4H5.4Z'), r('red3', 0, 15.6, 24, 4))],
+  helium: [l('ink7', 1.6, 'M12 18C11 19.2 13 20.4 12 21.8'), poly('sky3', '12,16.2 10.6,18.4 13.4,18.4', 0.6), ball(['white', 'sky4', 'sky3'], 12, 9.4, 7.2)],
+  neon: [l('pnk0', 4.4, 'M7 18V6L17 18V6'), l('pnk1', 2.4, 'M7 18V6L17 18V6'), l('white', 1, 'M7 18V6L17 18V6')],
+  cable: [
+    l('sky4', 2.2, 'M2.6 6.4q2.35-2.6 4.7 0t4.7 0t4.7 0t4.7 0'),
+    l('cyn5', 2.6, 'M3.2 10.6C5 17.4 19 17.4 20.8 10.6'),
+    o('cyn6', 3.2, 10.6, 1.7),
+    o('cyn6', 20.8, 10.6, 1.7),
+    r('snd5', 2.4, 19, 19.2, 2.6, 1.3),
+  ],
+  fiber: [
+    l('pnk0', 1.9, 'M12 14L4.4 5.4M12 14V3.6M12 14L19.6 5.4'),
+    o('white', 4.4, 5.4, 1.6),
+    o('white', 12, 3.6, 1.6),
+    o('white', 19.6, 5.4, 1.6),
+    box(['vio4', 'vio3', 'vio2'], 9.8, 13, 4.4, 8.6, 1.3, 0, 2),
+    r('vio5', 9.8, 13, 1.5, 8.6, 0.7),
+  ],
+} satisfies Group;
+
+// ── people, safety and politics ──────────────────────────────────────────────────────────────────────────────────
+const HEART = 'M12 21C4.6 15.8 2.6 12.4 2.6 9A4.8 4.8 0 0 1 12 7.2A4.8 4.8 0 0 1 21.4 9C21.4 12.4 19.4 15.8 12 21Z';
+/** Head and shoulders: the head (radius hr) at (x, y), the shoulders w wide down to `foot`. */
+const bust = (x: number, y: number, hr: number, w: number, foot: number, skin: Tone, body: Tone, shade: Tone): Shape[] => {
+  const top = y + hr + 0.8;
+  const d = `M${x - w / 2} ${foot}A${w / 2} ${foot - top} 0 0 1 ${x + w / 2} ${foot}Z`;
+  return [o(skin, x, y, hr), clip(p(body, d), r(body, 0, 0, 24, 24), r(shade, x + w * 0.16, 0, 24, 24))];
+};
+/** A flag flying to the right of a pole at x, its top edge at y. */
+const flag = (x: number, y: number, w: number, h: number, lit: Tone, base: Tone): Shape =>
+  clip(p(base, `M${x} ${y + 0.6}C${x + w * 0.3} ${y - 0.8} ${x + w * 0.6} ${y + 1.6} ${x + w} ${y + 0.4}V${y + h}C${x + w * 0.6} ${y + h + 1.2} ${x + w * 0.3} ${y + h - 1.2} ${x} ${y + h + 0.2}Z`), r(lit, 0, 0, 24, y + h * 0.5), r(base, 0, y + h * 0.5, 24, 24));
+const banner = (x: number, len: number, lit: Tone, base: Tone): Shape[] => [p(base, `M${x} 4.4H${x + 5}V${len}L${x + 2.5} ${len - 2.4}L${x} ${len}Z`), p(lit, `M${x} 4.4H${x + 2.5}V${len - 2.4}L${x} ${len}Z`)];
+const SWORD = [poly('ink9', '3.8,3.4 6.8,4.2 16.2,13.6 13.8,16 4.6,6.4', 0.6), l('snd6', 2.4, 'M12 18L18 12'), l('org1', 2.6, 'M16.4 16.4L19.4 19.4'), o('snd6', 20, 20, 1.6)];
+
+const PEOPLE = {
+  people: [...bust(15.8, 7.4, 3.2, 10.4, 19.4, 'skn4', 'blu4', 'blu3'), ...bust(8.8, 8.8, 3.7, 12, 21, 'skn5', 'blu6', 'blu5')],
+  team: [...bust(5.6, 7.4, 2.8, 8.4, 18.4, 'skn3', 'blu4', 'blu3'), ...bust(18.4, 7.4, 2.8, 8.4, 18.4, 'skn3', 'blu4', 'blu3'), ...bust(12, 9, 3.7, 12, 21.2, 'skn5', 'org1', 'org0')],
+  talent: [p('yel0', starPath(12, 5, 4.4, 1.9)), ...bust(12, 12.4, 3, 13, 21.6, 'skn5', 'vio4', 'vio3')],
+  partner: [
+    box(['blu6', 'blu5', 'blu4'], 1.6, 7.2, 5, 9.8, 1.3, 1.6, 1.8),
+    box(['org2', 'org1', 'org0'], 17.4, 7.2, 5, 9.8, 1.3, 1.6, 1.8),
+    r('skn3', 9.2, 8.2, 9.4, 7.8, 3.4),
+    rot(-24, 10, 7.6, r('skn3', 7.6, 6.2, 5.4, 2.8, 1.4)),
+    r('skn5', 5.6, 8.2, 7, 7.8, 2.6),
+    r('skn5', 9.8, 8.6, 5.6, 2.1, 1.05),
+    r('skn5', 9.8, 11.05, 6.2, 2.1, 1.05),
+    r('skn4', 9.8, 13.5, 5.2, 2.1, 1.05),
+  ],
+  trust: [clip(p('pnk0', HEART), p('dusk4', HEART), move(-1.4, -1.2, 1, p('pnk0', HEART)), o('pnk1', 7.4, 8.4, 2.2, 1.6))],
+  wellbeing: [ball(T.green, 12, 12, 10), o('grn2', 8.6, 10, 1.5), o('grn2', 15.4, 10, 1.5), l('grn2', 2, 'M7.8 13.8C9.4 17 14.6 17 16.2 13.8')],
+  longevity: [
+    clip(p('red3', HEART), p('red2', HEART), move(-1.4, -1.2, 1, p('red3', HEART)), o('org0', 7.2, 8.2, 2.2, 1.5)),
+    l('grn8', 1.7, 'M12 17.6V11.6'),
+    p('grn8', 'M12 12.6C12 10.2 13.6 8.4 16.6 8.2C16.8 10.8 15 12.6 12 12.6Z'),
+    p('grn7', 'M12 14.4C12 12.4 10.6 10.9 8 10.8C7.9 13 9.4 14.5 12 14.4Z'),
+  ],
+  shield: [
+    clip(p('blu4', 'M12 2.4L20 5.4V11.4C20 16.6 16.6 20 12 21.6C7.4 20 4 16.6 4 11.4V5.4Z'), r('blu5', 0, 0, 12, 24), r('blu4', 12, 0, 12, 24)),
+    r('blu6', 10.8, 6.6, 2.4, 10.2, 1.1),
+    r('blu6', 7.4, 9.6, 9.2, 2.4, 1.1),
+  ],
+  evals: [l('snd5', 3.2, 'M15.4 15.4L20.4 20.4'), o('blu2', 10, 10, 6.4), ring('ink9', 2.4, 10, 10, 6.6), l('white', 2.4, 'M3.5 9A6.6 6.6 0 0 1 9 3.5'), l('grn6', 2.2, 'M7.2 10.2L9.4 12.4L13 8')],
+  minds: [l('vio4', 1.8, 'M12 12L4.8 5M12 12L19.6 6.4M12 12L5.6 19.2M12 12L18.6 18.4M4.8 5L19.6 6.4'), o('cyn5', 4.8, 5, 2.3), o('cyn5', 19.6, 6.4, 2), o('cyn4', 5.6, 19.2, 2), o('cyn5', 18.6, 18.4, 2.4), o('white', 12, 12, 2.8)],
+  threshold: [
+    p('org1', 'M4.6 20.6V9.6A7.4 7.4 0 0 1 19.4 9.6V20.6Z'),
+    p('org2', 'M4.6 20.6V9.6A7.4 7.4 0 0 1 12 2.2V20.6Z'),
+    p('yel1', 'M7.6 20.6V9.8A4.4 4.4 0 0 1 16.4 9.8V20.6Z'),
+    p('white', 'M10 20.6V10.4A2 2 0 0 1 14 10.4V20.6Z'),
+    r('yel0', 2.4, 19.6, 19.2, 2.2, 1.1),
+  ],
+  blocs: [l('ink8', 2, 'M4.4 3.4V21M13.4 7.6V21'), flag(5.4, 3.8, 7.4, 6, 'blu6', 'blu5'), flag(14.4, 8, 7.2, 6, 'org0', 'red3')],
+  faction: [l('ink8', 2, 'M2.4 3.6H21.6'), ...banner(3.4, 17.4, 'blu6', 'blu5'), ...banner(9.5, 20.4, 'org0', 'red3'), ...banner(15.6, 17.4, 'grn7', 'grn6')],
+  treaty: [
+    r('snd8', 5, 4.4, 14, 15.2),
+    l('ink6', 1.5, 'M7.6 9H13.6M7.6 12H16.4'),
+    box(['snd7', 'snd6', 'snd5'], 2.6, 2.6, 18.8, 3.8, 1.9, 1.2, 1.2),
+    box(['snd7', 'snd6', 'snd5'], 2.6, 17.6, 18.8, 3.8, 1.9, 1.2, 1.2),
+    ball(['blu6', 'blu4', 'blu3'], 15.2, 14.6, 2.7),
+  ],
+  rival: [flip(12, ...SWORD), ...SWORD],
+  charter: [...[0, 45, 90, 135, 180, 225, 270, 315].map((a) => rot(a, 12, 12, l('yel0', 2.2, 'M12 1.9V3.4'))), ring('org2', 2.2, 12, 12, 7.3), earth(12, 12, 5.8, 'sea5')],
+  council: [
+    poly('ink9', '12,3.4 20.8,8.4 3.2,8.4', 1.4),
+    o('yel0', 12, 6.6, 1.5),
+    r('ink8', 3.4, 9.8, 17.2, 1.8, 0.6),
+    ...[4.6, 8.9, 13.2, 17.5].map((x) => r('white', x, 11.6, 2, 6.4)),
+    r('ink8', 2.4, 18.2, 19.2, 3.2, 1),
+  ],
+  mission: [ball(['blu6', 'blu4', 'blu3'], 12, 12, 10), p('yel0', starPath(12, 12.4, 6.2, 2.7))],
+  legit: [
+    p('red3', 'M7.6 14L5 21.8L8.6 20.4L10.4 22.4L12.4 15Z'),
+    p('red2', 'M16.4 14L19 21.8L15.4 20.4L13.6 22.4L11.6 15Z'),
+    p('snd6', starPath(12, 9.6, 8.4, 7.1, 12)),
+    ball(T.gold, 12, 9.6, 6.4),
+    ring('snd5', 1.3, 12, 9.6, 3.6),
+  ],
+  vote: [
+    rot(-8, 12, 8, r('white', 8.2, 2.4, 7.6, 10, 1), l('ink6', 1.4, 'M10 5.4H14M10 8H13')),
+    box(['blu5', 'blu4', 'blu3'], 3.2, 10.8, 17.6, 10.6, 2, 1.8, 2),
+    r('blu1', 6.4, 12.3, 11.2, 2, 1),
+  ],
+  province: [
+    clip(poly('grn5', '5.4,6 11,3.8 17.2,5.6 20.2,10.6 18.4,16.8 12.4,20.2 6.2,18.2 3.8,12', 1.8), r('grn5', 0, 0, 24, 24), p('grn6', 'M0 0H18L6 24H0Z')),
+    l('grn8', 1.4, 'M5.4 6L11 3.8L17.2 5.6L20.2 10.6L18.4 16.8L12.4 20.2L6.2 18.2L3.8 12Z', '2.6 1.8'),
+    p('yel0', starPath(12.4, 11.8, 4.2, 1.8)),
+  ],
+  land: [
+    p('grn4', 'M2.2 15.4L12 20.4L21.8 15.4V17.6L12 22.6L2.2 17.6Z'),
+    p('grn6', 'M12 10.4L21.8 15.4L12 20.4L2.2 15.4Z'),
+    p('grn7', 'M12 10.4L16.9 12.9L7.1 17.9L2.2 15.4Z'),
+    l('ink9', 1.8, 'M12 15.6V3.4'),
+    p('red3', 'M12.9 3.4L19.4 6L12.9 8.6Z'),
+  ],
+} satisfies Group;
+
+// ── the world and what is built above it ─────────────────────────────────────────────────────────────────────────
+/** A rocket standing on y = foot: its nose at (x, top), the body w wide. */
+const rocket = (x: number, top: number, w: number, foot: number, band: Tone = 'blu4'): Shape[] => {
+  const h = foot - top;
+  const d = `M${x} ${top}C${x + w * 0.42} ${top + h * 0.16} ${x + w / 2} ${top + h * 0.34} ${x + w / 2} ${top + h * 0.52}V${foot}H${x - w / 2}V${top + h * 0.52}C${x - w / 2} ${top + h * 0.34} ${x - w * 0.42} ${top + h * 0.16} ${x} ${top}Z`;
+  return [
+    p('red3', `M${x - w / 2} ${foot - h * 0.3}L${x - w * 0.95} ${foot - h * 0.06}V${foot}H${x - w / 2}Z`),
+    p('red2', `M${x + w / 2} ${foot - h * 0.3}L${x + w * 0.95} ${foot - h * 0.06}V${foot}H${x + w / 2}Z`),
+    clip(p('white', d), r('white', 0, 0, 24, 24), r(band, 0, top + h * 0.5, 24, h * 0.16), r('ink3/30', x + w * 0.12, 0, 24, 24)),
+  ];
+};
+/** The Sun's limb along the left edge. */
+const limb = clip(r('yel0', 1.4, 1.8, 21, 20.4, 3), o('org1', -7.6, 12, 13.6), o('yel0', -8.6, 12, 13.2), o('yel1', -10.6, 12, 12.6));
+const wing = (x: number): Shape[] => [box(['blu5', 'blu4', 'blu3'], x, 8.4, 6.6, 7.2, 0.8, 0, 0), l('blu2', 1, `M${x + 3.3} 8.4V15.6M${x} 12H${x + 6.6}`)];
+
+const WORLD = {
+  k: [o('org2', 16.6, 7.2, 5.8), o('yel0', 16.6, 7.2, 4.4), o('yel1', 16.2, 6.8, 2.4), o('ink1/55', 10.4, 13.6, 9.4), earth(10.4, 13.6, 8.4)],
+  globe: [earth(12, 12, 10)],
+  world: [
+    clip(o('sea5', 12, 12, 10), o('sea4', 12, 12, 10), o('sea5', 9.8, 9.6, 10.2), ring('sea8', 1.3, 12, 12, 4.4, 10), l('sea8', 1.3, 'M2 12H22M3.6 7H20.4M3.6 17H20.4M12 2V22')),
+    ring('sea7', 1.4, 12, 12, 9.3),
+    o('yel1', 17.6, 5.6, 1.7),
+  ],
+  ship: [
+    r('ink7', 16.5, 3.2, 1.8, 3.4, 0.6),
+    r('white', 15.4, 5.8, 4, 7, 0.8),
+    r('cyn4', 4.8, 8.6, 4.8, 4.2, 0.7),
+    r('org1', 10.2, 8.6, 4.8, 4.2, 0.7),
+    clip(p('red3', 'M2.4 12.4H21.6L19.4 18.6A1.6 1.6 0 0 1 17.9 19.6H6.1A1.6 1.6 0 0 1 4.6 18.6Z'), r('red3', 0, 0, 24, 24), r('org0', 0, 12.4, 24, 1.8), r('red2', 0, 17.4, 24, 4)),
+  ],
+  plane: [
+    rot(
+      45,
+      12,
+      12,
+      p('ink9', 'M13.4 9L22 14.4V16.4L13.4 14ZM10.6 9L2 14.4V16.4L10.6 14Z'),
+      p('ink8', 'M13 17.6L16.4 20.2V21.6L12 20.6L7.6 21.6V20.2L11 17.6Z'),
+      clip(p('white', 'M12 1.8C13 3 13.5 4.6 13.5 6.2V18.6L12 21.4L10.5 18.6V6.2C10.5 4.6 11 3 12 1.8Z'), r('white', 0, 0, 12, 24), r('ink8', 12, 0, 12, 24)),
+    ),
+  ],
+  launch: [l('ink7', 1.8, 'M4.8 3.6V19M4.8 6.6H9M4.8 11.6H9.4'), ...rocket(13.4, 2.4, 6.4, 18.6), r('ink6', 2.4, 19, 19.2, 2.6, 1.3), l('org1', 1.8, 'M11.6 20.3H15.2')],
+  spaceport: [...rocket(5.4, 8.4, 3.8, 18.6), ...rocket(18.6, 8.4, 3.8, 18.6), ...rocket(12, 2.6, 5, 18.6, 'org1'), r('ink6', 2.4, 19, 19.2, 2.6, 1.3)],
+  satellite: [
+    rot(-35, 12, 12, r('ink7', 7.6, 11.2, 8.8, 1.6), ...wing(1.4), ...wing(16), box(T.gold, 9.2, 7.6, 5.6, 8.8, 1.2, 1.6, 1.6)),
+    l('ink9', 1.8, 'M13.6 20.6A5 5 0 0 1 19.6 15.4'),
+    o('white', 17.6, 19, 1.3),
+  ],
+  odc: [
+    ...wing(1.8),
+    ...wing(15.6),
+    l('ink8', 2, 'M12 15.4V21.2M9.2 18.6H14.8'),
+    box(T.slate, 8.8, 4.2, 6.4, 11.6, 1.4, 1.4, 1.4),
+    r('cyn5', 10.3, 6.6, 3.4, 1.8, 0.6),
+    r('cyn6', 10.3, 9.4, 3.4, 1.8, 0.6),
+    r('cyn4', 10.3, 12.2, 3.4, 1.8, 0.6),
+  ],
+  ring: [
+    rot(
+      -20,
+      12,
+      12,
+      torus(['ink9', 'ink7', 'ink6'], 3.4, 12, 12, 9, 5.6),
+      ...[30, 90, 150, 210, 270, 330].map((t) => o('cyn5', 12 + 9 * Math.cos((t * Math.PI) / 180), 12 + 5.6 * Math.sin((t * Math.PI) / 180), 1.15)),
+    ),
+    o('vio4', 12, 12, 2.6),
+    o('cyn6', 12, 12, 1.2),
+  ],
+  debris: [
+    l('ink6', 1.8, 'M2.8 19C5.4 8 15.6 4.4 21.4 8'),
+    poly('ink9', '3.8,13 7.8,10.6 8.8,14.8', 1.1),
+    poly('ink8', '10.4,5.8 14.4,4.6 14,8.6 11.2,9', 1.1),
+    poly('org1', '17,10 20.4,11.2 18,13.6', 1.1),
+    poly('ink7', '12.4,14 16.4,15.2 14.8,18.6 11.6,17', 1.1),
+    o('org2', 7.6, 19.4, 1.5),
+    o('ink8', 20, 17.6, 1.4),
+  ],
+  moon: [ball(['white', 'ink9', 'ink6'], 12, 12, 10), o('ink7', 8.2, 9.2, 2.1), o('ink7', 13.4, 14.8, 2.6), o('ink7', 14.6, 6.8, 1.4), o('ink5', 17.8, 12.6, 1.3), o('yel1', 16.8, 17.4, 1.3)],
+  massdriver: [
+    l('ink6', 2, 'M12.6 19.6V11.6M7.4 19.6V16'),
+    l('ink8', 2.6, 'M3.4 18.6L17 6.4'),
+    l('cyn5', 2.2, 'M5.3 13.9L8.3 17.2M9.1 10.5L12.1 13.8M12.9 7.1L15.9 10.4'),
+    l('yel1', 1.6, 'M18.2 5.4L19 4.7'),
+    o('white', 20.6, 3.4, 1.9),
+    r('ink6', 2.4, 19.4, 19.2, 2.4, 1.2),
+  ],
+  orbit: [rot(-24, 12, 12, l('ink6', 1.8, 'M2 12A10 3.8 0 0 1 22 12')), earth(12, 12, 6.6), rot(-24, 12, 12, l('ink9', 1.8, 'M2 12A10 3.8 0 0 0 22 12'), o('white', 19.4, 9.7, 2), o('blu5', 19.4, 9.7, 1))],
+  swarm: [
+    ...[0, 45, 90, 135, 180, 225, 270, 315].map((a, i) => rot(a, 12, 12, poly(i % 2 ? 'cyn4' : 'cyn6', i % 2 ? '12,2.4 13.2,3.6 12,4.8 10.8,3.6' : '12,1.2 13.5,2.9 12,4.6 10.5,2.9', 0.6))),
+    o('org1', 12, 12, 6),
+    ball(['white', 'yel0', 'org2'], 12, 12, 4.8),
+  ],
+  foundry: [
+    r('ink6', 2.4, 17.6, 19.2, 4, 1.2),
+    o('yel0', 6, 19.6, 1),
+    o('yel0', 12, 19.6, 1),
+    o('yel0', 18, 19.6, 1),
+    l('org1', 2.4, 'M10 8.4H16.6V12'),
+    box(T.iron, 3.4, 4.6, 8.4, 11.6, 1.5, 1.6, 1.6),
+    r('cyn5', 5.4, 7.4, 4.4, 3, 0.7),
+    box(T.slate, 13.6, 11.6, 6, 4.6, 1, 1.2, 0),
+    r('cyn4', 15.2, 13.2, 2.8, 1.6, 0.5),
+  ],
+  asteroid: [
+    clip(poly('rck5', '8.4,4.2 15,3.6 19.8,7.8 20.2,14 16.4,19.6 9.4,20 4.4,15.4 3.8,8.8', 2), r('rck3', 0, 0, 24, 24), move(-1.8, -1.8, 1, poly('rck5', '8.4,4.2 15,3.6 19.8,7.8 20.2,14 16.4,19.6 9.4,20 4.4,15.4 3.8,8.8', 2)), poly('rck6', '7.4,5.4 12.4,4.6 8.2,8.6 5.4,10.4', 1)),
+    o('rck3', 9.6, 13, 2.1),
+    o('rck3', 15.2, 9.2, 1.5),
+    o('rck2', 14.4, 15.6, 1.5),
+  ],
+  habitat: [torus(['white', 'ink8', 'ink6'], 2.8, 12, 12, 8.8), torus(['grn7', 'grn6', 'grn5'], 3.6, 12, 12, 5.6), o('sky4', 12, 12, 3.8), o('white/70', 10.8, 10.8, 1.3)],
+  mercury: [limb, ball(['ink9', 'ink7', 'ink5'], 15, 12, 6.4), o('ink6', 13, 10.2, 1.5), o('ink6', 16.4, 14.4, 1.9), o('ink5', 17.4, 9.2, 1)],
+  storm: [
+    l('org0', 2.6, 'M9.6 8.4C11.4 0.4 23.6 5.4 16.8 14.4'),
+    l('red3', 2, 'M12.4 9.6C13.6 5.6 19 7.6 15.6 12'),
+    o('org1', 8.6, 15.4, 7.6),
+    ball(['yel1', 'yel0', 'org2'], 8.6, 15.4, 6.4),
+    o('org1', 21.2, 16.6, 1.4),
+    o('org0', 18.6, 20, 1.2),
+    o('red3', 21.8, 10.8, 1.1),
+  ],
+  garden: [
+    o('yel0', 18.8, 5, 2.7),
+    r('snd4', 9.3, 12, 2.2, 7.6),
+    clip([o('grn6', 10.4, 8.6, 5.6), o('grn6', 6.4, 11.2, 3.4), o('grn6', 14.4, 11, 3.6)], r('grn5', 0, 0, 24, 24), move(-1, -1.6, 1, o('grn6', 10.4, 8.6, 5.6), o('grn6', 6.4, 11.2, 3.4), o('grn6', 14.4, 11, 3.6)), o('grn7', 8.8, 6.4, 2.6, 1.8)),
+    l('grn6', 1.6, 'M16.6 19V17M19 19V16.2'),
+    r('grn4', 2.4, 19, 19.2, 2.6, 1.3),
+  ],
+} satisfies Group;
+
+const GROUPS = {
+  'Interface': INTERFACE,
+  'Money and markets': MONEY,
+  'Power, plants and the climate': POWER,
+  'Compute and models': COMPUTE,
+  'Chips, supply and the network': SUPPLY,
+  'People, safety and politics': PEOPLE,
+  'The world and space': WORLD,
+} as const;
+
+const ICONS = { ...INTERFACE, ...MONEY, ...POWER, ...COMPUTE, ...SUPPLY, ...PEOPLE, ...WORLD } satisfies Group;
 
 export type IconName = keyof typeof ICONS;
-
-const cache = new Map<string, string>();
-onEraChange(() => cache.clear());
-
-/** Raw 9×9 canvas (previews, compositing). */
-export function iconCanvas(name: IconName): PixelCanvas {
-  const [rows, map] = ICONS[name] as Grid;
-  return PixelCanvas.from(rows.replace(/\\n/g, '\n'), map);
-}
-
 export const ICON_NAMES = Object.keys(ICONS) as IconName[];
+/** The icons by family, in the order of the sheet (/play/icons.html). */
+export const ICON_GROUPS = Object.fromEntries(Object.entries(GROUPS).map(([title, g]) => [title, Object.keys(g)])) as Record<keyof typeof GROUPS, IconName[]>;
 
+/** The grid every icon is drawn on. */
+export const ICON_SIZE = 24;
+
+/** The icon's SVG markup. */
+export const iconSvg = (name: IconName): string => svg(ICON_SIZE, ICONS[name]);
+
+const cache = new Map<IconName, string>();
+
+/** The icon as a `data:image/svg+xml` URL for an <img>. */
 export function iconUrl(name: IconName): string {
   let u = cache.get(name);
   if (!u) {
-    u = toDataUrl(iconCanvas(name));
+    u = svgUrl(iconSvg(name));
     cache.set(name, u);
   }
   return u;

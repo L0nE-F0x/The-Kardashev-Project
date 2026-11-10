@@ -53,10 +53,10 @@ html.font-system {
   box-sizing: border-box;
 }
 
+/* an interface icon (ui/icons.ts: vector art; the class name is from its pixel days and is everywhere) */
 img.px {
-  image-rendering: pixelated;
-  width: calc(9px * var(--ui));
-  height: calc(9px * var(--ui));
+  width: 18px;
+  height: 18px;
   vertical-align: middle;
   flex: none;
 }
