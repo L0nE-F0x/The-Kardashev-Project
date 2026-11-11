@@ -112,8 +112,14 @@ function bendToGlobe(g: THREE.Object3D) {
  */
 const disk = (radius: number, segs: number) => new THREE.RingGeometry(0, radius, segs, 6).rotateX(-Math.PI / 2);
 
-/** The patch at a megaproject: its main kind's kit, spread over a disc that grows with the stage. */
-function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE.Object3D[] } {
+/** Is there land at a longitude/latitude? (The globe answers from the world map.) */
+export type LandTest = (lon: number, lat: number) => boolean;
+
+/**
+ * The patch at a megaproject: its main kind's kit, spread over a disc that grows with the stage. What is scattered
+ * stands on land (out at sea for the offshore field): at a coast the disc reaches well over the water.
+ */
+function megaPatch(v: MegaView, seed: number, isLand?: LandTest): { obj: THREE.Group; rotors: THREE.Object3D[] } {
   const site = siteDef(v.siteId);
   const kind = mainKind(v);
   const stage = Math.max(1, v.stage);
@@ -122,13 +128,17 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
   const k = new Kit(rng(seed));
   const rotors: THREE.Object3D[] = [];
   const r = rng(seed + 1);
+  const offshore = site.id === 'mega-northsea';
   const inside = () => {
-    for (;;) {
-      const x = (r() - 0.5) * 2, z = (r() - 0.5) * 2;
-      if (x * x + z * z < 1) return [x * radius, z * radius] as const;
+    // (a few dozen tries for the right ground, then anywhere: a site that is all coast still gets its kit)
+    for (let tries = 0; ; tries++) {
+      const x = (r() - 0.5) * 2 * radius, z = (r() - 0.5) * 2 * radius;
+      if (x * x + z * z >= radius * radius) continue;
+      // the patch's own frame: x east, z south
+      const lat = site.lat - z / (RAD * R);
+      if (!isLand || tries > 60 || isLand(site.lon + x / (RAD * R * Math.max(0.2, Math.cos(lat * RAD))), lat) !== offshore) return [x, z] as const;
     }
   };
-  const offshore = site.id === 'mega-northsea';
   if (kind === 'solar') {
     // rows of dark panels in blocks, with sandy tracks between them (a textured disc: see solarTexture)
     const t = solarTexture();
@@ -161,8 +171,10 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
       k.cyl(0.07, 0.1, 0.28, '#d8cfc3', x + 0.22, 0, z - 0.05, 10);
     }
   } else if (kind === 'hydro') {
-    k.geo(disk(radius * 0.7, 24).translate(0, 0.004, 0), '#3b7fae', 0.02);
-    k.box(radius * 0.5, 0.06, 0.05, '#bfae9f', 0, 0, radius * 0.7, { r: 0, jitter: 0 });
+    // a reservoir behind its dam (kept small: at the full disc's size it was a round lake as wide as a country)
+    const lake = Math.min(1.4, radius * 0.45);
+    k.geo(disk(lake, 24).translate(0, 0.004, 0), '#3b7fae', 0.02);
+    k.box(lake * 0.8, 0.06, 0.05, '#bfae9f', 0, 0, lake, { r: 0, jitter: 0 });
   } else {
     // geothermal and the rest: pads of plant with steam
     const n = stage * 3;
@@ -206,6 +218,8 @@ export class CharterLayer {
   private trail: THREE.Mesh[] = [];
   private time = 0;
 
+  constructor(private readonly isLand?: LandTest) {}
+
   /** Take a patch off the globe and free what was built for it (the shared paints and the panels' texture stay). */
   private dropPatch(obj: THREE.Object3D) {
     this.group.remove(obj);
@@ -232,7 +246,7 @@ export class CharterLayer {
       if (p && p.key !== key) { this.dropPatch(p.obj); p = undefined; }
       if (!p) {
         const site = siteDef(mv.siteId);
-        const made = megaPatch(mv, mv.siteId.length * 17);
+        const made = megaPatch(mv, mv.siteId.length * 17, this.isLand);
         made.obj.matrixAutoUpdate = false;
         made.obj.matrix.copy(frameAt(site.lon, site.lat, 0.02));
         this.group.add(made.obj);

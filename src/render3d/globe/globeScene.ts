@@ -8,10 +8,10 @@ import type { PixelPointer } from '../../render/stage';
 import type { Scene3D } from '../stage3d';
 import { defaultLook, type Look } from '../post';
 import { SITES, siteDef, type SiteDef } from '../../content/sites';
-import { CODE_BY_REGION, REGION_BY_CODE } from '../../content/mapcodes';
+import { BIOME, CODE_BY_REGION, REGION_BY_CODE } from '../../content/mapcodes';
 import { CHOKEPOINTS } from '../../world/routing';
 import { closedChokepoints } from '../../sim/effects';
-import { sampleRegionCode, project } from '../../world/mapData';
+import { sampleBiome, sampleRegionCode, project } from '../../world/mapData';
 import { subsolar } from '../../world/sun';
 import { siteVisible } from './layerData';
 import { REGIONS } from '../../content/regions';
@@ -61,7 +61,7 @@ export class GlobeScene implements Scene3D {
   private linkKey = '';
   private labels: Labels;
   private network: NetworkLayer;
-  private charter = new CharterLayer();
+  private charter: CharterLayer;
   private planet: PlanetLayer;
   private w = 1;
   private h = 1;
@@ -109,6 +109,7 @@ export class GlobeScene implements Scene3D {
     this.buildChokepoints();
     this.labels = new Labels();
     this.network = new NetworkLayer(game.world.router);
+    this.charter = new CharterLayer((lo, la) => { const p = project(lod, lo, la); return sampleBiome(lod, p.x, p.y) !== BIOME.OCEAN; });
     this.planet = new PlanetLayer(this.earthMat);
     this.scene.add(this.network.group, this.charter.group, this.planet.group);
     // start over home (or the middle of the Atlantic in the menu)
