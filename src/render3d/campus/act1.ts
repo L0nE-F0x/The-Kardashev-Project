@@ -132,8 +132,9 @@ function gas(o: { seed: number; tier: number }): Piece {
   }
   return {
     obj: g, w: 26, d: 24, h: big ? 17 : s.y + 0.5,
-    // (the operators go in by the left enclosure at the front)
-    doors: [{ x: mx - hx * 0.7, z: mz + hz + 0.75 }],
+    // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
+    // gate (the middle of the fence's front, 12.4 from the plot's centre: a step in ends between its posts)
+    doors: [{ x: 0, z: 12.85 }],
     blockers,
     update(e) { for (const p of plumes) p.update(e); },
   };
