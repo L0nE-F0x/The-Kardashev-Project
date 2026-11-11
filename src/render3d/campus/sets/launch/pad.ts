@@ -46,14 +46,15 @@ export function launchPad(o: Act3SetOpts): Piece {
   const X0 = -13, X1 = 17;
   k.box(X1 - X0, DECK, 12, CONCRETE, (X0 + X1) / 2, 0, 6, { r: 0.35, jitter: 0.02, shade: 0.25 });
   k.box(X1 - X0, DECK, 12, CONCRETE, (X0 + X1) / 2, 0, -10, { r: 0.35, jitter: 0.02, shade: 0.25 });
-  k.box(X1 - X0 + 2, 0.08, 4.2, '#2f2a3d', (X0 + X1) / 2, 0.02, -2, { r: 0, jitter: 0 });
+  // (the plot's paving is 0.12 thick: what lies on the ground has its top above that, or it is buried in it)
+  k.box(X1 - X0 + 2, 0.08, 4.2, '#2f2a3d', (X0 + X1) / 2, 0.06, -2, { r: 0, jitter: 0 });
   for (const z of [-3.92, -0.08]) k.box(X1 - X0 - 0.4, DECK - 0.1, 0.06, SOOT, (X0 + X1) / 2, 0.05, z, { r: 0, jitter: 0.03, shade: 0.5 });
   // soot fans in front of the trench mouths
-  for (const [x, w] of [[X0 - 2.6, 5.2], [X1 + 1.6, 3.2]] as const) k.box(w, 0.04, 6.4, '#6a6070', x, 0.02, -2, { r: 0, jitter: 0.05, shade: 0 });
+  for (const [x, w] of [[X0 - 2.6, 5.2], [X1 + 1.6, 3.2]] as const) k.box(w, 0.04, 6.4, '#6a6070', x, 0.115, -2, { r: 0, jitter: 0.05, shade: 0 });
   // the ramp from the crawlerway
   const ramp = new THREE.BoxGeometry(10, 0.5, Math.hypot(6, DECK)).rotateX(Math.atan2(DECK, 6)).translate(RX, DECK / 2 - 0.2, 15);
   k.geo(ramp, '#bdb3a6', 0.02);
-  for (const x of [RX - 3.6, RX + 3.6]) k.box(1.2, 0.06, 6, '#a39a91', x, 0.02, 15, { r: 0, jitter: 0 });
+  for (const x of [RX - 3.6, RX + 3.6]) k.box(1.2, 0.06, 6, '#a39a91', x, 0.09, 15, { r: 0, jitter: 0 });
   // expansion joints, soot round the mount, tie-down points
   for (let x = X0 + 3; x < X1 - 1; x += 3) for (const z of [6, -10]) k.box(0.06, 0.012, 11.8, '#b3aa9e', x, DECK, z, { r: 0, jitter: 0, shade: 0 });
   for (const z of [3, 9, -7, -13]) k.box(X1 - X0 - 0.4, 0.012, 0.06, '#b3aa9e', (X0 + X1) / 2, DECK, z, { r: 0, jitter: 0, shade: 0 });
@@ -211,7 +212,8 @@ export function launchPad(o: Act3SetOpts): Piece {
   rk.add(fl.obj);
   if (!building) g.add(rk);
   const fades = rk.userData.fadeMats as THREE.Material[];
-  const billow = new Billow(1100, { drag: 0.9, rise: 0.55, wind: 1.6, opacity: 0.92 });
+  // (thin enough, and its puffs small enough, that the pad and the rocket show through the cloud)
+  const billow = new Billow(1100, { drag: 0.9, rise: 0.55, wind: 1.6, opacity: 0.74 });
   g.add(billow.obj);
   const vents = [new Plume({ count: 12, life: 3.2, rise: 0.35, spread: 0.5, size0: 0.6, size1: 2.6, opacity: 0.6, radius: 0.2, wind: 1.1 }, o.seed + 11),
     new Plume({ count: 10, life: 2.6, rise: 0.3, spread: 0.4, size0: 0.5, size1: 2.0, opacity: 0.55, radius: 0.2, wind: 1.1 }, o.seed + 12)];
@@ -284,12 +286,12 @@ export function launchPad(o: Act3SetOpts): Piece {
         const k2 = Math.max(0.15, 1 - (u - IGNITE) / 6.5);
         rate(1, 64 * k2, () => {
           const dir = r() < 0.55 ? -1 : 1;
-          billow.emit({ x: dir < 0 ? X0 + 0.5 : X1 - 0.5, y: 0.7 + r() * 1.4, z: RZ + (r() - 0.5) * 3.4, vx: dir * (11 + r() * 11), vy: 1.2 + r() * 3.4, vz: (r() - 0.5) * 8, life: 7 + r() * 4, s0: 3.4, s1: 15 + r() * 10, heat: 0.95 });
+          billow.emit({ x: dir < 0 ? X0 + 0.5 : X1 - 0.5, y: 0.7 + r() * 1.4, z: RZ + (r() - 0.5) * 3.4, vx: dir * (11 + r() * 11), vy: 1.2 + r() * 3.4, vz: (r() - 0.5) * 8, life: 7 + r() * 4, s0: 3.2, s1: 11 + r() * 7, heat: 0.95 });
         });
       }
       if (u > LIFT - 0.4 && u < LIFT + 3.8) rate(2, 46, () => {
         const a = r() * Math.PI * 2;
-        billow.emit({ x: RX + Math.sin(a) * 2.5, y: MOUNT + 0.4, z: RZ + Math.cos(a) * 2.5, vx: Math.sin(a) * (6 + r() * 6), vy: 1.5 + r() * 3.5, vz: Math.cos(a) * (6 + r() * 6), life: 6 + r() * 4, s0: 3.4, s1: 15 + r() * 10, heat: 0.85 });
+        billow.emit({ x: RX + Math.sin(a) * 2.5, y: MOUNT + 0.4, z: RZ + Math.cos(a) * 2.5, vx: Math.sin(a) * (6 + r() * 6), vy: 1.5 + r() * 3.5, vz: Math.cos(a) * (6 + r() * 6), life: 6 + r() * 4, s0: 3.2, s1: 11 + r() * 7, heat: 0.85 });
       });
       if (s > 0 && climb < 300) {
         while (trailFrom < climb - 1) {

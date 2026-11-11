@@ -61,7 +61,7 @@ export function vab(o: Act3SetOpts): Piece {
   const DX0 = -10, DX1 = 2, DTOP = 13, UX0 = -7.6, UX1 = -0.4, UTOP = 28.4;
   k.box(W + 1.2, 0.4, D + 1.2, '#b9b1a6', CX, 0, CZ, { r: 0.1, shade: 0.1 });
   // the crawlerway out of the door
-  for (const x of [-7.4, -0.6]) k.box(2.6, 0.06, 18.8 - Z1, '#b3a796', x, 0.02, (Z1 + 18.6) / 2, { r: 0, jitter: 0.02, shade: 0 });
+  for (const x of [-7.4, -0.6]) k.box(2.6, 0.06, 18.8 - Z1, '#b3a796', x, 0.09, (Z1 + 18.6) / 2, { r: 0, jitter: 0.02, shade: 0 });
   // the annex
   const AX0 = X1, AX1 = 19, AZ0 = -6, AZ1 = 9, AH = 8.2;
   const annex = !building || p >= 0.5;

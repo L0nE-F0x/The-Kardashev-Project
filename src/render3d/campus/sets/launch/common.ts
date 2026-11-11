@@ -42,6 +42,9 @@ export interface Puff {
  * then live on their own: they slow down (drag), rise (buoyancy), drift with the wind, grow and
  * fade. Puffs near the flame glow (`light` = where the flame is and how bright).
  */
+/** Launch smoke in the last light: a warm grey with some of the sky's pink in it. */
+const DUSK_SMOKE = '#6f5d66';
+
 export class Billow {
   readonly obj: THREE.Points;
   private n: number;
@@ -82,7 +85,7 @@ export class Billow {
         #include <fog_pars_fragment>
         void main(){ vec4 t = texture2D(map, gl_PointCoord); float a = t.a * opacity * vA; if (a < 0.004) discard;
           // a little shading: lit from above, darker underneath
-          float sh = 0.82 + 0.18 * (1.0 - gl_PointCoord.y);
+          float sh = 0.7 + 0.3 * (1.0 - gl_PointCoord.y);
           gl_FragColor = vec4(vC * sh, a);
           #include <fog_fragment>
           #include <tonemapping_fragment>
@@ -121,7 +124,12 @@ export class Billow {
     const dt = Math.min(0.1, e.dt);
     const damp = Math.exp(-drag * dt);
     const night = e.night;
-    const br = this.base.clone().lerp(col('#5e6488'), night * 0.78);
+    // The smoke is not lit by the scene, so it takes the hour's light from here: white by day, the night's blue after
+    // dark, and a dim warm grey round sunset and dusk. (Then the sun is nearly gone but the picture is developed about
+    // twice as bright: left white, the smoke was the brightest thing on screen, flat blobs over the whole complex.)
+    const ramp = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const dusk = ramp(0.015, 0.11, night) * (1 - ramp(0.5, 0.85, night));
+    const br = this.base.clone().lerp(col('#5e6488'), night * 0.78).lerp(col(DUSK_SMOKE), dusk * 0.9);
     for (let i = 0; i < this.n; i++) {
       if (this.age[i] >= this.life[i]) { ex.setXY(i, 0, 0); continue; }
       this.age[i] += dt;

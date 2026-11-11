@@ -175,6 +175,16 @@ function fins(k: Kit, ck: Kit, x0: number, x1: number, z: number, up: number, do
     // fin space: (zz along its depth, y) → piece space, turned about the vertical through (x, zc)
     const P = (zz: number, y: number, th = 0) => V(x + th * c + (zz - zc) * sn, y, zc - th * sn + (zz - zc) * c);
     const m = new THREE.Matrix4().makeTranslation(x, 0, zc).multiply(new THREE.Matrix4().makeRotationY(LOUVRE)).multiply(new THREE.Matrix4().makeTranslation(-x, 0, -zc));
+    // A line on the fin's face (seams, heat pipes), as a strip lying flat on it. (They were square bars standing 0.1
+    // proud: with the sun grazing a fin its face is dark and the bars' sides fully lit, and from the usual distance,
+    // where a bar is under a pixel wide, the whole comb broke up into a grid of white sparkles.)
+    const faceLine = (zA: number, yA: number, zB: number, yB: number, w: number, colr: Paint) => {
+      const sg = new THREE.BoxGeometry(0.03, Math.hypot(zB - zA, yB - yA), w);
+      sg.rotateX(Math.atan2(zB - zA, yB - yA));
+      sg.translate(x - 0.09, (yA + yB) / 2, (zA + zB) / 2);
+      sg.applyMatrix4(m);
+      k.geo(sg, colr, 0.03, 0);
+    };
     for (const [root, len, dir] of [[DECK.y1, up, 1], [DECK.y0, down, -1]] as const) {
       if (len <= 0) continue;
       const tip = root + dir * len;
@@ -190,13 +200,13 @@ function fins(k: Kit, ck: Kit, x0: number, x1: number, z: number, up: number, do
         // panel seams across the fin, every few units
         for (let yy = root + dir * 3.2; dir > 0 ? yy < tip - 1 : yy > tip + 1; yy += dir * 3.2) {
           const t = (yy - root) / (tip - root);
-          k.beam(P(lerpN(a0, b0, t), yy, -0.1), P(lerpN(a1, b1, t), yy, -0.1), 0.1, '#b9bcc6');
+          faceLine(lerpN(a0, b0, t), yy, lerpN(a1, b1, t), yy, 0.1, '#b9bcc6');
         }
         // leading and trailing edge strips, heat pipes down the middle
         k.beam(P(a0, root), P(b0, tip), 0.26, S.light);
         k.beam(P(a1, root), P(b1, tip), 0.26, S.light);
         k.beam(P(b0, tip), P(b1, tip), 0.24, S.light);
-        for (const t of [0.3, 0.55, 0.8]) k.beam(P(lerpN(a0, a1, t), root, -0.1), P(lerpN(b0, b1, t), tip, -0.1), 0.12, S.pale);
+        for (const t of [0.3, 0.55, 0.8]) faceLine(lerpN(a0, a1, t), root, lerpN(b0, b1, t), tip, 0.14, S.pale);
         // the root manifold, along the deck
         const mg = new THREE.BoxGeometry(0.7, 0.6, a1 - a0 + 0.4).translate(x, dir > 0 ? root + 0.25 : root - 0.25, zc).applyMatrix4(m);
         ck.geo(mg, S.dark, 0.03, 0);
