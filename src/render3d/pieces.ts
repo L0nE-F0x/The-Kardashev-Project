@@ -296,8 +296,9 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
     m.position.set(0, H - 0.95, z);
     g.add(m);
   }
+  // (lit low: at 1.2 the lobby's glass burnt out to a blank white board at night)
   const windows = glowMat('yel1', 0);
-  windows.userData.nightOnly = 1.2;
+  windows.userData.nightOnly = 0.5;
   const win = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 0.05), windows);
   win.position.set(-W / 2 + 3, 2.2, D / 2 + 2.15);
   g.add(win);
@@ -311,6 +312,9 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
   for (let i = 0; i < 5; i++) lightPool(g, -W / 2 + 2.4 + i * 4.1, 0, -D / 2 - 3.6, 2.6, hallPool);
   // a car park and the hall's own transformers at the front
   const front = new Kit(rng(seed + 5));
+  // the lobby window's frame and mullions (so it reads as glazing, lit or not)
+  for (const dx of [-1.72, -0.57, 0.57, 1.72]) front.box(0.07, 1.16, 0.06, '#5b5562', -W / 2 + 3 + dx, 1.62, D / 2 + 2.18, { r: 0, jitter: 0, shade: 0 });
+  for (const y of [1.6, 2.72]) front.box(3.5, 0.07, 0.06, '#5b5562', -W / 2 + 3, y, D / 2 + 2.18, { r: 0, jitter: 0, shade: 0 });
   if (!o.noParking) {
     front.box(12, 0.05, 4.4, '#6f6878', -6.5, 0.04, D / 2 + 5.6, { r: 0.03, shade: 0 });
     for (let i = 0; i < 6; i++) front.box(0.1, 0.02, 2.2, 'ink9', -12 + i * 2.2, 0.1, D / 2 + 5.4, { r: 0, jitter: 0 });
