@@ -31,8 +31,8 @@ const CN = { x: -8.5, z: -7.5, a: 10, b: 7 };
 // The haul road's width, measured along the pit's radial lines. Two trucks (3.4 wide) pass on it down to the last
 // landing; below that the radial lines run so obliquely to the road that its real width is barely 5, so the last leg
 // is single file (the trucks' timing keeps them from meeting there: see `spacing` below).
-const LW = 8.8;
-const LANE_OUT = 2.0, LANE_IN = 5.9, LANE_MID = 3.5;
+const LW = 9.4;
+const LANE_OUT = 2.0, LANE_IN = 6.4, LANE_MID = 3.8;
 
 const wob = (th: number) => 1 + 0.028 * Math.sin(3 * th + 1.1) + 0.018 * Math.sin(5 * th + 2.3) + 0.01 * Math.sin(9 * th + 0.4);
 function cont(s: number) {
@@ -87,6 +87,7 @@ const LAND = 0.07 * Math.PI;
 const RAMP = (TH_S - TH_E - (N - 1) * LAND) / N;
 const ease = (t: number) => t * 0.6 + t * t * (3 - 2 * t) * 0.4;
 const smooth = (t: number) => t * t * (3 - 2 * t);
+const RAD = Math.PI / 180;
 /** The haul road at angle th: its level and the contour where its outer (cut) edge runs. */
 function laneAt(th: number): { y: number; sc: number } {
   if (th > TH_S) {
@@ -404,28 +405,30 @@ export const openPit: SetPieceFactory = (o) => {
   const roadMesh = road.build();
   roadMesh.castShadow = false;
   g.add(roadMesh);
-  // the shovel at the floor, digging the back-left face; the loading spot beside it
-  const thShovel = -0.72 * Math.PI;
-  const [shx, shz] = P(N - 1 + fOf(thShovel) + 3.8 / sp(thShovel), thShovel);
-  const [fx, fz] = P(N - 1 + fOf(thShovel), thShovel);
+  // the shovel on the floor, digging the west face. (It stood in the back-left corner, where the haul road comes
+  // down along the back wall: the trucks had no room to turn there and drove through the rock to reach it.)
+  const shx = -15.7, shz = -2.0;
+  const [fx, fz] = P(N - 1 + fOf(0.86 * Math.PI), 0.86 * Math.PI);
   const sh = shovel(o.seed);
   sh.obj.position.set(shx, -HB * N + 0.05, shz);
   const faceYaw = Math.atan2(fx - shx, fz - shz);
   sh.obj.rotation.y = faceYaw;
   g.add(sh.obj);
   const FY = -HB * N + 0.08;
-  const Fd = new THREE.Vector2(fx - shx, fz - shz).normalize();
-  const fc = cont(N - 0.3);
-  let Ld = new THREE.Vector2(-Fd.y, Fd.x);
-  if (Ld.dot(new THREE.Vector2(fc.x - shx, fc.z - shz)) < 0) Ld = Ld.negate();
-  const at = (l: number, f: number) => new THREE.Vector3(shx + Ld.x * l + Fd.x * f, FY, shz + Ld.y * l + Fd.y * f);
-  const loadSpot = at(7.2, -0.6);
-  // the trucks' loop: shovel → floor → up the inner lane → road → pad → tip → road → down the outer lane → floor → shovel
+  // the trucks turn round on a loop in the open north-west of the floor: in along the back wall, round it
+  // anticlockwise past the shovel (the loading spot is where the loop comes nearest to it), out the way they came
+  const LOOP = { x: -10.5, z: -9.4, r: 3.0 };
+  const loopAt = (deg: number) => new THREE.Vector3(LOOP.x + LOOP.r * Math.sin(deg * RAD), FY, LOOP.z - LOOP.r * Math.cos(deg * RAD));
+  const loadDeg = Math.atan2(shx - LOOP.x, -(shz - LOOP.z)) / RAD + 360;
+  const loadSpot = loopAt(loadDeg);
+  // the trucks' loop: shovel → round the loop → along the back wall → up the inner lane → road → pad → tip → road →
+  // down the outer lane → along the back wall → onto the loop → shovel
   const pts: THREE.Vector3[] = [];
-  const fl = (s: number, th: number) => { const [x, z] = P(s, th); return new THREE.Vector3(x, -HB * N + 0.08, z); };
   pts.push(loadSpot);
-  pts.push(at(7.4, -7));
-  pts.push(fl(N - 1 + 0.55, -0.45 * Math.PI));
+  for (const deg of [180, 135, 90]) pts.push(loopAt(deg));
+  pts.push(new THREE.Vector3(LOOP.x + 3.0, FY, LOOP.z - 1.0));
+  pts.push(new THREE.Vector3(LOOP.x + 3.6, FY, LOOP.z - 2.4));
+  pts.push(new THREE.Vector3(LOOP.x + 5.0, FY, LOOP.z - 3.0));
   for (let th = TH_E - 0.02; th <= TH_S + LEAD + 0.001; th += 0.035) pts.push(lanePoint(th, 1));
   pts.push(new THREE.Vector3(bend.x - 1.6, 0.12, bend.z + 1.0));
   pts.push(new THREE.Vector3(padC.x + 3.2, 0.12, padC.z - 2.6));
@@ -436,9 +439,9 @@ export const openPit: SetPieceFactory = (o) => {
   pts.push(new THREE.Vector3(padC.x + 2.6, 0.12, padC.z + 0.4));
   pts.push(new THREE.Vector3(bend.x + 0.8, 0.12, bend.z + 1.6));
   for (let th = TH_S + LEAD; th >= TH_E - 0.02 - 0.001; th -= 0.035) pts.push(lanePoint(th, 0));
-  pts.push(fl(N - 1 + 0.3, -0.4 * Math.PI));
-  pts.push(at(15, -3));
-  pts.push(at(10.5, 2.2));
+  pts.push(new THREE.Vector3(LOOP.x + 5.6, FY, LOOP.z - 3.15));
+  pts.push(new THREE.Vector3(LOOP.x + 3.0, FY, LOOP.z - 3.0));
+  for (const deg of [360, 315, 270]) pts.push(loopAt(deg));
   const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
   const M = 900;
   const path = curve.getSpacedPoints(M);
@@ -446,7 +449,8 @@ export const openPit: SetPieceFactory = (o) => {
   const nearest = (p: THREE.Vector3) => { let bi = 0, bd = 1e9; path.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; bi = i; } }); return bi; };
   const iLoad = nearest(loadSpot), iDump = nearest(dumpSpot);
   const dLD = (((iDump - iLoad + M) % M) / M) * total, dDL = total - dLD;
-  const V0 = 5.8, TA = 1.6, T_LOAD = 10, T_DUMP = 6;
+  // (the stops are chosen with the passing places in mind: see `starts`)
+  const V0 = 5.8, TA = 1.6, T_LOAD = 8.5, T_DUMP = 8;
   const t1 = dLD / V0 + TA, t2 = dDL / V0 + TA;
   const PER = T_LOAD + t1 + T_DUMP + t2;
   const travel = (tau: number, T: number, d: number) => {
@@ -455,8 +459,13 @@ export const openPit: SetPieceFactory = (o) => {
     const r = T - tau;
     return d - (0.5 * V0 * r * r) / TA;
   };
-  const lights = truckLights();
-  const trucks = [0, 1, 2].map((i) => { const t = haulTruck(rock, o.seed + i * 11, lights); g.add(t.obj); return t; });
+  /** Where a truck is `tau` seconds into its round: how far along the loop, and what it is doing there. */
+  const roundAt = (tau: number): { dist: number; loading: number; dumping: number; loaded: boolean } => {
+    if (tau < T_LOAD) return { dist: (iLoad / M) * total, loading: tau / T_LOAD, dumping: -1, loaded: false };
+    if (tau < T_LOAD + t1) return { dist: (iLoad / M) * total + travel(tau - T_LOAD, t1, dLD), loading: -1, dumping: -1, loaded: true };
+    if (tau < T_LOAD + t1 + T_DUMP) return { dist: (iDump / M) * total, loading: -1, dumping: (tau - T_LOAD - t1) / T_DUMP, loaded: true };
+    return { dist: (iDump / M) * total + travel(tau - T_LOAD - t1 - T_DUMP, t2, dDL), loading: -1, dumping: -1, loaded: false };
+  };
   const tmpA = new THREE.Vector3();
   const place = (obj: THREE.Object3D, dist: number) => {
     const u = ((dist / total) % 1 + 1) % 1;
@@ -467,13 +476,66 @@ export const openPit: SetPieceFactory = (o) => {
     obj.rotation.y = Math.atan2(tmpA.x, tmpA.z);
     obj.rotation.x = -Math.atan2(tmpA.y, Math.hypot(tmpA.x, tmpA.z));
   };
-  // the drill on the back-right bench, light towers by the shovel and the pad
-  const thDrill = -0.42 * Math.PI;
-  const [dx, dz] = P(1 + fOf(thDrill) + 2.4 / sp(thDrill), thDrill);
+  // How many trucks run, and when each sets off. The road is two lanes wide only between the last landing and the
+  // rim, and the landings are sharp bends: evenly spaced trucks met on the single-file foot and drove through each
+  // other. So one round is sampled, every delay between two trucks that ever brings their footprints together is
+  // struck out, and as many trucks as the rest allows (three, else two, else one) start as evenly as it allows.
+  // A few ms, once.
+  const starts = (() => {
+    const K = 240, HWID = 1.8, HLEN = 3.45;
+    const probe = new THREE.Object3D();
+    const box: { x: number; y: number; z: number; c: number; s: number }[] = [];
+    for (let i = 0; i < K; i++) {
+      place(probe, roundAt((i / K) * PER).dist);
+      box.push({ x: probe.position.x, y: probe.position.y, z: probe.position.z, c: Math.cos(probe.rotation.y), s: Math.sin(probe.rotation.y) });
+    }
+    // two trucks' footprints overlap (separating axes: each one's length and width)
+    const hit = (a: (typeof box)[0], b: (typeof box)[0]) => {
+      if (Math.abs(a.y - b.y) > 3.2) return false;
+      const dx = b.x - a.x, dz = b.z - a.z;
+      if (dx * dx + dz * dz > 64) return false;
+      const cc = Math.abs(a.c * b.c + a.s * b.s), ss = Math.abs(a.s * b.c - a.c * b.s);
+      for (const q of [a, b]) {
+        if (Math.abs(dx * q.s + dz * q.c) > HLEN + HLEN * cc + HWID * ss) return false;
+        if (Math.abs(dx * q.c - dz * q.s) > HWID + HWID * cc + HLEN * ss) return false;
+      }
+      return true;
+    };
+    const clear: boolean[] = [];
+    for (let m = 0; m < K; m++) {
+      let c = m > 0;
+      for (let i = 0; c && i < K; i++) if (hit(box[i], box[(i + m) % K])) c = false;
+      clear.push(c);
+    }
+    // (a delay counts only with clear neighbours: the round is sampled, not solved)
+    const ok = clear.map((_, m) => clear[(m + K - 1) % K] && clear[m] && clear[(m + 1) % K]);
+    let best: number[] | null = null, cost = Infinity;
+    for (let a = 1; a < K; a++) for (let b = a + 1; b < K; b++) {
+      if (!ok[a] || !ok[b] || !ok[b - a]) continue;
+      const c = (a - K / 3) ** 2 + (b - (2 * K) / 3) ** 2;
+      if (c < cost) { cost = c; best = [0, a, b]; }
+    }
+    if (!best) {
+      // two trucks: the middle of the widest run of clear delays
+      let width = 0;
+      for (let a = 1; a < K; a++) {
+        if (!clear[a] || clear[a - 1]) continue;
+        let e = a;
+        while (e + 1 < K && clear[e + 1]) e++;
+        if (e - a + 1 > width) { width = e - a + 1; best = [0, (a + e) / 2]; }
+      }
+    }
+    return (best ?? [0]).map((m) => (m / K) * PER);
+  })();
+  const lights = truckLights();
+  const trucks = starts.map((_, i) => { const t = haulTruck(rock, o.seed + i * 11, lights); g.add(t.obj); return t; });
+  // the drill in the middle of the first bench at the back right (where the bench is wide enough for it), light
+  // towers by the shovel and the pad
+  const thDrill = -0.25 * Math.PI;
+  const [dx, dz] = P(fOf(thDrill) + (1 - fOf(thDrill)) * 0.5, thDrill);
   const mast = drill(k, dx, -HB, dz, thDrill + Math.PI / 2);
   beacon(g, mast[0], mast[1], mast[2], 0.4);
-  const [ltx, ltz] = P(N - 1 + fOf(-0.82 * Math.PI) + 2.2 / sp(-0.82 * Math.PI), -0.82 * Math.PI);
-  lightTower(g, k, lampK, ltx, -HB * N, ltz, faceYaw + 0.8, pool);
+  lightTower(g, k, lampK, shx + 4.6, -HB * N, shz + 3.4, Math.atan2(-4.6, -3.4), pool);
   lightTower(g, k, lampK, padC.x + 4.6, 0.1, padC.z + 3.8, -2.4, pool);
   // the site office, a fuel tank and a pickup in the front-right corner
   k.box(5.2, 2.5, 2.4, '#ece6dc', 29.4, 0.05, 20.6, { r: 0.12 });
@@ -515,27 +577,21 @@ export const openPit: SetPieceFactory = (o) => {
     update(e: Env) {
       let loading = -1, tipping = 0;
       trucks.forEach((t, i) => {
-        const tau = ((e.t + (i * PER) / 3) % PER + PER) % PER;
-        let dist: number;
+        const r = roundAt(((e.t + starts[i]) % PER + PER) % PER);
+        const dist = r.dist;
         let tilt = 0;
-        if (tau < T_LOAD) {
-          dist = (iLoad / M) * total;
-          loading = tau / T_LOAD;
+        if (r.loading >= 0) {
+          loading = r.loading;
           t.load.visible = loading > 0.25;
           t.load.scale.y = Math.min(1, Math.max(0.2, (loading - 0.25) * 1.6));
-        } else if (tau < T_LOAD + t1) {
-          dist = (iLoad / M) * total + travel(tau - T_LOAD, t1, dLD);
-          t.load.visible = true;
-          t.load.scale.y = 1;
-        } else if (tau < T_LOAD + t1 + T_DUMP) {
-          dist = (iDump / M) * total;
-          const p = (tau - T_LOAD - t1) / T_DUMP;
+        } else if (r.dumping >= 0) {
+          const p = r.dumping;
           tilt = Math.sin(Math.min(1, p * 1.25) * Math.PI) * 0.8;
           t.load.visible = p < 0.45;
           if (p > 0.3 && p < 0.7) tipping = 1;
         } else {
-          dist = (iDump / M) * total + travel(tau - T_LOAD - t1 - T_DUMP, t2, dDL);
-          t.load.visible = false;
+          t.load.visible = r.loaded;
+          t.load.scale.y = 1;
         }
         place(t.obj, dist);
         t.bed.rotation.x = -tilt;
