@@ -30,7 +30,7 @@ export function TopBar() {
   const marginCls = st.margin >= 0.25 ? 'good' : st.margin >= 0 ? '' : st.margin >= -0.5 ? 'warn' : 'bad';
   // The later acts add stats and the numbers grow: when they stop fitting, the bar tightens in steps (`data-fit`:
   // 1 = closer together, the K meter without its label; 2 = icons without plates, smaller type; 3 = without the
-  // Charter's treasury and the safety margin, which their panels show). What still doesn't fit scrolls sideways
+  // Charter's treasury and the safety margin, which their panels show; 4 = a last squeeze). What still doesn't fit scrolls sideways
   // under a fade on the right.
   const barRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
@@ -46,7 +46,7 @@ export function TopBar() {
     let level = from;
     for (;;) {
       bar.dataset.fit = String(level);
-      if (level >= 3 || el.scrollWidth <= el.clientWidth + 1) break;
+      if (level >= 4 || el.scrollWidth <= el.clientWidth + 1) break;
       level++;
     }
     fit.current = level;

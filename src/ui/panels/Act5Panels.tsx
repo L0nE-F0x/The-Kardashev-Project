@@ -1084,7 +1084,7 @@ function EndCard({ year }: { year: number }) {
           {note && <div class="small muted">{note}</div>}
           <div class="row wrap" style={{ gap: '8px', marginTop: '8px' }}>
             <button class="btn" disabled={!url} onClick={() => url && void saveImage(name, url).then((p) => setNote(savedNote(p, 'Couldn’t save it: take a screenshot instead.')))}>
-              <Icon name="arrow" size="sm" /> Save the picture
+              Save the picture
             </button>
           </div>
           <div class="quote" style={{ marginTop: '10px' }}>
