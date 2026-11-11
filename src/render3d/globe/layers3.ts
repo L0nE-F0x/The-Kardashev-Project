@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { OVER_CLOUDS, softLine, type LineLook } from './soft';
+import { lineNodes, OVER_CLOUDS, softLine, type LineLook } from './soft';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
 import { charterView, liftoffActive, mainKind, orbitAngle, orbitPoint } from './layerData';
@@ -213,7 +213,7 @@ function fat(pts: THREE.Vector3[], color: string, width: number, o: Partial<Line
 export class CharterLayer {
   readonly group = new THREE.Group();
   private patches = new Map<string, { obj: THREE.Group; rotors: THREE.Object3D[]; key: string }>();
-  private hvdc = new Map<string, { lines: Line2[]; key: string; pts: THREE.Vector3[] }>();
+  private hvdc = new Map<string, { lines: Line2[]; nodes: THREE.Points; key: string; pts: THREE.Vector3[] }>();
   private sat: THREE.Group | null = null;
   private track: Line2 | null = null;
   private beam: THREE.Group | null = null;
@@ -267,7 +267,7 @@ export class CharterLayer {
       const key = `${h.status}|${Math.round(h.progress * 20)}`;
       const o = this.hvdc.get(h.route.id);
       if (o && o.key === key) continue;
-      if (o) for (const l of o.lines) dropLine(this.group, l);
+      if (o) { for (const l of o.lines) dropLine(this.group, l); dropLine(this.group, o.nodes); }
       const pts = o?.pts ?? globePath([[h.route.a[1], h.route.a[0]], [h.route.b[1], h.route.b[0]]], 1.004, 0.6).map((p, i, arr) => p.multiplyScalar(1 + Math.sin((Math.PI * i) / (arr.length - 1)) * 0.012));
       const lines: Line2[] = [];
       // power runs along a finished link
@@ -277,10 +277,14 @@ export class CharterLayer {
         lines.push(fat(pts.slice(0, n), PALETTE.org2, 2.4));
         if (n < pts.length) lines.push(fat(pts.slice(n - 1), PALETTE.ink8, 1.4, { dashed: true, glow: 0 }));
       }
+      // a converter station at each end (the far one unlit until the line reaches it)
+      const live = h.status === 'online' ? PALETTE.yel0 : PALETTE.org2;
+      const nodes = lineNodes([pts[0], pts[pts.length - 1]], [live, h.status === 'online' ? live : PALETTE.ink8]);
       for (const l of lines) this.group.add(l);
-      this.hvdc.set(h.route.id, { lines, key, pts });
+      this.group.add(nodes);
+      this.hvdc.set(h.route.id, { lines, nodes, key, pts });
     }
-    for (const [id, o] of this.hvdc) if (!hseen.has(id)) { for (const l of o.lines) dropLine(this.group, l); this.hvdc.delete(id); }
+    for (const [id, o] of this.hvdc) if (!hseen.has(id)) { for (const l of o.lines) dropLine(this.group, l); dropLine(this.group, o.nodes); this.hvdc.delete(id); }
     // the orbital compute test: a satellite on an inclined orbit, its ground track dotted below
     if (v.orbitalTest && !this.sat) {
       const pts: THREE.Vector3[] = [];

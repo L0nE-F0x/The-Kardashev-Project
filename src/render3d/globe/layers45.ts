@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { OVER_CLOUDS, softLine, type LineLook } from './soft';
+import { lineNodes, OVER_CLOUDS, softLine, type LineLook } from './soft';
 import type { GameState } from '../../sim/types';
 import { planetMapView } from '../../sim/planetView';
 import { earthView } from '../../sim/systemView';
@@ -47,7 +47,7 @@ function placeAt(o: THREE.Object3D, lon: number, lat: number, lift = 0) {
 
 export class PlanetLayer {
   readonly group = new THREE.Group();
-  private links = new Map<string, { lines: Line2[]; key: string; pts: THREE.Vector3[] }>();
+  private links = new Map<string, { lines: Line2[]; nodes: THREE.Points; key: string; pts: THREE.Vector3[] }>();
   private marks = new THREE.Group();
   private markKey = '';
   private glows: { mesh: THREE.Mesh; base: number }[] = [];
@@ -90,7 +90,7 @@ export class PlanetLayer {
       const key = `${l.status}|${Math.round(l.progress * 20)}`;
       const o = this.links.get(l.route.id);
       if (o && o.key === key) continue;
-      if (o) for (const x of o.lines) dropLine(this.group, x);
+      if (o) { for (const x of o.lines) dropLine(this.group, x); dropLine(this.group, o.nodes); }
       const pts = o?.pts ?? globePath([[l.route.a[1], l.route.a[0]], [l.route.b[1], l.route.b[0]]], 1.004, 0.6).map((p, i, arr) => p.multiplyScalar(1 + Math.sin((Math.PI * i) / (arr.length - 1)) * 0.015));
       const lines: Line2[] = [];
       // power runs along a working link
@@ -102,10 +102,14 @@ export class PlanetLayer {
         lines.push(fat(pts.slice(0, n), PALETTE.org2, 2.4));
         if (n < pts.length) lines.push(fat(pts.slice(n - 1), PALETTE.ink8, 1.2, { dashed: true, glow: 0 }));
       }
+      // a converter station at each end (the far one unlit until the line reaches it; faint on a line only planned)
+      const live = l.status === 'online' ? PALETTE.cyn6 : l.status === 'down' ? PALETTE.red3 : l.status === 'planned' ? PALETTE.ink7 : PALETTE.org2;
+      const nodes = lineNodes([pts[0], pts[pts.length - 1]], [live, l.status === 'building' ? PALETTE.ink8 : live], l.status === 'planned' ? 6 : 9);
       for (const x of lines) this.group.add(x);
-      this.links.set(l.route.id, { lines, key, pts });
+      this.group.add(nodes);
+      this.links.set(l.route.id, { lines, nodes, key, pts });
     }
-    for (const [id, o] of this.links) if (!seen.has(id)) { for (const x of o.lines) dropLine(this.group, x); this.links.delete(id); }
+    for (const [id, o] of this.links) if (!seen.has(id)) { for (const x of o.lines) dropLine(this.group, x); dropLine(this.group, o.nodes); this.links.delete(id); }
     const blink = Math.sin(this.time * 6) > 0;
     for (const o of this.links.values()) if (o.key.startsWith('down')) (o.lines[0].material as LineMaterial).opacity = blink ? 1 : 0.35;
     // marks on the ground: fusion plants, air capture, rectennas, beam fields, the AIs' banners

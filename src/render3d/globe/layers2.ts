@@ -55,10 +55,10 @@ export function along(pts: THREE.Vector3[], acc: number[], f: number): { p: THRE
 }
 
 /** Take a line off the globe and free it. */
-export function dropLine(group: THREE.Object3D, l: Line2) {
+export function dropLine(group: THREE.Object3D, l: Line2 | THREE.Points) {
   group.remove(l);
   l.geometry.dispose();
-  l.material.dispose();
+  (l.material as THREE.Material).dispose();
 }
 
 function fatLine(pts: THREE.Vector3[], color: string, width: number, o: Partial<LineLook> = {}) {

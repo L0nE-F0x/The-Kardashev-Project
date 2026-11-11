@@ -23,7 +23,7 @@ import { dropLine, globePath, NetworkLayer, POWER_PULSE } from './layers2';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { lineClock, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './soft';
+import { lineClock, linePixelRatio, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './soft';
 import { Aurora, milkyWay, starField, Sun } from './space';
 import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, type Marker, type MarkerKind } from './markers';
 import { quality } from '../quality';
@@ -313,6 +313,7 @@ export class GlobeScene implements Scene3D {
     this.updateToolPreview();
     // stars keep their size on screen whatever the 3D resolution
     (this.stars.material as THREE.ShaderMaterial).uniforms.pixelRatio.value = g.stage.scale || 1;
+    linePixelRatio.value = g.stage.scale || 1;
   }
 
   /** The power-line / fiber tool: a dashed line from the chosen site to the cursor. */
