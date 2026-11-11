@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { BuiltBy, Icon, Window, fmtPlaytime, useGame } from '../components';
+import { rich } from '../emoji';
 import { logoUrl } from '../logo';
 import { SITE_BY_ID } from '../../content/sites';
 import { DIFFICULTIES, FOUNDERS } from '../../content/difficulty';
@@ -154,8 +155,8 @@ function LoadGame() {
             </div>
             <div class="small muted">
               K {sl.K.toFixed(5)} · {DIFFICULTIES[sl.difficulty as keyof typeof DIFFICULTIES]?.name ?? sl.difficulty} · {FOUNDERS[sl.founder as keyof typeof FOUNDERS]?.name ?? sl.founder} · {fmtPlaytime(sl.playtime)}
-              {sl.sandbox ? ' · 🧪 Sandbox' : ''}
-              {sl.typeI ? ` · ☀ Type I in ${sl.typeI}` : (sl.act ?? 1) >= 5 ? ' · Act V' : sl.act4 ? ' · 🌍 Act IV done' : (sl.act ?? 1) >= 4 ? ' · Act IV' : sl.act3 ? ' · 🚀 Act III done' : (sl.act ?? 1) >= 3 ? ' · Act III' : sl.act2 ? ' · 🔔 Act II done' : (sl.act ?? 1) >= 2 ? ' · Act II' : sl.act1 ? ' · ✅ Act I' : ''}
+              {rich(sl.sandbox ? ' · 🧪 Sandbox' : '')}
+              {rich(sl.typeI ? ` · ☀ Type I in ${sl.typeI}` : (sl.act ?? 1) >= 5 ? ' · Act V' : sl.act4 ? ' · 🌍 Act IV done' : (sl.act ?? 1) >= 4 ? ' · Act IV' : sl.act3 ? ' · 🚀 Act III done' : (sl.act ?? 1) >= 3 ? ' · Act III' : sl.act2 ? ' · 🔔 Act II done' : (sl.act ?? 1) >= 2 ? ' · Act II' : sl.act1 ? ' · ✅ Act I' : '')}
             </div>
             <div class="row wrap" style={{ gap: '4px', marginTop: '6px' }}>
               {sl.gameOver ? (

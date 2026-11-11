@@ -1,6 +1,7 @@
 import type { ComponentChildren } from 'preact';
 import { useState } from 'preact/hooks';
 import { Icon, useGame } from '../components';
+import { rich } from '../emoji';
 import { ACT_GOALS, ACT_NAMES, ACT_RHYTHM, LOOP, PANEL_GUIDE, howToTopics, type HowToTopic } from '../../content/howToPlay';
 import { KEYS } from './SettingsScreen';
 import { DockIcon } from '../DockIcon';
@@ -14,11 +15,11 @@ function inline(text: string): ComponentChildren[] {
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    out.push(m[1] !== undefined ? <b key={m.index}>{m[1]}</b> : <kbd key={m.index}>{m[2]}</kbd>);
+    if (m.index > last) out.push(rich(text.slice(last, m.index)));
+    out.push(m[1] !== undefined ? <b key={m.index}>{rich(m[1])}</b> : <kbd key={m.index}>{m[2]}</kbd>);
     last = m.index + m[0].length;
   }
-  if (last < text.length) out.push(text.slice(last));
+  if (last < text.length) out.push(rich(text.slice(last)));
   return out;
 }
 
@@ -122,7 +123,7 @@ function Rhythm({ act }: { act: number }) {
         {r.beats.map(([when, what]) => (
           <div class="ht-beat" key={when}>
             <b>{when}</b>
-            <span>{what}</span>
+            <span>{rich(what)}</span>
           </div>
         ))}
       </div>
@@ -146,7 +147,7 @@ function Screen() {
       {SCREEN_PARTS.map(([where, what]) => (
         <div class="ht-part" key={where}>
           <b>{where}</b>
-          <span>{what}</span>
+          <span>{rich(what)}</span>
         </div>
       ))}
     </div>
@@ -167,7 +168,7 @@ function Panels({ act }: { act: number }) {
               <b>{p.name}</b>
               <kbd>{p.key}</kbd>
             </div>
-            <span>{p.what}</span>
+            <span>{rich(p.what)}</span>
             <span class="when">
               <b>Open it:</b> {p.when.charAt(0).toLowerCase() + p.when.slice(1)}
             </span>

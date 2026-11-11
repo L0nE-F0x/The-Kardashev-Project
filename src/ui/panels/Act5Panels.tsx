@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, speakerName, useGame } from '../components';
+import { rich } from '../emoji';
 import type { IconName } from '../icons';
 import type { SystemTab } from '../../game/game';
 import type { EraPlan, EraPriority, AiId, AdvisorId, GameState, MaxFront } from '../../sim/types';
@@ -752,7 +753,7 @@ export function EraOverlay() {
         </span>
         <span class="jumpyear">{j.last ? `K ${s.stats.K.toFixed(4)}` : yearAt(s.day)}</span>
         <button class="btn small" onClick={() => game.skipJump()}>
-          Skip ⏭
+          Skip <Icon name="skip" size="sm" />
         </button>
       </div>
       <Bar value={j.last ? Math.max(0, (s.stats.K - j.before.K) / Math.max(0.0001, 1 - j.before.K)) : frac} kind="gold" />
@@ -797,7 +798,7 @@ export function EraReportModal() {
               <b>Bit’s diary</b>
               {rec.diary.map((l, i) => (
                 <div key={i} style={{ marginTop: i ? '4px' : 0 }}>
-                  {l}
+                  {rich(l)}
                 </div>
               ))}
             </div>
@@ -815,15 +816,15 @@ export function EraReportModal() {
           {rec.built.length > 0 && (
             <>
               <h4>Built</h4>
-              <div class="small">{rec.built.join(' · ')}</div>
+              <div class="small">{rec.built.join(', ')}</div>
             </>
           )}
           {rec.highlights.length > 0 && (
             <>
               <h4 style={{ marginTop: '6px' }}>The headlines</h4>
-              <ul class="small" style={{ margin: '2px 0', paddingLeft: '18px' }}>
+              <ul class="small headlines">
                 {rec.highlights.slice(0, 8).map((h, i) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{rich(h)}</li>
                 ))}
               </ul>
             </>
@@ -833,7 +834,7 @@ export function EraReportModal() {
               <summary>Decisions taken on autopilot ({rec.auto.length})</summary>
               <ul style={{ margin: '2px 0', paddingLeft: '18px' }}>
                 {rec.auto.map((h, i) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{rich(h)}</li>
                 ))}
               </ul>
             </details>

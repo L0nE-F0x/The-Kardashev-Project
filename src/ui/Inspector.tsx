@@ -106,7 +106,7 @@ function SiteInspector({ id }: { id: string }) {
           <Icon name="wind" size="sm" /> {pct(site.windCF)}
         </span>
         <span class="trait" data-tip={`Cooling water: ${waterLabel(site.water)}. Mean temperature ${site.climateC}°C.\nData center PUE here: ${pueAt(s, id).toFixed(2)}`}>
-          💧 {waterLabel(site.water)} · {site.climateC}°C
+          <Icon name="hydro" size="sm" /> {waterLabel(site.water)} · {site.climateC}°C
         </span>
         <span class="trait" data-tip="Research talent multiplier for labs here">
           <Icon name="people" size="sm" /> ×{site.talent.toFixed(1)}
@@ -130,7 +130,9 @@ function SiteInspector({ id }: { id: string }) {
           </span>
         ) : null}
       </div>
-      {exportBlocked && <div class="small warn section">⛔ {exportBlocked}</div>}
+      {exportBlocked && <div class="small warn section">
+          <Icon name="lock" size="sm" /> {exportBlocked}
+        </div>}
 
       {sp && sp.load > 0 && (
         <div class="section">
@@ -140,7 +142,9 @@ function SiteInspector({ id }: { id: string }) {
             Load {fmtMW(sp.load)} · served <span class={sp.frac < 0.98 ? 'bad' : 'good'}>{pct(sp.frac)}</span>
             {sp.curtailed > 0.5 && ` · ${fmtMW(sp.curtailed)} curtailed`}
           </div>
-          {sp.frac < 0.98 && <div class="small bad">⚠ Not enough power — compute here is throttled.</div>}
+          {sp.frac < 0.98 && <div class="small bad">
+              <Icon name="warn" size="sm" /> Not enough power — compute here is throttled.
+            </div>}
         </div>
       )}
 
@@ -175,7 +179,7 @@ ${fmtMoney(landCost(s, id))}${canBuyLand(s, id) ? `\n✗ ${canBuyLand(s, id)}` :
                 <div class="sub">
                   {f.status === 'building'
                     ? f.blocked
-                      ? `⛔ Waiting on EUV tools — export licence needed`
+                      ? 'Waiting on EUV tools — export licence needed'
                       : `Building · ${fmtDays(f.buildDays - f.progress)} left`
                     : isHall
                       ? `${installed.toLocaleString()} / ~${cap.toLocaleString()} chips · ${fmtMW(facilityIT(f))} IT`
@@ -236,7 +240,7 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
         ))}
         {inv > 0 && (
           <div class="small warn" style={{ marginTop: '4px' }}>
-            📦 {inv.toLocaleString()} accelerators waiting{' '}
+            <Icon name="orders" size="sm" /> {inv.toLocaleString()} accelerators waiting{' '}
             {!hasDC
               ? '— build a data center here'
               : !facs.some((f) => (f.type === 'datacenter' || f.type === 'campus') && f.status === 'online')
@@ -259,7 +263,7 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
           )}
           {grid.pending.map((p, i) => (
             <div key={i} class="muted">
-              ⏳ +{fmtMW(p.mw)} in {fmtDays(p.readyDay - s.day)}
+              <Icon name="clock" size="sm" /> +{fmtMW(p.mw)} in {fmtDays(p.readyDay - s.day)}
             </div>
           ))}
         </div>
@@ -425,7 +429,7 @@ function LandingInspector({ id }: { id: string }) {
                 <div class="name">{c.name}</div>
                 <div class="sub">
                   ⇄ {other.name} ({REGIONS[other.region].short}) · {fmtMoney(c.lease)}/mo
-                  {cut ? <span class="bad"> · ✂ cut, repairs in {fmtDays((s.network.cuts[c.id] ?? s.day) - s.day)}</span> : null}
+                  {cut ? <span class="bad"> · cut, repairs in {fmtDays((s.network.cuts[c.id] ?? s.day) - s.day)}</span> : null}
                 </div>
               </div>
               {leased ? (
@@ -488,7 +492,10 @@ function MineInspector({ id }: { id: string }) {
       <div class="section">
         <KV
           rows={[
-            [`${mat.icon} ${mat.name} price`, <span class={price > 1.15 ? 'bad' : price < 0.9 ? 'good' : ''}>{Math.round(price * 100)}% of normal</span>, `Affects: ${mat.uses}`],
+            [
+              <>
+                <Icon name={mat.icon} size="sm" /> {mat.name} price
+              </>, <span class={price > 1.15 ? 'bad' : price < 0.9 ? 'good' : ''}>{Math.round(price * 100)}% of normal</span>, `Affects: ${mat.uses}`],
             ['Your stake', `${Math.round(have * 100)}% (max ${Math.round(m.max * 100)}%)`],
             ['Dividend', `${fmtMoney(((m.income * have) / 0.1) * price)}/month`],
           ]}
@@ -529,7 +536,7 @@ function RegionInspector({ id }: { id: RegionId }) {
           </div>
           {s.politics.rules.filter((rid) => RULE_BY_ID[rid]?.to.includes(id)).map((rid) => (
             <div key={rid} class="small warn">
-              ⛔ {RULE_BY_ID[rid].name}
+              <Icon name="lock" size="sm" /> {RULE_BY_ID[rid].name}
               {s.blocs[id].licences.includes(rid) ? <span class="good"> · licensed</span> : null}
             </div>
           ))}
@@ -556,7 +563,7 @@ function RegionInspector({ id }: { id: RegionId }) {
           <button key={x.id} class="btn small" style={{ width: '100%', marginBottom: '4px', justifyContent: 'space-between' }} onClick={() => game.select({ kind: 'site', id: x.id })}>
             <span>{x.name}</span>
             <span class="muted">
-              ☀{pct(x.solarCF)} 🌬{pct(x.windCF)}
+              <Icon name="solar" size="sm" /> {pct(x.solarCF)} <Icon name="wind" size="sm" /> {pct(x.windCF)}
             </span>
           </button>
         ))}

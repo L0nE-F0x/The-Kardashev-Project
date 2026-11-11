@@ -85,11 +85,11 @@ export const MINES: MineDef[] = [
 
 export const MINE_BY_ID: Record<string, MineDef> = Object.fromEntries(MINES.map((m) => [m.id, m]));
 
-export const MATERIALS: Record<keyof Materials, { name: string; icon: string; uses: string }> = {
-  lithium: { name: 'Lithium', icon: '🔋', uses: 'Battery prices' },
-  copper: { name: 'Copper', icon: '🟫', uses: 'Every build and every power line' },
-  helium: { name: 'Helium', icon: '🎈', uses: 'Fab output (cooling and leak checks)' },
-  neon: { name: 'Neon', icon: '✨', uses: 'Fab output (lithography lasers)' },
+export const MATERIALS: Record<keyof Materials, { name: string; icon: 'lithium' | 'copper' | 'helium' | 'neon'; uses: string }> = {
+  lithium: { name: 'Lithium', icon: 'lithium', uses: 'Battery prices' },
+  copper: { name: 'Copper', icon: 'copper', uses: 'Every build and every power line' },
+  helium: { name: 'Helium', icon: 'helium', uses: 'Fab output (cooling and leak checks)' },
+  neon: { name: 'Neon', icon: 'neon', uses: 'Fab output (lithography lasers)' },
 };
 
 /** Packaging plants and HBM: global availability is shared with rivals. */

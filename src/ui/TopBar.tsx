@@ -57,7 +57,7 @@ export function TopBar() {
       <div class={`date frame ${s.meta.sandbox ? 'has-badge' : ''}`} data-tip={`Day ${s.day} of the campaign.\nAt 1× speed one day passes per second.`}>
         {s.meta.sandbox && (
           <button class="btnless sandbox-badge" onClick={() => game.openPanel(game.panel === 'sandbox' ? null : 'sandbox')} data-tip="Sandbox: change the switches" aria-label="Sandbox switches">
-            🧪
+            <Icon name="lab" size="sm" />
           </button>
         )}
         <span class="label">{s.company.name}</span>

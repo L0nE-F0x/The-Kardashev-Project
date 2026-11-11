@@ -1,10 +1,16 @@
 import { Icon, Portrait, SpeakerPortrait, speakerName, useGame } from './components';
+import { emojiIcon, rich } from './emoji';
+import type { IconName } from './icons';
+import type { EventDef } from '../content/events';
 import { EVENT_BY_ID } from '../content/events';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, tierOf } from '../sim/model';
 import { IPO_FLOOR } from '../sim/capital';
 import { Act4CompleteModal } from './panels/Act4Panels';
 import { visibleObjectives } from '../content/objectives';
+
+/** A card without a picture of its own wears its category's. */
+const CATEGORY_ICON: Record<EventDef['category'], IconName> = { supply: 'orders', disaster: 'warn', politics: 'blocs', climate: 'warming', safety: 'shield', market: 'chart', finance: 'finance', story: 'goals' };
 
 export function EventModal() {
   const game = useGame();
@@ -22,7 +28,7 @@ export function EventModal() {
     <div class="scrim">
       <div class={`modal frame event ${def.big ? 'bigdecision' : ''}`} role="dialog" aria-label={def.title(s, ctx)}>
         <div class="head">
-          <span class="ico">{def.icon}</span>
+          <Icon name={emojiIcon(def.icon) ?? CATEGORY_ICON[def.category]} size="lg" title={def.category} />
           <div class="grow">
             <div class="label">
               {def.big ? 'A big decision' : def.category} · {fmtDate(s.day)}
@@ -31,22 +37,26 @@ export function EventModal() {
           </div>
         </div>
         <div class="body">
-          <div class="story">{def.body(s, ctx)}</div>
+          <div class="story">{rich(def.body(s, ctx))}</div>
           {def.advisors(s, ctx).map((a, i) => (
             <div class="quote" key={i}>
               <SpeakerPortrait id={a.id} mood={a.mood} size={56} />
               <div class="bubble">
                 <b>{speakerName(a.id, s)}</b>
-                {a.text}
+                {rich(a.text)}
               </div>
             </div>
           ))}
           <div class="choices">
             {choices.map((c, i) => (
               <button key={i} class={`btn choice ${i === firstOk ? 'primary' : ''}`} disabled={!!c.disabled} onClick={() => game.chooseEvent(i)}>
-                <span class="t">{c.label}</span>
-                <span class="d">{c.detail}</span>
-                {c.disabled && <span class="why">✗ {c.disabled}</span>}
+                <span class="t">{rich(c.label)}</span>
+                <span class="d">{rich(c.detail)}</span>
+                {c.disabled && (
+                  <span class="why">
+                    <Icon name="lock" size="sm" /> {rich(c.disabled)}
+                  </span>
+                )}
               </button>
             ))}
             {firstOk < 0 && (
@@ -80,7 +90,7 @@ export function AwayModal() {
     <div class="scrim">
       <div class="modal frame away">
         <div class="head">
-          <span class="ico">🌙</span>
+          <Icon name="clock" size="lg" />
           <div class="grow">
             <div class="label">While you were away</div>
             <h2>
@@ -112,7 +122,7 @@ export function AwayModal() {
             <div class="section small">
               {r.highlights.map((n, i) => (
                 <div key={i} class={n.kind === 'bad' ? 'warn' : 'good'}>
-                  {n.text}
+                  {rich(n.text)}
                 </div>
               ))}
             </div>
@@ -146,7 +156,7 @@ export function ActCompleteModal() {
     <div class="scrim">
       <div class="modal frame">
         <div class="head">
-          <span class="ico">🏁</span>
+          <Icon name="goals" size="lg" />
           <div class="grow">
             <div class="label">{fmtDate(s.day, true)}</div>
             <h2>Act I complete — The Garage</h2>
@@ -213,7 +223,7 @@ export function GameOverModal() {
     <div class="scrim">
       <div class="modal frame">
         <div class="head">
-          <span class="ico">🪦</span>
+          <Icon name="warn" size="lg" />
           <div class="grow">
             <div class="label">{fmtDate(s.day, true)}</div>
             <h2>{s.company.name} has closed</h2>
@@ -279,7 +289,7 @@ function Act2CompleteModal() {
     <div class="scrim">
       <div class="modal frame">
         <div class="head">
-          <span class="ico">🔔</span>
+          <Icon name="ipo" size="lg" />
           <div class="grow">
             <div class="label">{fmtDate(s.day, true)}</div>
             <h2>Act II complete — The Scale-Up</h2>
@@ -369,7 +379,7 @@ function Act3CompleteModal() {
     <div class="scrim">
       <div class="modal frame">
         <div class="head">
-          <span class="ico">🚀</span>
+          <Icon name="launch" size="lg" />
           <div class="grow">
             <div class="label">{fmtDate(s.day, true)}</div>
             <h2>Act III complete — The Charter</h2>

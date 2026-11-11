@@ -113,12 +113,12 @@ export function OrdersPanel() {
           )}
           {space && qty > space.free && (
             <div class="small warn section">
-              ⚠ Only {space.free.toLocaleString()} more chips fit in the halls at {siteDef(destId!).name}: the other {(qty - space.free).toLocaleString()} would wait in the warehouse until you build or expand a hall.
+              <Icon name="warn" size="sm" /> Only {space.free.toLocaleString()} more chips fit in the halls at {siteDef(destId!).name}: the other {(qty - space.free).toLocaleString()} would wait in the warehouse until you build or expand a hall.
             </div>
           )}
           {destId && blocked && (
             <div class="small warn section">
-              ⛔ {blocked.name}: {CHIP_SUPPLIERS[supplier].short} can’t ship to {REGIONS[siteDef(destId).region].name} without a licence. Ask Sol on the Blocs screen.
+              <Icon name="lock" size="sm" /> {blocked.name}: {CHIP_SUPPLIERS[supplier].short} can’t ship to {REGIONS[siteDef(destId).region].name} without a licence. Ask Sol on the Blocs screen.
             </div>
           )}
           {quote && (
