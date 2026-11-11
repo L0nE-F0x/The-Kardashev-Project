@@ -122,9 +122,10 @@ function gas(o: { seed: number; tier: number }): Piece {
   }
   // the operators' pickup, inside the yard by the gate
   parkedCars(g, big ? 9.5 : 11.7, big ? 6.5 : 5, 1, 3, o.seed + 4, Math.PI / 2, ['pickup']);
-  // what stands on the model's slab (its halls, stacks and the control room; the slab's rim is walkable)
+  // the model stands on a concrete platform 0.9 m high with no steps up: nobody walks on it (they would wade
+  // through it), the operators come and go at its front edge
   const L = big ? 19 : 24, mx = m.position.x, mz = m.position.z, hx = (0.839 * L) / 2, hz = L / 2;
-  const blockers = [{ x0: mx - hx + 0.6, z0: mz - hz + 0.6, x1: mx + hx - 0.6, z1: mz + hz - 1.2 }];
+  const blockers = [{ x0: mx - hx - 0.15, z0: mz - hz - 0.15, x1: mx + hx + 0.15, z1: mz + hz + 0.15 }];
   if (big) {
     for (let b = 0; b < (o.tier >= 3 ? 2 : 1); b++) blockers.push({ x0: 9 - b * 6 - 2.2, z0: -10.9, x1: 9 - b * 6 + 2.2, z1: -5.2 });
     if (o.tier >= 3) blockers.push({ x0: -8.2, z0: -10.7, x1: 0.2, z1: -6.3 });
@@ -132,7 +133,7 @@ function gas(o: { seed: number; tier: number }): Piece {
   return {
     obj: g, w: 26, d: 24, h: big ? 17 : s.y + 0.5,
     // (the operators go in by the left enclosure at the front)
-    doors: [{ x: mx - hx * 0.7, z: mz + hz - 0.5 }],
+    doors: [{ x: mx - hx * 0.7, z: mz + hz + 0.75 }],
     blockers,
     update(e) { for (const p of plumes) p.update(e); },
   };

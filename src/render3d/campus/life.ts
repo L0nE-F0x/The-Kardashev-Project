@@ -159,7 +159,8 @@ export function parkedCars(parent: THREE.Object3D, x0: number, z: number, n: num
     const len = LEN[kind] ?? 4.3;
     const c = model(kind, len);
     c.rotation.y = facing + (r() - 0.5) * 0.06;
-    c.position.set(x0 + i * gap, 0.05, z);
+    // on the plot's pad (its top is 0.12 above the ground the piece stands on), not in it
+    c.position.set(x0 + i * gap, 0.125, z);
     c.userData.bay = { len, wid: len * (WID[kind] ?? 0.52) };
     parent.add(c);
   }

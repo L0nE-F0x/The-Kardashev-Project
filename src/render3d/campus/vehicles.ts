@@ -287,7 +287,8 @@ export class Traffic {
       const p = c.obj.position;
       p.set(c.pos.x, 0, c.pos.y);
       const h = this.h;
-      p.y = h(p.x, p.z);
+      // on the road's surface (roads.ts lifts the ribbon 0.035 off the ground), not in it
+      p.y = h(p.x, p.z) + 0.035;
       c.obj.rotation.y = Math.atan2(c.dir.x, c.dir.y);
       c.obj.rotation.x = -Math.atan((h(p.x + c.dir.x * 2, p.z + c.dir.y * 2) - h(p.x - c.dir.x * 2, p.z - c.dir.y * 2)) / 4);
     }

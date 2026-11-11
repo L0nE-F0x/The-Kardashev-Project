@@ -693,6 +693,11 @@ export class CampusScene implements Scene3D {
     // pavements with kerbs: along the plots' side of the frontage road, and up the access road's campus side
     this.roads.add(roadMesh({ kind: 'pavement', a: [ax + SW / 2 + 0.05, FZ - 3.75], b: [east - 6, FZ - 3.75], w: 1.4, kerb: 0.12 }, h));
     this.roads.add(roadMesh({ kind: 'pavement', a: [ax + 3.75, BACK + 2], b: [ax + 3.75, FZ - 4.45], w: 1.4, kerb: 0.12 }, h));
+    this.pavements = [
+      { x0: ax + SW / 2 + 0.05, z0: FZ - 3.75 - 0.7, x1: east - 6, z1: FZ - 3.75 + 0.7 },
+      // (up to the frontage pavement's far edge: the corner where the two meet belongs to both)
+      { x0: ax + 3.75 - 0.7, z0: BACK + 2, x1: ax + 3.75 + 0.7, z1: FZ - 3.05 },
+    ];
     // poles along the frontage road carrying power from the substation
     const poles: THREE.Vector3[] = [];
     for (let x = L.accessX + 4; x <= east - 8; x += 14) { const y = h(x, FRONT_Z + 5); poles.push(V(x, y + 6, FRONT_Z + 5)); }
@@ -863,7 +868,17 @@ export class CampusScene implements Scene3D {
     }
     // a mixer parked by the site office while the pour goes on
     const mx = model('mixer', 7.5);
-    mx.position.set(-w / 2 + 5, 0.05, d / 2 - 4.5);
+    // by the front-left corner, lengthways across the plot; where the piece itself reaches that far (the gas plant's
+    // platform fills its plot but for a strip down each side), in the side strip instead, nose to the road
+    const solid = e.piece.blockers ?? [{ x0: -e.piece.w / 2, z0: -e.piece.d / 2, x1: e.piece.w / 2, z1: e.piece.d / 2 }];
+    const spots: [number, number, number, number, number][] = [
+      [-w / 2 + 5, d / 2 - 4.5, 0, 3.9, 1.4],
+      [-w / 2 + 2.1, d / 2 - 5.5, Math.PI / 2, 1.4, 3.9],
+      [w / 2 - 2.1, d / 2 - 5.5, Math.PI / 2, 1.4, 3.9],
+    ];
+    const clear = spots.find(([x, z, , hx, hz]) => !solid.some((b) => x + hx > b.x0 && x - hx < b.x1 && z + hz > b.z0 && z - hz < b.z1)) ?? spots[0];
+    mx.position.set(clear[0], 0.125, clear[1]);
+    mx.rotation.y = clear[2];
     mx.userData.drum = true;
     site.add(mx);
     e.root.add(site);
@@ -920,6 +935,19 @@ export class CampusScene implements Scene3D {
     return out;
   }
 
+  /** The pavements' rectangles (straight runs along the axes), kept when the roads are built: `walkH`. */
+  private pavements: { x0: number; z0: number; x1: number; z1: number }[] = [];
+
+  /** On a plot's pad (pieces.ts `pad`: 0.3 in from the plot's edge; pieces that shape their own ground have none). */
+  private onPad(x: number, z: number) {
+    for (const e of this.entries.values()) {
+      if (e.piece.ground) continue;
+      const r = e.item.rect;
+      if (x >= r.x0 + 0.3 && x <= r.x1 - 0.3 && z >= r.z0 + 0.3 && z <= r.z1 - 0.3) return true;
+    }
+    return false;
+  }
+
   /**
    * The height people stand at: the ground, or a building's own floor where that is higher (the garage's concrete
    * apron, the lab's steps: models.ts `deckHeight`). Without it they wade knee-deep through the slab.
@@ -928,6 +956,8 @@ export class CampusScene implements Scene3D {
     const g = this.ground.h(x, z);
     this.decks ??= this.findDecks();
     let y = g;
+    // a plot's pad and a pavement both stand a kerb's height (0.12) above the ground
+    if (this.onPad(x, z) || this.pavements.some((r) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1)) y = g + 0.12;
     for (const d of this.decks) {
       if (x < d.x0 || x > d.x1 || z < d.z0 || z > d.z1) continue;
       const v = deckHeight(d.o, d.inv, x, g, z);
