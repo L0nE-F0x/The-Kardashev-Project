@@ -330,6 +330,9 @@ export class Game {
 
   /** Overlays that belong to one company's screen (a briefing, a report, a note) don't follow you to the next. */
   private resetScreen(): void {
+    // (a panel or a tool left open in the last company does not belong to the next one)
+    this.panel = null;
+    this.tool = null;
     this.briefing = null;
     this.briefingResume = null;
     this.eventOpen = false;
