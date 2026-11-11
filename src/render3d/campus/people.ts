@@ -991,7 +991,11 @@ export class CampusPeople {
 
   private animate(a: Agent, e: Env, cam: THREE.Camera) {
     const o = a.obj;
-    o.position.copy(a.pos);
+    // a step up onto a porch or down off a kerb is taken over a moment, not in one frame
+    const yWas = o.userData.y as number | undefined;
+    const y = yWas === undefined || Math.abs(a.pos.y - yWas) > 1 ? a.pos.y : yWas + (a.pos.y - yWas) * Math.min(1, e.dt * 9);
+    o.userData.y = y;
+    o.position.set(a.pos.x, y, a.pos.z);
     o.rotation.y = a.heading;
     // the guard's torch at night
     if (a.role === 'guard' && e.night > 0.3 && !o.userData.torch) {

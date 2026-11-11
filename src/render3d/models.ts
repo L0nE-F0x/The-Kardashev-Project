@@ -108,6 +108,123 @@ export function loadModels(names: (ModelName | PersonName)[]): Promise<void> {
 
 export const hasModel = (n: string) => templates.has(n);
 
+// ── decks: what a building model lets people stand on ────────────────────────────────────────
+// The buildings come with their own base (a concrete apron, a porch, steps), a foot or more above the ground the
+// piece stands on. People are placed by the ground's height, so without this they wade through the slab. A deck is
+// the model's low, upward-facing surfaces as a small height grid (model units, the model's own base = 0), made once
+// per model by drawing its low triangles from above; `deckHeight` reads it for a placed copy.
+
+interface Deck {
+  x0: number;
+  z0: number;
+  cell: number;
+  nx: number;
+  nz: number;
+  /** Height of the walkable surface in each cell, 0 where there is none. */
+  h: Float32Array;
+}
+const decks = new Map<string, Deck | null>();
+/**
+ * How high above its base a model's surface still counts as floor, as a share of its longest side: 0.6 m on the 17 m
+ * garage, enough for its apron (0.3 m) and door step (0.5 m), not for the workbenches in its open bay (0.9 m).
+ */
+const DECK_BAND = 0.035;
+const DECK_CELLS = 96;
+
+export function deckOf(n: string): Deck | null {
+  if (decks.has(n)) return decks.get(n)!;
+  const t = templates.get(n);
+  if (!t) return null;
+  t.updateMatrixWorld(true);
+  const s = t.userData.size as THREE.Vector3;
+  const side = Math.max(s.x, s.z);
+  const band = side * DECK_BAND;
+  const cell = side / DECK_CELLS;
+  const nx = Math.ceil(s.x / cell) + 1;
+  const nz = Math.ceil(s.z / cell) + 1;
+  const d: Deck = { x0: -s.x / 2, z0: -s.z / 2, cell, nx, nz, h: new Float32Array(nx * nz) };
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  let any = false;
+  t.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const pos = m.geometry.getAttribute('position');
+    const idx = m.geometry.getIndex();
+    const count = idx ? idx.count : pos.count;
+    for (let i = 0; i < count; i += 3) {
+      a.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m.matrixWorld);
+      b.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1).applyMatrix4(m.matrixWorld);
+      c.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2).applyMatrix4(m.matrixWorld);
+      if (a.y > band || b.y > band || c.y > band) continue;
+      // facing up (either winding: the models aren't all consistent), and not a sliver
+      const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+      const ny = uz * vx - ux * vz;
+      const nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
+      if (nl < 1e-9 || Math.abs(ny) / nl < 0.75) continue;
+      const den = ux * vz - vx * uz;
+      if (Math.abs(den) < 1e-12) continue;
+      const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x, c.x) - d.x0) / cell));
+      const i1 = Math.min(nx - 1, Math.ceil((Math.max(a.x, b.x, c.x) - d.x0) / cell));
+      const j0 = Math.max(0, Math.floor((Math.min(a.z, b.z, c.z) - d.z0) / cell));
+      const j1 = Math.min(nz - 1, Math.ceil((Math.max(a.z, b.z, c.z) - d.z0) / cell));
+      for (let j = j0; j <= j1; j++) {
+        for (let k = i0; k <= i1; k++) {
+          const px = d.x0 + k * cell - a.x, pz = d.z0 + j * cell - a.z;
+          const s1 = (px * vz - vx * pz) / den, s2 = (ux * pz - px * uz) / den;
+          // a little slack, so a cell on a seam between two triangles is not left out
+          if (s1 < -0.02 || s2 < -0.02 || s1 + s2 > 1.02) continue;
+          const y = a.y + s1 * uy + s2 * vy;
+          if (y > d.h[j * nx + k]) {
+            d.h[j * nx + k] = y;
+            any = true;
+          }
+        }
+      }
+    }
+  });
+  if (any) {
+    // close the seams: a riser or a crack in the model leaves a strip a cell or two wide where only the base shows
+    // through. Growing the floor by a cell and shrinking it again fills those strips and leaves the edges where
+    // they were, so nobody drops through a step on the way to the door.
+    const pass = (src: Float32Array, pick: (a: number, b: number) => number) => {
+      const out = src.slice();
+      for (let j = 1; j < nz - 1; j++) {
+        for (let k = 1; k < nx - 1; k++) {
+          let v = src[j * nx + k];
+          for (let dj = -1; dj <= 1; dj++) for (let dk = -1; dk <= 1; dk++) v = pick(v, src[(j + dj) * nx + k + dk]);
+          out[j * nx + k] = v;
+        }
+      }
+      return out;
+    };
+    d.h = pass(pass(d.h, Math.max), Math.min);
+  }
+  const out = any ? d : null;
+  decks.set(n, out);
+  return out;
+}
+
+const deckLocal = new THREE.Vector3();
+/**
+ * The world height of a placed model's floor under (x, z), or null when the point is off the model or over nothing
+ * to stand on. `o` is a copy from `model()`, anywhere in a scene (its world matrix must be current); `inv` is the
+ * inverse of that matrix, kept by the caller.
+ */
+export function deckHeight(o: THREE.Object3D, inv: THREE.Matrix4, x: number, y: number, z: number): number | null {
+  const d = deckOf(o.userData.model as string);
+  if (!d) return null;
+  deckLocal.set(x, y, z).applyMatrix4(inv);
+  // the copy's own matrix scales the template: model units are the template's
+  const fx = (deckLocal.x - d.x0) / d.cell, fz = (deckLocal.z - d.z0) / d.cell;
+  const i = Math.round(fx), j = Math.round(fz);
+  if (i < 0 || j < 0 || i >= d.nx || j >= d.nz) return null;
+  const h = d.h[j * d.nx + i];
+  if (h <= 0) return null;
+  return deckLocal.set(deckLocal.x, h, deckLocal.z).applyMatrix4(o.matrixWorld).y;
+}
+
 /**
  * A copy of a model scaled so its longest side (x or z) is `size` units. Geometry and materials
  * are shared; clipAbove gives a copy its own materials when it needs them.
@@ -120,6 +237,8 @@ export function model(n: ModelName, size: number): THREE.Object3D {
   const k = size / Math.max(s.x, s.z);
   o.scale.setScalar(k);
   o.userData.size = s.clone().multiplyScalar(k);
+  // which model this is a copy of (campusScene reads its floor from it: `deckHeight`)
+  o.userData.model = n;
   return o;
 }
 

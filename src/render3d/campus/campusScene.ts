@@ -18,7 +18,7 @@ import type { AdvisorId, Facility, GameState } from '../../sim/types';
 import { subsolar } from '../../world/sun';
 import { dir } from '../globe/earth';
 import { closeScope, disposeObject, fbm, Kit, openScope, rng, noise, smooth, withClouds, withGrain } from '../kit';
-import { hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
+import { deckHeight, hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
   scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
@@ -88,6 +88,9 @@ const ADVISOR_FIGURE: Partial<Record<AdvisorId, PersonName>> = { juno: 'engineer
 export type TourLight = 'dawn' | 'morning' | 'noon' | 'golden' | 'sunset' | 'dusk' | 'night';
 export type TourMove = 'rise' | 'orbit' | 'push' | 'fly' | 'crane' | 'low' | 'sky';
 interface Cam { x: number; z: number; dist: number; yaw: number; pitch: number }
+
+/** The models that are buildings with a base of their own (what `walkH` asks for a floor). */
+const DECK_MODELS = new Set(['garage', 'lab', 'gasplant', 'substation', 'watertower', 'office', 'bungalow']);
 
 export class CampusScene implements Scene3D {
   readonly scene = new THREE.Scene();
@@ -829,6 +832,7 @@ export class CampusScene implements Scene3D {
       root.add(fg);
     }
     this.world.add(root);
+    this.decks = null;
     const clip = f.type !== 'solar' && f.type !== 'battery' && f.type !== 'wind' && f.type !== 'hq';
     const e: Entry = { f, item, root, piece, clip, online: f.status === 'online', rectKey };
     if (!e.online || f.upgrade) this.construction(e);
@@ -879,6 +883,7 @@ export class CampusScene implements Scene3D {
 
   private removeEntry(e: Entry) {
     this.world.remove(e.root);
+    this.decks = null;
     this.entries.delete(e.f.id);
   }
 
@@ -891,10 +896,51 @@ export class CampusScene implements Scene3D {
     this.flashes.push({ m, t: 0 });
   }
 
+  // ── where feet go ─────────────────────────────────────────────────────────────────────────
+  /** The building models standing on this campus, each with its footprint and the way back into its own space. */
+  private decks: { o: THREE.Object3D; inv: THREE.Matrix4; x0: number; z0: number; x1: number; z1: number }[] | null = null;
+
+  private findDecks() {
+    const out: NonNullable<CampusScene['decks']> = [];
+    this.world.updateMatrixWorld(true);
+    const corner = new THREE.Vector3();
+    this.world.traverse((o) => {
+      const n = o.userData.model as string | undefined;
+      if (!n || !DECK_MODELS.has(n)) return;
+      const size = o.userData.size as THREE.Vector3;
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        // the copy's local box (its template is centred on its base), out to the world
+        corner.set((sx * size.x) / 2 / o.scale.x, 0, (sz * size.z) / 2 / o.scale.z).applyMatrix4(o.matrixWorld);
+        x0 = Math.min(x0, corner.x); x1 = Math.max(x1, corner.x);
+        z0 = Math.min(z0, corner.z); z1 = Math.max(z1, corner.z);
+      }
+      out.push({ o, inv: o.matrixWorld.clone().invert(), x0, z0, x1, z1 });
+    });
+    return out;
+  }
+
+  /**
+   * The height people stand at: the ground, or a building's own floor where that is higher (the garage's concrete
+   * apron, the lab's steps: models.ts `deckHeight`). Without it they wade knee-deep through the slab.
+   */
+  private walkH = (x: number, z: number): number => {
+    const g = this.ground.h(x, z);
+    this.decks ??= this.findDecks();
+    let y = g;
+    for (const d of this.decks) {
+      if (x < d.x0 || x > d.x1 || z < d.z0 || z > d.z1) continue;
+      const v = deckHeight(d.o, d.inv, x, g, z);
+      // a floor, not a ledge: nothing more than a tall step above the ground counts
+      if (v !== null && v > y && v - g < 1.4) y = v;
+    }
+    return y;
+  };
+
   // ── people ────────────────────────────────────────────────────────────────────────────────
   private populate() {
     const s = this.game.view;
-    const h = this.ground.h;
+    const h = this.walkH;
     const L = this.layout;
     const east = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
     // the working day: staff, crews, the night guard, the people at the set pieces (people.ts)
@@ -1077,7 +1123,8 @@ export class CampusScene implements Scene3D {
       const k = Math.min(1, dt * 1.6);
       p.x += (tx - p.x) * k;
       p.z += (tz - p.z) * k;
-      p.y = this.ground.h(p.x, p.z) + 2.05 + Math.sin(this.time * 2.2) * 0.15;
+      // clear of the tallest head (a hard hat on an apron), wherever it floats
+      p.y = this.walkH(p.x, p.z) + 2.5 + Math.sin(this.time * 2.2) * 0.15;
       const look = to ? to.heading : Math.sin(this.time * 0.5) * 0.6;
       this.bit.obj.rotation.y += Math.atan2(Math.sin(look - this.bit.obj.rotation.y), Math.cos(look - this.bit.obj.rotation.y)) * Math.min(1, dt * 3);
     }
