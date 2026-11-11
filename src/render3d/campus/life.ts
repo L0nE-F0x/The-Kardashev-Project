@@ -153,9 +153,20 @@ const LEN: Partial<Record<ModelName, number>> = { semitruck: 11, mixer: 7.5, fla
  */
 export function parkedCars(parent: THREE.Object3D, x0: number, z: number, n: number, gap: number, seed: number, facing = 0, kinds: ModelName[] = CARS) {
   const r = rng(seed);
+  const widthOf = (k: ModelName) => (LEN[k] ?? 4.3) * (WID[k] ?? 0.52);
+  // the far side of the last car parked, along the row: the models are broad (mirrors and all, up to 2.4 m), so a
+  // car only takes a bay when it clears its neighbour by a door's opening, a narrower make if that one fits
+  let taken = -Infinity;
   for (let i = 0; i < n; i++) {
     if (n > 2 && r() < 0.25) continue;
-    const kind = kinds[Math.floor(r() * kinds.length)];
+    let kind = kinds[Math.floor(r() * kinds.length)];
+    const room = (k: ModelName) => x0 + i * gap - widthOf(k) / 2 - taken >= 0.3;
+    if (!room(kind)) {
+      const fits = kinds.filter(room);
+      if (!fits.length) continue;
+      kind = fits[Math.floor(r() * fits.length)];
+    }
+    taken = x0 + i * gap + widthOf(kind) / 2;
     const len = LEN[kind] ?? 4.3;
     const c = model(kind, len);
     c.rotation.y = facing + (r() - 0.5) * 0.06;
