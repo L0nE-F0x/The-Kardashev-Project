@@ -27,7 +27,7 @@ import { lineClock, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './s
 import { Aurora, milkyWay, starField, Sun } from './space';
 import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, type Marker, type MarkerKind } from './markers';
 import { quality } from '../quality';
-import { CharterLayer } from './layers3';
+import { CharterLayer, groundSun } from './layers3';
 import { PlanetLayer } from './layers45';
 import { rivalsAt, landingActive, mineOwned } from './layerData';
 
@@ -279,6 +279,7 @@ export class GlobeScene implements Scene3D {
     this.earthMat.uniforms.sunDir.value.copy(sunDir);
     this.cloudMat.uniforms.sunDir.value.copy(sunDir);
     this.atmo.uniforms.sunDir.value.copy(sunDir);
+    groundSun.value.copy(sunDir);
     this.sun.position.copy(sunDir).multiplyScalar(500);
     this.sunDisc.update(sunDir, this.camera);
     // (from far out the curtains pile up along the limb: turned down there)

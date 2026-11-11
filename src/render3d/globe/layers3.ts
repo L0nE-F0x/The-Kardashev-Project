@@ -18,7 +18,38 @@ import { Kit, rng } from '../kit';
 import { PALETTE } from '../../render/palette';
 
 const RAD = Math.PI / 180;
-const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0 });
+
+/** Where the Sun stands (a unit vector; the globe sets it each frame): what lies on the ground goes dark with the land under it. */
+export const groundSun = { value: new THREE.Vector3(1, 0, 0) };
+
+/**
+ * Paint for what lies on the ground (megaproject patches): lit as the Earth's own shader lights the land under it
+ * (earth.ts: the same painted day, sunset tint, sky and moonlight), with a little shape from the sun's side. Lit
+ * by the scene's lights instead (they are there for the markers), a patch on the night side shone like a lit disc
+ * and one near the terminator sat darker than its ground.
+ */
+function groundPaint<T extends THREE.Material>(m: T): T {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.groundSun = groundSun;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGroundP;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\n\tvGroundP = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 groundSun; varying vec3 vGroundP;')
+      .replace('#include <opaque_fragment>', `{
+		float gdn = dot( normalize( vGroundP ), groundSun );
+		float gday = smoothstep( -0.07, 0.26, gdn ) * ( 0.8 + 0.2 * clamp( gdn, 0.0, 1.0 ) );
+		vec3 gsun = mix( vec3( 1.0, 0.47, 0.21 ), vec3( 1.0, 0.97, 0.92 ), smoothstep( -0.06, 0.24, gdn ) );
+		float gshape = 0.76 + 0.32 * clamp( dot( inverseTransformDirection( normal, viewMatrix ), groundSun ) * 0.5 + 0.5, 0.0, 1.0 );
+		outgoingLight = diffuseColor.rgb * ( gday * gshape * gsun * 1.3 + vec3( 0.07, 0.10, 0.19 ) * smoothstep( -0.2, 0.3, gdn ) + vec3( 0.034, 0.049, 0.109 ) );
+	}
+	#include <opaque_fragment>`);
+  };
+  return m;
+}
+
+const mat = groundPaint(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0 }));
+mat.userData.shared = true;
 
 /** A local frame on the globe at a point: x east, y up (out of the ground), z south. */
 function frameAt(lon: number, lat: number, lift = 0) {
@@ -39,12 +70,13 @@ let solarTex: THREE.DataTexture | null = null;
 function solarTexture() {
   if (solarTex) return solarTex;
   const w = 64, h = 16, a = new Uint8Array(w * h * 4);
-  const sand = new THREE.Color('#c9a879'), panel = new THREE.Color('#34508c'), glint = new THREE.Color('#6f93d6');
+  // (sRGB bytes, as the texture is flagged: through THREE.Color they went in as linear light and came out twice as dark)
+  const sand = [0xc9, 0xa8, 0x79], panel = [0x34, 0x50, 0x8c], glint = [0x6f, 0x93, 0xd6];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const onPanel = x >= 2 && x < 58 && y >= 4 && y < 10;
     const c = onPanel ? (y === 4 ? glint : panel) : sand;
     const o = (y * w + x) * 4;
-    a[o] = c.r * 255; a[o + 1] = c.g * 255; a[o + 2] = c.b * 255; a[o + 3] = 255;
+    a[o] = c[0]; a[o + 1] = c[1]; a[o + 2] = c[2]; a[o + 3] = 255;
   }
   solarTex = new THREE.DataTexture(a, w, h, THREE.RGBAFormat);
   solarTex.wrapS = solarTex.wrapT = THREE.RepeatWrapping;
@@ -100,7 +132,7 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
   if (kind === 'solar') {
     // rows of dark panels in blocks, with sandy tracks between them (a textured disc: see solarTexture)
     const t = solarTexture();
-    const disc = new THREE.Mesh(disk(radius, 48).translate(0, 0.006, 0), new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 }));
+    const disc = new THREE.Mesh(disk(radius, 48).translate(0, 0.006, 0), groundPaint(new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, metalness: 0 })));
     // the disc's uv spans its diameter: one block is 0.9 wide, a row 0.22 deep
     const geo = disc.geometry;
     const uv = geo.getAttribute('uv') as THREE.BufferAttribute;
@@ -140,8 +172,9 @@ function megaPatch(v: MegaView, seed: number): { obj: THREE.Group; rotors: THREE
       k.geo(new THREE.SphereGeometry(0.06, 6, 4).translate(x, 0.12, z), '#f4f1ec', 0);
     }
   }
-  // the cleared ground under it all
-  if (!offshore) k.geo(disk(radius * 1.05, 28).translate(0, -0.004, 0), kind === 'solar' ? '#c9a879' : '#a8a070', 0.02);
+  // the graded sand round a solar field. Nothing under the rest: turbines, reactors and plant stand on the land as
+  // it is (a cleared disc that size was a khaki circle hundreds of kilometres across, out over the sea at a coast)
+  if (kind === 'solar') k.geo(disk(radius * 1.05, 28).translate(0, -0.004, 0), '#c9a879', 0.02);
   const m = k.build(mat);
   m.castShadow = false;
   m.receiveShadow = false;
@@ -173,6 +206,16 @@ export class CharterLayer {
   private trail: THREE.Mesh[] = [];
   private time = 0;
 
+  /** Take a patch off the globe and free what was built for it (the shared paints and the panels' texture stay). */
+  private dropPatch(obj: THREE.Object3D) {
+    this.group.remove(obj);
+    obj.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      if (m.isMesh && !(m.material as THREE.Material).userData.shared) (m.material as THREE.Material).dispose();
+    });
+  }
+
   update(s: GameState | null, day: number, dt: number, scale: (p: THREE.Vector3, px: number) => number, facing: (n: THREE.Vector3) => number, near: boolean) {
     this.time += dt;
     const on = !!s?.charter;
@@ -186,7 +229,7 @@ export class CharterLayer {
       seen.add(mv.siteId);
       const key = `${mv.stage}|${mainKind(mv)}|${Math.min(3, mv.building.length)}`;
       let p = this.patches.get(mv.siteId);
-      if (p && p.key !== key) { this.group.remove(p.obj); p = undefined; }
+      if (p && p.key !== key) { this.dropPatch(p.obj); p = undefined; }
       if (!p) {
         const site = siteDef(mv.siteId);
         const made = megaPatch(mv, mv.siteId.length * 17);
@@ -199,7 +242,7 @@ export class CharterLayer {
       for (const rt of p.rotors) rt.rotation.z -= dt * rt.userData.spin;
       p.obj.visible = near || mainKind(mv) === 'solar' || mainKind(mv) === 'hydro';
     }
-    for (const [id, p] of this.patches) if (!seen.has(id)) { this.group.remove(p.obj); this.patches.delete(id); }
+    for (const [id, p] of this.patches) if (!seen.has(id)) { this.dropPatch(p.obj); this.patches.delete(id); }
     // HVDC links
     const hseen = new Set<string>();
     for (const h of v.hvdc) {
