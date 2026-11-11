@@ -43,6 +43,11 @@ export interface Piece {
    * placed with `parkedCars` count by themselves.
    */
   blockers?: { x0: number; z0: number; x1: number; z1: number }[];
+  /**
+   * Paved ways the piece lays out itself (piece-local polylines from a door towards the front of the plot): the
+   * scene paves them and carries on to the gate. Without it, a path is routed from the gate to each door.
+   */
+  walks?: { x: number; z: number }[][];
 }
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -299,6 +304,7 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
   // (lit low: at 1.2 the lobby's glass burnt out to a blank white board at night)
   const windows = glowMat('yel1', 0);
   windows.userData.nightOnly = 0.5;
+  windows.color.copy(col('#3b6f7a')); // dark glass by day (it mirrors the sky), lit from inside at night
   const win = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 0.05), windows);
   win.position.set(-W / 2 + 3, 2.2, D / 2 + 2.15);
   g.add(win);
@@ -310,14 +316,15 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
     lightPool(g, x, 0, D / 2 + 2.6 + (x < 0 ? 1.6 : 0), 3.6, hallPool);
   }
   for (let i = 0; i < 5; i++) lightPool(g, -W / 2 + 2.4 + i * 4.1, 0, -D / 2 - 3.6, 2.6, hallPool);
-  // a car park and the hall's own transformers at the front
+  // a car park and the hall's own transformers at the front (asphalt and slabs lie on the plot's pad, whose top is
+  // 0.12: anything lower is buried in it)
   const front = new Kit(rng(seed + 5));
   // the lobby window's frame and mullions (so it reads as glazing, lit or not)
   for (const dx of [-1.72, -0.57, 0.57, 1.72]) front.box(0.07, 1.16, 0.06, '#5b5562', -W / 2 + 3 + dx, 1.62, D / 2 + 2.18, { r: 0, jitter: 0, shade: 0 });
   for (const y of [1.6, 2.72]) front.box(3.5, 0.07, 0.06, '#5b5562', -W / 2 + 3, y, D / 2 + 2.18, { r: 0, jitter: 0, shade: 0 });
   if (!o.noParking) {
-    front.box(12, 0.05, 4.4, '#6f6878', -6.5, 0.04, D / 2 + 5.6, { r: 0.03, shade: 0 });
-    for (let i = 0; i < 6; i++) front.box(0.1, 0.02, 2.2, 'ink9', -12 + i * 2.2, 0.1, D / 2 + 5.4, { r: 0, jitter: 0 });
+    front.box(12, 0.05, 4.4, '#6f6878', -6.5, 0.09, D / 2 + 5.6, { r: 0.03, shade: 0 });
+    for (let i = 0; i < 6; i++) front.box(0.1, 0.02, 2.2, 'ink9', -12 + i * 2.2, 0.13, D / 2 + 5.4, { r: 0, jitter: 0 });
   }
   // (without a car park the transformers stand closer, inside the plot's fence)
   const tz = o.noParking ? D / 2 + 3.8 : D / 2 + 5.4;
@@ -329,7 +336,9 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
   front.box(5.6, 0.12, 3, '#a39a91', 7, 0, tz, { r: 0.03, shade: 0 });
   const fm = front.build();
   g.add(fm);
-  if (!o.noParking) parkedCars(g, -11.4, D / 2 + 5.6, 6, 2.2, seed + 9, Math.PI / 2);
+  // five bays between the six lines (the cars stood half a metre off their bays, the sixth off the asphalt); no
+  // vans: one would reach over the walk along the building
+  if (!o.noParking) parkedCars(g, -10.9, D / 2 + 5.6, 5, 2.2, seed + 9, Math.PI / 2, ['sedan', 'hatchback', 'suv', 'pickup']);
 
   let load = 0;
   let alert = false;
@@ -338,6 +347,8 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
     obj: g, w: W + 2, d: D + 7, h: H + 2.5,
     // the glass door in the entrance block; the hall with its generators and pipe rack, the block, the dock, the transformers
     doors: [{ x: -W / 2 + 3, z: D / 2 + 2.75 }],
+    // the walk between the entrance and the car park, then down beside the last bay towards the gate
+    walks: [[{ x: -W / 2 + 3, z: D / 2 + 2.8 }, { x: 0.3, z: D / 2 + 2.8 }, { x: 0.3, z: D / 2 + (o.noParking ? 5 : 7.9) }]],
     blockers: [
       { x0: -W / 2 - 0.3, z0: -D / 2 - 3.1, x1: W / 2 + 0.3, z1: D / 2 + 0.3 },
       { x0: -W / 2 + 0.9, z0: D / 2, x1: -W / 2 + 5.1, z1: D / 2 + 2.15 },
@@ -348,8 +359,6 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
     setAlert(on) { alert = on; },
     update(e) {
       for (const f of fans) f.rotation.y += e.dt * f.userData.spin * (alert ? 0.15 : 0.3 + load);
-      // the lobby's lit window is a night thing (by day the pale panel reads as a board over the door)
-      win.visible = e.night > 0.05;
       if (alert) {
         // a brownout: the band pulses red and flickers
         const pulse = Math.sin(e.t * 5) > 0 ? 1 : 0.25;
@@ -481,7 +490,7 @@ export function windFarm(seed: number, tier = 1): Piece {
   k.box(3, 1.8, 2, '#e7dfd2', -10, 0, -8, { r: 0.1 });
   k.box(1.6, 2.4, 1.6, '#8a959a', -7.4, 0, -8, { r: 0.08 });
   // gravel crane pads at each turbine
-  for (const [x, z] of spots) k.box(4, 0.08, 4, '#c4b8a6', x + 2.5, 0, z, { r: 0.04, shade: 0 });
+  for (const [x, z] of spots) k.box(4, 0.08, 4, '#c4b8a6', x + 2.5, 0.06, z, { r: 0.04, shade: 0 });
   const pads = k.build();
   pads.castShadow = false;
   g.add(pads);
@@ -519,8 +528,8 @@ export function researchLab(): Piece {
   g.add(m);
   const kit = new Kit(rng(77));
   // a small car park in front
-  kit.box(14, 0.06, 6, '#6f6878', 0, 0.02, 8.4, { r: 0.04, shade: 0 });
-  for (let i = 0; i < 6; i++) kit.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.08, 8.2, { r: 0, jitter: 0 });
+  kit.box(14, 0.06, 6, '#6f6878', 0, 0.08, 8.4, { r: 0.04, shade: 0 });
+  for (let i = 0; i < 6; i++) kit.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.13, 8.2, { r: 0, jitter: 0 });
   const lot = kit.build();
   lot.castShadow = false;
   g.add(lot);

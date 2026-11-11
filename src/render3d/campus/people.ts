@@ -160,7 +160,9 @@ export class CampusPeople {
     const benches = this.planBenches(places, bounds, roads, extra);
     this.map = campusWalkMap(bounds, roads, places, [...extra, ...benches.map((b) => b.rect)]);
     this.gate = this.map.nearestFree(accessPavementX(roads), roads.highwayZ - 9) ?? { x: accessPavementX(roads), z: roads.highwayZ - 9 };
-    this.layPaths(places);
+    // (the paths are routed on a map of their own that keeps a path's width clear of every parking bay: a path
+    // laid on the people's map ran under the parked cars)
+    this.layPaths(places, campusWalkMap(bounds, roads, places, [...extra, ...benches.map((b) => b.rect)], true));
     this.buildBenches(benches);
     this.planSpots(places);
     this.planLoops(places);
@@ -777,23 +779,41 @@ export class CampusPeople {
   }
 
   /** A paved path from the pavement (or the gate) to each building's door, so the way in reads. */
-  private layPaths(places: Place[]) {
+  private layPaths(places: Place[], clear: WalkMap) {
     const k = new Kit(rng(17));
     let any = false;
+    const pave = (a: P2, b: P2) => {
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 0.05) return;
+      const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
+      // flush paving: its top a finger above the ground it crosses (it stood 8 cm proud, over people's shoes)
+      k.box(1.2, 0.06, len + 0.6, '#d6cec2', mx, this.h(mx, mz) - 0.035, mz, { r: 0, ry: Math.atan2(b.x - a.x, b.z - a.z), jitter: 0.02, shade: 0 });
+      any = true;
+    };
     for (const p of places) {
       if (!STAFF[p.kind] || p.kind === 'hq' || p.building) continue;
       const g = placeGate(p, this.roads);
+      if (p.walks?.length) {
+        // the piece's own paved ways, carried on to the gate: straight out where the way already faces the
+        // gate's opening, else across to its middle. A laid way is open ground whatever stands close by.
+        for (const w of p.walks) {
+          const last = w[w.length - 1];
+          const inGate = p.fence ? last.x > p.fence.gate[0] + 1 && last.x < p.fence.gate[1] - 1 : Math.abs(last.x - g.x) < 2;
+          const line = [...w, inGate ? { x: last.x, z: g.z } : g];
+          for (let i = 1; i < line.length; i++) {
+            const a = line[i - 1], b = line[i];
+            pave(a, b);
+            this.map.open({ x0: Math.min(a.x, b.x) - 0.3, z0: Math.min(a.z, b.z) - 0.3, x1: Math.max(a.x, b.x) + 0.3, z1: Math.max(a.z, b.z) + 0.3 }, COST.path);
+          }
+        }
+        continue;
+      }
       for (const d of p.doors) {
-        const r = this.map.route(g, d);
+        const r = clear.route(g, d) ?? this.map.route(g, d);
         if (!r) continue;
         for (let i = 1; i < r.length; i++) {
-          const a = r[i - 1], b = r[i];
-          const len = Math.hypot(b.x - a.x, b.z - a.z);
-          if (len < 0.05) continue;
-          const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
-          k.box(1.2, 0.06, len + 0.6, '#d6cec2', mx, this.h(mx, mz) + 0.02, mz, { r: 0, ry: Math.atan2(b.x - a.x, b.z - a.z), jitter: 0.02, shade: 0 });
-          this.map.strip(a, b, 1.1, COST.path);
-          any = true;
+          pave(r[i - 1], r[i]);
+          this.map.strip(r[i - 1], r[i], 1.1, COST.path);
         }
       }
     }
@@ -1151,20 +1171,21 @@ export class CampusPeople {
 export function shapeOf(piece: Piece, root: THREE.Object3D): { shape: PieceShape; cars: { obj: THREE.Object3D; bay: Bay }[] } {
   root.updateMatrixWorld(true);
   const cars: { obj: THREE.Object3D; bay: Bay }[] = [];
-  const bays: Bay[] = [];
+  const bays: Bay[] = [], lots: Bay[] = [];
   const v = new THREE.Vector3(), q = new THREE.Quaternion(), eu = new THREE.Euler();
   const origin = new THREE.Vector3();
   root.getWorldPosition(origin);
   piece.obj.traverse((o) => {
-    const b = o.userData.bay as { len: number; wid: number } | undefined;
+    const b = (o.userData.bay ?? o.userData.lot) as { len: number; wid: number } | undefined;
     if (!b) return;
     o.getWorldPosition(v);
     o.getWorldQuaternion(q);
     const ry = eu.setFromQuaternion(q, 'YXZ').y;
+    if (o.userData.lot) { lots.push({ x: v.x - origin.x, z: v.z - origin.z, ry, len: b.len, wid: b.wid }); return; }
     bays.push({ x: v.x - origin.x, z: v.z - origin.z, ry, len: b.len, wid: b.wid });
     cars.push({ obj: o, bay: { x: v.x, z: v.z, ry, len: b.len, wid: b.wid } });
   });
-  return { shape: { w: piece.w, d: piece.d, doors: piece.doors, blockers: piece.blockers, bays }, cars };
+  return { shape: { w: piece.w, d: piece.d, doors: piece.doors, blockers: piece.blockers, bays, lots, walks: piece.walks }, cars };
 }
 
 function hashKey(s: string) {

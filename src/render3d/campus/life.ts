@@ -148,6 +148,48 @@ const WID: Partial<Record<ModelName, number>> = { sedan: 0.518, hatchback: 0.567
 const LEN: Partial<Record<ModelName, number>> = { semitruck: 11, mixer: 7.5, flatbed: 7.5, van: 5.2, pickup: 4.6, sedan: 4.3, hatchback: 3.8, suv: 4.6 };
 
 /**
+ * Stand every parked car under `root` on the surface below it: the plot's pad, a car park's asphalt, a yard's
+ * slab (each piece lays its own at its own height, and a car at one fixed height sank into some and floated over
+ * others). Call once the piece and its pad are both under `root`.
+ */
+export function settleCars(root: THREE.Object3D) {
+  const cars: THREE.Object3D[] = [];
+  root.traverse((o) => { if (o.userData.bay) cars.push(o); });
+  if (!cars.length) return;
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const spots = cars.map((car) => ({ car, p: car.getWorldPosition(new THREE.Vector3()).applyMatrix4(inv), top: -1 }));
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), m4 = new THREE.Matrix4();
+  const scan = (o: THREE.Object3D) => {
+    // not the cars themselves, nor the models (buildings, trees, people)
+    if (o.userData.bay || o.userData.model) return;
+    const mesh = o as THREE.Mesh;
+    if (mesh.isMesh && o.visible && !(o as THREE.InstancedMesh).isInstancedMesh && mesh.geometry.attributes.position) {
+      const pos = mesh.geometry.attributes.position, idx = mesh.geometry.index;
+      m4.multiplyMatrices(inv, o.matrixWorld);
+      const n = idx ? idx.count : pos.count;
+      for (let i = 0; i < n; i += 3) {
+        a.fromBufferAttribute(pos, idx ? idx.getX(i) : i).applyMatrix4(m4);
+        b.fromBufferAttribute(pos, idx ? idx.getX(i + 1) : i + 1).applyMatrix4(m4);
+        c.fromBufferAttribute(pos, idx ? idx.getX(i + 2) : i + 2).applyMatrix4(m4);
+        // flat and facing up (the cross product's y against its length)
+        const nx = (b.y - a.y) * (c.z - a.z) - (b.z - a.z) * (c.y - a.y), ny = (b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z), nz = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+        if (ny <= 0 || ny * ny < 0.9 * (nx * nx + ny * ny + nz * nz)) continue;
+        const y = Math.max(a.y, b.y, c.y);
+        for (const s of spots) {
+          if (y <= s.top || y > s.p.y + 0.5) continue;
+          const d1 = (s.p.x - b.x) * (a.z - b.z) - (a.x - b.x) * (s.p.z - b.z), d2 = (s.p.x - c.x) * (b.z - c.z) - (b.x - c.x) * (s.p.z - c.z), d3 = (s.p.x - a.x) * (c.z - a.z) - (c.x - a.x) * (s.p.z - a.z);
+          if (!((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0))) s.top = y;
+        }
+      }
+    }
+    for (const ch of o.children) scan(ch);
+  };
+  scan(root);
+  for (const s of spots) if (s.top >= 0) s.car.position.y += s.top + 0.005 - s.p.y;
+}
+
+/**
  * A few cars parked in a row of bays (varied makes). Each car carries `userData.bay` ({ len, wid }), so the people
  * walk round it and whoever drives it arrives and leaves by it (people.ts finds them).
  */
@@ -170,9 +212,19 @@ export function parkedCars(parent: THREE.Object3D, x0: number, z: number, n: num
     const len = LEN[kind] ?? 4.3;
     const c = model(kind, len);
     c.rotation.y = facing + (r() - 0.5) * 0.06;
-    // on the plot's pad (its top is 0.12 above the ground the piece stands on), not in it
+    // on the plot's pad (its top is 0.12 above the ground the piece stands on); `settleCars` then stands it on
+    // whatever the piece laid there
     c.position.set(x0 + i * gap, 0.125, z);
     c.userData.bay = { len, wid: len * (WID[kind] ?? 0.52) };
     parent.add(c);
+  }
+  // a real car park (a row of bays side by side) says how far it reaches, empty bays and all: paved paths are
+  // laid round it (people.ts `layPaths`)
+  if (n >= 3 && Math.abs(Math.sin(facing)) > 0.7) {
+    const lot = new THREE.Object3D();
+    lot.position.set(x0 + ((n - 1) * gap) / 2, 0, z);
+    lot.rotation.y = facing;
+    lot.userData.lot = { len: 4.4, wid: n * gap };
+    parent.add(lot);
   }
 }

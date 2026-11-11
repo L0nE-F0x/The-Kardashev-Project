@@ -35,7 +35,7 @@ import { act3Key } from './plan';
 import { CampusSky, type Weather } from './sky';
 import { atmo, LampField } from '../atmosphere';
 import { Precip } from './weather';
-import { Crowd, makeBit } from './life';
+import { Crowd, makeBit, settleCars } from './life';
 import { Traffic } from './vehicles';
 import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
 import { GrassPatch, grassColours, grassMaterial, sharedClump } from './grass';
@@ -266,6 +266,7 @@ export class CampusScene implements Scene3D {
         const bare = this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid' || this.scenery === 'habitat';
         if (!piece.ground && sp.kind !== 'manhole' && !onWater && !bare) root.add(pad(w - 0.6, d - 0.6, '#c4b8a6', hashStr(sp.kind)));
         root.add(piece.obj);
+        settleCars(root);
         piece.progress?.(1);
         this.setPieces.push({ item, piece, root });
         if (piece.ground) carvers.push((x, z) => piece.ground!(x - c.x, z - c.z));
@@ -836,6 +837,7 @@ export class CampusScene implements Scene3D {
       fenceMesh(fg, w - 1.2, d - 1.2, 7);
       root.add(fg);
     }
+    settleCars(root);
     this.world.add(root);
     this.decks = null;
     const clip = f.type !== 'solar' && f.type !== 'battery' && f.type !== 'wind' && f.type !== 'hq';

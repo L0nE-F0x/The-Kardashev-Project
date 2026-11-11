@@ -76,6 +76,7 @@ function hall(o: { seed: number; tier: number }): Piece {
   return {
     ...p, obj: g,
     doors: p.doors?.map(at),
+    walks: p.walks?.map((w) => w.map(at)),
     blockers: p.blockers?.map((r) => ({ ...r, z0: r.z0 - back, z1: r.z1 - back })),
   };
 }
@@ -164,8 +165,8 @@ function lab(o: { seed: number; tier: number }): Piece {
     }
   }
   // the car park in front (a walk between it and the building, so the door can be reached)
-  k.box(14, 0.06, 6, '#6f6878', 0, 0.02, 9.7, { r: 0.04, shade: 0 });
-  for (let i = 0; i < 6; i++) k.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.08, 9.5, { r: 0, jitter: 0 });
+  k.box(14, 0.06, 6, '#6f6878', 0, 0.08, 9.7, { r: 0.04, shade: 0 });
+  for (let i = 0; i < 6; i++) k.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.13, 9.5, { r: 0, jitter: 0 });
   g.add(k.build());
   parkedCars(g, -6, 9.7, 6, 2.4, o.seed + 78, Math.PI / 2);
   const lm = glowMat('yel1', 0);

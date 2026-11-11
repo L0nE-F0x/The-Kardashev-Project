@@ -327,6 +327,10 @@ export interface Place {
   solids: Rect[];
   doors: Door[];
   bays: Bay[];
+  /** Its car parks, each a row of bays as one box: no paved path crosses one. */
+  lots?: Bay[];
+  /** Paved ways the piece lays out itself, from a door towards the front of the plot. */
+  walks?: P2[][];
   /** A fence round the plot: its rect and the gate's x range on the front side. */
   fence?: { rect: Rect; gate: [number, number] };
   /** Under construction (a crew works round it). */
@@ -350,6 +354,10 @@ export interface PieceShape {
   doors?: { x: number; z: number; nx?: number; nz?: number }[];
   blockers?: Rect[];
   bays?: Bay[];
+  /** Whole car parks (a row of bays as one box, empty bays included). */
+  lots?: Bay[];
+  /** Paved ways the piece lays out itself (pieces.ts `walks`). */
+  walks?: P2[][];
 }
 
 /** A piece on its plot → a Place (world coordinates; the piece's origin at (cx, cz), no rotation). */
@@ -361,9 +369,11 @@ export function placeOf(id: string, kind: Place['kind'], rect: Rect, shape: Piec
     return { x: d.x + cx, z: d.z + cz, nx: nx / l, nz: nz / l };
   });
   const bays = (shape.bays ?? []).map((b) => ({ ...b, x: b.x + cx, z: b.z + cz }));
+  const lots = (shape.lots ?? []).map((b) => ({ ...b, x: b.x + cx, z: b.z + cz }));
   const w = rect.x1 - rect.x0, d = rect.z1 - rect.z0;
   const fence = o.fence !== undefined ? { rect: { x0: (rect.x0 + rect.x1) / 2 - (w - 1.2) / 2, z0: (rect.z0 + rect.z1) / 2 - (d - 1.2) / 2, x1: (rect.x0 + rect.x1) / 2 + (w - 1.2) / 2, z1: (rect.z0 + rect.z1) / 2 + (d - 1.2) / 2 }, gate: [(rect.x0 + rect.x1) / 2 - o.fence / 2, (rect.x0 + rect.x1) / 2 + o.fence / 2] as [number, number] } : undefined;
-  return { id, kind, rect, cx, cz, solids, doors, bays, fence, building: !!o.building };
+  const walks = shape.walks?.map((w) => w.map((q) => ({ x: q.x + cx, z: q.z + cz })));
+  return { id, kind, rect, cx, cz, solids, doors, bays, lots, walks, fence, building: !!o.building };
 }
 
 /**
@@ -412,8 +422,10 @@ export const accessPavementX = (r: Roads) => r.accessX + 3.75;
 /**
  * The campus's walk map: pavements, the service lane, the roads (crossable), each place's ground (hardstanding on
  * its plot), then everything solid and the fences with their gates. `extra` = more solids (site clutter, benches…).
+ * `forPaths` = the map the paved paths are routed on: a path's width clear of every parked car, and round the car
+ * parks altogether (people squeeze past a car and cut across the bays).
  */
-export function campusWalkMap(bounds: Rect, roads: Roads, places: Place[], extra: Rect[] = []): WalkMap {
+export function campusWalkMap(bounds: Rect, roads: Roads, places: Place[], extra: Rect[] = [], forPaths = false): WalkMap {
   const m = new WalkMap(bounds);
   const pz = frontPavementZ(roads), ax = accessPavementX(roads);
   // the roads: crossable but no place for a stroll; the highway is closed to walkers
@@ -429,7 +441,8 @@ export function campusWalkMap(bounds: Rect, roads: Roads, places: Place[], extra
   for (const p of places) {
     for (const s of p.solids) m.block(s);
     // parked cars (a building site's car park is empty till it opens)
-    if (!p.building) for (const b of p.bays) m.block(bayRect(b), 0.35);
+    if (!p.building) for (const b of p.bays) m.block(bayRect(b), forPaths ? 1.05 : 0.35);
+    if (forPaths) for (const l of p.lots ?? []) m.block(bayRect(l), 0.45);
     if (p.fence) {
       const f = p.fence.rect, [g0, g1] = p.fence.gate;
       m.fence({ x: f.x0, z: f.z0 }, { x: f.x1, z: f.z0 });
