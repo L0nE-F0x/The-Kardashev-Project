@@ -289,7 +289,7 @@ export function UpdateToast() {
   return game.appUpdate && !game.appUpdate.hidden ? <AppUpdateToast /> : null;
 }
 
-/** Settings → Display → Graphics card: the question before the restart, the trial after it, and a trial that was undone. */
+/** Settings → Display → Graphics card: the question before the restart, the trial after it (with its frame rate), a kept choice that runs slowly, and a trial that was undone. */
 export function GpuNotice() {
   const game = useGame();
   const n = game.gpuNotice;
@@ -322,13 +322,37 @@ export function GpuNotice() {
           {n.kind === 'trial' && (
             <>
               <p>The game is now running on the stronger graphics card. Does everything look right?</p>
+              <p>
+                {n.fps === null
+                  ? 'Measuring how fast it runs here…'
+                  : n.slow
+                    ? `It runs slower on this card here: about ${Math.round(n.fps)} frames a second${n.base ? `, against ${Math.round(n.base)} on the automatic one` : ''}. Going back is the better choice.`
+                    : `About ${Math.round(n.fps)} frames a second on the title screen${n.base ? ` (${Math.round(n.base)} on the automatic card)` : ''}.`}
+              </p>
               <p class="small muted">Going back to the automatic card in {n.left} s unless you keep it.</p>
               <div class="row between">
-                <button class="btn" onClick={() => game.gpuRevert()}>
+                <button class={`btn ${n.slow ? 'primary' : ''}`} onClick={() => game.gpuRevert()}>
                   Go back
                 </button>
-                <button class="btn primary" onClick={() => game.gpuKeep()}>
-                  Keep it
+                <button class={`btn ${n.slow ? '' : 'primary'}`} disabled={n.fps === null && n.left > Game.GPU_TRIAL_SECONDS - 10} onClick={() => game.gpuKeep()}>
+                  {n.slow ? 'Keep it anyway' : 'Keep it'}
+                </button>
+              </div>
+            </>
+          )}
+          {n.kind === 'slow' && (
+            <>
+              <p>
+                The game is running slowly on the stronger graphics card: about {Math.round(n.fps)} frames a second on the title screen
+                {n.base ? `, against ${Math.round(n.base)} on the automatic one` : ''}. Go back to the automatic card?
+              </p>
+              <p class="small muted">The game saves and restarts to switch.</p>
+              <div class="row between">
+                <button class="btn" onClick={() => game.gpuDismiss()}>
+                  Stay
+                </button>
+                <button class="btn primary" onClick={() => game.gpuRevert()}>
+                  Go back
                 </button>
               </div>
             </>

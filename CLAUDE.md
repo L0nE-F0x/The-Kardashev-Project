@@ -9,7 +9,8 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.13.0 "New Faces"** on top of v0.12.0 "All In" on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
+Current build: **v0.13.1 "Strong Suit"** (the stronger graphics card made fast in the Linux app: SPEC §31) on top of
+v0.13.0 "New Faces" on top of v0.12.0 "All In" on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
 campuses, the globe rebuilt, cinematic space views and ending, a 3D interface theme, new sound, photo mode: SPEC §29)
 on top of v0.10.1 "Lived In" (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
 working day, far-north daylight: SPEC §28) on top of v0.10.0 "Third Dimension" (the 3D edition in beta, opt-in via
@@ -288,7 +289,18 @@ src-tauri/    Tauri 2 desktop shell (one window loading play/index.html from dis
               error)"; Windows: `--force_high_performance_gpu` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS; macOS:
               nothing). A new choice restarts the game and is "trying" until `gpu_keep`; a start that finds it still
               "trying" goes back to automatic, so a black window undoes itself. A restart inherits the old run's
-              environment, hence `KARDASHEV_GPU_SWITCHED` and `unswitch()`. Auto detail = High on the stronger card
+              environment, hence `KARDASHEV_GPU_SWITCHED` and `unswitch()`. Auto detail = High on the stronger card.
+              **The AppImage's bundled WebKitGTK is slow on an offloaded NVIDIA card** (frames go through the CPU: 3
+              frames/s against 19 on the Intel card, where the system's WebKitGTK 2.54 gives 36), so on the stronger
+              card an AppImage that finds `libwebkit2gtk-4.1.so.0` on the system execs itself again with the system's
+              library folders first and the launcher's GTK/GIO/GStreamer variables removed (`system_engine`;
+              `KARDASHEV_SYSTEM_ENGINE` = the process id, so the new image knows the start was already decided).
+              The game's side (`Game.watchGpu`): every start measures frames really drawn on the title screen
+              (`measureFps`), the automatic card's figure is kept in localStorage (`kardashev.gpuBase`), the trial
+              shows both and calls the stronger card slower under 12 frames/s or under 85% of the automatic one; a
+              kept choice that runs under 12 gets a "go back?" question. Test like the app does it: mount the real
+              AppImage (`--appimage-mount`), source its `apprun-hooks`, put its `usr/lib` first in LD_LIBRARY_PATH,
+              `cd` to its `usr` and run the debug binary with `APPDIR` set (the session's `as-appimage.sh`)
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
 .github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + latest.json on a draft GitHub release
@@ -466,8 +478,12 @@ Electron/Steamworks wrapper if Tauri can't do the overlay). Later: Type II as an
 (SPEC §20 hooks), the real theme song, code signing (Windows/macOS).
 
 **Still open:**
-- The graphics-card switch (v0.13) is tested on one Linux laptop (Intel + RTX 4050, NVIDIA's driver, Wayland): not
-  on Windows, not with Mesa-only hybrids (AMD + Intel), not in the AppImage's own older WebKit.
+- The graphics-card switch is tested on one Linux laptop (Intel + RTX 4050, NVIDIA's driver, Wayland), in v0.13.1
+  also the way the AppImage starts (its bundled engine, then the system's): not on Windows, not with Mesa-only
+  hybrids (AMD + Intel), and never in a locally built AppImage (CI builds it; the trial's measurement and the
+  crash-undo are the safety net). A distro whose own WebKitGTK is as old as the bundled one stays slow on the
+  stronger card: the trial says so. Test builds must match what ships: v0.13.0's switch was only tried in a debug
+  build on the system's engine, and the user found it slower in the real app.
 - The website's other fifteen screenshots show no interface, so they are current; `ui-campus.webp` was re-shot for
   v0.13. The trailer kit (~/Videos) still shows the old logo and interface.
 - From SPEC §29: Act III's satellite, beam and liftoff on the globe were not

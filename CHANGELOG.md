@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.1 — Strong Suit (2026-11-11)
+The stronger graphics card now really is the faster one on Linux.
+
+- **Fixed: the game ran far slower on the stronger graphics card in the Linux app** (about 3 frames a second instead of 19 on the test laptop). The web engine packed inside the app could not pass pictures from that card to the screen without a slow detour. With Stronger chosen, the app now uses your system's own web engine when there is one: 36 frames a second on the same laptop.
+- **The trial now measures.** After switching, the game times how fast it runs and shows you the number beside the automatic card's. If the stronger card is slower on your computer, it says so and suggests going back; a choice kept earlier that runs slowly gets the same question at the next start.
+- The trial's countdown follows the clock even when the game is struggling, and lasts 25 seconds.
+
 ## 0.13.0 — New Faces (2026-11-11)
 The last of the pixel art is gone: everything in the interface is now drawn to match the 3D world.
 

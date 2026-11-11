@@ -80,6 +80,14 @@ fn step(saved: &Saved) -> (bool, Option<Saved>) {
 /// Call before the window is built. `identifier` is the app's (its settings folder is named after it).
 pub fn apply_at_start(identifier: &str) {
     FILE.get_or_init(|| dirs::config_dir().map(|d| d.join(identifier).join("gpu.json")));
+    // this very process already decided (and then started itself again on the system's web engine, see below)
+    if std::env::var(SYSTEM_ENGINE).ok().as_deref() == Some(std::process::id().to_string().as_str()) {
+        switches();
+        set_env(MARK, "1");
+        ACTIVE.store(true, Ordering::Relaxed);
+        return;
+    }
+    remove_env(SYSTEM_ENGINE);
     let (apply, write) = step(&load());
     if let Some(next) = write {
         // if the note can't be written, a bad trial could repeat forever: don't start one
@@ -88,6 +96,7 @@ pub fn apply_at_start(identifier: &str) {
         }
     }
     if apply {
+        system_engine();
         switches();
         set_env(MARK, "1");
         ACTIVE.store(true, Ordering::Relaxed);
@@ -97,6 +106,58 @@ pub fn apply_at_start(identifier: &str) {
         remove_env(MARK);
     }
 }
+
+/// Holds the process id of a run that restarted itself onto the system's web engine (`system_engine`).
+const SYSTEM_ENGINE: &str = "KARDASHEV_SYSTEM_ENGINE";
+
+/// The AppImage carries its own WebKitGTK (the build machine's). That one cannot hand frames from an offloaded
+/// NVIDIA card to the screen without copying them through the CPU: measured on an Intel + RTX 4050 laptop, a campus
+/// at High drew 19 frames/s on the Intel card and 3 on the RTX, where the same program on the system's WebKitGTK
+/// (2.54) drew 19 and 36. So on the stronger card, an AppImage that finds a WebKitGTK installed on the system
+/// starts itself again with the system's libraries ahead of its own. Only returns when there is nothing to do or
+/// the restart failed; the frame-rate check in the game's trial catches a system engine that is no better.
+#[cfg(target_os = "linux")]
+fn system_engine() {
+    use std::os::unix::process::CommandExt;
+    let Some(appdir) = std::env::var_os("APPDIR").map(std::path::PathBuf::from) else { return };
+    let places = ["/usr/lib", "/usr/lib64", "/usr/lib/x86_64-linux-gnu", "/usr/lib/aarch64-linux-gnu"];
+    if !places.iter().any(|d| std::path::Path::new(d).join("libwebkit2gtk-4.1.so.0").exists()) {
+        return;
+    }
+    let Ok(exe) = std::env::current_exe() else { return };
+    let outside = |v: &str| -> String {
+        std::env::var(v)
+            .unwrap_or_default()
+            .split(':')
+            .filter(|p| !p.is_empty() && !std::path::Path::new(p).starts_with(&appdir) && !p.contains("/.mount_"))
+            .collect::<Vec<_>>()
+            .join(":")
+    };
+    // the system's folders first: they win over the program's own library path, which stays as the fallback
+    let mut libs: Vec<String> = places.iter().filter(|d| std::path::Path::new(d).is_dir()).map(|d| d.to_string()).collect();
+    let rest = outside("LD_LIBRARY_PATH");
+    if !rest.is_empty() {
+        libs.push(rest);
+    }
+    let mut cmd = std::process::Command::new(exe);
+    cmd.args(std::env::args_os().skip(1));
+    cmd.env("LD_LIBRARY_PATH", libs.join(":"));
+    cmd.env("XDG_DATA_DIRS", outside("XDG_DATA_DIRS"));
+    // what the AppImage's launcher points at its own GTK, GIO and GStreamer: the system's libraries need their own
+    for key in [
+        "GTK_DATA_PREFIX", "GTK_EXE_PREFIX", "GTK_PATH", "GTK_IM_MODULE_FILE", "GTK_THEME", "GDK_PIXBUF_MODULE_FILE",
+        "GSETTINGS_SCHEMA_DIR", "GI_TYPELIB_PATH", "GIO_MODULE_DIR", "GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0",
+        "GST_PLUGIN_SCANNER_1_0", "GST_PTP_HELPER_1_0", "GST_REGISTRY_REUSE_PLUGIN_SCANNER",
+    ] {
+        cmd.env_remove(key);
+    }
+    // the same process id after exec: how the new image knows this start was already decided
+    cmd.env(SYSTEM_ENGINE, std::process::id().to_string());
+    let _failed = cmd.exec();
+}
+
+#[cfg(not(target_os = "linux"))]
+fn system_engine() {}
 
 /// Set with the switches, so a restart can tell the game's own switches from ones the player set by hand.
 const MARK: &str = "KARDASHEV_GPU_SWITCHED";

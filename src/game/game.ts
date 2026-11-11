@@ -157,9 +157,20 @@ export class Game {
   appUpdate: { version: string; install: AppUpdate['install']; status: AppUpdateStatus; hidden: boolean } | null = null;
   /** The app's graphics-card choice (Settings → Display); null in a browser tab or while it loads. */
   gpu: GpuStatus | null = null;
-  /** What the graphics-card dialog shows: a choice waiting for a yes, a new choice on trial (seconds left), or a trial that was undone. */
-  gpuNotice: { kind: 'ask'; prefer: 'auto' | 'strong' } | { kind: 'trial'; left: number } | { kind: 'failed' } | null = null;
+  /**
+   * What the graphics-card dialog shows: a choice waiting for a yes; a new choice on trial (seconds left; the frame
+   * rate measured on it, null while measuring, and the one measured on the automatic card, if known); a kept choice
+   * that turns out slow; or a trial that was undone.
+   */
+  gpuNotice:
+    | { kind: 'ask'; prefer: 'auto' | 'strong' }
+    | { kind: 'trial'; left: number; fps: number | null; base: number | null; slow: boolean }
+    | { kind: 'slow'; fps: number; base: number | null }
+    | { kind: 'failed' }
+    | null = null;
   private gpuTimer = 0;
+  /** Frames drawn since the start (the graphics-card check counts them against the wall clock). */
+  private framesDrawn = 0;
   /** Demo world shown behind the main menu. */
   showcase: GameState | null = null;
   tour: TourDirector | null = null;
@@ -472,26 +483,88 @@ export class Game {
   /** The installed apps look for a newer release a few seconds after starting, then every six hours. */
   // ── which graphics card (laptops with two; src-tauri/src/gpu.rs) ────────────────────────────
   /** How long a new choice waits for "Keep it" before the game goes back by itself (a black window can't click). */
-  static readonly GPU_TRIAL_SECONDS = 20;
+  static readonly GPU_TRIAL_SECONDS = 25;
+  /** Under this many frames a second on the title screen, a card is not doing its job. */
+  private static readonly GPU_SLOW_FPS = 12;
+  private static readonly GPU_BASE_KEY = 'kardashev.gpuBase';
+
+  /**
+   * Frames a second really drawn on the title screen, over six seconds once loading has settled: measured the same
+   * way on every start, so the automatic card and the stronger one can be compared. Null when the window was
+   * hidden meanwhile (a hidden window is throttled) or the player left the title screen.
+   */
+  private measureFps(): Promise<number | null> {
+    return new Promise((done) => {
+      window.setTimeout(() => {
+        const n0 = this.framesDrawn;
+        const t0 = performance.now();
+        let seen = !document.hidden && this.mode === 'title';
+        const watch = window.setInterval(() => (seen = seen && !document.hidden && this.mode === 'title'), 250);
+        window.setTimeout(() => {
+          window.clearInterval(watch);
+          done(seen ? (this.framesDrawn - n0) / ((performance.now() - t0) / 1000) : null);
+        }, 6000);
+      }, 3500);
+    });
+  }
+
+  private gpuBase(): number | null {
+    try {
+      const v = Number(window.localStorage.getItem(Game.GPU_BASE_KEY));
+      return v > 0 ? v : null;
+    } catch {
+      return null;
+    }
+  }
 
   private async watchGpu(): Promise<void> {
     this.gpu = await gpuStatus();
     if (!this.gpu) return;
+    const base = this.gpuBase();
+    const slower = (fps: number) => fps < Game.GPU_SLOW_FPS || (base !== null && fps < base * 0.85);
     if (this.gpu.state === 'failed') {
       // the last start tried the stronger card and nobody confirmed the picture: the app already went back
       this.gpuNotice = { kind: 'failed' };
       void setGpuPreference('auto');
       this.gpu = { ...this.gpu, prefer: 'auto', state: 'ok' };
     } else if (this.gpu.state === 'trying' && this.gpu.active) {
-      this.gpuNotice = { kind: 'trial', left: Game.GPU_TRIAL_SECONDS };
-      // real seconds, not frames: a hidden or struggling window still counts down
+      this.gpuNotice = { kind: 'trial', left: Game.GPU_TRIAL_SECONDS, fps: null, base, slow: false };
+      // by the wall clock, not by ticks: on a card that struggles the timers themselves run late
+      const end = performance.now() + Game.GPU_TRIAL_SECONDS * 1000;
       this.gpuTimer = window.setInterval(() => {
         const n = this.gpuNotice;
         if (n?.kind !== 'trial') return window.clearInterval(this.gpuTimer);
-        if (n.left <= 1) return this.gpuRevert();
-        this.gpuNotice = { kind: 'trial', left: n.left - 1 };
+        const left = Math.ceil((end - performance.now()) / 1000);
+        if (left <= 0) return this.gpuRevert();
+        if (left !== n.left) {
+          this.gpuNotice = { ...n, left };
+          this.notify();
+        }
+      }, 500);
+      // "does it look right" is half the question: a card can show a fine picture slowly (frames copied through
+      // the CPU on the way to the screen), so the trial also measures
+      void this.measureFps().then((fps) => {
+        const n = this.gpuNotice;
+        if (n?.kind !== 'trial' || fps === null) return;
+        this.gpuNotice = { ...n, fps, slow: slower(fps) };
         this.notify();
-      }, 1000);
+      });
+    } else {
+      void this.measureFps().then((fps) => {
+        if (fps === null || !this.gpu) return;
+        if (!this.gpu.active) {
+          // the automatic card's pace, kept for the comparison
+          try {
+            window.localStorage.setItem(Game.GPU_BASE_KEY, fps.toFixed(1));
+          } catch {
+            /* storage blocked */
+          }
+        } else if (fps < Game.GPU_SLOW_FPS && !this.gpuNotice) {
+          // a choice kept earlier (or before the game measured) that is plainly not working out
+          this.gpuNotice = { kind: 'slow', fps, base };
+          this.notify();
+        }
+      });
     }
     this.notify();
   }
@@ -625,6 +698,7 @@ export class Game {
 
   frame(dt: number, now: number): void {
     this.frameCount++;
+    this.framesDrawn++;
     this.fpsFrames++;
     this.fpsTime += dt;
     if (this.fpsTime >= 0.5) {

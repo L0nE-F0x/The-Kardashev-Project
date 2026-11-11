@@ -2369,3 +2369,17 @@ Stronger, restart, trial, keep, back to Automatic, a crashed trial undone).
 **Not checked:** Windows and macOS (the icons there, the graphics-card switch on Windows); the AppImage's own WebKit
 with the switch; frame times on the Intel card with the portrait renderer; the trailer kit still shows the old look.
 
+**v0.13.1 "Strong Suit" (2026-11-11, the same day): the stronger card was slower in the real app.** The user chose
+Stronger in the installed AppImage and found the game "way more laggy". Measured with the installed file (a campus
+at High, 1920×1824 device pixels): Intel 19 frames/s, RTX 3. The same program on the system's WebKitGTK 2.54: 19
+and 36. The 3D does land on the RTX in both (the driver's limits show it); the bundled engine then copies every
+frame through the CPU on its way to the screen. No environment switch changes that (explicit sync off, the DMABUF
+renderer off, X11, NVIDIA's EGL forced: all about 3). My mistake: v0.13.0's switch was tested only in a debug build,
+which links the system's engine. Fixes: on the stronger card the AppImage execs itself onto the system's web engine
+when one is installed (`system_engine` in gpu.rs); the trial measures the frame rate and shows it against the
+automatic card's, recommending "Go back" when it is slower; a kept choice that runs slowly is asked about at the
+next start; the countdown runs by the wall clock (it ran late at 3 frames/s) and lasts 25 seconds. Checked by
+starting the debug build the way the AppImage's launcher does (its hooks, its libraries first): restart onto the
+system engine, 36 frames/s in the trial, an unanswered trial undone, and the slow case reported ("about 4 frames a
+second, against 36"). Not checked: a real AppImage of this build (CI makes it), Windows.
+
