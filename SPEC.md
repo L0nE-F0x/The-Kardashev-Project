@@ -2383,3 +2383,68 @@ starting the debug build the way the AppImage's launcher does (its hooks, its li
 system engine, 36 frames/s in the trial, an unanswered trial undone, and the slow case reported ("about 4 frames a
 second, against 36"). Not checked: a real AppImage of this build (CI makes it), Windows.
 
+## 32. v0.13.2 "Solid Ground": the visual bug sweep (built 2026-11-11)
+
+**The ask (the user, 2026-11-11, with a screenshot of people sunk into the garage's paving):** "character feet
+sinking into the floor, there are still plenty of visual bugs and inconsistencies to the game visuals ... get onto
+perfecting everything".
+
+**How it was run:** I took the build-site campuses and their people; three helpers in git worktrees took the
+view-only places, the globe / space views / menu film, and the interface, each on its own files, each saving
+before/after pictures. Every finding was confirmed by looking, most were first found by a check rather than by eye.
+
+**The checks (kept in `tools/qa/`, run against the dev server and a headless Chrome):**
+- `feetcheck.mjs <sites> [hour]`: a ray down from every person and vehicle outside; how far from the surface.
+- `bumpcheck.mjs <sites> [hour]`: short rays at hip height round everyone; is anyone inside something solid.
+- `floorcheck.mjs [filter]`: builds every facility (three tiers) and every set piece on its pad and lists floor area
+  lying under the pad's top, and parked cars off their surface.
+All three read zero at release. The interface helper added `tests/emoji.test.ts` (every emoji marker in the game's
+text has an icon).
+
+**The root causes worth remembering:**
+- **The plot pad's top is 0.12 above the ground** (`pad()` in pieces.ts). Anything a piece lays lower is buried:
+  that hid the garage's driveway, every car park's asphalt and bay lines, the launch pad's flame trench and the
+  crawlerway, since v0.10. And everyone walking on a pad or a pavement stood 12 cm deep, because people followed
+  the bare ground. Now: `walkH` in campusScene (ground, +0.12 on pads and pavements, a building model's own low
+  decks from `deckOf` in models.ts), `settleCars` (life.ts) stands each parked car on what is under it once the piece
+  and its pad are together, and slabs are laid with their tops at 0.14–0.15.
+- **Paved paths were routed on the people's walk map**, which lets people squeeze past cars and cut across empty
+  bays. Paths now use a map of their own (`campusWalkMap(…, forPaths)`: a path's width clear of every car, whole car
+  parks closed: `parkedCars` leaves a `userData.lot` marker), and a piece can lay its own way out (`Piece.walks`: the
+  data hall's walk between its entrance and its car park).
+- **The sky dome painted the far land's haze over everything below the level line**, stars included: right on
+  Earth and on the Moon, wrong where the ground curves away (asteroids) or is not there (the yards, the ring).
+  `starFloor` in sky.ts; in open space the exposure is 1.55 instead of the Moon's 2.3 and the fill is doubled.
+- **Light pieces that are not lit by the scene** (plumes, the launch smoke, the globe's megaproject patches and
+  smoke) read as glowing white whenever the scene is dim. Each now takes the hour's light itself.
+- **The menu film's globe used the real Sun**, so its captions were true at some hours only. Map shots carry
+  `hours` and `season`; in play the Sun stays real.
+- **Emoji as markers**: the sim and the content write emoji into headlines and card text (the sim even sorts by
+  them), so they stay in the data and `ui/emoji.tsx` draws them as interface icons (`rich(text)`).
+
+**Calls I made:**
+- The plains' buttes are half as tall (`farH` in ground.ts): Wyoming's stood as a wall across the sky.
+- The data hall parks five cars, not six, and no vans (a van reached over the walk).
+- Car parks look emptier: a car only takes a bay it clears its neighbour in.
+- The open pit runs two haul trucks, not three (three cannot pass on its road).
+- Interface panes are 96–99.6% opaque instead of blurred: blur's cost in the app's web engine on an integrated
+  card was not measured, and tokens.css already records it as too dear.
+- The top bar still drops the Charter treasury and the safety margin at 1280 wide in Acts IV–V, but only then.
+
+**Checked in the real web engine:** a debug build of the app (WebKitGTK, the system's) showed the icons in place
+of emoji, the fitted top bar, the one scrollbar style, and the panels, by inspector snapshots. Not a packaged
+AppImage, not Windows, not macOS.
+
+**Seen and left (the helpers' lists, shortened):**
+- Globe: region names can sit over markers from far out; lens-flare ghosts over the night side; Europe's night
+  lights blow out at mid zoom; supergrid lines share the data cables' cyan; the liftoff cannot be seen from
+  straight above; the router's kink at Panama.
+- Places: the pit's shovel is half hidden in the default view; a fresh rocket fades in on the pad each cycle; the
+  North Sea farm is dark at night; the pumped-hydro mountain's back is a steep wall; the nuclear site's cooling
+  tower is complete at half progress; Bennu is very dark; Aurora's trees may reach the window frame.
+- Interface: stat-card grids leave an orphan card; ✓ ✗ and the note button are text glyphs; dock badges cover much
+  of a small icon in Act V at 720 high; at 1280×800 with 130% interface size Act V's dock and top bar still scroll.
+- Art: Juno's "excited" face reads as startled; the Mercury icon is a half-disc and a dot at 16 px.
+- Not looked at: megaprojects at stage 2, weather on view-only places, launch sites other than Guiana, the finale
+  trackers, the time-lapse overlays, most Settings tabs, hover states.
+

@@ -9,7 +9,9 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.13.1 "Strong Suit"** (the stronger graphics card made fast in the Linux app: SPEC §31) on top of
+Current build: **v0.13.2 "Solid Ground"** (the visual bug sweep: feet and cars on their surfaces, car parks, paths,
+skies, the globe, the menu film, no emoji in the interface: SPEC §32) on top of v0.13.1 "Strong Suit" (the stronger
+graphics card made fast in the Linux app: SPEC §31) on top of
 v0.13.0 "New Faces" on top of v0.12.0 "All In" on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
 campuses, the globe rebuilt, cinematic space views and ending, a 3D interface theme, new sound, photo mode: SPEC §29)
 on top of v0.10.1 "Lived In" (the 3D polish pass: globe, roads, grass, farmland, traffic, people with a
@@ -74,6 +76,16 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   shrinks textures into `public/3d/models/` (people: the `_walk.glb`, `--size 1024`); models load on demand
   (`models.ts`: PEOPLE at boot, advisors/astronaut/TOWNSFOLK when a scene needs them; the lab's `?people=1|town`
   lines them up). The app carries them in its bundle (`dist/3d/models/`).
+- **Heights on a plot (v0.13.2):** the plot's pad tops out at 0.12 (`pad()` in pieces.ts), so a piece lays its
+  slabs, asphalt and aprons with their tops at 0.14–0.15 (lower is buried) and markings a centimetre above. People
+  stand on `walkH` (campusScene: ground, pads and pavements, a building model's low decks: `deckOf` in models.ts);
+  parked cars are stood on whatever is under them by `settleCars` (life.ts). Paved paths: routed round car parks on
+  their own map, or laid by the piece itself (`Piece.walks`).
+- **Automatic visual checks** (`tools/qa/`, with the dev server and the headless Chrome below running; `PLAYWRIGHT=`
+  as for gen:assets, `CDP=` / `BASE=` to point elsewhere): `feetcheck.mjs <sites> [hour]` (feet and wheels on the
+  surface), `bumpcheck.mjs <sites>` (nobody inside something solid), `floorcheck.mjs [filter]` (no floor buried
+  under a pad, no car off its surface, across every facility tier and set piece). All read zero in v0.13.2: run
+  them after touching people, paths, pads or a piece's ground-level parts.
 - **QA:** headless Chrome on the dev laptop's RTX is far faster than SwiftShader and shows the high preset as players see
   it: `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
   google-chrome-stable --headless=new --remote-debugging-port=9222 --use-angle=gl-egl --ignore-gpu-blocklist` and
@@ -308,6 +320,10 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 
 ## Conventions
 
+- **No emoji on screen (v0.13.2):** the sim and the content still write emoji markers into headlines and card text
+  (the sim sorts by them); the interface draws them as its own icons through `rich(text)` / `emojiIcon()` in
+  `ui/emoji.tsx`. A new marker needs a row there (`tests/emoji.test.ts` fails without one); never type an emoji into
+  JSX.
 - **Interface art:** smooth and resolution-independent (`art3d/INTERFACE.md`): icons are SVG drawn with
   `ui/iconKit.ts` from palette keys, portraits are live 3D busts, the logo and the app icon are renders from
   `npm run gen:assets`. Sizes are plain CSS (`render3d/ui/art-portraits.css`, `art-icons.css`, `art-logo.css`). Check
@@ -465,10 +481,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.13.0 "New Faces" (SPEC §31) shipped on 2026-11-11 at the user's word ("ship it and wrap the session"),
-built while they slept. Open the next session by asking how it looks in their app: the new logo, the busts (they have
-not seen any of the new art), the icons, and whether the graphics-card switch works on their Windows boot (it is
-tested on Linux only). SPEC §31 lists the calls I made and the weak spots the helpers named.
+**Next:** v0.13.2 "Solid Ground" (SPEC §32) is the visual sweep the user asked for on 2026-11-11 ("get onto
+perfecting everything"). They had still not said how v0.13's new art looks in their app (the logo, the busts, the
+icons), nor tried the graphics-card switch on Windows: ask. SPEC §32 ends with what the helpers saw and left: the
+next things to pick from when they ask for more polish.
 **Versions (the user, 2026-11-11):** keep bumping small versions while the game is being perfected; v1.0.0 only when
 they start the Steam page. Nobody else has the game, so there are no other players' saves or installs to protect.
 They test Windows themselves (dual boot); there is no Mac, so macOS stays unverified.
