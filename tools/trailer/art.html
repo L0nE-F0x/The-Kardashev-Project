@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>art</title>
+<style>
+@font-face { font-family: 'Atk'; src: url('/src/assets/fonts/atkinson-hyperlegible-next-latin.woff2') format('woff2'); font-weight: 200 800; }
+:root { --gold: #fbd46e; --cream: #f6efe0; --cyan: #5fd3b5; }
+html, body { margin: 0; background: #05040a; overflow: hidden; }
+#root { position: absolute; inset: 0; overflow: hidden; font-family: 'Atk', sans-serif; color: var(--cream); }
+#bg { position: absolute; inset: 0; background-size: cover; background-position: 50% 50%; }
+#shade { position: absolute; inset: 0; }
+.logo { position: absolute; filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 60px rgba(251, 212, 110, 0.16)); }
+.tag { position: absolute; font-weight: 800; letter-spacing: 0.2em; color: var(--gold); white-space: nowrap; text-shadow: 0 3px 0 rgba(60, 34, 6, 0.6), 0 0 36px rgba(251, 212, 110, 0.45), 0 6px 24px rgba(0, 0, 0, 0.75); }
+.note { position: absolute; font-weight: 700; letter-spacing: 0.26em; color: var(--cream); white-space: nowrap; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85); }
+.pill { position: absolute; padding: 0.5em 1.3em 0.5em 1.55em; border: 2px solid rgba(246, 239, 224, 0.85); border-radius: 999px; font-weight: 800; letter-spacing: 0.3em; background: rgba(8, 7, 16, 0.5); white-space: nowrap; }
+.c { left: 50%; transform: translateX(-50%); }
+</style>
+</head>
+<body><div id="root"><div id="bg"></div><div id="shade"></div><div id="fg"></div></div>
+<script>
+// One piece of key art: a still behind, the logo and a line or two over it. window.art({ bg, pos, shade, items })
+window.art = async (a) => {
+  document.getElementById('bg').style.backgroundImage = `url(${a.bg})`;
+  document.getElementById('bg').style.backgroundPosition = a.pos ?? '50% 50%';
+  document.getElementById('bg').style.transform = a.zoom ? `scale(${a.zoom})` : '';
+  document.getElementById('bg').style.transformOrigin = a.pos ?? '50% 50%';
+  document.getElementById('shade').style.background = a.shade ?? 'none';
+  document.getElementById('fg').innerHTML = a.items.map((it) => it.logo
+    ? `<img class="logo ${it.c ? 'c' : ''}" src="/logo.png" style="${it.css}">`
+    : `<div class="${it.cls} ${it.c ? 'c' : ''}" style="${it.css}">${it.text}</div>`).join('');
+  await Promise.all([document.fonts.load('800 40px Atk'), document.fonts.load('700 40px Atk'), ...[...document.images].map((i) => i.decode().catch(() => {}))]);
+  await new Promise((r) => { const im = new Image(); im.onload = im.onerror = r; im.src = a.bg; });
+};
+</script>
+</body>
+</html>

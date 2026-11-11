@@ -501,7 +501,9 @@ Electron/Steamworks wrapper if Tauri can't do the overlay). Later: Type II as an
   stronger card: the trial says so. Test builds must match what ships: v0.13.0's switch was only tried in a debug
   build on the system's engine, and the user found it slower in the real app.
 - The website's other fifteen screenshots show no interface, so they are current; `ui-campus.webp` was re-shot for
-  v0.13. The trailer kit (~/Videos) still shows the old logo and interface.
+  v0.13. The marketing kit (`~/Videos/The Kardashev Project - Marketing`: trailer, teaser, vertical cuts, shorts,
+  stills, key art, post copy) was re-made from v0.13.2 on 2026-11-11; `tools/trailer/` re-makes it (README there).
+  Nobody has listened to its music: it was checked by loudness and spectrogram only.
 - From SPEC §29: Act III's satellite, beam and liftoff on the globe were not
   exercised; power beams in the ending only show with beam capacity; the cinematic is capped at 16 s by `tickEnding`;
   the 4K-at-150% interface survey was partial.
