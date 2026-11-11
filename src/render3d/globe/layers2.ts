@@ -97,7 +97,8 @@ export class NetworkLayer {
     return path ? globePath(path, 1.0035) : [];
   }
 
-  update(s: GameState | null, day: number, dt: number, scale: (p: THREE.Vector3, px: number) => number, facing: (n: THREE.Vector3) => number) {
+  /** `ships`: how much bigger than their far-out size the ships are drawn (the globe grows them as the view comes down). */
+  update(s: GameState | null, day: number, dt: number, scale: (p: THREE.Vector3, px: number) => number, facing: (n: THREE.Vector3) => number, ships = 1) {
     this.time += dt;
     const on = !!s && actOf(s).act >= 2;
     this.group.visible = on;
@@ -164,7 +165,7 @@ export class NetworkLayer {
       c.mark.scale.setScalar(scale(c.mark.position, 6) * (1 + Math.sin(this.time * 6) * 0.2));
       c.mark.rotation.y = this.time * 2;
       c.ship.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
-      c.ship.scale.setScalar(scale(c.ship.position, 7));
+      c.ship.scale.setScalar(scale(c.ship.position, 7 * ships));
     }
     // fiber
     const fseen = new Set<string>();
@@ -208,7 +209,7 @@ export class NetworkLayer {
       const head = (back ? fwd.clone().negate() : fwd).sub(n.clone().multiplyScalar(fwd.dot(n))).normalize();
       const side = new THREE.Vector3().crossVectors(n, head);
       const pos = n.clone().multiplyScalar(R * 1.0015);
-      const sc = scale(pos, 6);
+      const sc = scale(pos, 6 * ships);
       l.obj.matrixAutoUpdate = false;
       l.obj.matrix.makeBasis(head, n, side.negate()).scale(new THREE.Vector3(sc, sc, sc)).setPosition(pos);
       l.obj.matrixWorldNeedsUpdate = true;

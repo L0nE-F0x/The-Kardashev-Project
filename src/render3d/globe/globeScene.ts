@@ -25,7 +25,7 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { lineClock, linePixelRatio, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './soft';
 import { Aurora, milkyWay, starField, Sun } from './space';
-import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, type Marker, type MarkerKind } from './markers';
+import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, truckMesh, type Marker, type MarkerKind } from './markers';
 import { quality } from '../quality';
 import { CharterLayer, groundSun } from './layers3';
 import { PlanetLayer } from './layers45';
@@ -62,6 +62,7 @@ export class GlobeScene implements Scene3D {
   private labels: Labels;
   private network: NetworkLayer;
   private charter: CharterLayer;
+  private isLand: (lon: number, lat: number) => boolean;
   private planet: PlanetLayer;
   private w = 1;
   private h = 1;
@@ -110,7 +111,8 @@ export class GlobeScene implements Scene3D {
     this.buildChokepoints();
     this.labels = new Labels();
     this.network = new NetworkLayer(game.world.router);
-    this.charter = new CharterLayer((lo, la) => { const p = project(lod, lo, la); return sampleBiome(lod, p.x, p.y) !== BIOME.OCEAN; });
+    this.isLand = (lo, la) => { const p = project(lod, lo, la); return sampleBiome(lod, p.x, p.y) !== BIOME.OCEAN; };
+    this.charter = new CharterLayer(this.isLand);
     this.planet = new PlanetLayer(this.earthMat);
     this.scene.add(this.network.group, this.charter.group, this.planet.group);
     // start over home (or the middle of the Atlantic in the menu)
@@ -315,7 +317,7 @@ export class GlobeScene implements Scene3D {
     this.earthMat.uniforms.selCode.value = sel ?? -1;
 
     this.updateMarkers(s);
-    this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n));
+    this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.closeUp());
     this.charter.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 120);
     this.planet.update(s, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 200);
     this.earthMat.uniforms.tintOn.value = (this.earthMat.uniforms.regionTint.value as THREE.Vector4[]).some((t) => t.w > 0) ? 1 : 0;
@@ -357,6 +359,14 @@ export class GlobeScene implements Scene3D {
   private screenScale(p: THREE.Vector3, px = 1) {
     const d = this.camera.position.distanceTo(p);
     return (d * 2 * Math.tan((this.camera.fov * RAD) / 2) / this.h) * px;
+  }
+
+  /**
+   * Freight is drawn bigger as you come down to it: at one size on screen for every zoom, a ship seen from close
+   * in was a dozen pixels on a wide empty sea.
+   */
+  private closeUp() {
+    return 1 + 0.9 * (1 - THREE.MathUtils.smoothstep(this.dist, 22, 110));
   }
 
   private facing(n: THREE.Vector3) {
@@ -459,7 +469,8 @@ export class GlobeScene implements Scene3D {
       const key = `${sh.portDay}|${sh.route.length}|${sh.overland.length}`;
       if (!e || e.key !== key) {
         if (e) this.dropShip(e);
-        const obj = sh.mode === 'air' ? planeMesh() : shipMesh();
+        // (a sea shipment is a ship at sea and a lorry on its way to and from the port)
+        const obj = sh.mode === 'air' ? planeMesh() : new THREE.Group().add(shipMesh(), truckMesh());
         const pts: THREE.Vector3[] = [];
         const path = [...sh.route, ...sh.overland.slice(1)];
         for (let i = 0; i < path.length; i++) {
@@ -483,13 +494,18 @@ export class GlobeScene implements Scene3D {
       e.obj.visible = !!pos && this.facing(pos.p) > 0.05;
       if (!pos || !e.obj.visible) continue;
       const n = pos.p;
+      if (sh.mode !== 'air') {
+        const ll = lonLatOf(n), ashore = this.isLand(ll.lon, ll.lat);
+        e.obj.children[0].visible = !ashore;
+        e.obj.children[1].visible = ashore;
+      }
       const lift = sh.mode === 'air' ? 0.6 : 0.03;
       const world = n.clone().multiplyScalar(R + lift);
       const fwd = pos.fwd.clone().sub(n.clone().multiplyScalar(pos.fwd.dot(n))).normalize();
       const side = new THREE.Vector3().crossVectors(n, fwd);
       e.obj.matrix.makeBasis(fwd, n, side.negate());
       e.obj.matrix.setPosition(world);
-      const sc = this.screenScale(world, 7) * (sh.id === hov ? 1.3 : 1);
+      const sc = this.screenScale(world, 7 * this.closeUp()) * (sh.id === hov ? 1.3 : 1);
       e.obj.matrix.scale(new THREE.Vector3(sc, sc, sc));
       e.obj.matrixAutoUpdate = false;
       e.obj.matrixWorldNeedsUpdate = true;
