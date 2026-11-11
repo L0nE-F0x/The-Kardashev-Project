@@ -46,14 +46,15 @@ export function launchPad(o: Act3SetOpts): Piece {
   const X0 = -13, X1 = 17;
   k.box(X1 - X0, DECK, 12, CONCRETE, (X0 + X1) / 2, 0, 6, { r: 0.35, jitter: 0.02, shade: 0.25 });
   k.box(X1 - X0, DECK, 12, CONCRETE, (X0 + X1) / 2, 0, -10, { r: 0.35, jitter: 0.02, shade: 0.25 });
-  k.box(X1 - X0 + 2, 0.08, 4.2, '#2f2a3d', (X0 + X1) / 2, 0.02, -2, { r: 0, jitter: 0 });
+  // (the plot's paving is 0.12 thick: what lies on the ground has its top above that, or it is buried in it)
+  k.box(X1 - X0 + 2, 0.08, 4.2, '#2f2a3d', (X0 + X1) / 2, 0.06, -2, { r: 0, jitter: 0 });
   for (const z of [-3.92, -0.08]) k.box(X1 - X0 - 0.4, DECK - 0.1, 0.06, SOOT, (X0 + X1) / 2, 0.05, z, { r: 0, jitter: 0.03, shade: 0.5 });
   // soot fans in front of the trench mouths
-  for (const [x, w] of [[X0 - 2.6, 5.2], [X1 + 1.6, 3.2]] as const) k.box(w, 0.04, 6.4, '#6a6070', x, 0.02, -2, { r: 0, jitter: 0.05, shade: 0 });
+  for (const [x, w] of [[X0 - 2.6, 5.2], [X1 + 1.6, 3.2]] as const) k.box(w, 0.04, 6.4, '#6a6070', x, 0.115, -2, { r: 0, jitter: 0.05, shade: 0 });
   // the ramp from the crawlerway
   const ramp = new THREE.BoxGeometry(10, 0.5, Math.hypot(6, DECK)).rotateX(Math.atan2(DECK, 6)).translate(RX, DECK / 2 - 0.2, 15);
   k.geo(ramp, '#bdb3a6', 0.02);
-  for (const x of [RX - 3.6, RX + 3.6]) k.box(1.2, 0.06, 6, '#a39a91', x, 0.02, 15, { r: 0, jitter: 0 });
+  for (const x of [RX - 3.6, RX + 3.6]) k.box(1.2, 0.06, 6, '#a39a91', x, 0.09, 15, { r: 0, jitter: 0 });
   // expansion joints, soot round the mount, tie-down points
   for (let x = X0 + 3; x < X1 - 1; x += 3) for (const z of [6, -10]) k.box(0.06, 0.012, 11.8, '#b3aa9e', x, DECK, z, { r: 0, jitter: 0, shade: 0 });
   for (const z of [3, 9, -7, -13]) k.box(X1 - X0 - 0.4, 0.012, 0.06, '#b3aa9e', (X0 + X1) / 2, DECK, z, { r: 0, jitter: 0, shade: 0 });
