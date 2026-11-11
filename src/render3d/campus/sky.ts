@@ -63,7 +63,7 @@ const DOME_FS = /* glsl */ `
 uniform vec3 top; uniform vec3 hor; uniform float skyI;
 uniform vec3 sunDir; uniform vec3 sunCol; uniform vec3 glowCol; uniform float sunDisc;
 uniform vec3 moonDir; uniform float moonK;
-uniform float stars; uniform float time; uniform float aurora;
+uniform float stars; uniform float starFloor; uniform float time; uniform float aurora;
 uniform sampler2D tNoise;
 // x: cover 0..1, y: opacity, z: how dark the bases are, w: drift
 uniform vec4 cloud; uniform vec3 cloudLit; uniform vec3 cloudDark;
@@ -101,7 +101,7 @@ void main() {
     c = mix(c, cc, cover);
   }
   float clear = 1.0 - cover;
-  if (stars > 0.01 && y > -0.05) {
+  if (stars > 0.01 && y > starFloor) {
     // stars: one in a few cells of a fine grid on the sphere, twinkling; a faint band of the Milky Way
     vec3 p = d * 190.0; vec3 ip = floor(p); vec3 fp = fract(p) - 0.5;
     float h = hash3(ip);
@@ -112,7 +112,7 @@ void main() {
     vec3 axis = normalize(vec3(0.35, 0.5, -0.8));
     float band = exp(-pow(dot(d, axis) * 3.4, 2.0));
     float mw = band * (0.35 + 0.65 * texture2D(tNoise, d.xz * 0.9 + d.y * 0.5).r) * texture2D(tNoise, d.zy * 2.3 + 0.2).r;
-    c += (tint * star + vec3(0.42, 0.5, 0.78) * mw * 0.16) * stars * clear * smoothstep(-0.05, 0.12, y);
+    c += (tint * star + vec3(0.42, 0.5, 0.78) * mw * 0.16) * stars * clear * smoothstep(starFloor, starFloor + 0.17, y);
   }
   if (aurora > 0.01 && y > 0.02 && d.z < 0.4) {
     // the northern lights: curtains whose hems wander along the northern sky; each is a row of fine rays, bright
@@ -159,7 +159,7 @@ export class CampusSky {
     top: { value: new THREE.Color() }, hor: { value: new THREE.Color() }, skyI: { value: 1 },
     sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color() }, glowCol: { value: new THREE.Color() }, sunDisc: { value: 1 },
     moonDir: { value: new THREE.Vector3(0, 1, 0) }, moonK: { value: 0 },
-    stars: { value: 0 }, time: { value: 0 }, aurora: { value: 0 }, tNoise: cloudUniforms.uCloudTex,
+    stars: { value: 0 }, starFloor: { value: -0.05 }, time: { value: 0 }, aurora: { value: 0 }, tNoise: cloudUniforms.uCloudTex,
     cloud: { value: new THREE.Vector4(0.4, 1, 0.5, 0.0016) }, cloudLit: { value: new THREE.Color() }, cloudDark: { value: new THREE.Color() },
   };
   night = 0;
@@ -365,6 +365,9 @@ export class CampusSky {
     u.sunDisc.value = 1;
     u.moonK.value = 0;
     u.stars.value = 1.25;
+    // off the Moon the sky goes all the way round: an asteroid's horizon falls away below the level, the yards
+    // have none (the stars stopped at the level line, so the sky over Eros was empty)
+    u.starFloor.value = this.mode === 'lunar' ? -0.05 : -2;
     this.fog.color.set(0x020205);
     atmo.uAtmoGlow.value.set(0x000000);
     atmo.uAtmoSkyTop.value.set(0x000000);
