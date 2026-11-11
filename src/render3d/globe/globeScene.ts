@@ -77,7 +77,8 @@ export class GlobeScene implements Scene3D {
   private grab: { lon: number; lat: number } | null = null;
   /** The glide after a drag is let go, degrees a second. */
   private vel = { lon: 0, lat: 0 };
-  private cine: { from: [number, number]; to: [number, number]; t: number; secs: number; dist: number } | null = null;
+  /** A directed glide (the menu's film); `sun` = where the Sun stands over the Earth at its start and end, if the shot says. */
+  private cine: { from: [number, number]; to: [number, number]; t: number; secs: number; dist: number; sun: [number, number, number] | null } | null = null;
   private down: { x: number; y: number; moved: boolean; t: number } | null = null;
   private last: { x: number; y: number; t: number } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
@@ -178,8 +179,15 @@ export class GlobeScene implements Scene3D {
     return true;
   }
 
-  cinematic(from: [number, number], to: [number, number], secs: number, lod: number) {
-    this.cine = { from, to, t: 0, secs, dist: lod >= 1 ? 120 : 215 };
+  /**
+   * A slow glide for the menu's film. `hours`: the local solar time at the glide's end point as the shot starts
+   * and as it ends (a shot is lit like a campus shot is: without it the film showed whatever the real hour gave,
+   * "Night falls over Asia" at noon and the Andes in the dark), `season`: the latitude the Sun stands over (so the
+   * film is the same in June as in December). In play the Sun stays where it really is.
+   */
+  cinematic(from: [number, number], to: [number, number], secs: number, lod: number, hours?: [number, number], season = 8) {
+    const sunLon = (h: number) => wrap(to[0] - (h - 12) * 15);
+    this.cine = { from, to, t: 0, secs, dist: lod >= 1 ? 120 : 215, sun: hours ? [sunLon(hours[0]), sunLon(hours[1]), season] : null };
     this.anchor = null;
     this.vel.lon = this.vel.lat = 0;
   }
@@ -276,6 +284,11 @@ export class GlobeScene implements Scene3D {
     // the sun where it really is right now (like the pixel map)
     const day = (s?.day ?? 0) + g.dayFraction();
     const ss = subsolar(new Date());
+    // (a directed shot of the menu's film brings its own hour and season)
+    if (this.cine?.sun) {
+      ss.lon = this.cine.sun[0] + wrap(this.cine.sun[1] - this.cine.sun[0]) * this.cine.t;
+      ss.lat = this.cine.sun[2];
+    }
     const sunDir = dir(ss.lon, ss.lat);
     this.earthMat.uniforms.sunDir.value.copy(sunDir);
     this.cloudMat.uniforms.sunDir.value.copy(sunDir);

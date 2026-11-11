@@ -16,31 +16,38 @@ type Light = 'dawn' | 'morning' | 'noon' | 'golden' | 'sunset' | 'dusk' | 'night
 type Move = 'rise' | 'orbit' | 'push' | 'fly' | 'crane' | 'low' | 'sky';
 
 type Shot =
-  | { kind: 'map'; lod: number; from: [number, number]; to: [number, number]; secs: number; caption: string; world?: World }
+  | { kind: 'map'; lod: number; from: [number, number]; to: [number, number]; secs: number; caption: string; world?: World;
+      /** The light: local solar time (hours) where the glide ends, as the shot starts and as it ends. */
+      hours?: [number, number];
+      /** The latitude the Sun stands over (default a mild northern summer). */
+      season?: number }
   | { kind: 'campus'; site: string; secs: number; caption?: string; world?: World; light?: Light; move?: Move }
   | { kind: 'orbit'; secs: number; caption: string; world: World }
   | { kind: 'system'; secs: number; caption: string; world: World };
 
 /** The menu's cinematic: slow globe fly-overs that cut into real campus dioramas. */
 const SHOTS: Shot[] = [
-  { kind: 'map', lod: 0, from: [-60, 22], to: [10, 28], secs: 12, caption: 'Earth · 19.6 terawatts · K 0.729' },
+  // (the film opens on the night side, lights and cables; the Sun breaks over the limb as the glide ends: it has to
+  // stand almost behind the planet for that, hence the small hours and the southern season)
+  { kind: 'map', lod: 0, from: [-60, 22], to: [10, 28], secs: 12, caption: 'Earth · 19.6 terawatts · K 0.729', hours: [1.55, 2.12], season: -22 },
   { kind: 'campus', site: 'west-texas', secs: 12, light: 'golden', move: 'rise' },
   { kind: 'campus', site: 'lakeshore', secs: 10, caption: 'Lakeshore Station · a retired reactor, restarted', light: 'morning', move: 'orbit' },
-  { kind: 'map', lod: 1, from: [104, 5], to: [128, 30], secs: 10, caption: 'The Pacific Fab Belt and the Strait of Malacca' },
+  { kind: 'map', lod: 1, from: [104, 5], to: [128, 30], secs: 10, caption: 'The Pacific Fab Belt and the Strait of Malacca', hours: [9.6, 10] },
   { kind: 'campus', site: 'lulea', secs: 11, caption: 'Luleå · free cooling at the Arctic Circle', light: 'night', move: 'sky' },
-  { kind: 'map', lod: 1, from: [20, 38], to: [50, 18], secs: 10, caption: 'Suez, the Red Sea and the Gulf' },
+  { kind: 'map', lod: 1, from: [20, 38], to: [50, 18], secs: 10, caption: 'Suez, the Red Sea and the Gulf', hours: [15.2, 15.6] },
   { kind: 'campus', site: 'gulf-coast', secs: 11, light: 'noon', move: 'fly' },
-  { kind: 'map', lod: 0, from: [100, 15], to: [170, 10], secs: 11, caption: 'Night falls over Asia' },
+  // (the day's edge crosses Asia in eleven seconds, the camera going west with it: Japan's lights first, then China's)
+  { kind: 'map', lod: 0, from: [138, 24], to: [102, 20], secs: 11, caption: 'Night falls over Asia', hours: [16.2, 19.4] },
   { kind: 'campus', site: 'columbia-gorge', secs: 11, light: 'dusk', move: 'push' },
-  { kind: 'map', lod: 1, from: [-90, 10], to: [-60, -25], secs: 10, caption: 'Panama and the Andes' },
+  { kind: 'map', lod: 1, from: [-90, 10], to: [-60, -25], secs: 10, caption: 'Panama and the Andes', hours: [15, 15.4] },
   { kind: 'campus', site: 'atacama', secs: 11, caption: 'Atacama · the sunniest desert on Earth', light: 'sunset', move: 'low' },
   { kind: 'campus', site: 'kyushu', secs: 10, light: 'morning', move: 'crane' },
-  { kind: 'map', lod: 1, from: [-75, 42], to: [-20, 48], secs: 10, caption: 'Subsea cables under the Atlantic' },
+  { kind: 'map', lod: 1, from: [-75, 42], to: [-20, 48], secs: 10, caption: 'Subsea cables under the Atlantic', hours: [22.4, 22.8] },
   { kind: 'campus', site: 'wyoming', secs: 13, caption: 'Wyoming · a gigawatt campus on the high plains', light: 'golden', move: 'orbit' },
   // ── Acts III–V: the Charter, the planet, the solar system ──
   { kind: 'campus', world: 4, site: 'charter-hq', secs: 12, caption: 'Geneva · the Kardashev Project', light: 'dusk', move: 'rise' },
   { kind: 'campus', world: 4, site: 'mega-sahara', secs: 11, caption: 'The Sahara · solar to the horizon', light: 'noon', move: 'crane' },
-  { kind: 'map', world: 4, lod: 0, from: [-30, 18], to: [70, 24], secs: 12, caption: 'One planet, one grid · a supergrid that follows the sun' },
+  { kind: 'map', world: 4, lod: 0, from: [-30, 18], to: [70, 24], secs: 12, caption: 'One planet, one grid · a supergrid that follows the sun', hours: [16.4, 17.8] },
   { kind: 'campus', world: 4, site: 'launch-guiana', secs: 11, caption: 'Guiana Space Coast · the road to orbit', light: 'sunset', move: 'fly' },
   { kind: 'orbit', world: 4, secs: 12, caption: 'Low Earth orbit · stations, beams and launches' },
   { kind: 'campus', world: 4, site: 'moon', secs: 12, caption: 'Shackleton Base · the Moon' },
@@ -52,7 +59,7 @@ const SHOTS: Shot[] = [
 const FADE = 0.6;
 
 interface MapLike extends Scene {
-  cinematic?(from: [number, number], to: [number, number], secs: number, lod: number): void;
+  cinematic?(from: [number, number], to: [number, number], secs: number, lod: number, hours?: [number, number], season?: number): void;
 }
 
 interface DioramaLike extends Scene {
@@ -148,7 +155,7 @@ export class TourDirector {
     } else if (shot.kind === 'map') {
       const scene = g.makeMapScene() as MapLike;
       g.stage.setScene(scene, 1);
-      scene.cinematic?.(shot.from, shot.to, shot.secs, shot.lod);
+      scene.cinematic?.(shot.from, shot.to, shot.secs, shot.lod, shot.hours, shot.season);
       g.tourCaption = shot.caption;
     } else {
       const scene = g.makeDioramaScene(shot.site) as DioramaLike;
