@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.13.2 — Solid Ground (2026-11-11)
+A sweep for things that looked wrong: on the campuses, on the globe, in space and in the interface.
+
+- **Feet on the ground.** People stood ankle-deep in paving, porches and plots, and walked through each other. They now stand on whatever is under them and keep an arm's length apart; Bit floats clear of heads.
+- **Cars on their surface.** Parked cars sank into some car parks and floated over others (a third of a metre at the chip fab), overlapped in their bays and, at the data halls, stood half a metre off their marks. Traffic sat in the road.
+- **Car parks you can see.** The asphalt and bay lines of every data hall, lab and wind farm lay buried under the plot's paving, like the garage's driveway and path. Paved paths now go round car parks instead of under the cars, and lie flush with the ground.
+- **Night:** the data hall's lobby window was a blank white board; it is framed glass now, lit from inside.
+- **The gas plant:** nobody wades across its platform, and the cement mixer no longer parks inside it.
+- **Skies:** Wyoming's buttes stood as a striped wall across the sky; the plains keep theirs low. Desert farm circles are worked in quarters with wheel tracks instead of one flat green. The sky over the asteroids and the yards has its stars back.
+- **The globe:** labels keep clear of the interface and the screen's edge and fade in and out; megaprojects no longer sit on a khaki disc or scatter reactors in the sea, and they go dark at night like the land round them; solar fields have their true colour; power lines end at a station instead of at nothing; the first liftoff and the test satellite can actually be seen; freight grows as you come down to it, and a shipment crossing land is a lorry.
+- **The menu film:** every globe shot has its own time of day, so "Night falls over Asia" is no longer in daylight when you open the game at the wrong hour.
+- **Space:** the solar-system view's labels lost their faint boxes; power beams no longer swell into searchlights when the camera flies close.
+- **No more emoji.** Event cards, the news, toasts, goals, reports and the handbook used about 130 different emoji as markers; they are drawn as the game's own icons now.
+- **A top bar that fits.** In Acts IV and V the safety margin hid under the K meter; the bar now tightens itself step by step, and big numbers have thousands separators. The dock fits all 19 buttons on a small window.
+- **Tidier panels:** one kind of scrollbar everywhere, rows that line up (grid routes, asteroids, orders, sliders), labels that no longer break after one word, the right icons on the Field Guide and Achievements windows, and panes solid enough that the map does not read through them.
+- **Other places:** mine trucks no longer drive through each other, two wind turbines on one tile no longer cross blades, the launch pad's flame trench and crawlerway are visible, launch smoke takes the light of the hour, and Ring One's radiator no longer breaks into sparkles.
+
 ## 0.13.1 — Strong Suit (2026-11-11)
 The stronger graphics card now really is the faster one on Linux.
 

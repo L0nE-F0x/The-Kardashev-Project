@@ -202,6 +202,7 @@ export class CampusScene implements Scene3D {
     this.traffic = new Traffic();
     this.updaters = [];
     this.setPieces = [];
+    this.rowLanes = undefined;
     this.entries.clear();
     this.empties.clear();
     this.rivals.clear();
@@ -229,6 +230,7 @@ export class CampusScene implements Scene3D {
           // Lake Geneva begins at the jetty: the land drops away to the east of it
           const jetty = sl.items[plan.lakeAt];
           const lakeX = jetty ? jetty.rect.x0 + 4 : 60;
+          this.lakeX = lakeX;
           const shore = (x: number, z: number) => {
             const d = x - lakeX + (noise(z * 0.03, 0.5, 9) - 0.5) * 18;
             if (d < 0) return null;
@@ -301,9 +303,11 @@ export class CampusScene implements Scene3D {
         ],
       };
       // Meshy scenery near the campus: width in metres at scale 1 (the code-built kinds' own sizes, a bit larger)
+      // (off the Earth the rocks lose their sandstone tan: the texture's warm cast is cancelled to the regolith's grey)
+      const offEarth: [number, number, number] | undefined = this.scenery === 'moon' || this.scenery === 'asteroid' ? [0.64, 0.75, 1.02] : undefined;
       const meshy = (n: SceneryName, w: number, light: number) => (at: { x: number; y: number; z: number; s: number; ry: number }[]) => {
         const p = sceneryParts(n);
-        return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
+        return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light, offEarth) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
       };
       this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.5), pine: meshy('pine_a', 2.5, 1.3) };
       if (this.scenery === 'campus' || this.scenery === 'mega') this.groundOpts.farms = { highwayZ: HIGHWAY_Z };
@@ -409,7 +413,7 @@ export class CampusScene implements Scene3D {
     if (!force && key === this.peopleKey) return;
     this.peopleKey = key;
     const { places, cars, extra } = this.placesNow();
-    const east = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
+    const east = this.eastEnd(L);
     this.people.setPlaces(L.bounds, { frontZ: FRONT_Z, accessX: L.accessX, highwayZ: HIGHWAY_Z, east: east + 6, laneZ: this.viewOnly ? null : -PD - 4, accessNorth: -PD - 4 }, places, cars, extra, this.localHour());
   }
 
@@ -647,13 +651,13 @@ export class CampusScene implements Scene3D {
     const y = this.ground.h(x, z);
     if (this.ground.water && y < this.ground.water.position.y + 0.5) return false;
     if (!roadless) {
-      const ax = L.accessX, BACK = -PD - 4;
-      const east = (L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10) + 6;
+      const ax = L.accessX, { back: BACK, lanes } = this.backStreet();
+      const east = this.eastEnd(L) + 6;
       if (Math.abs(z - HIGHWAY_Z) < 5.6) return false;
       if (x > ax - 3.5 && x < ax + 4.6 && z > BACK - 2 && z < HIGHWAY_Z) return false;
       if (z > FRONT_Z - 4.6 && z < FRONT_Z + 3.4 && x > ax && x < east) return false;
       if ((x - east) ** 2 + (z - FRONT_Z) ** 2 < 49) return false;
-      if (Math.abs(z - BACK) < 1.9 && x > ax && x < east) return false;
+      for (const l of lanes) if (Math.abs(z - l.z) < 1.9 && x > ax && x < l.x1) return false;
       if (Math.abs(x - L.substation.x) < 8.5 && Math.abs(z - L.substation.z) < 8.5) return false;
     }
     const inside = (r: Rect, m = 0.2) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
@@ -668,8 +672,10 @@ export class CampusScene implements Scene3D {
     for (const c of [...this.roads.children]) { this.roads.remove(c); (c as THREE.Mesh).geometry?.dispose(); }
     const L = this.layout;
     const h = this.ground.h;
-    const east = (L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10) + 6;
-    const ax = L.accessX, HZ = HIGHWAY_Z, FZ = FRONT_Z, BACK = -PD - 4;
+    const east = this.eastEnd(L) + 6;
+    const ax = L.accessX, HZ = HIGHWAY_Z, FZ = FRONT_Z, { back: BACK, lanes } = this.backStreet();
+    // (the pavement up the access road stops where a build site's lane would be, whatever lies behind)
+    const PB = -PD - 4;
     const HW = 10, SW = 6, R = 3;
     // the highway, both ways to the horizon; its north edge line breaks where the access road joins
     const hwA = -1500, joinT = ax - hwA;
@@ -690,14 +696,14 @@ export class CampusScene implements Scene3D {
     this.roads.add(paintMesh(h, [ax, HZ - HW / 2 - 0.9], [0, -1], 'stop', SW));
     this.roads.add(paintMesh(h, [ax + SW / 2 + 0.9, FZ], [1, 0], 'stop', SW));
     // a gravel service lane behind the back row
-    this.roads.add(roadMesh({ kind: 'lane', a: [ax + SW / 2 - 0.2, BACK], b: [east, BACK], w: 3.2 }, h));
+    for (const l of lanes) this.roads.add(roadMesh({ kind: 'lane', a: [ax + SW / 2 - 0.2, l.z], b: [l.x1, l.z], w: 3.2 }, h));
     // pavements with kerbs: along the plots' side of the frontage road, and up the access road's campus side
     this.roads.add(roadMesh({ kind: 'pavement', a: [ax + SW / 2 + 0.05, FZ - 3.75], b: [east - 6, FZ - 3.75], w: 1.4, kerb: 0.12 }, h));
-    this.roads.add(roadMesh({ kind: 'pavement', a: [ax + 3.75, BACK + 2], b: [ax + 3.75, FZ - 4.45], w: 1.4, kerb: 0.12 }, h));
+    this.roads.add(roadMesh({ kind: 'pavement', a: [ax + 3.75, PB + 2], b: [ax + 3.75, FZ - 4.45], w: 1.4, kerb: 0.12 }, h));
     this.pavements = [
       { x0: ax + SW / 2 + 0.05, z0: FZ - 3.75 - 0.7, x1: east - 6, z1: FZ - 3.75 + 0.7 },
       // (up to the frontage pavement's far edge: the corner where the two meet belongs to both)
-      { x0: ax + 3.75 - 0.7, z0: BACK + 2, x1: ax + 3.75 + 0.7, z1: FZ - 3.05 },
+      { x0: ax + 3.75 - 0.7, z0: PB + 2, x1: ax + 3.75 + 0.7, z1: FZ - 3.05 },
     ];
     // poles along the frontage road carrying power from the substation
     const poles: THREE.Vector3[] = [];
@@ -937,6 +943,36 @@ export class CampusScene implements Scene3D {
     return out;
   }
 
+  /**
+   * The campus's back street. A build site has one gravel lane behind its two rows. A view-only place planned in
+   * several rows (a megaproject, the spaceport) has a lane along the front of every row behind the first, and the
+   * access road runs up to the last of them (it stopped square in open ground beside the second row, and the one
+   * lane ran under that row's pieces).
+   */
+  private backStreet(): { back: number; lanes: { z: number; x1: number }[] } {
+    if (this.rowLanes === undefined) {
+      // (asked for every blade of grass: worked out once; a view-only place is rebuilt whole when its plan changes)
+      const fronts = new Map<number, number>();
+      if (this.viewOnly) for (const sp of this.setPieces) {
+        const z = Math.round(sp.item.rect.z1);
+        if (z < 0) fronts.set(z, Math.max(fronts.get(z) ?? -Infinity, sp.item.rect.x1));
+      }
+      const lanes = [...fronts].map(([z, x1]) => ({ z: z + 4, x1: x1 + 3 }));
+      this.rowLanes = lanes.length ? { back: Math.min(...lanes.map((l) => l.z)), lanes } : null;
+    }
+    return this.rowLanes ?? { back: -PD - 4, lanes: [{ z: -PD - 4, x1: this.eastEnd(this.layout) + 6 }] };
+  }
+  private rowLanes: { back: number; lanes: { z: number; x1: number }[] } | null | undefined;
+  /** Where Geneva's lake begins (null elsewhere). */
+  private lakeX: number | null = null;
+  /**
+   * How far east the campus's street reaches: the last plot, but short of the lake (the jetty is a plot too, and
+   * the frontage road, its pavement, poles and lamps ran on into the water).
+   */
+  private eastEnd(L: CampusLayout) {
+    const e = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
+    return this.lakeX === null ? e : Math.min(e, this.lakeX - 26);
+  }
   /** The pavements' rectangles (straight runs along the axes), kept when the roads are built: `walkH`. */
   private pavements: { x0: number; z0: number; x1: number; z1: number }[] = [];
 
@@ -974,7 +1010,7 @@ export class CampusScene implements Scene3D {
     const s = this.game.view;
     const h = this.walkH;
     const L = this.layout;
-    const east = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
+    const east = this.eastEnd(L);
     // the working day: staff, crews, the night guard, the people at the set pieces (people.ts)
     const people = new CampusPeople(h);
     this.people = people;
@@ -1568,13 +1604,14 @@ const plantMat3 = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true
 plantMat3.userData.shared = true;
 /** A scenery model's material, lightened (some Meshy textures come out darker than the land round them). Shared per source. */
 const sceneryMats = new Map<string, THREE.Material>();
-function sceneryMat(m: THREE.Material, light: number): THREE.Material {
-  if (light === 1) return m;
-  const key = m.uuid + light;
+function sceneryMat(m: THREE.Material, light: number, tint?: [number, number, number]): THREE.Material {
+  if (light === 1 && !tint) return m;
+  const key = m.uuid + light + (tint ? tint.join() : '');
   let c = sceneryMats.get(key);
   if (!c) {
     c = m.clone();
     (c as THREE.MeshStandardMaterial).color?.setScalar(light);
+    if (tint) (c as THREE.MeshStandardMaterial).color?.multiply(new THREE.Color(tint[0], tint[1], tint[2]));
     c.onBeforeCompile = m.onBeforeCompile;
     c.customProgramCacheKey = m.customProgramCacheKey;
     c.userData.shared = true;

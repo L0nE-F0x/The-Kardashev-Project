@@ -117,8 +117,11 @@ export class Plume {
     }
     pos.needsUpdate = true;
     ex.needsUpdate = true;
-    // dim and cool at night
-    this.mat.uniforms.color.value.copy(col(this.o.color)).lerp(col('#6a7090'), e.night * 0.75);
+    // dim and cool at night; through sunset and dusk a dim warm grey (the plume is not lit by the scene: left white
+    // it was the brightest thing in the picture when the sun was low)
+    const k = (a: number, b: number, v: number) => Math.min(1, Math.max(0, (v - a) / (b - a)));
+    const dusk = k(0.015, 0.11, e.night) * (1 - k(0.5, 0.85, e.night));
+    this.mat.uniforms.color.value.copy(col(this.o.color)).lerp(col('#6a7090'), e.night * 0.75).lerp(col('#b9a39a'), dusk * 0.8);
   }
 }
 

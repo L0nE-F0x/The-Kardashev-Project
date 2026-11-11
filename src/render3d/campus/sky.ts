@@ -355,7 +355,10 @@ export class CampusSky {
   private updateLunar(dt: number, sunLocal: THREE.Vector3) {
     const u = this.uni;
     this.night = 0.55;
-    this.exposure = 2.3;
+    // (in open space there is no dark regolith to lift: at the Moon's exposure a front-lit station burnt out to white
+    // and a back-lit one went black, so the camera stops down and the fill comes up)
+    const open = this.mode === 'space';
+    this.exposure = open ? 1.55 : 2.3;
     u.top.value.set(0x010103);
     u.hor.value.set(0x020205);
     u.skyI.value = 1;
@@ -381,7 +384,7 @@ export class CampusSky {
     // earthshine and the ground's own bounce are all that fill the shadows
     this.hemi.color.set(0x8a90a0);
     this.hemi.groundColor.set(0x3a3840);
-    this.hemi.intensity = 0.2;
+    this.hemi.intensity = open ? 0.42 : 0.2;
     cloudUniforms.uCloudK.value = 0;
     this.lamps(0.55);
     for (const m of glowMats) {
