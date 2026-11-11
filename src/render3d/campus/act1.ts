@@ -26,8 +26,10 @@ function hq(o: { seed: number }): Piece {
   house.position.z = -2;
   g.add(house);
   const k = new Kit(rng(o.seed));
-  k.box(5.5, 0.08, 9, '#cfc6bd', -4, 0.02, 8.5, { r: 0.04, shade: 0 });
-  k.box(0.9, 0.08, 6, '#cfc6bd', 3.5, 0.02, 9.5, { r: 0.02, shade: 0 });
+  // the drive from the garage bay and the path from the front door, down to the street. The lawn (the plot's pad)
+  // tops out at 0.12: both lie just proud of it, or they vanish under the grass
+  k.box(5.5, 0.08, 9, '#cfc6bd', -4, 0.07, 8.5, { r: 0.04, shade: 0 });
+  k.box(0.9, 0.08, 10.2, '#cfc6bd', 3.4, 0.07, 7.7, { r: 0.02, shade: 0 });
   k.box(0.35, 1.0, 0.35, '#c23a3f', 5.5, 0, 11.5, { r: 0.05 });
   k.box(0.6, 0.4, 0.4, '#5b5562', 5.5, 1.0, 11.5, { r: 0.08 });
   // the picket fence, open at the driveway and at the front path's gate

@@ -64,6 +64,11 @@ interface Agent {
   wait: number;
   step: number;
   slot: Slot | null;
+  /** Where they are drawn, off their spot or path, to keep clear of whoever is next to them (`keepApart`). */
+  offX: number;
+  offZ: number;
+  pushX: number;
+  pushZ: number;
   lunch: number;
   /** When they go for lunch (local hour). */
   lunchAt: number;
@@ -238,7 +243,7 @@ export class CampusPeople {
       : [7.0 + r() * 2.4, 16.6 + r() * 2.4];
     const a: Agent = {
       key, role, kind, height, fig, obj, home, at: home, state: 'away', arrive, leave, car: null, tasks: [], route: null, ri: 0,
-      pos: new THREE.Vector3(), heading: 0, wait: 0, step: 0, slot: null, lunch: -1, lunchAt: 11.8 + r() * 1.5, pick: 0, beat: 0, act: 'walk', acc: 0, r, advisor,
+      pos: new THREE.Vector3(), heading: 0, wait: 0, step: 0, slot: null, offX: 0, offZ: 0, pushX: 0, pushZ: 0, lunch: -1, lunchAt: 11.8 + r() * 1.5, pick: 0, beat: 0, act: 'walk', acc: 0, r, advisor,
     };
     this.agents.push(a);
     this.byKey.set(key, a);
@@ -815,7 +820,47 @@ export class CampusPeople {
       if (this.byKey.get(a.key) !== a) continue;
       if (!a.tasks.length) this.think(a);
       this.run(a, e);
-      this.animate(a, e, cam);
+    }
+    this.keepApart(e.dt);
+    for (const a of this.agents) if (a.state === 'out' && this.byKey.get(a.key) === a) this.animate(a, e, cam);
+  }
+
+  /**
+   * Nobody stands inside anybody: where two people's spots or paths bring them closer than shoulder width, they are
+   * drawn a little apart (the one walking steps round the one standing; two walkers share it). Only where they are
+   * drawn moves, by less than half a metre and eased, so the routes and the places they stand stay what they were.
+   */
+  private keepApart(dt: number) {
+    const out = this.agents.filter((a) => a.state === 'out' && a.obj.visible);
+    const R = 0.8;
+    for (const a of out) { a.pushX = 0; a.pushZ = 0; }
+    for (let i = 0; i < out.length; i++) {
+      const a = out[i];
+      for (let j = i + 1; j < out.length; j++) {
+        const b = out[j];
+        let dx = a.pos.x - b.pos.x, dz = a.pos.z - b.pos.z;
+        if (Math.abs(dx) > R || Math.abs(dz) > R) continue;
+        let d = Math.hypot(dx, dz);
+        if (d >= R) continue;
+        if (d < 0.01) {
+          // on the very same spot: part along a line of their own
+          const t = (i * 2.4 + j) % TAU;
+          dx = Math.cos(t); dz = Math.sin(t); d = 1;
+        }
+        const need = (R - Math.max(d, 0.01)) / (d || 1);
+        // someone holding a place (a seat, a spot in a chat) gives way less than someone passing
+        const wa = a.slot ? 0.25 : 1, wb = b.slot ? 0.25 : 1;
+        const sa = wa / (wa + wb), sb = wb / (wa + wb);
+        a.pushX += dx * need * sa; a.pushZ += dz * need * sa;
+        b.pushX -= dx * need * sb; b.pushZ -= dz * need * sb;
+      }
+    }
+    const k = Math.min(1, dt * 6);
+    for (const a of out) {
+      const m = Math.hypot(a.pushX, a.pushZ);
+      const s = m > 0.45 ? 0.45 / m : 1;
+      a.offX += (a.pushX * s - a.offX) * k;
+      a.offZ += (a.pushZ * s - a.offZ) * k;
     }
   }
 
@@ -995,7 +1040,7 @@ export class CampusPeople {
     const yWas = o.userData.y as number | undefined;
     const y = yWas === undefined || Math.abs(a.pos.y - yWas) > 1 ? a.pos.y : yWas + (a.pos.y - yWas) * Math.min(1, e.dt * 9);
     o.userData.y = y;
-    o.position.set(a.pos.x, y, a.pos.z);
+    o.position.set(a.pos.x + a.offX, y, a.pos.z + a.offZ);
     o.rotation.y = a.heading;
     // the guard's torch at night
     if (a.role === 'guard' && e.night > 0.3 && !o.userData.torch) {
