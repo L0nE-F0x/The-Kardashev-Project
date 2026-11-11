@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import type { Line2 } from 'three/examples/jsm/lines/Line2.js';
-import { softLine, type LineLook } from './soft';
+import { OVER_CLOUDS, softLine, type LineLook } from './soft';
 import type { GameState } from '../../sim/types';
 import { siteDef } from '../../content/sites';
 import { charterView, liftoffActive, mainKind, orbitAngle, orbitPoint } from './layerData';
@@ -47,6 +47,9 @@ function groundPaint<T extends THREE.Material>(m: T): T {
   };
   return m;
 }
+
+/** The pad's smoke where the rocket's fire lights it. */
+const FIRE_LIT = new THREE.Color(1.0, 0.62, 0.3);
 
 const mat = groundPaint(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, metalness: 0 }));
 mat.userData.shared = true;
@@ -317,20 +320,28 @@ export class CharterLayer {
       this.beam.add(cm, cone);
       this.group.add(this.beam);
     }
-    // the first liftoff replays from the launch site for a while: a rocket climbing out on its trail
+    // the first liftoff replays from the launch site for a while: a rocket climbing out on its fire and its trail.
+    // Sized to be seen from where the map is played (it was a two-pixel sliver behind the site's own label), its
+    // fire and smoke their own light so the launch reads on the night side too
     const lsite = v.launch ? siteDef(v.launch.siteId) : null;
     if (lsite && liftoffActive(v, day)) {
       if (!this.rocket) {
         const k = new Kit(rng(8));
-        k.cyl(0.12, 0.12, 1.4, '#efe8de', 0, 0, 0, 10);
-        k.geo(new THREE.ConeGeometry(0.12, 0.35, 10).translate(0, 1.57, 0), '#df5f3e', 0);
+        k.cyl(0.17, 0.17, 1.4, '#efe8de', 0, 0, 0, 10);
+        k.geo(new THREE.ConeGeometry(0.17, 0.42, 10).translate(0, 1.61, 0), '#df5f3e', 0);
+        for (const sx of [-1, 1]) k.box(0.16, 0.34, 0.03, '#df5f3e', sx * 0.22, 0, 0, { r: 0, jitter: 0 });
         this.rocket = new THREE.Group();
         this.rocket.add(model(k));
-        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.5, 8).rotateX(Math.PI).translate(0, -0.25, 0), new THREE.MeshBasicMaterial({ color: '#fde9a4', toneMapped: false }));
+        // the fire: past white at the nozzle (the bloom finds it), drawn over the clouds with the models
+        const flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.3, 10).rotateX(Math.PI).translate(0, -0.65, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(4.2, 2.6, 1.0), transparent: true }));
+        flame.renderOrder = OVER_CLOUDS + 2;
+        flame.userData.flame = true;
         this.rocket.add(flame);
         this.group.add(this.rocket);
-        for (let i = 0; i < 14; i++) {
-          const puff = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), new THREE.MeshStandardMaterial({ color: '#f4f1ec', transparent: true, opacity: 0.8, roughness: 1 }));
+        const puffGeo = new THREE.SphereGeometry(0.25, 10, 8);
+        for (let i = 0; i < 16; i++) {
+          const puff = new THREE.Mesh(puffGeo, new THREE.MeshBasicMaterial({ color: '#f4f1ec', transparent: true, opacity: 0.8, depthWrite: false }));
+          puff.renderOrder = OVER_CLOUDS + 1;
           this.trail.push(puff);
           this.group.add(puff);
         }
@@ -341,19 +352,30 @@ export class CharterLayer {
       const rise = fly * fly * 0.9;
       const base = n.clone().multiplyScalar(R + 0.05);
       const sc = scale(base, 3);
+      // (the smoke is lit by the fire at the pad and by the day; a grey ghost of it at night)
+      const sun = THREE.MathUtils.smoothstep(n.dot(groundSun.value), -0.1, 0.2), fade = Math.max(0, 1 - Math.max(0, t - 4) / 2);
       this.rocket.position.copy(base).addScaledVector(n, rise * sc * 6);
       this.rocket.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
-      this.rocket.scale.setScalar(sc * 2.2);
+      this.rocket.scale.setScalar(sc * 4.4);
       this.rocket.visible = facing(n) > 0 && rise < 14;
+      for (const c of this.rocket.children) if (c.userData.flame) { c.visible = t > 0.5; c.scale.set(1, 0.8 + Math.sin(this.time * 37) * 0.12 + Math.sin(this.time * 61) * 0.08, 1); }
       this.trail.forEach((p, i) => {
         const f = i / this.trail.length;
         p.position.copy(base).addScaledVector(n, rise * sc * 6 * f);
-        p.scale.setScalar(sc * (1.2 + (1 - f) * 2.5 + (t < 0.8 ? 1 : 0)));
-        (p.material as THREE.MeshStandardMaterial).opacity = (0.75 - f * 0.4) * Math.max(0, 1 - Math.max(0, t - 4) / 2);
-        p.visible = this.rocket!.visible && (t > 0.2) && f * rise < rise;
+        // (drawn out along the climb once the puffs stand apart, so the trail is a column, not a string of beads)
+        const wide = sc * (2.4 + (1 - f) * 4.6 + (t < 0.8 ? 1.5 : 0)) * (0.85 + ((i * 37) % 7) * 0.05);
+        p.quaternion.copy(this.rocket!.quaternion);
+        p.scale.set(wide, Math.max(wide, ((rise * sc * 6) / this.trail.length) * 2.6), wide);
+        const m = p.material as THREE.MeshBasicMaterial;
+        m.color.setRGB(0.92, 0.9, 0.87).multiplyScalar(0.3 + 0.7 * sun).lerp(FIRE_LIT, (1 - f) * (1 - sun) * 0.5 * fade);
+        m.opacity = (0.7 - f * 0.45) * fade;
+        p.visible = this.rocket!.visible && t > 0.3;
       });
     } else if (this.rocket) {
       this.group.remove(this.rocket, ...this.trail);
+      this.rocket.traverse((o) => { const m = o as THREE.Mesh; m.geometry?.dispose(); if (m.isMesh && !(m.material as THREE.Material).userData.shared) (m.material as THREE.Material).dispose(); });
+      this.trail[0]?.geometry.dispose();
+      for (const p of this.trail) (p.material as THREE.Material).dispose();
       this.rocket = null;
       this.trail = [];
     }
