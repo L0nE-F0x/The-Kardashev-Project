@@ -30,7 +30,7 @@ export function AchievementsScreen() {
   const total = ACHIEVEMENTS.length;
   const have = ACHIEVEMENTS.filter((a) => st.got[a.id]).length;
   return (
-    <Window title="Achievements" icon="goals" wide onClose={() => game.openMenuScreen('main')}>
+    <Window title="Achievements" icon="legit" wide onClose={() => game.openMenuScreen('main')}>
       <p class="small muted">
         {have} of {total} on this device. Campaign achievements don’t unlock in a sandbox, and an act a preset skips isn’t yours to collect.
       </p>

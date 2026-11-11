@@ -7,6 +7,7 @@ import { FAC_ICON } from './Inspector';
 import type { FacilityType } from '../sim/types';
 import type { IconName } from './icons';
 import type { Game } from '../game/game';
+import { rich } from './emoji';
 
 /** How far along a numeric goal is: a bar and the numbers (the hint moves to the Goals panel). */
 export function ObjectiveBar({ p }: { p: ObjectiveProgress }) {
@@ -49,11 +50,15 @@ export function Objectives() {
               <Portrait id={o.advisor} size={32} />
               <div class="grow">
                 <div class="t">
-                  {s.meta.pinnedGoal === o.id && <span class="pinmark" data-tip="Pinned in Goals">📌 </span>}
+                  {s.meta.pinnedGoal === o.id && (
+                    <span class="pinmark" data-tip="Pinned in Goals">
+                      <Icon name="pin" size="sm" />{' '}
+                    </span>
+                  )}
                   {o.side && <span class="label cyan">Side · </span>}
                   {o.title}
                 </div>
-                {p ? <ObjectiveBar p={p} /> : <div class="h">{o.hint}</div>}
+                {p ? <ObjectiveBar p={p} /> : <div class="h">{rich(o.hint)}</div>}
               </div>
             </div>
           );
@@ -91,7 +96,7 @@ function ComingUp({ game, items }: { game: Game; items: UpcomingItem[] }) {
         <span class="label">Coming up</span>
         {canSkip && (
           <button class="btn small primary skipnext" onClick={() => go(items[0])} data-tip={`Run the clock flat out until: ${items[0].text}.\nAny event card stops it, and so does any speed button.`}>
-            ⏭ Skip to next
+            <Icon name="skip" size="sm" /> Skip to next
           </button>
         )}
       </div>
@@ -102,7 +107,7 @@ function ComingUp({ game, items }: { game: Game; items: UpcomingItem[] }) {
           <span class="uw">{fmtDays(it.day - s.day)}</span>
           {canSkip && (
             <button class="btn ghost small upskip" onClick={() => go(it)} data-tip={`Skip ahead to this (${fmtDays(it.day - s.day)}). A card stops it sooner.`} aria-label={`Skip to: ${it.text}`}>
-              ⏭
+              <Icon name="skip" size="sm" />
             </button>
           )}
         </div>
@@ -119,7 +124,9 @@ export function SkipBar() {
   if (!sk || !s) return null;
   return (
     <div class="skipbar frame interactive" role="status">
-      <span class="skipicon">⏭</span>
+      <span class="skipicon">
+        <Icon name="skip" />
+      </span>
       <span class="grow">
         <span class="label">Skipping ahead</span>
         <span class="st">

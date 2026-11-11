@@ -47,7 +47,7 @@ Training cost scales with the model’s compute budget, measured in floating-poi
     body: `A power plant’s nameplate rating is its maximum output; its capacity factor is what it actually delivers on average. A 100 MW solar farm with a 25% capacity factor produces about 25 MW averaged over a year — the sun sets, clouds pass, winter comes.
 
 Wind farms reach 35–45% on good sites. Gas and nuclear plants can run above 90% when called on.`,
-    game: 'Every site lists its ☀ solar and 🌬 wind capacity factors. Deserts, high plateaus and windy plains are worth the trip.',
+    game: 'Every site lists its solar and wind capacity factors. Deserts, high plateaus and windy plains are worth the trip.',
   },
   {
     id: 'batteries', title: 'Batteries & firm power', cat: 'energy', icon: 'battery', unlock: (s) => has(s, 'battery') || has(s, 'solar'),

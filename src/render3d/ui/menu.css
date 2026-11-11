@@ -511,7 +511,9 @@ html.edition-3d:not(.ui-classic) {
     }
     .setting .val {
       font-size: 14px;
-      width: 52px;
+      width: auto;
+      min-width: 52px;
+      white-space: nowrap;
     }
     .setting.slider input {
       width: 200px;

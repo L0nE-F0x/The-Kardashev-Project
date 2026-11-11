@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import { Portrait, useGame } from './components';
+import { rich } from './emoji';
 import { TUTORIAL } from '../game/tutorial';
 import { BRIEFINGS } from '../game/briefings';
 import { ADVISORS } from '../content/advisors';
@@ -123,7 +124,7 @@ export function TutorialOverlay() {
       advisor="bit"
       mood={step.mood ?? 'happy'}
       label={`Bit · ${stepIndex + 1}/${TUTORIAL.length}`}
-      text={step.text(game)}
+      text={rich(step.text(game))}
       buttons={
         <>
           <button class="btn ghost small" onClick={() => game.tutorialSkip()}>
@@ -157,7 +158,7 @@ export function BriefingOverlay() {
       advisor={def.advisor}
       mood={step.mood ?? 'happy'}
       label={`${ADVISORS[def.advisor].name.replace(/^Dr\.\s*/, '').split(' ')[0]} · ${def.title} ${def.steps.length > 1 ? `${b.step + 1}/${def.steps.length}` : ''}`}
-      text={step.text(game)}
+      text={rich(step.text(game))}
       buttons={
         <>
           <button class="btn ghost small" onClick={() => game.briefingSkip()}>
@@ -186,7 +187,7 @@ export function AdvisorTip() {
         <div class="label">
           {name} · {t.kind === 'moment' ? 'on site' : 'tip'}
         </div>
-        <div class="tip-text">{t.text}</div>
+        <div class="tip-text">{rich(t.text)}</div>
         <div class="row wrap tip-actions">
           {t.action && (
             <button class="btn small primary" onClick={() => game.tipAction()}>

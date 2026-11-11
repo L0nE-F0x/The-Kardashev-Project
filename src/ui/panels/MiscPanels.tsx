@@ -12,6 +12,7 @@ function GoalProgress({ o, s }: { o: ObjectiveDef; s: GameState }) {
 import { PHASE_NAMES } from '../../sim/actions';
 import { CHARTER_PHASES } from '../../content/charter';
 import { dateOf, fmtDate } from '../../sim/core';
+import { rich } from '../emoji';
 
 export function NewsPanel() {
   const game = useGame();
@@ -51,7 +52,7 @@ function Messages() {
         <div key={m.id} class={`msg row ${m.kind}`}>
           {m.advisor ? <Portrait id={m.advisor as AdvisorId} size={28} /> : <span class="msgdot" />}
           <span class="muted msgday">{fmtDate(m.day)}</span>
-          <span class="grow">{m.text}</span>
+          <span class="grow">{rich(m.text)}</span>
           {m.fast && <span class="label cyan" data-tip="Arrived while the clock was running fast">fast</span>}
         </div>
       ))}
@@ -70,7 +71,7 @@ function NewsList() {
           <span class="muted" style={{ minWidth: '90px' }}>
             {fmtDate(n.day)}
           </span>
-          <span class={n.kind === 'good' ? 'good' : n.kind === 'bad' ? 'warn' : ''}>{n.text}</span>
+          <span class={n.kind === 'good' ? 'good' : n.kind === 'bad' ? 'warn' : ''}>{rich(n.text)}</span>
         </div>
       ))}
     </>
@@ -100,7 +101,7 @@ export function GoalsPanel() {
                 {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                 {!done && unlocked && !o.live && <PinButton id={o.id} />}
               </div>
-              <div class="h">{o.hint}</div>
+              <div class="h">{rich(o.hint)}</div>
                     {!done && <GoalProgress o={o} s={s} />}
             </div>
           </div>
@@ -131,7 +132,7 @@ function SideGoals() {
                 {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.reward && <span class="label cyan">· {o.reward.text}</span>}
                 {!done && unlocked && <PinButton id={o.id} />}
               </div>
-              <div class="h">{o.hint}</div>
+              <div class="h">{rich(o.hint)}</div>
               {!done && <GoalProgress o={o} s={s} />}
             </div>
           </div>
@@ -157,7 +158,7 @@ export function PinButton({ id }: { id: string }) {
       aria-label={on ? 'Unpin goal' : 'Pin goal'}
       aria-pressed={on}
     >
-      📌
+      <Icon name="pin" size="sm" />
     </button>
   );
 }
@@ -190,7 +191,7 @@ function Act2Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                 {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
-                    <div class="h">{o.hint}</div>
+                    <div class="h">{rich(o.hint)}</div>
                     {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>
@@ -235,7 +236,7 @@ function Act4Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                 {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
-                    <div class="h">{o.hint}</div>
+                    <div class="h">{rich(o.hint)}</div>
                     {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>
@@ -278,7 +279,7 @@ function Act5Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                 {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
-                    <div class="h">{o.hint}</div>
+                    <div class="h">{rich(o.hint)}</div>
                     {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>
@@ -324,7 +325,7 @@ function Act3Goals() {
                       {done ? <Icon name="check" size="sm" /> : null} {o.title} {o.goal && <span class="label gold">· goal</span>}
                 {!done && unlocked && !o.live && <PinButton id={o.id} />}
                     </div>
-                    <div class="h">{o.hint}</div>
+                    <div class="h">{rich(o.hint)}</div>
                     {!done && <GoalProgress o={o} s={s} />}
                   </div>
                 </div>

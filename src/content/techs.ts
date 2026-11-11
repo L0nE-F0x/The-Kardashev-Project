@@ -83,12 +83,12 @@ export interface TechDef {
   vstage?: number;
 }
 
-export const TECH_CATEGORIES: Record<TechCategory, { name: string; icon: string }> = {
-  ai: { name: 'Models', icon: '🧠' },
-  hardware: { name: 'Hardware', icon: '🔷' },
-  energy: { name: 'Energy', icon: '⚡' },
-  safety: { name: 'Safety', icon: '🛡' },
-  policy: { name: 'Policy', icon: '🤝' },
+export const TECH_CATEGORIES: Record<TechCategory, { name: string; icon: 'brain' | 'compute' | 'power' | 'shield' | 'blocs' }> = {
+  ai: { name: 'Models', icon: 'brain' },
+  hardware: { name: 'Hardware', icon: 'compute' },
+  energy: { name: 'Energy', icon: 'power' },
+  safety: { name: 'Safety', icon: 'shield' },
+  policy: { name: 'Policy', icon: 'blocs' },
 };
 
 export const TECHS: TechDef[] = [

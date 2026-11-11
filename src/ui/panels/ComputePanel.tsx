@@ -32,7 +32,7 @@ export function ComputePanel() {
   const safetyCapped = s.flags.safetyCapUntil && s.day < Number(s.flags.safetyCapUntil);
 
   return (
-    <Panel title="Compute & Models" icon="compute" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel title="Compute & models" icon="compute" class="wide" onClose={() => game.openPanel(null)}>
       <div class="row wrap" style={{ gap: '14px', alignItems: 'flex-start' }}>
         <div class="grow" style={{ minWidth: '260px' }}>
           <h4>Capacity</h4>

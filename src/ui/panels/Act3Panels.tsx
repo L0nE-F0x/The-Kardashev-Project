@@ -506,11 +506,11 @@ export function ProjectRow({ p }: { p: Project }) {
         {fmtDays(left)}
       </span>
       <button class="btn small ghost" disabled={!!s.flags[`expedited:${p.id}`]} onClick={() => game.expedite(p.id)} data-tip={`Overtime crews: ${fmtMoney(expediteCost(p))}, 20% less time left. Once per project.`}>
-        ⏩
+        <Icon name="ff" size="sm" />
       </button>
       {late && !p.claimed && p.builder !== YOU && (
         <button class="btn small ghost" onClick={() => game.claimDamages(p.id)} data-tip="Claim 10% of the price in damages. The builder won’t like it.">
-          ⚖
+          <Icon name="council" size="sm" />
         </button>
       )}
       <button class="btn small ghost" onClick={() => game.cancelProject(p.id)} data-tip="Cancel the contract. What’s paid is gone; the builder is furious; Legitimacy −4.">
@@ -893,7 +893,7 @@ function BlocsTab() {
       </div>
       {k.concord && (
         <div class="small warn section">
-          ⚔ The Concord Initiative ({k.concord.members.map((r) => REGIONS[r].short).join(', ')}) since {fmtDate(k.concord.formed)}: members pay half their dues.
+          <Icon name="rival" size="sm" /> The Concord Initiative ({k.concord.members.map((r) => REGIONS[r].short).join(', ')}) since {fmtDate(k.concord.formed)}: members pay half their dues.
         </div>
       )}
       <div class="section">

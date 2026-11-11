@@ -1,6 +1,7 @@
 /** Act II panels: Team (advisor jobs), Deals (supply · customers · companies), Blocs (diplomacy), Board & debt, the Crunch tracker. */
 import { useState } from 'preact/hooks';
 import { Bar, Choice, Icon, KV, Panel, Portrait, Slider, Toggle, pct, useGame } from '../components';
+import { rich } from '../emoji';
 import { JOBS } from '../../content/jobs';
 import { DEALS } from '../../content/stack';
 import { MATERIALS, MINES } from '../../content/stack';
@@ -111,14 +112,13 @@ export function PoolBars({ supplier }: { supplier: SupplierId }) {
   const low = p.rate >= p.logic * 0.97 ? null : p.hbm <= p.pkg ? 'hbm' : 'pkg';
   const row = (key: 'logic' | 'hbm' | 'pkg', label: string, tip: string) => (
     <div class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
-      <span style={{ width: '64px' }} class={low === key ? 'warn' : 'muted'}>
-        {low === key ? '▶ ' : ''}
+      <span style={{ width: '78px', flex: 'none', whiteSpace: 'nowrap' }} class={low === key ? 'warn' : 'muted'}>
         {label}
       </span>
       <div class="grow">
         <Bar value={p[key] / max} kind={low === key ? 'warn' : key === 'logic' ? 'gold' : 'violet'} />
       </div>
-      <span style={{ width: '64px', textAlign: 'right' }}>{fmtNum(p[key], 0)}</span>
+      <span style={{ width: '48px', flex: 'none', textAlign: 'right' }}>{fmtNum(p[key], 0)}</span>
     </div>
   );
   return (
@@ -259,11 +259,13 @@ function CustomersTab() {
                 class={`small ${ok ? 'good' : tooLow ? 'bad' : 'warn'}`}
                 data-tip="If you signed today. Contracts are served first, from the halls with the best latency into their region: your own fiber and cables count almost fully; over the public internet the same continent counts 72%, a neighbouring one about 60%, across an ocean nothing. More chips, halls or links change the numbers."
               >
-                {ok
+                {rich(
+                  ok
                   ? `✓ You can deliver all of it today (from ${from}).`
                   : tooLow
                     ? `✗ Only ${pct(pv.frac)} deliverable today: build in ${REGIONS[o.region].short} or link to it first.`
-                    : `⚠ About ${pct(pv.frac)} deliverable today (from ${from}): penalties leave ~${fmtMoney(pv.net)}/mo.`}
+                    : `⚠ About ${pct(pv.frac)} deliverable today (from ${from}): penalties leave ~${fmtMoney(pv.net)}/mo.`,
+                )}
               </div>
             </div>
             <span class="row" style={{ gap: '4px' }}>
@@ -462,13 +464,14 @@ export function BlocsPanel() {
             return (
               <div key={id} class="small" style={{ marginBottom: '6px' }}>
                 <div>
-                  ⛔ <b>{r.name}</b> <span class="muted">(by {REGIONS[r.by].short})</span>
+                  <Icon name="lock" size="sm" /> <b>{r.name}</b> <span class="muted">(by {REGIONS[r.by].short})</span>
                 </div>
                 <div class="muted">{r.blurb}</div>
                 {has ? (
                   <span class="good">✓ Licensed</span>
                 ) : pending ? (
-                  <span class="muted">⏳ Licence in {fmtDays((s.politics.pending.find((p) => p.rule === id && p.region === sel)?.readyDay ?? s.day) - s.day)}</span>
+                  <span class="muted">
+                    <Icon name="clock" size="sm" /> Licence in {fmtDays((s.politics.pending.find((p) => p.rule === id && p.region === sel)?.readyDay ?? s.day) - s.day)}</span>
                 ) : r.licenceDays > 0 ? (
                   <button class="btn small" disabled={!!why} onClick={() => game.applyLicence(id, sel)} data-tip={why ?? `${fmtMoney(r.licenceCost)} · about ${fmtDays(Math.round(r.licenceDays * techMult(s, 'licenceDays')))}`}>
                     Apply for a licence
@@ -557,7 +560,8 @@ export function BoardSection() {
           <div class="small muted">The board forms with the Series B.</div>
         )}
         {s.capital.ipo ? (
-          <div class="small good">🔔 Public since {Math.round(s.capital.ipo.day / 365.25 + 2027)} at {fmtMoney(s.capital.ipo.valuation)}.</div>
+          <div class="small good">
+            <Icon name="ipo" size="sm" /> Public since {Math.round(s.capital.ipo.day / 365.25 + 2027)} at {fmtMoney(s.capital.ipo.valuation)}.</div>
         ) : s.phase >= 3 ? (
           <div class="small muted" data-tip={ipoTip(s)}>
             IPO bankers’ estimate today: {fmtMoney(ipoValuation(s))}.

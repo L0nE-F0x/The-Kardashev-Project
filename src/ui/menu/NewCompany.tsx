@@ -43,7 +43,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             Campaign
           </button>
           <button class={`btn small ${sb ? 'active' : ''}`} onClick={() => setMode('sandbox')} aria-pressed={sb}>
-            🧪 Sandbox
+            <Icon name="lab" size="sm" /> Sandbox
           </button>
         </div>
         <span class="small muted grow">
@@ -100,7 +100,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       {sb && (
         <>
-          <h4 class="section">Sandbox switches (change them any time from the 🧪 badge in the top bar)</h4>
+          <h4 class="section">Sandbox switches (change them any time from the <Icon name="lab" size="sm" /> badge in the top bar)</h4>
           <div class="custom">
             <SandboxControls value={sandbox} onChange={setSandbox} scenario={scenario} onScenario={setScenario} />
           </div>
@@ -187,7 +187,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             <div class="row" style={{ gap: '4px' }}>
               <input type="text" inputMode="numeric" value={String(seed)} onInput={(e) => setSeed(Number((e.target as HTMLInputElement).value.replace(/\D/g, '')) || 1)} style={{ width: '110px' }} />
               <button class="btn small" onClick={() => setSeed(randomSeed())} aria-label="Random seed">
-                🎲
+                Random
               </button>
             </div>
           </div>
@@ -196,7 +196,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
 
       <div class="row between wrap section" style={{ gap: '8px' }}>
         <span class="small muted">
-          {sb ? '🧪 Sandbox · ' : ''}
+          {sb ? 'Sandbox · ' : ''}
           {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : start === 5 ? 'Act V · ' : ''}
           {DIFFICULTIES[difficulty].name} · {FOUNDERS[founder].name} · {start === 1 ? `${fmtMoney(Math.max(10e6, startCash), 0)} to start` : start === 2 ? 'Series A in the bank' : start === 3 ? 'public, with Charter Standing 2' : start === 4 ? 'a renewed Planetary Charter' : 'a hundred terawatts and the Heat Wall behind you'}
         </span>

@@ -2,8 +2,9 @@
  * The 3D edition's interface: tokens and primitives (surfaces, type, buttons, inputs, bars).
  *
  * The system in one place:
- *  - Surfaces are dark glass: a translucent ink gradient, a 1px light hairline, a soft shadow. No backdrop blur
- *    (it costs integrated GPUs real time over a WebGL canvas); `html.e-blur` opts in for whoever wants it.
+ *  - Surfaces are dark glass: an ink gradient that is all but solid, a 1px light hairline, a soft shadow. No
+ *    backdrop blur (it costs integrated GPUs real time over a WebGL canvas), and so no real see-through either:
+ *    unblurred, what is under a pane (markers, beams, city lights) reads as clutter in the text.
  *  - Type is Atkinson Hyperlegible Next everywhere: 700–800 for titles and numbers, small capitals for labels.
  *  - Colour: cyan = things you can press or have picked; gold = the story and the score (titles, goals, money, K);
  *    green / orange / red = good / careful / bad; violet = research under way.
@@ -17,9 +18,13 @@
 
 html.edition-3d:not(.ui-classic) {
   /* surfaces */
-  --e-glass: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 93%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 95%, transparent));
-  --e-glass-hud: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 84%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 88%, transparent));
-  --e-glass-solid: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 97%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 98%, transparent));
+  /* Nearly solid. Without a blur behind it, a see-through pane does not read as glass: the globe's markers,
+     beams and city lights show through as clutter under the text (84–93% was the first cut; at these values a
+     bright line under a pane adds less than it takes to notice). The glass is in the gradient, the hairline
+     and the shadow. */
+  --e-glass: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 98%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 99%, transparent));
+  --e-glass-hud: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 96%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 97.5%, transparent));
+  --e-glass-solid: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 99.2%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 99.6%, transparent));
   --e-raise: rgb(255 255 255 / 0.05);
   --e-raise-hi: rgb(255 255 255 / 0.1);
   --e-sunk: rgb(4 4 10 / 0.38);
@@ -667,5 +672,18 @@ html.edition-3d:not(.ui-classic) input[type='range']::-webkit-slider-thumb {
   from {
     opacity: 0;
     translate: -14px 0;
+  }
+}
+
+/*
+ * One scrollbar everywhere. The rules above set the standard properties (scrollbar-width / -color: all Firefox
+ * has) and the ::-webkit-scrollbar parts. Where an engine knows both, Chromium lets the standard ones win and
+ * draws its own thin bar with arrow buttons, in the panels only (and, since the colour inherits, a wider one in
+ * every list inside them). So where the parts exist, the standard properties step back and the drawn bar is used.
+ */
+@supports selector(::-webkit-scrollbar) {
+  html.edition-3d:not(.ui-classic) :is(.panel > .body, .modal .body, .guide-list, .ht-page, .tut-main) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
   }
 }

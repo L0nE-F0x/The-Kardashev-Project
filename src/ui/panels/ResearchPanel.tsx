@@ -35,7 +35,7 @@ export function ResearchPanel() {
         {(Object.keys(TECH_CATEGORIES) as TechCategory[]).map((cat) => (
           <div class="techcol" key={cat}>
             <h4>
-              {TECH_CATEGORIES[cat].icon} {TECH_CATEGORIES[cat].name}
+              <Icon name={TECH_CATEGORIES[cat].icon} size="sm" /> {TECH_CATEGORIES[cat].name}
             </h4>
             {TECHS.filter((t) => t.cat === cat && (t.act ?? 1) <= Math.max(2, s.act ?? 1)).map((t) => {
               const done = s.research.done.includes(t.id);

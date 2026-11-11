@@ -28,19 +28,41 @@ export function TopBar() {
     [8, 'fff', 'Fastest (4)'],
   ];
   const marginCls = st.margin >= 0.25 ? 'good' : st.margin >= 0 ? '' : st.margin >= -0.5 ? 'warn' : 'bad';
-  // a phone can't show every stat of the later acts: they scroll sideways, and a fade on the right says there's more
+  // The later acts add stats and the numbers grow: when they stop fitting, the bar tightens in steps (`data-fit`:
+  // 1 = closer together, the K meter without its label; 2 = icons without plates, smaller type; 3 = without the
+  // Charter's treasury and the safety margin, which their panels show; 4 = a last squeeze). What still doesn't fit scrolls sideways
+  // under a fade on the right.
+  const barRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
+  const fit = useRef(0);
   const markMore = () => {
     const el = statsRef.current;
     if (el) el.classList.toggle('more', el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
   };
-  useLayoutEffect(markMore);
+  const refit = (from: number) => {
+    const bar = barRef.current;
+    const el = statsRef.current;
+    if (!bar || !el) return;
+    let level = from;
+    for (;;) {
+      bar.dataset.fit = String(level);
+      if (level >= 4 || el.scrollWidth <= el.clientWidth + 1) break;
+      level++;
+    }
+    fit.current = level;
+    markMore();
+  };
+  // every render may only tighten (a number got wider); a new set of stats, a new window or interface size starts over
+  const shown = (s.charter ? 1 : 0) + (s.planet ? 1 : 0) + (s.system ? 1 : 0);
+  useLayoutEffect(() => refit(fit.current));
+  useLayoutEffect(() => refit(0), [shown, game.settings.uiScale]);
   useEffect(() => {
-    window.addEventListener('resize', markMore);
-    return () => window.removeEventListener('resize', markMore);
+    const again = () => refit(0);
+    window.addEventListener('resize', again);
+    return () => window.removeEventListener('resize', again);
   }, []);
   return (
-    <div class="topbar">
+    <div class="topbar" ref={barRef}>
       <div class="speed frame" data-tut="speed">
         {speeds.map(([sp, icon, tip]) => (
           <button key={sp} class={`btn small ${game.speed === sp ? 'active' : ''}`} onClick={() => game.setSpeed(sp)} data-tip={tip} aria-label={tip}>
@@ -57,7 +79,7 @@ export function TopBar() {
       <div class={`date frame ${s.meta.sandbox ? 'has-badge' : ''}`} data-tip={`Day ${s.day} of the campaign.\nAt 1× speed one day passes per second.`}>
         {s.meta.sandbox && (
           <button class="btnless sandbox-badge" onClick={() => game.openPanel(game.panel === 'sandbox' ? null : 'sandbox')} data-tip="Sandbox: change the switches" aria-label="Sandbox switches">
-            🧪
+            <Icon name="lab" size="sm" />
           </button>
         )}
         <span class="label">{s.company.name}</span>
@@ -114,7 +136,7 @@ Click to open the System (X).`}>
         <div class="stat" data-tip={`Total compute: ${st.computeEF.toFixed(2)} exaFLOP/s peak.\n${st.installedAccel.toLocaleString()} accelerators installed, ${st.rentedAccel.toLocaleString()} rented.`}>
           <Icon name="compute" />
           <div class="col">
-            <span class="v cyan">{st.computeEF < 10 ? st.computeEF.toFixed(2) : st.computeEF.toFixed(1)} EF</span>
+            <span class="v cyan">{st.computeEF < 10 ? st.computeEF.toFixed(2) : st.computeEF < 1000 ? st.computeEF.toFixed(1) : Math.round(st.computeEF).toLocaleString('en-US')} EF</span>
             <span class="s">{(st.installedAccel + st.rentedAccel).toLocaleString()} chips</span>
           </div>
         </div>

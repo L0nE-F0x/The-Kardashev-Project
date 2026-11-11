@@ -498,12 +498,13 @@ html.edition-3d:not(.ui-classic) {
       padding: 6px;
       gap: 4px;
       border-radius: 14px;
-      --dock-b: clamp(32px, calc((100dvh / var(--z) - 164px) / var(--dock-n, 10) - 4px), 48px);
+      /* down to 26px a button: Act V's nineteen still fit a 720-high window (a Steam Deck has 800) without scrolling */
+      --dock-b: clamp(26px, calc((100dvh / var(--z) - 164px) / var(--dock-n, 10) - 4px), 48px);
       max-height: calc(100% - var(--e-top) - var(--e-foot));
     }
     @supports (width: round(down, 10.5px, 1px)) {
       .dock {
-        --dock-b: round(down, clamp(32px, calc((100dvh / var(--z) - 164px) / var(--dock-n, 10) - 4px), 48px), 1px);
+        --dock-b: round(down, clamp(26px, calc((100dvh / var(--z) - 164px) / var(--dock-n, 10) - 4px), 48px), 1px);
       }
     }
 
@@ -863,9 +864,148 @@ html.edition-3d:not(.ui-classic) {
     .kmeter .kv {
       grid-column: 1 / -1;
     }
-    /* Acts IV–V add two stats: the two a phone already drops (the Charter's treasury, the safety margin) go */
-    .stats:has([data-tut='planet-stat']) .stat.hide-mobile {
+  }
+}
+
+/*
+ * The top bar tightens by itself when its stats stop fitting (TopBar.tsx sets data-fit: Acts IV–V add two stats,
+ * a bigger interface size widens everything, a number can grow by three digits). Each step keeps the one before.
+ */
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    /* 1: closer together; the K meter loses its label (the K says it) */
+    .topbar:is([data-fit='1'], [data-fit='2'], [data-fit='3'], [data-fit='4']) {
+      .stat {
+        padding: 4px 10px 4px 5px;
+        gap: 5px;
+      }
+      .stat > img.px,
+      .kmeter > img.px {
+        margin: 0 5px;
+        box-shadow: 0 0 0 4px rgb(255 255 255 / 0.07);
+      }
+      .kmeter > img.px {
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 16%, transparent);
+      }
+      .date {
+        min-width: 0;
+        padding: 4px 12px;
+      }
+      .kmeter {
+        width: 176px;
+        padding: 4px 12px 4px 8px;
+      }
+      .kmeter .col::before {
+        content: none;
+      }
+      .kmeter .kv {
+        grid-column: 1 / -1;
+        font-size: 19px;
+      }
+    }
+    /* 2: the icons lose their plates, the type goes down a size */
+    .topbar:is([data-fit='2'], [data-fit='3'], [data-fit='4']) {
+      gap: 6px;
+      .stat {
+        padding: 4px 7px 4px 4px;
+        gap: 4px;
+      }
+      .stat .v {
+        font-size: 16.5px;
+      }
+      .stat .s {
+        font-size: 12px;
+      }
+      .stat > img.px,
+      .kmeter > img.px {
+        margin: 0 1px;
+        background: none;
+        box-shadow: none;
+      }
+      .date {
+        padding: 4px 10px;
+      }
+      .speed {
+        padding: 0 5px;
+        gap: 1px;
+      }
+      .speed .btn {
+        width: 32px;
+        height: 34px;
+      }
+      .kmeter {
+        width: 158px;
+        padding: 4px 11px 4px 8px;
+      }
+    }
+    /* 3: the two stats a small window drops (their panels show them) */
+    .topbar:is([data-fit='3'], [data-fit='4']) .stat.hide-mobile {
       display: none;
     }
+    /* 4: the last squeeze (Act V at the biggest interface size in a small window) */
+    .topbar[data-fit='4'] {
+      gap: 5px;
+      .stat {
+        padding: 4px 5px 4px 3px;
+        gap: 3px;
+      }
+      .stat .v {
+        font-size: 15.5px;
+      }
+      .stat .s {
+        font-size: 11.5px;
+      }
+      .date {
+        padding: 4px 8px;
+      }
+      .speed .btn {
+        width: 29px;
+      }
+      .kmeter {
+        width: 146px;
+        padding: 4px 9px 4px 6px;
+      }
+      .kmeter .kv {
+        font-size: 17.5px;
+      }
+    }
+    /* a long dock in a low window: the buttons stand closer, so Act V's nineteen fit 720 px without scrolling */
+    @media (max-height: 940px) {
+      .dock.many {
+        gap: 2px;
+      }
+      .dock.many .sep {
+        margin: 1px 8px;
+      }
+    }
+  }
+}
+
+/* ── small repairs ──────────────────────────────────────────────────────────────── */
+html.edition-3d:not(.ui-classic) {
+  /* "· Act II" beside a technology's name never breaks in the middle */
+  .tech .t .label {
+    white-space: nowrap;
+  }
+  /* the next milestone's number sits clear of the bar's glowing end */
+  .kmeter .kbar {
+    margin-right: 38px;
+  }
+  /* photo mode's bar (photo.css) is centred with left: 50%, which leaves it half the window to lay out in: it
+     wrapped its last button onto a second row. It takes its own width; every control stands on one line. */
+  .photobar {
+    width: max-content;
+    align-items: stretch;
+  }
+  .photobar label {
+    justify-content: space-between;
+  }
+  .photobar label > :is(input, select) {
+    height: 28px;
+    margin: 0;
+  }
+  .photobar > .btn {
+    align-self: flex-end;
+    height: 28px;
   }
 }

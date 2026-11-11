@@ -39,7 +39,7 @@ export function OrdersPanel() {
   const blocked = destId ? orderBlockedBy(s, supplier, siteDef(destId).region) : null;
 
   return (
-    <Panel title="Chips & Shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel title="Orders · chips & shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
       {!destOptions.length ? (
         <div class="small">
           <Icon name="warn" size="sm" /> Build a <b>Data Center</b> first — chips ship to one of your data center sites. Click a site on the map to build.
@@ -67,7 +67,7 @@ export function OrdersPanel() {
               );
             })}
           </div>
-          <div class="row wrap" style={{ gap: '10px' }}>
+          <div class="row wrap" style={{ gap: '10px', alignItems: 'flex-start' }}>
             <label class="grow" style={{ minWidth: '200px' }}>
               <span class="label">Quantity: {qty.toLocaleString()}</span>
               <input type="range" min={500} max={maxQty} step={500} value={qty} onInput={(e) => setQty(Number((e.target as HTMLInputElement).value))} />
@@ -113,12 +113,12 @@ export function OrdersPanel() {
           )}
           {space && qty > space.free && (
             <div class="small warn section">
-              ⚠ Only {space.free.toLocaleString()} more chips fit in the halls at {siteDef(destId!).name}: the other {(qty - space.free).toLocaleString()} would wait in the warehouse until you build or expand a hall.
+              <Icon name="warn" size="sm" /> Only {space.free.toLocaleString()} more chips fit in the halls at {siteDef(destId!).name}: the other {(qty - space.free).toLocaleString()} would wait in the warehouse until you build or expand a hall.
             </div>
           )}
           {destId && blocked && (
             <div class="small warn section">
-              ⛔ {blocked.name}: {CHIP_SUPPLIERS[supplier].short} can’t ship to {REGIONS[siteDef(destId).region].name} without a licence. Ask Sol on the Blocs screen.
+              <Icon name="lock" size="sm" /> {blocked.name}: {CHIP_SUPPLIERS[supplier].short} can’t ship to {REGIONS[siteDef(destId).region].name} without a licence. Ask Sol on the Blocs screen.
             </div>
           )}
           {quote && (

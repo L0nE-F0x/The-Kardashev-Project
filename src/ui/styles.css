@@ -368,7 +368,8 @@ img.portrait {
 }
 .kv {
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* the label keeps its line; a long value wraps beside it (the other way round a label broke after one word) */
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 2px 10px;
   font-size: 13px;
 }

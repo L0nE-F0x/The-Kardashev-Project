@@ -5,6 +5,7 @@
  */
 import { useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, useGame } from '../components';
+import { rich } from '../emoji';
 import type { IconName } from '../icons';
 import type { PlanetTab } from '../../game/game';
 import type { AiId, ContractKind, ContractSize, FivePlan, PlanetState, Priority, Project } from '../../sim/types';
@@ -93,7 +94,8 @@ export function PlanetPanel() {
     >
       {pl.planOpen && (
         <div class="row wrap small" style={{ gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-          <span class="grow gold">🗓 The five-year plan for {STAGE_NAMES[pl.stage + 1]} is waiting. The clock waits with it.</span>
+          <span class="grow gold">
+            <Icon name="plan" size="sm" /> The five-year plan for {STAGE_NAMES[pl.stage + 1]} is waiting. The clock waits with it.</span>
           <button class="btn small primary" onClick={() => reopenPlan(game)} data-tip="Back to the plan screen">
             <Icon name="plan" size="sm" /> Open the plan
           </button>
@@ -156,7 +158,7 @@ export function PostContract({ kind, opt, where: fixedWhere, label }: { kind: Co
         class="small muted"
         data-tip={`Project value ${fmtMoney(est.value)}; the Charter pays ${Math.round(def.share * 100)}% (20% on award, the rest over the build). Bids come in above or below.\nBidders: ${bidders.map((b) => (b === YOU ? s.company.name : PARTNERS[b]?.short ?? b)).join(', ')}`}
       >
-        {sizeText(def, sz)} · ~<span class="gold">{fmtMoney(est.share)}</span> · ~{fmtDays(est.days)}
+        {sizeText(def, sz) ? `${sizeText(def, sz)} · ` : ''}~<span class="gold">{fmtMoney(est.share)}</span> · ~{fmtDays(est.days)}
       </span>
       <button class="btn small primary" disabled={!!why} onClick={() => game.postTender(kind, sz, where, opt)} data-tip={why ?? `${def.blurb}\n${def.effect}`}>
         <Icon name="tender" size="sm" /> {label ?? 'Post tender'}
@@ -457,7 +459,7 @@ function GridTab() {
           const down = p?.status === 'done' && (p.downUntil ?? 0) > s.day;
           return (
             <div key={r.id} class="row wrap small" style={{ gap: '8px', alignItems: 'center', borderTop: '1px solid var(--line)', padding: '4px 0' }}>
-              <span style={{ minWidth: '170px' }} data-tip={r.blurb}>
+              <span style={{ width: '240px', flex: 'none' }} data-tip={r.blurb}>
                 <b>{r.name}</b>
                 <div class="muted">
                   {REGIONS[r.from].short}–{REGIONS[r.to].short} · {r.km.toLocaleString()} km{r.subsea ? ' · subsea' : ''}
@@ -797,7 +799,7 @@ export function JumpOverlay() {
         </span>
         <span class="jumpyear">{year}</span>
         <button class="btn small" onClick={() => game.skipJump()}>
-          Skip ⏭
+          Skip <Icon name="skip" size="sm" />
         </button>
       </div>
       <Bar value={frac} kind="gold" />
@@ -838,7 +840,7 @@ export function JumpReportModal() {
         <div class="body">
           {rec.cut && (
             <p class="small warn" style={{ marginTop: 0 }}>
-              ⏸ The plan stopped early: {rec.cut}. The rest of the stage runs in real time — it needs you now.
+              <Icon name="pause" size="sm" /> The plan stopped early: {rec.cut}. The rest of the stage runs in real time — it needs you now.
             </p>
           )}
           <div class="quote">
@@ -847,7 +849,7 @@ export function JumpReportModal() {
               <b>Bit’s diary</b>
               {rec.diary.map((l, i) => (
                 <div key={i} style={{ marginTop: i ? '4px' : 0 }}>
-                  {l}
+                  {rich(l)}
                 </div>
               ))}
             </div>
@@ -864,15 +866,15 @@ export function JumpReportModal() {
           {rec.built.length > 0 && (
             <>
               <h4>Built</h4>
-              <div class="small">{rec.built.join(' · ')}</div>
+              <div class="small">{rec.built.join(', ')}</div>
             </>
           )}
           {rec.highlights.length > 0 && (
             <>
               <h4 style={{ marginTop: '6px' }}>The headlines</h4>
-              <ul class="small" style={{ margin: '2px 0', paddingLeft: '18px' }}>
+              <ul class="small headlines">
                 {rec.highlights.slice(0, 8).map((h, i) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{rich(h)}</li>
                 ))}
               </ul>
             </>
@@ -885,7 +887,7 @@ export function JumpReportModal() {
               </summary>
               <ul style={{ margin: '2px 0', paddingLeft: '18px' }}>
                 {rec.auto.map((h, i) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{rich(h)}</li>
                 ))}
               </ul>
             </details>
@@ -950,7 +952,7 @@ export function Act4CompleteModal() {
     <div class="scrim">
       <div class="modal frame">
         <div class="head">
-          <span class="ico">☀</span>
+          <Icon name="swarm" size="lg" />
           <div class="grow">
             <div class="label">{fmtDate(s.day, true)}</div>
             <h2>Act IV complete — Planetary</h2>

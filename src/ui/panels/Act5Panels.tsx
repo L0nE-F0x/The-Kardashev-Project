@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, speakerName, useGame } from '../components';
+import { rich } from '../emoji';
 import type { IconName } from '../icons';
 import type { SystemTab } from '../../game/game';
 import type { EraPlan, EraPriority, AiId, AdvisorId, GameState, MaxFront } from '../../sim/types';
@@ -411,8 +412,8 @@ function AsteroidsTab() {
           const why = canClaim(s, a.id);
           return (
             <div key={a.id} class="row small" style={{ gap: '8px', alignItems: 'center', opacity: st.status === 0 ? 0.5 : 1 }} data-tip={st.status ? `${a.blurb}\n${TYPE_INFO[a.type].name}: ${TYPE_INFO[a.type].blurb}` : 'Not surveyed yet.'}>
-              <span style={{ width: '82px' }}>{st.status ? a.name : '???'}</span>
-              <span class="muted" style={{ width: '120px' }}>
+              <span style={{ width: '96px', flex: 'none' }}>{st.status ? a.name : '???'}</span>
+              <span class="muted" style={{ width: '216px', flex: 'none' }}>
                 {st.status ? `${a.type} · ${a.km >= 10 ? Math.round(a.km) : a.km} km · ${a.belt === 'nea' ? 'near-Earth' : 'main belt'}` : a.belt === 'nea' ? 'near-Earth' : 'main belt'}
               </span>
               <span class="grow">{st.status === 0 ? 'unknown' : st.status === 1 ? 'surveyed' : st.status === 2 ? `claimed by ${ownerLabel(st.owner ?? 'charter')}` : `worked: ${cap.toFixed(cap < 10 ? 2 : 0)} Mt/yr (${ownerLabel(st.owner ?? 'charter')})`}</span>
@@ -555,7 +556,7 @@ function MindsTab() {
         />
         <h4 style={{ marginTop: '8px' }}>The other AIs</h4>
         {(['apex', 'weft', 'sapling'] as AiId[]).map((a) => (
-          <div key={a} class="row small" style={{ gap: '8px', alignItems: 'center' }}>
+          <div key={a} class="row small" style={{ gap: '8px', alignItems: 'center', margin: '5px 0' }}>
             {aiFace(a, 24)}
             <span style={{ width: '70px' }}>{AIS[a].name}</span>
             <div class="grow">
@@ -752,7 +753,7 @@ export function EraOverlay() {
         </span>
         <span class="jumpyear">{j.last ? `K ${s.stats.K.toFixed(4)}` : yearAt(s.day)}</span>
         <button class="btn small" onClick={() => game.skipJump()}>
-          Skip ⏭
+          Skip <Icon name="skip" size="sm" />
         </button>
       </div>
       <Bar value={j.last ? Math.max(0, (s.stats.K - j.before.K) / Math.max(0.0001, 1 - j.before.K)) : frac} kind="gold" />
@@ -797,7 +798,7 @@ export function EraReportModal() {
               <b>Bit’s diary</b>
               {rec.diary.map((l, i) => (
                 <div key={i} style={{ marginTop: i ? '4px' : 0 }}>
-                  {l}
+                  {rich(l)}
                 </div>
               ))}
             </div>
@@ -815,15 +816,15 @@ export function EraReportModal() {
           {rec.built.length > 0 && (
             <>
               <h4>Built</h4>
-              <div class="small">{rec.built.join(' · ')}</div>
+              <div class="small">{rec.built.join(', ')}</div>
             </>
           )}
           {rec.highlights.length > 0 && (
             <>
               <h4 style={{ marginTop: '6px' }}>The headlines</h4>
-              <ul class="small" style={{ margin: '2px 0', paddingLeft: '18px' }}>
+              <ul class="small headlines">
                 {rec.highlights.slice(0, 8).map((h, i) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{rich(h)}</li>
                 ))}
               </ul>
             </>
@@ -833,7 +834,7 @@ export function EraReportModal() {
               <summary>Decisions taken on autopilot ({rec.auto.length})</summary>
               <ul style={{ margin: '2px 0', paddingLeft: '18px' }}>
                 {rec.auto.map((h, i) => (
-                  <li key={i}>{h}</li>
+                  <li key={i}>{rich(h)}</li>
                 ))}
               </ul>
             </details>
@@ -1083,7 +1084,7 @@ function EndCard({ year }: { year: number }) {
           {note && <div class="small muted">{note}</div>}
           <div class="row wrap" style={{ gap: '8px', marginTop: '8px' }}>
             <button class="btn" disabled={!url} onClick={() => url && void saveImage(name, url).then((p) => setNote(savedNote(p, 'Couldn’t save it: take a screenshot instead.')))}>
-              <Icon name="arrow" size="sm" /> Save the picture
+              Save the picture
             </button>
           </div>
           <div class="quote" style={{ marginTop: '10px' }}>

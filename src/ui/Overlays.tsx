@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Game } from '../game/game';
 import { Icon, Portrait, pct, useGame } from './components';
+import { rich } from './emoji';
 import { linkMaxKm } from '../sim/model';
 import { ASTEROID_BY_ID } from '../content/system';
 import { SITE_BY_ID } from '../content/sites';
@@ -26,7 +27,7 @@ export function Ticker() {
         ) : (
           items.map((n, i) => (
             <span key={`${n.day}-${i}`} class={n.kind}>
-              {n.text}
+              {rich(n.text)}
             </span>
           ))
         )}
@@ -42,7 +43,7 @@ export function Toasts() {
       {game.toasts.map((t) => (
         <div key={t.id} class={`toast frame ${t.kind}`} onClick={() => game.dismissToast(t.id)}>
           {t.advisor && <Portrait id={t.advisor as AdvisorId} mood={t.kind === 'bad' ? 'worried' : 'happy'} size={40} />}
-          <span>{t.text}</span>
+          <span>{rich(t.text)}</span>
         </div>
       ))}
     </div>
@@ -85,7 +86,7 @@ export function MapTooltip() {
     if (site.kind === 'build') {
       const facs = s.facilities.filter((f) => f.siteId === h.id);
       const sp = s.stats.sitePower[h.id];
-      body = `${REGIONS[site.region].name}\n☀ ${pct(site.solarCF)}  🌬 ${pct(site.windCF)}  💧 ${site.water >= 0.5 ? 'ok' : 'scarce'}  ${site.climateC}°C`;
+      body = `${REGIONS[site.region].name}\n:solar: ${pct(site.solarCF)}  :wind: ${pct(site.windCF)}  :hydro: ${site.water >= 0.5 ? 'ok' : 'scarce'}  ${site.climateC}°C`;
       if (facs.length) body += `\n${facs.map((f) => `${FACILITIES[f.type].name}${f.status === 'building' ? ' (building)' : ''}`).join(', ')}`;
       if (sp && sp.load > 0) body += `\nPower ${fmtMW(sp.served)} / ${fmtMW(sp.load)}`;
       const rivals = (s.rivalBuilds ?? []).filter((b) => b.siteId === h.id);
@@ -128,7 +129,7 @@ export function MapTooltip() {
   return (
     <div class="tooltip frame" ref={ref} style={{ left: `${left}px`, top: `${top}px` }}>
       <h3>{title}</h3>
-      {body}
+      {rich(body)}
     </div>
   );
 }
@@ -178,7 +179,7 @@ export function TipLayer() {
   const top = Math.max(4, Math.min(window.innerHeight - 120, tip.y + 16));
   return (
     <div class="tooltip frame" ref={ref} style={{ left: `${left}px`, top: `${top}px` }}>
-      {tip.text}
+      {rich(tip.text)}
     </div>
   );
 }
@@ -394,7 +395,7 @@ export function ConfirmModal() {
     <div class="scrim">
       <div class="modal frame" role="alertdialog" aria-label={c.title} style={{ width: 'min(420px, 100%)' }}>
         <div class="head">
-          <span class="ico">💸</span>
+          <Icon name={c.yes ? 'help' : 'cash'} size="lg" />
           <h2 class="grow">{c.title}</h2>
         </div>
         <div class="body">
