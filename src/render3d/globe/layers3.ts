@@ -291,11 +291,20 @@ export class CharterLayer {
       for (let i = 0; i <= 240; i++) { const p = orbitPoint((i / 240) * Math.PI * 2); pts.push(dir(p.lon, p.lat).multiplyScalar(R * 1.004)); }
       this.track = fat(pts, PALETTE.ice1, 1, { dashed: true, opacity: 0.5, glow: 0 });
       this.group.add(this.track);
+      // a bright bus between two blue wings, a beacon on top: from the map's height the old one (a dark plate over
+      // a small box) was a few dim pixels
       const k = new Kit(rng(5));
-      k.box(0.5, 0.35, 0.35, '#e6e0e3', 0, 0, 0, { r: 0.05 });
-      k.box(1.6, 0.03, 0.55, '#345c96', 0, 0.16, 0, { r: 0, jitter: 0 });
+      k.box(0.55, 0.45, 0.5, '#f4f1ec', 0, 0, 0, { r: 0.06 });
+      for (const sx of [-1, 1]) {
+        k.box(1.05, 0.04, 0.62, '#4a78c8', sx * 0.85, 0.2, 0, { r: 0, jitter: 0 });
+        k.box(1.05, 0.05, 0.05, '#e6e0e3', sx * 0.85, 0.19, 0, { r: 0, jitter: 0 });
+      }
       this.sat = new THREE.Group();
       this.sat.add(model(k));
+      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6).translate(0, 0.6, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 3.6, 4.2), transparent: true }));
+      beacon.renderOrder = OVER_CLOUDS + 2;
+      beacon.userData.beacon = true;
+      this.sat.add(beacon);
       this.group.add(this.sat);
     }
     if (this.sat) {
@@ -303,8 +312,9 @@ export class CharterLayer {
       const n = dir(p.lon, p.lat);
       this.sat.position.copy(n).multiplyScalar(R * 1.07);
       this.sat.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
-      this.sat.scale.setScalar(scale(this.sat.position, 8));
+      this.sat.scale.setScalar(scale(this.sat.position, 12));
       this.sat.visible = facing(n) > -0.1;
+      for (const c of this.sat.children) if (c.userData.beacon) c.visible = this.time % 1.4 < 0.5;
     }
     // space solar: a collector in high orbit beaming down to a receiver in the Sahara
     if (v.spaceSolar && !this.beam) {
