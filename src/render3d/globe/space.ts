@@ -213,7 +213,12 @@ export class Aurora {
           // bright round midnight, gone by noon, and only where the sky is dark
           vK = smoothstep(-0.35, 0.7, cos(a)) * (1.0 - smoothstep(-0.26, -0.06, dot(d, sunDir)));
           vUv = vec3(u, ring.y, ring.w);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(d * ${R.toFixed(1)} * (1.013 + (1.0 - flat_) * ring.y * 0.036), 1.0);
+          vec3 at = d * ${R.toFixed(1)} * (1.013 + (1.0 - flat_) * ring.y * 0.036);
+          // seen from straight above, a curtain is edge-on (a bright wire drawn round the pole): there it gives
+          // way to the glow under it, which is what an aurora looks like from orbit
+          float above = smoothstep(0.55, 0.93, abs(dot(normalize(cameraPosition - at), d)));
+          vK *= mix(1.0 - above * 0.82, 1.0 + above * 3.0, flat_);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(at, 1.0);
         }`,
       fragmentShader: `uniform sampler2D tDetail; uniform float time, strength; varying vec3 vUv; varying float vK;
         void main(){

@@ -115,6 +115,17 @@ export function shipMesh() {
   return g;
 }
 
+/** Freight on the road: what a sea shipment is while it crosses land to or from its port (bow, here the cab, towards +x). */
+export function truckMesh() {
+  const k = new Kit(rng(5));
+  k.box(1.25, 0.5, 0.5, '#e6e0e3', -0.25, 0.14, 0, { r: 0.05 });
+  k.box(0.42, 0.42, 0.48, '#c23a3f', 0.66, 0.14, 0, { r: 0.06 });
+  k.box(1.9, 0.12, 0.44, '#433c52', 0, 0, 0, { r: 0.02 });
+  const g = new THREE.Group();
+  g.add(model(k));
+  return g;
+}
+
 export function planeMesh() {
   const k = new Kit(rng(4));
   k.cyl(0.13, 0.13, 1.6, '#e6e0e3', 0, 0, 0, 8, { rz: Math.PI / 2 });

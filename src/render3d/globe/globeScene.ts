@@ -8,10 +8,10 @@ import type { PixelPointer } from '../../render/stage';
 import type { Scene3D } from '../stage3d';
 import { defaultLook, type Look } from '../post';
 import { SITES, siteDef, type SiteDef } from '../../content/sites';
-import { CODE_BY_REGION, REGION_BY_CODE } from '../../content/mapcodes';
+import { BIOME, CODE_BY_REGION, REGION_BY_CODE } from '../../content/mapcodes';
 import { CHOKEPOINTS } from '../../world/routing';
 import { closedChokepoints } from '../../sim/effects';
-import { sampleRegionCode, project } from '../../world/mapData';
+import { sampleBiome, sampleRegionCode, project } from '../../world/mapData';
 import { subsolar } from '../../world/sun';
 import { siteVisible } from './layerData';
 import { REGIONS } from '../../content/regions';
@@ -23,11 +23,11 @@ import { dropLine, globePath, NetworkLayer, POWER_PULSE } from './layers2';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import type { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { lineClock, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './soft';
+import { lineClock, linePixelRatio, lineRes, OVER_CLOUDS, softLine, softLineMaterial } from './soft';
 import { Aurora, milkyWay, starField, Sun } from './space';
-import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, type Marker, type MarkerKind } from './markers';
+import { Halos, KIND_COL, makeMarker, planeMesh, shipMesh, truckMesh, type Marker, type MarkerKind } from './markers';
 import { quality } from '../quality';
-import { CharterLayer } from './layers3';
+import { CharterLayer, groundSun } from './layers3';
 import { PlanetLayer } from './layers45';
 import { rivalsAt, landingActive, mineOwned } from './layerData';
 
@@ -61,7 +61,8 @@ export class GlobeScene implements Scene3D {
   private linkKey = '';
   private labels: Labels;
   private network: NetworkLayer;
-  private charter = new CharterLayer();
+  private charter: CharterLayer;
+  private isLand: (lon: number, lat: number) => boolean;
   private planet: PlanetLayer;
   private w = 1;
   private h = 1;
@@ -77,7 +78,8 @@ export class GlobeScene implements Scene3D {
   private grab: { lon: number; lat: number } | null = null;
   /** The glide after a drag is let go, degrees a second. */
   private vel = { lon: 0, lat: 0 };
-  private cine: { from: [number, number]; to: [number, number]; t: number; secs: number; dist: number } | null = null;
+  /** A directed glide (the menu's film); `sun` = where the Sun stands over the Earth at its start and end, if the shot says. */
+  private cine: { from: [number, number]; to: [number, number]; t: number; secs: number; dist: number; sun: [number, number, number] | null } | null = null;
   private down: { x: number; y: number; moved: boolean; t: number } | null = null;
   private last: { x: number; y: number; t: number } | null = null;
   private pointers = new Map<number, { x: number; y: number }>();
@@ -109,6 +111,8 @@ export class GlobeScene implements Scene3D {
     this.buildChokepoints();
     this.labels = new Labels();
     this.network = new NetworkLayer(game.world.router);
+    this.isLand = (lo, la) => { const p = project(lod, lo, la); return sampleBiome(lod, p.x, p.y) !== BIOME.OCEAN; };
+    this.charter = new CharterLayer(this.isLand);
     this.planet = new PlanetLayer(this.earthMat);
     this.scene.add(this.network.group, this.charter.group, this.planet.group);
     // start over home (or the middle of the Atlantic in the menu)
@@ -177,8 +181,20 @@ export class GlobeScene implements Scene3D {
     return true;
   }
 
-  cinematic(from: [number, number], to: [number, number], secs: number, lod: number) {
-    this.cine = { from, to, t: 0, secs, dist: lod >= 1 ? 120 : 215 };
+  /**
+   * A slow glide for the menu's film. `hours`: the local solar time at the glide's end point as the shot starts
+   * and as it ends (a shot is lit like a campus shot is: without it the film showed whatever the real hour gave,
+   * "Night falls over Asia" at noon and the Andes in the dark), `season`: the latitude the Sun stands over (so the
+   * film is the same in June as in December). In play the Sun stays where it really is.
+   */
+  cinematic(from: [number, number], to: [number, number], secs: number, lod: number, hours?: [number, number], season = 8) {
+    const sunLon = (h: number) => wrap(to[0] - (h - 12) * 15);
+    this.cine = { from, to, t: 0, secs, dist: lod >= 1 ? 120 : 215, sun: hours ? [sunLon(hours[0]), sunLon(hours[1]), season] : null };
+    // the shot opens a little wide and settles in (a new scene starts far out: left there, every close shot began
+    // with the whole globe rushing at the camera while the picture was still fading up)
+    this.dist = this.cine.dist * 1.22;
+    this.lon = from[0];
+    this.lat = from[1] - 6;
     this.anchor = null;
     this.vel.lon = this.vel.lat = 0;
   }
@@ -238,7 +254,7 @@ export class GlobeScene implements Scene3D {
       const k = c.t * c.t * (3 - 2 * c.t);
       this.lon = c.from[0] + wrap(c.to[0] - c.from[0]) * k;
       this.lat = c.from[1] + (c.to[1] - c.from[1]) * k - 6;
-      this.dist += (c.dist - this.dist) * (1 - Math.exp(-dt * 2));
+      this.dist += (c.dist - this.dist) * (1 - Math.exp(-dt * 0.9));
       this.settle();
     } else {
       // the zoom eases out; while it does, the place under the cursor stays put
@@ -275,10 +291,16 @@ export class GlobeScene implements Scene3D {
     // the sun where it really is right now (like the pixel map)
     const day = (s?.day ?? 0) + g.dayFraction();
     const ss = subsolar(new Date());
+    // (a directed shot of the menu's film brings its own hour and season)
+    if (this.cine?.sun) {
+      ss.lon = this.cine.sun[0] + wrap(this.cine.sun[1] - this.cine.sun[0]) * this.cine.t;
+      ss.lat = this.cine.sun[2];
+    }
     const sunDir = dir(ss.lon, ss.lat);
     this.earthMat.uniforms.sunDir.value.copy(sunDir);
     this.cloudMat.uniforms.sunDir.value.copy(sunDir);
     this.atmo.uniforms.sunDir.value.copy(sunDir);
+    groundSun.value.copy(sunDir);
     this.sun.position.copy(sunDir).multiplyScalar(500);
     this.sunDisc.update(sunDir, this.camera);
     // (from far out the curtains pile up along the limb: turned down there)
@@ -300,7 +322,7 @@ export class GlobeScene implements Scene3D {
     this.earthMat.uniforms.selCode.value = sel ?? -1;
 
     this.updateMarkers(s);
-    this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n));
+    this.network.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.closeUp());
     this.charter.update(s, day, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 120);
     this.planet.update(s, dt, (p, px) => this.screenScale(p, px), (n) => this.facing(n), this.dist < 200);
     this.earthMat.uniforms.tintOn.value = (this.earthMat.uniforms.regionTint.value as THREE.Vector4[]).some((t) => t.w > 0) ? 1 : 0;
@@ -311,6 +333,7 @@ export class GlobeScene implements Scene3D {
     this.updateToolPreview();
     // stars keep their size on screen whatever the 3D resolution
     (this.stars.material as THREE.ShaderMaterial).uniforms.pixelRatio.value = g.stage.scale || 1;
+    linePixelRatio.value = g.stage.scale || 1;
   }
 
   /** The power-line / fiber tool: a dashed line from the chosen site to the cursor. */
@@ -341,6 +364,14 @@ export class GlobeScene implements Scene3D {
   private screenScale(p: THREE.Vector3, px = 1) {
     const d = this.camera.position.distanceTo(p);
     return (d * 2 * Math.tan((this.camera.fov * RAD) / 2) / this.h) * px;
+  }
+
+  /**
+   * Freight is drawn bigger as you come down to it: at one size on screen for every zoom, a ship seen from close
+   * in was a dozen pixels on a wide empty sea.
+   */
+  private closeUp() {
+    return 1 + 0.9 * (1 - THREE.MathUtils.smoothstep(this.dist, 22, 110));
   }
 
   private facing(n: THREE.Vector3) {
@@ -443,7 +474,8 @@ export class GlobeScene implements Scene3D {
       const key = `${sh.portDay}|${sh.route.length}|${sh.overland.length}`;
       if (!e || e.key !== key) {
         if (e) this.dropShip(e);
-        const obj = sh.mode === 'air' ? planeMesh() : shipMesh();
+        // (a sea shipment is a ship at sea and a lorry on its way to and from the port)
+        const obj = sh.mode === 'air' ? planeMesh() : new THREE.Group().add(shipMesh(), truckMesh());
         const pts: THREE.Vector3[] = [];
         const path = [...sh.route, ...sh.overland.slice(1)];
         for (let i = 0; i < path.length; i++) {
@@ -467,13 +499,18 @@ export class GlobeScene implements Scene3D {
       e.obj.visible = !!pos && this.facing(pos.p) > 0.05;
       if (!pos || !e.obj.visible) continue;
       const n = pos.p;
+      if (sh.mode !== 'air') {
+        const ll = lonLatOf(n), ashore = this.isLand(ll.lon, ll.lat);
+        e.obj.children[0].visible = !ashore;
+        e.obj.children[1].visible = ashore;
+      }
       const lift = sh.mode === 'air' ? 0.6 : 0.03;
       const world = n.clone().multiplyScalar(R + lift);
       const fwd = pos.fwd.clone().sub(n.clone().multiplyScalar(pos.fwd.dot(n))).normalize();
       const side = new THREE.Vector3().crossVectors(n, fwd);
       e.obj.matrix.makeBasis(fwd, n, side.negate());
       e.obj.matrix.setPosition(world);
-      const sc = this.screenScale(world, 7) * (sh.id === hov ? 1.3 : 1);
+      const sc = this.screenScale(world, 7 * this.closeUp()) * (sh.id === hov ? 1.3 : 1);
       e.obj.matrix.scale(new THREE.Vector3(sc, sc, sc));
       e.obj.matrixAutoUpdate = false;
       e.obj.matrixWorldNeedsUpdate = true;

@@ -85,7 +85,7 @@ export class SystemScene3D implements Scene3D {
   private moonAngle = 0;
   private swarm: Swarm;
   private belt: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>;
-  private beams = new Beams(96);
+  private beams = new Beams(96, 6);
   private dyn = new THREE.Group();
   private asteroids = new Map<string, THREE.Object3D>();
   private yards: Partial<Record<'l4' | 'l5', THREE.Object3D>> = {};

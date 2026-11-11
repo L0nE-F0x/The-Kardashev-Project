@@ -92,7 +92,12 @@ export class Beams {
   private col: THREE.InstancedBufferAttribute;
   private n = 0;
 
-  constructor(readonly cap: number) {
+  /**
+   * `maxPx`: the widest a shaft's half-width may get on screen. Widths are in world units, right from far out;
+   * flown close to one end (the solar-system view's camera on the Earth), a shaft swelled into a searchlight
+   * across the frame.
+   */
+  constructor(readonly cap: number, maxPx = 1e6) {
     const g = new THREE.InstancedBufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -1, 0, 1, -1, 0, 1, 1, 0, 0, 1, 0]), 3));
     g.setIndex([0, 1, 2, 0, 2, 3]);
@@ -107,16 +112,16 @@ export class Beams {
     g.instanceCount = 0;
     const m = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-      uniforms: { ...ribbonUniforms, uTime: { value: 0 } },
+      uniforms: { ...ribbonUniforms, uTime: { value: 0 }, uMaxPx: { value: maxPx } },
       vertexShader: /* glsl */ `
-        attribute vec3 aA, aB, aCol; attribute vec4 aPar; uniform float uPx; varying vec2 vUv; varying vec3 vCol; varying float vLen, vPhase;
+        attribute vec3 aA, aB, aCol; attribute vec4 aPar; uniform float uPx, uMaxPx; varying vec2 vUv; varying vec3 vCol; varying float vLen, vPhase;
         ${SIDE}
         void main(){
           vec3 va = (modelViewMatrix * vec4(aA, 1.0)).xyz, vb = (modelViewMatrix * vec4(aB, 1.0)).xyz;
           vec3 vc = mix(va, vb, position.x);
           // aPar: width at the start and at the end (world units), brightness, a phase for the pulses
           float px = max(-vc.z, 0.01) * uPx;
-          float w = max(mix(aPar.x, aPar.y, position.x), px * 1.6);
+          float w = min(max(mix(aPar.x, aPar.y, position.x), px * 1.6), px * uMaxPx);
           vc += ribbonSide(vc, vb - va) * position.y * w;
           vUv = position.xy; vCol = aCol * aPar.z * min(1.0, mix(aPar.x, aPar.y, position.x) / (px * 1.6) + 0.35);
           vLen = length(vb - va); vPhase = aPar.w;

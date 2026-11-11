@@ -103,3 +103,35 @@ export function softLine(pts: THREE.Vector3[], p: LineLook) {
   l.renderOrder = OVER_CLOUDS;
   return l;
 }
+
+/** The 3D picture's pixels per CSS px (the globe sets it each frame): node dots keep their size on screen. */
+export const linePixelRatio = { value: 1 };
+
+/**
+ * The ends of the long power lines (HVDC links, the supergrid): a small ringed dot in the line's colour at each, a
+ * converter station on the map. The routes run between regions, not sites: without them a line stopped in the
+ * middle of a country, at nothing. One draw for a line's two ends; the same size on screen at any zoom.
+ */
+export function lineNodes(ends: THREE.Vector3[], colors: THREE.ColorRepresentation[], px = 9) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(ends.flatMap((v) => [v.x, v.y, v.z]), 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(colors.flatMap((c) => new THREE.Color(c).toArray()), 3));
+  const m = new THREE.ShaderMaterial({
+    uniforms: { pixelRatio: linePixelRatio, px: { value: px } },
+    vertexShader: `attribute vec3 color; uniform float pixelRatio, px; varying vec3 vC;
+      void main(){ vC = color; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); gl_PointSize = px * pixelRatio; }`,
+    fragmentShader: `uniform float pixelRatio, px; varying vec3 vC;
+      void main(){ float d = length(gl_PointCoord - 0.5) * 2.0, w = 2.0 / (px * pixelRatio);
+        float a = 1.0 - smoothstep(1.0 - w, 1.0, d);
+        if (a < 0.01) discard;
+        // a dark heart in a bright ring
+        gl_FragColor = vec4(mix(vC * 0.12, vC * 1.25, smoothstep(0.38, 0.38 + w * 1.5, d)), a);
+        #include <colorspace_fragment>
+      }`,
+    transparent: true, depthWrite: false,
+  });
+  const pts = new THREE.Points(g, m);
+  pts.frustumCulled = false;
+  pts.renderOrder = OVER_CLOUDS + 1;
+  return pts;
+}
