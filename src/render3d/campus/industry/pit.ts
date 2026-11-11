@@ -28,7 +28,11 @@ const HB = 5.6;
 const RUN = 2.0;
 const C0 = { x: 0.5, z: -0.3, a: 29.5, b: 20.6 };
 const CN = { x: -8.5, z: -7.5, a: 10, b: 7 };
-const LW = 7.0;
+// The haul road's width, measured along the pit's radial lines. Two trucks (3.4 wide) pass on it down to the last
+// landing; below that the radial lines run so obliquely to the road that its real width is barely 5, so the last leg
+// is single file (the trucks' timing keeps them from meeting there: see `spacing` below).
+const LW = 8.8;
+const LANE_OUT = 2.0, LANE_IN = 5.9, LANE_MID = 3.5;
 
 const wob = (th: number) => 1 + 0.028 * Math.sin(3 * th + 1.1) + 0.018 * Math.sin(5 * th + 2.3) + 0.01 * Math.sin(9 * th + 0.4);
 function cont(s: number) {
@@ -104,7 +108,10 @@ function laneAt(th: number): { y: number; sc: number } {
 /** A point on one of the road's lanes (0 = outer, by the cut; 1 = inner, by the windrow). */
 function lanePoint(th: number, lane: 0 | 1): THREE.Vector3 {
   const { y, sc } = laneAt(th);
-  const [x, z] = P(sc + (lane ? 4.45 : 1.55) / sp(th), th);
+  // both lanes run down the middle below the last landing
+  const one = smooth(Math.min(1, Math.max(0, (0.09 * Math.PI - th) / (0.1 * Math.PI))));
+  const off = (lane ? LANE_IN : LANE_OUT) * (1 - one) + LANE_MID * one;
+  const [x, z] = P(sc + off / sp(th), th);
   return new THREE.Vector3(x, y + 0.08, z);
 }
 
@@ -222,11 +229,13 @@ function rampMesh(rock: Rock, seed: number) {
     const below = Math.min(B(sIn, th), y);
     const hFill = y - below;
     const sBot = sIn + (0.5 * hFill + 0.3) / q;
+    // the windrow runs out towards the foot (the trucks' turning loop on the floor passes its tip)
+    const wrH = 0.55 * Math.min(1, Math.max(0, (th - th1) / 0.3));
     const pts: [number, number, THREE.Color][] = [
       [sc - 0.7 / q, y + 0.07, road],
       [sc + (LW - 1.1) / q, y + 0.07, road],
       [sc + (LW - 1.1) / q, y + 0.07, wr],
-      [sc + (LW - 0.55) / q, y + 0.62, wr],
+      [sc + (LW - 0.55) / q, y + 0.07 + wrH, wr],
       [sIn, y + 0.07, wr],
       [sIn, y + 0.07, fill],
       [sBot, Math.min(B(sBot, th), y) - 0.35, fill],
