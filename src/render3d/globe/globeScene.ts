@@ -190,6 +190,11 @@ export class GlobeScene implements Scene3D {
   cinematic(from: [number, number], to: [number, number], secs: number, lod: number, hours?: [number, number], season = 8) {
     const sunLon = (h: number) => wrap(to[0] - (h - 12) * 15);
     this.cine = { from, to, t: 0, secs, dist: lod >= 1 ? 120 : 215, sun: hours ? [sunLon(hours[0]), sunLon(hours[1]), season] : null };
+    // the shot opens a little wide and settles in (a new scene starts far out: left there, every close shot began
+    // with the whole globe rushing at the camera while the picture was still fading up)
+    this.dist = this.cine.dist * 1.22;
+    this.lon = from[0];
+    this.lat = from[1] - 6;
     this.anchor = null;
     this.vel.lon = this.vel.lat = 0;
   }
@@ -249,7 +254,7 @@ export class GlobeScene implements Scene3D {
       const k = c.t * c.t * (3 - 2 * c.t);
       this.lon = c.from[0] + wrap(c.to[0] - c.from[0]) * k;
       this.lat = c.from[1] + (c.to[1] - c.from[1]) * k - 6;
-      this.dist += (c.dist - this.dist) * (1 - Math.exp(-dt * 2));
+      this.dist += (c.dist - this.dist) * (1 - Math.exp(-dt * 0.9));
       this.settle();
     } else {
       // the zoom eases out; while it does, the place under the cursor stays put
