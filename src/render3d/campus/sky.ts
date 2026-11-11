@@ -143,7 +143,8 @@ void main() {
   // the sun itself: far over 1, so it blooms
   c += sunCol * smoothstep(0.99986, 0.99993, cs) * sunDisc * clear;
   // under the horizon: the haze the far land fades into (the same sum as the fog's)
-  if (y < 0.0) c = mix(c, hor * skyI + glowCol * pow(cs, 5.0) * 0.42, smoothstep(0.0, -0.02, y));
+  // (not where the sky goes all the way round: off the Moon there is no far land)
+  if (y < 0.0 && starFloor > -1.0) c = mix(c, hor * skyI + glowCol * pow(cs, 5.0) * 0.42, smoothstep(0.0, -0.02, y));
   gl_FragColor = vec4(c, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

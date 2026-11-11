@@ -23,6 +23,8 @@ interface BackdropDef {
   /** Gentle relief near the campus. */
   relief: number;
   far: 'mesas' | 'range' | 'hills' | 'flat' | 'volcano' | 'dunes';
+  /** How tall the far relief stands (1 = full; the plains keep their buttes low, so they never wall off the sky). */
+  farH?: number;
   /** Sea level (null = no sea or lakes). */
   water: number | null;
   /** Where the sea is (coast): z beyond this goes under (negative = behind the campus). */
@@ -34,7 +36,7 @@ interface BackdropDef {
 
 export const BACKDROPS: Record<Backdrop, BackdropDef> = {
   plains: {
-    ground: ['#c9a861', '#a9a556', '#b9784a'], rock: '#a8703f', snowLine: null, relief: 2.4, far: 'mesas', water: null,
+    ground: ['#c9a861', '#a9a556', '#b9784a'], rock: '#a8703f', snowLine: null, relief: 2.4, far: 'mesas', farH: 0.5, water: null,
     strata: ['#9c4f34', '#b5623c', '#e3c891', '#c08850', '#a8703f', '#d4a862'],
     plants: [{ kind: 'mesquite', n: 120, s: [0.7, 1.3], near: true, cluster: 4 }, { kind: 'shrub', n: 1600, s: [0.6, 1.4] }, { kind: 'tuft', n: 1400, s: [0.8, 1.4] }, { kind: 'rock', n: 260, s: [0.4, 1.2] }, { kind: 'acacia', n: 220, s: [0.9, 1.4] }],
   },
@@ -163,7 +165,7 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
       case 'mesas': {
         const m = fbm(x * 0.004, z * 0.004, s + 11, 3);
         // flat-topped buttes with steep sides, mostly behind
-        const top = smooth(0.56, 0.6, m) * (40 + fbm(x * 0.01, z * 0.01, s + 12, 2) * 30);
+        const top = smooth(0.56, 0.6, m) * (40 + fbm(x * 0.01, z * 0.01, s + 12, 2) * 30) * (def.farH ?? 1);
         y += top * farK * smooth(-60, -200, z) + top * 0.4 * farK;
         break;
       }

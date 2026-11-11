@@ -117,7 +117,7 @@ const CROP_PAINT: Record<Crop, { a: string; b: string; rows: number; furrow: num
   pasture: { a: '#7ea24a', b: '#6a8c40', rows: 3.0, furrow: 0.08 },
   // dry-country grazing: sun-cured grass, fenced off from the scrub
   range: { a: '#b9a65e', b: '#a99752', rows: 3.0, furrow: 0.06 },
-  pivot: { a: '#5a9a3a', b: '#8a7048', rows: 1.2, furrow: 0.4 },
+  pivot: { a: '#527c3a', b: '#8a7048', rows: 1.2, furrow: 0.4 },
   orchard: { a: '#4f8034', b: '#8a8a52', rows: 5.0, furrow: 0.7 },
 };
 
@@ -156,6 +156,14 @@ function fieldMaterial(crop: Crop) {
           col *= 0.9 + n * 0.2;
           ${crop === 'wheat' || crop === 'stubble' ? 'col = mix(col, col * vec3(1.08, 1.02, 0.85), smoothstep(0.55, 0.8, fn(vFieldW.xz * 0.02 + 3.0)));' : ''}
           ${crop === 'pivot' ? '// the pivot arm\n          float ang = atan(vField.y, vField.x); col *= 1.0 - 0.5 * (1.0 - smoothstep(0.0, 0.02 + fwidth(ang), abs(ang - 0.7))) * step(length(vField), 1e9);' : ''}
+          ${crop === 'pivot' ? `// worked in quarters: one cut to stubble, one a darker crop, the wheel tracks as rings (from afar a
+          // circle of one flat green read as a mistake in the desert)
+          float quarter = floor((ang + 3.14159265) / 1.5707963);
+          vec3 cut = vec3(0.78, 0.67, 0.44) * (0.9 + n * 0.2);
+          col = mix(col, cut, step(0.5, quarter) * step(quarter, 1.5));
+          col *= mix(1.0, 0.8, step(2.5, quarter));
+          float ring = abs(fract(length(vField) / 14.0) - 0.5) * 2.0;
+          col *= 1.0 - 0.22 * (1.0 - smoothstep(0.0, 0.08 + fwidth(length(vField) / 14.0) * 2.0, ring));` : ''}
           diffuseColor.rgb = col;
         }`);
   };
