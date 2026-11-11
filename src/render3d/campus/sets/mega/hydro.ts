@@ -58,12 +58,20 @@ function heightOf(sh: Shape) {
     // the lower reservoir
     const q2 = Math.hypot((x - lx) / 21, (z - 15) / 7.5);
     if (q2 < 1) h = -2.8 + (Math.min(h, 0) + 2.8) * smooth(0.66, 1.0, q2) + Math.max(0, h) * smooth(0.66, 1, q2);
-    return h * edge;
+    if (h <= 0) return h * edge;
+    // the foot of the massif wanders in and out (the footprint's straight edge showed as a ruled line under a sheer
+    // wall, from behind above all)
+    const foot = Math.min(NW / 2 - Math.abs(x), ND / 2 - Math.abs(z)) - 4.2 * fbm(x * 0.13 + 9, z * 0.13, sh.seed + 11, 2);
+    return h * smooth(0, 5.5, foot);
   };
 }
 
-/** Sinking the real ground a little under the piece's own mountain (to zero at the edges). */
-const dipAt = (h: number) => 0.6 * smooth(0.05, 1.2, Math.abs(h));
+/**
+ * Sinking the real ground under the piece's own mountain: a little at the foot (to zero at the edges), a lot under
+ * the heights. The land's grid is coarser than the skin (up to 3 units far from the middle of a big site), and on
+ * the steep back wall its straight facets cut out through the skin as a jagged band of bare cliff.
+ */
+const dipAt = (h: number) => 0.6 * smooth(0.05, 1.2, Math.abs(h)) + Math.max(0, h - 1.2) * 0.55;
 
 const terrainMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })));
 /**
