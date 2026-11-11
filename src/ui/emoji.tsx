@@ -12,6 +12,7 @@ const MAP: Record<string, IconName> = {
   // the interface, time and outcomes
   '✅': 'check',
   '❌': 'close',
+  '🪦': 'close',
   '⚠': 'warn',
   '🚨': 'warn',
   '⚫': 'warn',

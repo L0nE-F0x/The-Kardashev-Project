@@ -35,7 +35,7 @@ export function Dock() {
   const s = game.state!;
   const items: [PanelId, IconName, string, number?][] = [
     ['compute', 'compute', 'Compute & models (C)', s.training ? undefined : s.models.length < 2 ? 1 : undefined],
-    ['orders', 'orders', 'Chip orders & shipping (O)', s.shipments.length || undefined],
+    ['orders', 'orders', 'Orders · chips & shipping (O)', s.shipments.length || undefined],
     ['research', 'research', 'Research (R)', s.research.current || !researchable(s).length ? undefined : 1],
     ['finance', 'finance', 'Finance (F)'],
     ['stats', 'chart', 'Stats: charts of your whole run (K)'],

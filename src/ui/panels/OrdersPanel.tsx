@@ -39,7 +39,7 @@ export function OrdersPanel() {
   const blocked = destId ? orderBlockedBy(s, supplier, siteDef(destId).region) : null;
 
   return (
-    <Panel title="Chips & Shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel title="Orders · chips & shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
       {!destOptions.length ? (
         <div class="small">
           <Icon name="warn" size="sm" /> Build a <b>Data Center</b> first — chips ship to one of your data center sites. Click a site on the map to build.
