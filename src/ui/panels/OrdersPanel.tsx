@@ -67,7 +67,7 @@ export function OrdersPanel() {
               );
             })}
           </div>
-          <div class="row wrap" style={{ gap: '10px' }}>
+          <div class="row wrap" style={{ gap: '10px', alignItems: 'flex-start' }}>
             <label class="grow" style={{ minWidth: '200px' }}>
               <span class="label">Quantity: {qty.toLocaleString()}</span>
               <input type="range" min={500} max={maxQty} step={500} value={qty} onInput={(e) => setQty(Number((e.target as HTMLInputElement).value))} />

@@ -412,8 +412,8 @@ function AsteroidsTab() {
           const why = canClaim(s, a.id);
           return (
             <div key={a.id} class="row small" style={{ gap: '8px', alignItems: 'center', opacity: st.status === 0 ? 0.5 : 1 }} data-tip={st.status ? `${a.blurb}\n${TYPE_INFO[a.type].name}: ${TYPE_INFO[a.type].blurb}` : 'Not surveyed yet.'}>
-              <span style={{ width: '82px' }}>{st.status ? a.name : '???'}</span>
-              <span class="muted" style={{ width: '120px' }}>
+              <span style={{ width: '96px', flex: 'none' }}>{st.status ? a.name : '???'}</span>
+              <span class="muted" style={{ width: '216px', flex: 'none' }}>
                 {st.status ? `${a.type} · ${a.km >= 10 ? Math.round(a.km) : a.km} km · ${a.belt === 'nea' ? 'near-Earth' : 'main belt'}` : a.belt === 'nea' ? 'near-Earth' : 'main belt'}
               </span>
               <span class="grow">{st.status === 0 ? 'unknown' : st.status === 1 ? 'surveyed' : st.status === 2 ? `claimed by ${ownerLabel(st.owner ?? 'charter')}` : `worked: ${cap.toFixed(cap < 10 ? 2 : 0)} Mt/yr (${ownerLabel(st.owner ?? 'charter')})`}</span>
@@ -556,7 +556,7 @@ function MindsTab() {
         />
         <h4 style={{ marginTop: '8px' }}>The other AIs</h4>
         {(['apex', 'weft', 'sapling'] as AiId[]).map((a) => (
-          <div key={a} class="row small" style={{ gap: '8px', alignItems: 'center' }}>
+          <div key={a} class="row small" style={{ gap: '8px', alignItems: 'center', margin: '5px 0' }}>
             {aiFace(a, 24)}
             <span style={{ width: '70px' }}>{AIS[a].name}</span>
             <div class="grow">

@@ -158,7 +158,7 @@ export function PostContract({ kind, opt, where: fixedWhere, label }: { kind: Co
         class="small muted"
         data-tip={`Project value ${fmtMoney(est.value)}; the Charter pays ${Math.round(def.share * 100)}% (20% on award, the rest over the build). Bids come in above or below.\nBidders: ${bidders.map((b) => (b === YOU ? s.company.name : PARTNERS[b]?.short ?? b)).join(', ')}`}
       >
-        {sizeText(def, sz)} · ~<span class="gold">{fmtMoney(est.share)}</span> · ~{fmtDays(est.days)}
+        {sizeText(def, sz) ? `${sizeText(def, sz)} · ` : ''}~<span class="gold">{fmtMoney(est.share)}</span> · ~{fmtDays(est.days)}
       </span>
       <button class="btn small primary" disabled={!!why} onClick={() => game.postTender(kind, sz, where, opt)} data-tip={why ?? `${def.blurb}\n${def.effect}`}>
         <Icon name="tender" size="sm" /> {label ?? 'Post tender'}
@@ -459,7 +459,7 @@ function GridTab() {
           const down = p?.status === 'done' && (p.downUntil ?? 0) > s.day;
           return (
             <div key={r.id} class="row wrap small" style={{ gap: '8px', alignItems: 'center', borderTop: '1px solid var(--line)', padding: '4px 0' }}>
-              <span style={{ minWidth: '170px' }} data-tip={r.blurb}>
+              <span style={{ width: '240px', flex: 'none' }} data-tip={r.blurb}>
                 <b>{r.name}</b>
                 <div class="muted">
                   {REGIONS[r.from].short}–{REGIONS[r.to].short} · {r.km.toLocaleString()} km{r.subsea ? ' · subsea' : ''}

@@ -119,7 +119,7 @@ export function MainMenu() {
         </Window>
       )}
       {screen === 'guide' && (
-        <Window title="Field Guide" icon="research" wide onClose={() => game.openMenuScreen('main')}>
+        <Window title="Field Guide" icon="guide" wide onClose={() => game.openMenuScreen('main')}>
           <FieldGuideBody />
         </Window>
       )}

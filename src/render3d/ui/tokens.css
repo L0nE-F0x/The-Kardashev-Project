@@ -669,3 +669,16 @@ html.edition-3d:not(.ui-classic) input[type='range']::-webkit-slider-thumb {
     translate: -14px 0;
   }
 }
+
+/*
+ * One scrollbar everywhere. The rules above set the standard properties (scrollbar-width / -color: all Firefox
+ * has) and the ::-webkit-scrollbar parts. Where an engine knows both, Chromium lets the standard ones win and
+ * draws its own thin bar with arrow buttons, in the panels only (and, since the colour inherits, a wider one in
+ * every list inside them). So where the parts exist, the standard properties step back and the drawn bar is used.
+ */
+@supports selector(::-webkit-scrollbar) {
+  html.edition-3d:not(.ui-classic) :is(.panel > .body, .modal .body, .guide-list, .ht-page, .tut-main) {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}

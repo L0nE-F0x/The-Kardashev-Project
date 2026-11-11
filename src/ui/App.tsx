@@ -67,7 +67,7 @@ function Hud() {
         </Panel>
       )}
       {panel === 'sandbox' && game.state.meta.sandbox && (
-        <Panel title="Sandbox" icon="research" class="wide" onClose={() => game.openPanel(null)}>
+        <Panel title="Sandbox" icon="lab" class="wide" onClose={() => game.openPanel(null)}>
           <p class="small muted">Flip these any time. A sandbox keeps no records and unlocks nothing.</p>
           <SandboxControls value={game.state.meta.sandbox} onChange={(v) => game.setSandbox(v)} />
         </Panel>
@@ -78,7 +78,7 @@ function Hud() {
         </Panel>
       )}
       {panel === 'guide' && (
-        <Panel title="Field Guide" icon="research" class="wide research" onClose={() => game.openPanel(null)}>
+        <Panel title="Field Guide" icon="guide" class="wide research" onClose={() => game.openPanel(null)}>
           <FieldGuideBody />
         </Panel>
       )}

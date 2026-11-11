@@ -112,14 +112,13 @@ export function PoolBars({ supplier }: { supplier: SupplierId }) {
   const low = p.rate >= p.logic * 0.97 ? null : p.hbm <= p.pkg ? 'hbm' : 'pkg';
   const row = (key: 'logic' | 'hbm' | 'pkg', label: string, tip: string) => (
     <div class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
-      <span style={{ width: '64px' }} class={low === key ? 'warn' : 'muted'}>
-        {low === key ? '▶ ' : ''}
+      <span style={{ width: '78px', flex: 'none', whiteSpace: 'nowrap' }} class={low === key ? 'warn' : 'muted'}>
         {label}
       </span>
       <div class="grow">
         <Bar value={p[key] / max} kind={low === key ? 'warn' : key === 'logic' ? 'gold' : 'violet'} />
       </div>
-      <span style={{ width: '64px', textAlign: 'right' }}>{fmtNum(p[key], 0)}</span>
+      <span style={{ width: '48px', flex: 'none', textAlign: 'right' }}>{fmtNum(p[key], 0)}</span>
     </div>
   );
   return (
