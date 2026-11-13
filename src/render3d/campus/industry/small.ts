@@ -9,7 +9,7 @@ import { fence, fenceMesh } from '../../pieces';
 import { parkedCars } from '../life';
 import type { SetPieceFactory } from '../registry';
 import {
-  airHandler, beacon, block, brandOf, curtain, G, Fans, Flag, forklift, hTank, Lit, P, pipeRun, putSign, shrubs, tree, V, vTank, wallLights, wheel,
+  airHandler, beacon, block, brandOf, curtain, G, Fans, Flag, forklift, hTank, lamps, Lit, P, pipeRun, putSign, shrubs, tree, V, vTank, wallLights, wheel,
 } from './common';
 
 // ── admin: a corporate office block ──────────────────────────────────────────────────────────
@@ -242,6 +242,10 @@ const crateYard: SetPieceFactory = (o) => {
   k.box(2.4, 2.2, 2.0, '#ece6dc', 7.0, 0.1, 4.6, { r: 0.1 });
   k.box(2.6, 0.16, 2.2, acc, 7.0, 2.3, 4.6, { r: 0.04, shade: 0 });
   fence(k, 17.6, 13.6, 6.5);
+  // yard lamps at two corners, a light over the shed's door (the yard loads at night too)
+  lamps(g, k, [[-8.1, 5.9]], [1, 0], 5.6);
+  lamps(g, k, [[8.1, -6.0]], [-1, 0], 5.6);
+  wallLights(g, [[7.0, 2.05, 5.6]], 1.6, 2.6);
   g.add(k.build());
   fenceMesh(g, 17.6, 13.6, 6.5);
   // the forklift shuttles between the stack and the truck
