@@ -379,7 +379,7 @@ export function controlBlock(c: Ctx, x: number, z: number, w: number, d: number,
   const sw = Math.min(w - 0.6, 0.62 * name.length + 1.4);
   k.box(sw + 0.3, 1.2, 0.2, P.roof, x - 0.3, top - 0.05, f - 0.5, { r: 0.02 });
   for (const sx of [-1, 1]) k.box(0.14, 0.8, 0.8, P.steelDark, x - 0.3 + (sx * sw) / 2.4, top - 0.05, f - 0.8, { r: 0 });
-  const s = placard(g, name, sw, x - 0.3, top + 0.62, f - 0.38, L.ink, L.acc);
+  const s = placard(g, name, sw, x - 0.3, top + 0.62, f - 0.38, L.ink, L.acc, 0, true);
   return { top, signTop: top + 0.62 + (s.userData.signHeight as number) / 2 };
 }
 /** A car park: asphalt, bay lines and cars facing the building behind (−z). */

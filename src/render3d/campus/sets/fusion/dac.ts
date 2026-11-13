@@ -146,7 +146,7 @@ export function dacFarm(o: Act3SetOpts): Piece {
   // the builder's board, a truck, a worker, lamps
   const sw = Math.min(9, 0.62 * L.name.length + 1.6);
   for (const s of [-1, 1]) k.box(0.2, 2.6, 0.2, P.steelDark, -14 + (s * sw) / 2.5, 0, D / 2 - 2.4, { r: 0.02 });
-  placard(g, L.name, sw, -14, 2.9, D / 2 - 2.28, L.ink, L.acc);
+  placard(g, L.name, sw, -14, 2.9, D / 2 - 2.28, L.ink, L.acc, 0, true);
   placard(g, 'DIRECT AIR CAPTURE', sw * 0.9, -14, 1.9, D / 2 - 2.28, '#fbf7f0', '#2f2a3d');
   const truck = model('pickup', 4.6);
   truck.position.set(-4.5, 0.04, D / 2 - 4.2);

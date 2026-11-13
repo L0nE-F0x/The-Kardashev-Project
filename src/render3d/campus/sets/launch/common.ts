@@ -286,27 +286,37 @@ export function rocket(seed: number, accent: Paint, hi: Paint, label: string, ma
     const fx = Math.sin(t) * (R + 0.45), fz = Math.cos(t) * (R + 0.45);
     k.box(0.85, 0.75, 0.12, '#2f2a3d', fx, B0 + ROCKET.BOOST - 1.6, fz, { r: 0.02, ry: t + Math.PI / 2 });
   }
-  // interstage, second stage with the livery, the fairing
+  // interstage (it stays with the booster), then the upper stack: second stage with the livery, the fairing
   const S0 = B0 + ROCKET.BOOST;
   k.cyl(R, R, 1.5, '#2f2a3d', 0, S0, 0, 28, { shade: 0.1 });
-  k.cyl(R, R, 6, WHITE, 0, S0 + 1.5, 0, 28, { shade: 0.05, jitter: 0.01 });
-  k.cyl(R + 0.005, R + 0.005, 0.9, accent, 0, S0 + 4.4, 0, 28, { shade: 0, jitter: 0 });
-  k.cyl(R + 0.008, R + 0.008, 0.22, hi, 0, S0 + 5.3, 0, 28, { shade: 0, jitter: 0 });
+  const u = new Kit(rng(seed + 1));
+  u.cyl(R, R, 6, WHITE, 0, S0 + 1.5, 0, 28, { shade: 0.05, jitter: 0.01 });
+  u.cyl(R + 0.005, R + 0.005, 0.9, accent, 0, S0 + 4.4, 0, 28, { shade: 0, jitter: 0 });
+  u.cyl(R + 0.008, R + 0.008, 0.22, hi, 0, S0 + 5.3, 0, 28, { shade: 0, jitter: 0 });
+  // (the second stage's engine bell, seen while the stack is apart)
+  u.cyl(0.35, 0.8, 1.1, '#433c52', 0, S0 + 0.4, 0, 12, { shade: 0.3 });
   const F0 = S0 + 7.5;
-  k.cyl(R, R, 0.2, '#c3bcc7', 0, F0, 0, 28, { shade: 0 });
+  u.cyl(R, R, 0.2, '#c3bcc7', 0, F0, 0, 28, { shade: 0 });
   const prof: THREE.Vector2[] = [];
   for (let i = 0; i <= 12; i++) {
     const t = i / 12;
-    prof.push(new THREE.Vector2(Math.max(0.02, R * Math.sqrt(1 - Math.pow(Math.max(0, t * 1.08 - 0.08), 2)) * (t < 0.08 ? 1 : 1)), F0 + 0.2 + t * 6.2));
+    const c = Math.max(0, t * 1.08 - 0.08);
+    prof.push(new THREE.Vector2(Math.max(0.02, R * Math.sqrt(Math.max(0, 1 - c * c))), F0 + 0.2 + t * 6.2));
   }
-  k.geo(new THREE.LatheGeometry(prof, 28), WHITE, 0.01);
+  u.geo(new THREE.LatheGeometry(prof, 28), WHITE, 0.01);
   g.add(k.build(mat));
   // the builder's name up the booster, the mission patch on the fairing
   const nm = new THREE.MeshStandardMaterial({ roughness: 0.75, transparent: true });
   const name = cylinderText(label, '#2f2a3d', R + 0.012, B0 + 7.6, 1.2, -0.35, nm);
   g.add(name);
   const patch = cylinderPatch(R + 0.012, F0 + 0.9, 1.6, -0.3);
-  g.add(patch);
+  // the upper stack is its own group (same coordinates as the booster): a pad mates it by crane
+  const upper = new THREE.Group();
+  upper.add(u.build(mat), patch);
+  g.add(upper);
+  g.userData.upper = upper;
+  g.userData.split = S0 + 1.5;
+  g.userData.top = F0 + 6.4;
   g.userData.fadeMats = [mat, nm, patch.material];
   return g;
 }

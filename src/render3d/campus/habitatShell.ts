@@ -23,6 +23,8 @@ const angleOf = (u: number) => {
  * town stands on it), the other two are centred at ±120°, and one window runs overhead.
  */
 const isWindow = (a: number) => !(Math.abs(a) < 0.75 || Math.abs(Math.abs(a) - (Math.PI * 2) / 3) < Math.PI / 6);
+/** How far sideways (|z|) the floor's land strip reaches before the window frame: plants should stop a few metres short of it. */
+export const HAB_LAND_Z = HAB_R * Math.sin(0.75);
 /** Close round the floor the land is calm meadow (the town's own ground); fields start further out. */
 const TOWN_A = 0.36;
 

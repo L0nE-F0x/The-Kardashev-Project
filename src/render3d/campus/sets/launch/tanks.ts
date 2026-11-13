@@ -63,8 +63,8 @@ export function tankFarm(o: Act3SetOpts): Piece {
   }
   // nitrogen bullets on saddles
   const bullets = !building || p >= 0.5;
-  if (bullets) for (const [z, len] of [[4.4, 12], [7.9, 10]] as const) {
-    const x = 4.6, y = 2.5, r = 1.3;
+  if (bullets) for (const [z, len, x] of [[4.4, 12, 4.6], [7.9, 7.4, 3.0]] as const) {
+    const y = 2.5, r = 1.3;
     k.geo(new THREE.CylinderGeometry(r, r, len, 22).rotateZ(Math.PI / 2).translate(x, y, z), WHITE, 0.02, 0.2);
     for (const s of [-1, 1]) k.geo(new THREE.SphereGeometry(r, 18, 10, 0, Math.PI).rotateY(s < 0 ? Math.PI / 2 : -Math.PI / 2).translate(x + (s * len) / 2, y, z), WHITE, 0.02, 0.2);
     k.geo(new THREE.CylinderGeometry(r + 0.01, r + 0.01, 0.5, 22).rotateZ(Math.PI / 2).translate(x - len / 2 + 1.4, y, z), 'yel0', 0);
@@ -155,7 +155,7 @@ export function tankFarm(o: Act3SetOpts): Piece {
     g.add(v1.obj, v2.obj);
   }
   const ppl = new People(0.12);
-  ppl.walk([[-2, 10.2], [8, 10.2], [8, 3.0], [-12, 3.0], [-12, 9.5]], 'worker');
+  ppl.walk([[-3.6, 10.4], [-12, 10.4], [-12, 2.5], [9.6, 2.5], [-12, 2.5], [-12, 10.4]], 'worker');
   if (building) ppl.stand(-1.5, 5.6, 2.4, 'worker');
   g.add(ppl.group);
   return {

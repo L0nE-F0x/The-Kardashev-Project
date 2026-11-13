@@ -4,12 +4,12 @@
  * the jack-up vessel installing the next turbine.
  */
 import * as THREE from 'three';
-import { col, Kit, lightPool, mix, paintMat, rng, type Paint } from '../../../kit';
+import { col, glowMat, Kit, lightPool, mix, paintMat, rng, type Paint } from '../../../kit';
 import { cow, type Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
 import {
-  Anim, beacon, CHARTER, fieldOf, flag, foamRing, hcyl, latticeBoom, P, placard, SEA, SEABED, shade, standing, TAU, track,
-  vehicle, V, wake, windows, workPool,
+  Anim, beacon, buoyLight, CHARTER, fieldOf, flag, foamRing, hcyl, lampHead, latticeBoom, P, placard, SEA, SEABED, shade, standing, TAU, track,
+  vehicle, V, wake, windows, winMat, workPool,
 } from './common';
 
 type Win = [number, number, number, number, number, number?][];
@@ -192,7 +192,7 @@ export function windField(o: Act3SetOpts): Piece {
 // ── offshore ─────────────────────────────────────────────────────────────────────────────────
 const TP: Paint = '#f4c64e';
 /** A monopile (or a jacket) with its yellow transition piece and platform; returns the deck height. */
-export function foundation(k: Kit, parent: THREE.Object3D, x: number, z: number, jacket: boolean, yaw: number) {
+export function foundation(k: Kit, parent: THREE.Object3D, x: number, z: number, jacket: boolean, yaw: number, lights?: SeaLights) {
   const deck = 3.4;
   if (jacket) {
     const b = 2.6, t = 1.6;
@@ -226,8 +226,37 @@ export function foundation(k: Kit, parent: THREE.Object3D, x: number, z: number,
   for (let y = SEA; y < deck; y += 0.5) k.box(0.7, 0.06, 0.06, '#e0a840', lx, y, lz, { r: 0, ry: yaw });
   k.box(0.14, 2.2, 0.14, TP, x - 1.6, deck, z - 1.2, { r: 0 });
   k.box(1.4, 0.12, 0.12, TP, x - 1.0, deck + 2.1, z - 1.2, { r: 0 });
+  if (lights) {
+    // a bulkhead light over the tower door (it is what lights the platform) and the marine lantern
+    // every offshore structure carries on its rail
+    const dx = x + 1.25 * s, dz = z + 1.25 * c;
+    k.box(0.5, 0.1, 0.3, P.dark, dx, deck + 2.62, dz, { r: 0.02, ry: yaw });
+    lights.lamps.box(0.4, 0.12, 0.22, '#ffffff', dx + 0.06 * s, deck + 2.5, dz + 0.06 * c, { r: 0.02, ry: yaw, jitter: 0, shade: 0 });
+    const lx2 = x + 2.4 * Math.cos(yaw + 2.2), lz2 = z + 2.4 * Math.sin(yaw + 2.2);
+    k.box(0.08, 0.5, 0.08, P.dark, lx2, deck + 1.1, lz2, { r: 0 });
+    lights.lanterns.cyl(0.13, 0.13, 0.22, '#ffffff', lx2, deck + 1.6, lz2, 8, { jitter: 0, shade: 0 });
+  }
   return deck + 0.15;
 }
+
+/** Lights on the sea, merged per block: lamp heads (white, bright at night) and marine lanterns (yellow). */
+export interface SeaLights { lamps: Kit; lanterns: Kit }
+export const seaLights = (seed: number): SeaLights => ({ lamps: new Kit(rng(seed)), lanterns: new Kit(rng(seed + 1)) });
+export function addSeaLights(parent: THREE.Object3D, l: SeaLights) {
+  for (const [kit, mat] of [[l.lamps, lampHead], [l.lanterns, buoyLight]] as const) {
+    const m = kit.build(mat);
+    m.castShadow = false;
+    parent.add(m);
+  }
+}
+/** Navigation lights: red to port, green to starboard. */
+const navRed = glowMat('red3', 0.15), navGreen = glowMat('grn6', 0.15);
+navRed.userData.nightOnly = 2.4;
+navGreen.userData.nightOnly = 2.4;
+const navGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
+navGeo.userData.shared = true;
+const mastGeo = new THREE.SphereGeometry(0.11, 8, 6);
+mastGeo.userData.shared = true;
 
 /** A crew transfer vessel (a small catamaran, ~6 long along x), waterline at y = 0. */
 function ctv(seed: number) {
@@ -237,10 +266,23 @@ function ctv(seed: number) {
   k.box(6.1, 0.18, 2.5, P.orange, 0, 0.32, 0, { r: 0.05 });
   k.box(5.8, 0.14, 2.4, '#8a8490', 0, 0.48, 0, { r: 0 });
   k.box(2.4, 1.3, 2.0, '#fbf7f0', 0.6, 0.6, 0, { r: 0.14 });
-  k.box(2.3, 0.5, 2.06, P.glassD, 0.6, 1.25, 0, { r: 0.04, shade: 0 });
   k.box(0.6, 0.8, 1.6, '#3a3442', 3.1, 0.5, 0, { r: 0.1 }); // bow fender
   k.box(0.1, 1.2, 0.1, P.dark, 0.2, 1.9, 0, { r: 0 });
+  k.box(2.5, 0.1, 2.2, '#d8d2cc', 0.6, 1.88, 0, { r: 0.04 });
   g.add(k.build());
+  // the wheelhouse windows (lit at night), port and starboard lights, the masthead light
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.5, 2.06), winMat);
+  glass.position.set(0.6, 1.5, 0);
+  g.add(glass);
+  for (const [mat, z] of [[navRed, -1.08], [navGreen, 1.08]] as const) {
+    const n = new THREE.Mesh(navGeo, mat);
+    n.position.set(1.5, 1.98, z);
+    g.add(n);
+  }
+  const mast = new THREE.Mesh(mastGeo, lampHead);
+  mast.position.set(0.2, 3.16, 0);
+  g.add(mast);
+  lightPool(g, -1.6, 0.56, 0, 2.2, workPool);
   const w = wake(3.4, 0.9);
   w.position.set(-4.2, 0.05, 0);
   g.add(w);
@@ -258,13 +300,15 @@ export function windSea(o: Act3SetOpts): Piece {
   const L = 12.5;
   const sp = spots(W, D, v).filter((_, i) => i !== 3);
   const turbines: Turbine[] = [];
+  const lights = seaLights(o.seed + 40);
   for (const [i, [x, z]] of sp.entries()) {
-    const deck = foundation(k, g, x, z, v === 2 && i % 2 === 0, yaw);
+    const deck = foundation(k, g, x, z, v === 2 && i % 2 === 0, yaw, lights);
     turbines.push(turbine(k, g, x, z, deck + 27 + (i % 3) * 0.5, L, yaw, o.seed + i * 5, deck));
     // work lights on the platforms
     lightPool(g, x, deck - 0.2, z + 1.4, 2.6, workPool);
   }
   g.add(k.build());
+  addSeaLights(g, lights);
   anim.add((e) => { for (const t of turbines) t.rotor.rotation.z -= e.dt * t.speed; });
   // the crew boat shuttles between the near turbines
   const boat = ctv(o.seed);

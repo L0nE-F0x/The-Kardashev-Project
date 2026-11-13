@@ -8,7 +8,7 @@ export const ACT3_SIZE: Partial<Record<Act3PieceKind, [number, number]>> = {
   // megaprojects
   survey: [46, 32], seaSurvey: [46, 32], megaOffice: [20, 16], megaSub: [30, 24], converter: [36, 26],
   solarField: [50, 40], cspTower: [56, 56], storageYard: [30, 24], windField: [50, 40], windSea: [50, 40],
-  seaSub: [22, 22], jackup: [28, 16], reactorUnit: [36, 32], pumpedHydro: [62, 52], geoPad: [30, 24],
+  seaSub: [22, 22], jackup: [28, 16], reactorUnit: [36, 32], pumpedHydro: [62, 64], geoPad: [30, 24],
   binaryPlant: [30, 24], megaBuild: [44, 34],
   // the launch complex
   vab: [40, 36], launchPad: [40, 40], tankFarm: [30, 24], launchSurvey: [60, 40],

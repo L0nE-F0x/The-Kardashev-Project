@@ -179,7 +179,7 @@ export function council(o: Act3SetOpts): Piece {
   ring.push([-8.6, 15.2], [8.6, 15.2]);
   ppl.walk(ring);
   ppl.walk([...ring.slice(6), ...ring.slice(0, 6)], 'office');
-  ppl.walk([[-3, 15.4], [-2.2, PZ1 + 0.2], [-1.4, CZ + RD + 0.7], [1.6, CZ + RD + 0.8], [2.4, PZ1 + 0.4], [4, 15.4]], 'scientist');
+  ppl.walk([[-3, 15.4], [-2.2, PZ1 + 0.2], [-1.4, CZ + RD + 1.1], [1.6, CZ + RD + 1.2], [2.4, PZ1 + 0.4], [4, 15.4]], 'scientist');
   ppl.walk([[-11, -15.5], [11, -15.5]], 'researcher');
   ppl.stand(-4.4, PZ1 - 1.6, 0.3, 'office');
   ppl.stand(-3.7, PZ1 - 1.1, -2.4, 'engineer');

@@ -257,8 +257,8 @@ export function jetty(o: Act3SetOpts): Piece {
   for (const s of swans) g.add(s);
   // ── people ──
   const ppl = new People((x) => (x < QUAY ? 0.25 : DECK));
-  ppl.walk([[-9.2, -16], [-9.2, 16]]);
-  ppl.walk([[-8.0, 15.5], [-8.4, 7.0], [0.2, 7.0], [0.2, -13.6], [-3.2, -13.6], [0.0, -11], [0.0, 6.6], [-8.0, 6.2]], 'office');
+  ppl.walk([[-8.88, -16], [-8.88, 16]]);
+  ppl.walk([[-8.9, 15.5], [-8.9, 7.0], [0.2, 7.0], [0.2, -13.6], [-3.2, -13.6], [0.0, -11], [0.0, 6.6], [-8.9, 6.3]], 'office');
   ppl.stand(1.0, -14.9, Math.PI, 'worker');
   ppl.stand(-2.0, -14.9, Math.PI + 0.2, 'researcher');
   ppl.stand(-1.4, -14.8, Math.PI - 0.3);

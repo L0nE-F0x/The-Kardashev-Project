@@ -8,7 +8,6 @@
  */
 import * as THREE from 'three';
 import { col, Kit, mix, rng, type Paint } from '../../../kit';
-import { Plume } from '../../../fx';
 import type { Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
 import { builderSign } from '../../planKit';
@@ -453,7 +452,7 @@ export function astRig(o: Act3SetOpts): Piece {
   }
   // dust thrown off the face in slow arcs (sparks off metal), vapour baking off carbon-rich rock
   if (live) {
-    const dust = new Spray({ count: 90, life: 6, dir: V(0.35, 0.7, 0.62).normalize(), spread: 0.6, speed: [0.9, 2.6], g: 0.2, size: [0.4, 1.8], color: mix(L.hi, '#d8d2cc', 0.55), opacity: 0.7, floor: -contact.y }, seed);
+    const dust = new Spray({ count: 150, life: 6, dir: V(0.35, 0.7, 0.62).normalize(), spread: 0.6, speed: [0.9, 2.6], g: 0.2, size: [0.22, 0.62], color: mix(L.hi, '#d8d2cc', 0.55), opacity: 0.7, floor: -contact.y }, seed);
     dust.obj.position.copy(contact);
     a.g.add(dust.obj);
     a.anim.add((e) => dust.update(e));
@@ -464,10 +463,7 @@ export function astRig(o: Act3SetOpts): Piece {
       a.anim.add((e) => sparks.update(e));
     }
     if (t === 'C') {
-      const vap = new Plume({ count: 14, life: 8, rise: 0.9, spread: 1.2, size0: 1.2, size1: 5, opacity: 0.3, radius: 0.5, wind: 0.0, color: '#e6e0e3' }, seed + 2);
-      vap.obj.position.set(bx + 0.6, deckY + bh + 0.6, bz - 0.4);
-      a.g.add(vap.obj);
-      a.anim.add((e) => vap.update(e));
+      // the volatiles' vent stack (what it lets go is gas into a vacuum: nothing to see, least of all rising smoke)
       k.cyl(0.35, 0.4, 0.7, STEEL, bx + 0.6, deckY + bh, bz - 0.4, 10);
     }
   }

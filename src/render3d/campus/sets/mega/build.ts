@@ -50,7 +50,7 @@ function crawlerCrane(acc: Paint, hi: Paint, boom: number, angle: number, seed: 
   hk.box(0.6, 0.6, 0.5, P.yellow, 0, -0.6, 0, { r: 0.06 });
   load?.(hk);
   hook.add(hk.build());
-  const cable = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1, 0.05).translate(0, -0.5, 0), new THREE.MeshStandardMaterial({ color: col(P.ink), roughness: 0.8 }));
+  const cable = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1, 0.09).translate(0, -0.5, 0), new THREE.MeshStandardMaterial({ color: col(P.ink), roughness: 0.8 }));
   const holder = new THREE.Group();
   holder.position.copy(tip);
   holder.add(cable, hook);
@@ -201,7 +201,10 @@ function windBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint): Piece {
     }
     else hk.box(1.55, 1.6, 4.6, '#f1ece4', 0, -2.6, 0, { r: 0.3 });
   });
-  cr.obj.position.set(bx - 14.9, 0, bz + 1.3);
+  // (stood off to one side of the finished tower and turned, so the boom's tip is plumb over the tower being stacked:
+  // straight on, the section hung a metre off its axis and read as floating beside it)
+  cr.obj.position.set(bx - 14.23, 0, bz + 4.4);
+  cr.obj.rotation.y = 0.3;
   g.add(cr.obj);
   const topY = 0.35 + H * Math.max(0.2, frac);
   const baseDrop = cr.tip.y - topY - (lifting === 'section' ? 6.5 : 3);
@@ -517,8 +520,8 @@ function fusionBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint, design: s
     anim.add((e) => workCrane(c2, e, 0.2, 1.1, 10));
   }
   vehicle(g, 'semitruck', 8, 8.6, 0);
-  standing(g, cx + 3, cz + R + 1.4, 0.3, o.seed + 6);
-  standing(g, cx - 4, cz + R + 1.2, -0.5, o.seed + 7, 'engineer');
+  standing(g, cx + 2.2, cz + R + 3.2, 0.3, o.seed + 6);
+  standing(g, cx - 3.0, cz + R + 3.0, -0.5, o.seed + 7, 'engineer');
   siteYard(g, k, anim, glow, o, acc, hi, ['crate', 'rebar', 'pipe']);
   g.add(k.build());
   const gm = ground.build();

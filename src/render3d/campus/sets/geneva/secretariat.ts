@@ -164,7 +164,7 @@ export function secretariat(o: Act3SetOpts): Piece {
   // ── the entrance: a timber-soffit canopy with the secretariat's name ──
   k.box(11, 0.62, 5.4, '#f3eee6', -6, 4.5, 2.1, { r: 0.08, shade: 0 });
   k.box(10.6, 0.06, 5.0, TIMBER, -6, 4.47, 2.1, { r: 0, jitter: 0.02, shade: 0 });
-  for (const x of [-10.8, -1.2]) k.cyl(0.13, 0.13, 4.5 - B, '#7a7186', x, B, 4.4, 8);
+  for (const x of [-10.8, -1.2]) k.cyl(0.13, 0.13, 4.5 - B, '#7a7186', x, B, 4.66, 8);
   const ent = fit(litSign('SECRETARIAT', 8, '#2f2a3d', null, 0.2), 6, 0.42);
   ent.position.set(-6, 4.81, 4.82);
   g.add(ent);
@@ -209,12 +209,12 @@ export function secretariat(o: Act3SetOpts): Piece {
   g.add(k.build(), dark.build(glassMat), warm.build(litGlass('yel1', 0.8)), cool.build(litGlass('ice2', 0.6)));
   // people on the forecourt
   const ppl = new People(B);
-  ppl.walk([[-19, 4.4], [7.5, 4.4], [7.5, 10.2], [-19, 10.2]]);
-  ppl.walk([[-6, 3.4], [7, 4.6], [8, 14], [-4, 14.2], [-18.5, 13.8], [-19.4, 4.2]], 'office');
+  ppl.walk([[-19, 4.25], [7.5, 4.25], [7.5, 10.2], [-19, 10.2]]);
+  ppl.walk([[-6, 3.4], [7, 4.6], [8, 12.8], [-4, 12.8], [-18.5, 12.8], [-19.4, 4.2]], 'office');
   ppl.walk([[12, 2.8], [23, 9.5], [14, 13.4]], 'researcher');
   ppl.walk([[-14, 13.2], [-24.5, 13.2], [-24.5, 3.2], [-19, 3.2], [-19, 10.5]]);
-  ppl.stand(-8.4, 3.9, 0.4, 'office');
-  ppl.stand(-7.6, 4.4, -2.6, 'engineer');
+  ppl.stand(-14.2, 2.5, 0.4, 'office');
+  ppl.stand(-13.5, 2.95, -2.6, 'engineer');
   ppl.stand(-1.8, 9.0, Math.PI, 'scientist');
   g.add(ppl.group);
   return {
