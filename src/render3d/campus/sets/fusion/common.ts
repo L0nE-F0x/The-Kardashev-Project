@@ -77,7 +77,7 @@ export function plasmaGas(c: Paint, rim = 1.6, floor = 0.22): Gas {
     vertexShader: `varying vec3 vN; varying vec3 vV;
       void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `uniform vec3 uColor; uniform float uI; uniform float uRim; uniform float uFloor; varying vec3 vN; varying vec3 vV;
-      void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), uRim); float a = uFloor + (1.0 - uFloor) * f;
+      void main(){ float f = pow(max(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0), uRim); float a = uFloor + (1.0 - uFloor) * f;
         gl_FragColor = vec4(uColor * a * uI, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

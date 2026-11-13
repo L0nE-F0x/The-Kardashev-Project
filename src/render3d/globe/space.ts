@@ -196,9 +196,12 @@ export class Aurora {
     g.setAttribute('ring', new THREE.Float32BufferAttribute(ring, 4));
     g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array((ring.length / 4) * 3), 3));
     g.setIndex(idx);
+    // (centroid: seen from orbit a curtain is edge-on, its triangles slivers. With MSAA a pixel the sliver only
+    // grazes is shaded at its centre, far outside the triangle, and the inputs extrapolated there can run to
+    // infinity: NaN pixels, which the bloom turned into flashing squares. Centroid keeps them inside the triangle.)
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       uniforms: { tDetail: { value: detail }, sunDir: { value: new THREE.Vector3(1, 0, 0) }, time: { value: 0 }, pole: { value: geomagneticPole() }, strength: { value: 1 } },
-      vertexShader: `attribute vec4 ring; uniform sampler2D tDetail; uniform vec3 sunDir, pole; uniform float time; varying vec3 vUv; varying float vK;
+      vertexShader: `attribute vec4 ring; uniform sampler2D tDetail; uniform vec3 sunDir, pole; uniform float time; centroid varying vec3 vUv; centroid varying float vK;
         void main(){
           vec3 p = pole * ring.z;
           // a frame round the pole: e1 points away from the sun (midnight on the oval)
@@ -220,11 +223,14 @@ export class Aurora {
           vK *= mix(1.0 - above * 0.82, 1.0 + above * 3.0, flat_);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(at, 1.0);
         }`,
-      fragmentShader: `uniform sampler2D tDetail; uniform float time, strength; varying vec3 vUv; varying float vK;
+      fragmentShader: `uniform sampler2D tDetail; uniform float time, strength; centroid varying vec3 vUv; centroid varying float vK;
         void main(){
+          // the footprint along the curtain, taken before the discard (after it, derivatives are undefined); across
+          // a strip the lookups don't change
+          float ux = dFdx(vUv.x), uy = dFdy(vUv.x);
           if (vK < 0.004) discard;
           // slow patches of activity along the oval
-          float busy = smoothstep(0.3, 0.75, texture2D(tDetail, vec2(vUv.x * 5.0 - time * 0.004, 0.71 + vUv.z * 0.2)).g);
+          float busy = smoothstep(0.3, 0.75, textureGrad(tDetail, vec2(vUv.x * 5.0 - time * 0.004, 0.71 + vUv.z * 0.2), vec2(ux * 5.0, 0.0), vec2(uy * 5.0, 0.0)).g);
           vec3 c;
           if (vUv.z > 1.5) {
             // the band of glow under the curtains, soft across
@@ -232,7 +238,8 @@ export class Aurora {
             c = vec3(0.10, 0.85, 0.45) * exp(-x * x * 7.0) * (1.0 - x * x) * (0.35 + busy) * 0.04;
           } else {
             // rays: fine upright streaks of uneven strength, drifting along the curtain
-            float rays = texture2D(tDetail, vec2(vUv.x * 44.0 + time * 0.011, 0.37 + time * 0.002)).r * texture2D(tDetail, vec2(vUv.x * 150.0 - time * 0.02, 0.83)).b * 4.0;
+            float rays = textureGrad(tDetail, vec2(vUv.x * 44.0 + time * 0.011, 0.37 + time * 0.002), vec2(ux * 44.0, 0.0), vec2(uy * 44.0, 0.0)).r
+              * textureGrad(tDetail, vec2(vUv.x * 150.0 - time * 0.02, 0.83), vec2(ux * 150.0, 0.0), vec2(uy * 150.0, 0.0)).b * 4.0;
             // a sharp lower edge, a long fade upward (taller where a ray burns); green below, violet at the top
             float y = vUv.y, up = smoothstep(0.0, 0.06, y) * exp(-y * (5.2 - min(rays, 1.6) * 2.0)) * (1.0 - y) * (1.0 - y);
             c = mix(vec3(0.14, 1.0, 0.42), vec3(0.55, 0.20, 0.90), smoothstep(0.2, 0.8, y)) * (0.12 + rays * rays * 0.9) * up * (0.2 + busy) * 0.4;

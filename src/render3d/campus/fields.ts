@@ -155,7 +155,7 @@ function fieldMaterial(crop: Crop) {
           vec3 col = mix(b, a, mix(1.0, row, ${p.furrow.toFixed(2)}));
           col *= 0.9 + n * 0.2;
           ${crop === 'wheat' || crop === 'stubble' ? 'col = mix(col, col * vec3(1.08, 1.02, 0.85), smoothstep(0.55, 0.8, fn(vFieldW.xz * 0.02 + 3.0)));' : ''}
-          ${crop === 'pivot' ? '// the pivot arm\n          float ang = atan(vField.y, vField.x); col *= 1.0 - 0.5 * (1.0 - smoothstep(0.0, 0.02 + fwidth(ang), abs(ang - 0.7))) * step(length(vField), 1e9);' : ''}
+          ${crop === 'pivot' ? '// the pivot arm\n          float ang = atan(vField.y, length(vField) > 1e-6 ? vField.x : 1.0); col *= 1.0 - 0.5 * (1.0 - smoothstep(0.0, 0.02 + fwidth(ang), abs(ang - 0.7))) * step(length(vField), 1e9);' : ''}
           ${crop === 'pivot' ? `// worked in quarters: one cut to stubble, one a darker crop, the wheel tracks as rings (from afar a
           // circle of one flat green read as a mistake in the desert)
           float quarter = floor((ang + 3.14159265) / 1.5707963);

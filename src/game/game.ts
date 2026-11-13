@@ -1,4 +1,4 @@
-import type { FacilityType, GameState, SandboxOpts, SupplierId } from '../sim/types';
+import type { ActiveEvent, FacilityType, GameState, SandboxOpts, SupplierId } from '../sim/types';
 import type { MapLod } from '../world/mapData';
 import type { Router } from '../world/routing';
 import type { GameStage, GameScene as Scene } from '../render/stage';
@@ -374,6 +374,7 @@ export class Game {
     this.messagesSeen = 0;
     this.howtoTopic = null;
     this.skip = null;
+    this.charterDraft = null;
   }
 
   quitToMenu(): void {
@@ -518,7 +519,10 @@ export class Game {
   /**
    * Frames a second really drawn on the title screen, over six seconds once loading has settled: measured the same
    * way on every start, so the automatic card and the stronger one can be compared. Null when the window was
-   * hidden meanwhile (a hidden window is throttled) or the player left the title screen.
+   * hidden meanwhile (a hidden window is throttled) or the player left the title screen, and when no frame came for
+   * a whole second: a window the compositor isn't showing (another workspace, covered) gets no frames at all while
+   * the page still counts as visible, and measured "about 0 frames a second" that asked to leave a card that was fine.
+   * (The slowest card worth asking about still draws a few frames a second.)
    */
   private measureFps(): Promise<number | null> {
     return new Promise((done) => {
@@ -526,7 +530,12 @@ export class Game {
         const n0 = this.framesDrawn;
         const t0 = performance.now();
         let seen = !document.hidden && this.mode === 'title';
-        const watch = window.setInterval(() => (seen = seen && !document.hidden && this.mode === 'title'), 250);
+        let last = this.framesDrawn, still = 0;
+        const watch = window.setInterval(() => {
+          still = this.framesDrawn === last ? still + 1 : 0;
+          last = this.framesDrawn;
+          seen = seen && !document.hidden && this.mode === 'title' && still < 4;
+        }, 250);
         window.setTimeout(() => {
           window.clearInterval(watch);
           done(seen ? (this.framesDrawn - n0) / ((performance.now() - t0) / 1000) : null);
@@ -656,6 +665,10 @@ export class Game {
     const u = this.appUpdate;
     if (!u || (u.status.phase !== 'ready' && u.status.phase !== 'failed')) return;
     this.save();
+    // busy from the click on: the first progress report comes only once the download is under way, and a second
+    // click before it started a second download and a second install
+    u.status = { phase: 'downloading', fraction: null };
+    this.notify();
     u.install((status) => {
       u.status = status;
       this.notify();
@@ -930,6 +943,8 @@ export class Game {
     const next = BRIEFINGS.find((b) => !seen.includes(b.id) && b.when(s));
     if (!next) return;
     seen.push(next.id);
+    // (a skip stops here: it went on under the briefing, and on reaching its day set the clock running behind it)
+    this.stopSkip();
     this.briefing = { id: next.id, step: 0 };
     this.briefingResume = this.speed || this.resumeSpeed || 1;
     this.speed = 0;
@@ -1093,13 +1108,15 @@ export class Game {
   }
 
   /** Skip-ahead (Acts I–III, the goal card's ⏭): days run as fast as the frame budget allows until `until`. */
-  skip: { until: number; label: string; resume: Speed } | null = null;
+  /** `waiting`: the card that already waited when the skip began (with Pause for decisions off it may go on waiting). */
+  skip: { until: number; label: string; resume: Speed; waiting: ActiveEvent | null } | null = null;
 
   /** Run the clock flat out until a game day (a card, a block or the tutorial stops it sooner). */
   skipTo(day: number, label: string): void {
     const s = this.state;
-    if (!s || this.skip || day <= s.day || (s.act ?? 1) >= 4 || s.meta.tutorialStep >= 0 || this.blocked || s.meta.gameOver) return;
-    this.skip = { until: day, label, resume: this.speed || this.resumeSpeed || 1 };
+    // (not under a briefing either: the skip ran on beneath it and set the clock going behind it when it ended)
+    if (!s || this.skip || this.briefing || day <= s.day || (s.act ?? 1) >= 4 || s.meta.tutorialStep >= 0 || this.blocked || s.meta.gameOver) return;
+    this.skip = { until: day, label, resume: this.speed || this.resumeSpeed || 1, waiting: s.events.active };
     this.speed = 0;
     this.autoPaused = false;
     sfx('click');
@@ -1121,14 +1138,17 @@ export class Game {
     if (this.blocked || s.meta.gameOver) return this.stopSkip();
     const t0 = performance.now();
     let n = 0;
+    // a new card stops the skip; one that was already waiting doesn't (with Pause for decisions off the clock runs
+    // past it, and stopping on it made every skip one day long)
+    const fresh = () => !!s.events.active && s.events.active !== sk.waiting;
     while (s.day < sk.until && performance.now() - t0 < 12) {
       tick(s, this.ctx);
       sampleChart(s);
       n++;
-      if (s.events.active || s.meta.gameOver) break;
+      if (fresh() || s.meta.gameOver) break;
     }
     if (n) this.afterTick();
-    if (s.day >= sk.until || s.events.active || s.meta.gameOver) {
+    if (s.day >= sk.until || fresh() || s.meta.gameOver) {
       if (s.day >= sk.until) sfx('objective');
       this.stopSkip();
     } else if (this.frameCount % 4 === 0) this.notify();
@@ -1254,8 +1274,13 @@ export class Game {
   }
 
   updateSettings(patch: Partial<Settings>): void {
+    const was = this.settings;
     this.settings = { ...this.settings, ...patch };
     saveSettings(this.settings);
+    // a campus picks its weather (and whether its clouds drift) when it's built: build it again
+    if (was.weather !== this.settings.weather || was.reducedMotion !== this.settings.reducedMotion) {
+      (this.stage.getScene() as { weatherSettingsChanged?: () => void } | null)?.weatherSettingsChanged?.();
+    }
     applyCssSettings(this.settings);
     setVolumes({ master: this.settings.master, music: this.settings.music, sfx: this.settings.sfx, ambience: this.settings.ambience });
     this.notify();
@@ -2007,10 +2032,16 @@ export class Game {
     this.notify();
   }
 
+  /** The last card answered and when: the next one comes up in the same place at once. */
+  private lastChoice: { at: number; card: ActiveEvent | null } = { at: -1e9, card: null };
+
   chooseEvent(index: number): void {
     const s = this.state!;
     const card = s.events.active;
+    // a double-click answers one card, not the one queued behind it (at the Act IV–V gates several wait in a row)
+    if (card !== this.lastChoice.card && performance.now() - this.lastChoice.at < 350) return;
     if (resolveEvent(s, index)) {
+      this.lastChoice = { at: performance.now(), card };
       const a = s.meta.log?.acts[s.act];
       if (a && card) a.decisions++;
       refreshStats(s);

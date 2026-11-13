@@ -52,7 +52,8 @@ function calm(game: Game, idleMs: number): boolean {
   if (idleMs < 2000 || game.mode === 'title' || game.ending || game.stage.fade > 0) return false;
   const s = game.state;
   if (!s || s.planet?.jump || s.system?.jump) return false;
-  if (game.speed !== 0 && !game.blocked) return false;
+  // (a skip runs with the speed at 0, and ticks as many days as fit in a frame: at 30 frames it went half as far)
+  if (game.skip || (game.speed !== 0 && !game.blocked)) return false;
   return !game.stage.getScene()?.busy?.();
 }
 
@@ -83,17 +84,44 @@ function back(game: Game): boolean {
   return true;
 }
 
+/** Inputs that take no typing: with one of these focused the shortcuts still work. */
+const NOT_TYPING = new Set(['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'color', 'file', 'image']);
+/** The keys a held key may repeat: panning and zooming. */
+const REPEATS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'a', 'd', 'w', 's', '+', '=', '-']);
+
 function bindKeys(game: Game) {
   window.addEventListener('keydown', (e) => {
-    // typing in a text field (a name, a seed, a playtest note) never fires game shortcuts
+    // a key something on the page already handled, or one held with Ctrl/Cmd/Alt (copy, find, save: the system's,
+    // not ours: Ctrl+C used to open Compute over the text being copied)
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target as HTMLElement | null;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+    const input = t?.tagName === 'INPUT' ? (t as HTMLInputElement).type : null;
+    // typing in a text field (a name, a seed, a playtest note) never fires game shortcuts, but Escape still leaves
+    // the window it's in (New company, Import)
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (input !== null && !NOT_TYPING.has(input)))) {
+      if (e.key === 'Escape') {
+        t.blur();
+        back(game);
+      }
+      return;
+    }
+    // a slider (Orders, Compute, the volumes) keeps its own arrow keys; everything else works with it focused
+    // (a dragged slider keeps the focus, and used to swallow every shortcut until the player clicked elsewhere)
+    if (input === 'range' && /^(Arrow|Home|End|Page)/.test(e.key)) return;
+    // a held key repeats: panning and zooming want that, opening and closing a panel ten times a second doesn't
+    if (e.repeat && !REPEATS.has(e.key)) return;
     if (game.mode === 'title' || !game.state) {
       if (e.key === 'Escape') back(game);
       else if (e.key === '?' || e.key === 'F1') {
         e.preventDefault();
         game.openHowTo();
       }
+      return;
+    }
+    // the Type I ending plays its own sequence in the solar-system view: only Escape (which waits it out) applies.
+    // (M used to swap the globe in under it: the ending's music, its last shot and the end card's picture went.)
+    if (game.ending) {
+      if (e.key === 'Escape') back(game);
       return;
     }
     const scene = game.stage.getScene();

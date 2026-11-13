@@ -36,11 +36,20 @@ let softFragment = '';
 function soften(src: string) {
   return src
     .replace('uniform float linewidth;', 'uniform float linewidth; uniform float lineTime; uniform vec2 soft; uniform vec4 pulse;')
+    // every screen-space derivative below, taken first: LineMaterial discards the end caps and the gaps further down,
+    // and after a discard derivatives are undefined (a pixel's neighbours may have stopped)
+    .replace(
+      'float alpha = opacity;',
+      `float alpha = opacity;
+			#ifdef USE_DASH
+				float dashW = max( fwidth( vLineDistance ), 1e-5 );
+			#endif
+			float acrossW = max( fwidth( vUv.x ), 1e-5 );`,
+    )
     // dashes: fade their ends over a pixel instead of cutting them (a line dashed only to carry pulses has no gap)
     .replace(
       /if \( mod\( vLineDistance \+ dashOffset, dashSize \+ gapSize \) > dashSize \) discard;[^\n]*/,
       `float dashM = mod( vLineDistance + dashOffset, dashSize + gapSize );
-				float dashW = max( fwidth( vLineDistance ), 1e-5 );
 				if ( gapSize > 0.0 ) alpha *= clamp( ( dashSize - dashM ) / dashW + 0.5, 0.0, 1.0 ) * clamp( dashM / dashW + 0.5, 0.0, 1.0 );
 				// comets of light: bright at the head, a tail fading behind it
 				if ( pulse.x > 0.0 ) {
@@ -59,7 +68,7 @@ function soften(src: string) {
       `#ifndef WORLD_UNITS
 				if ( abs( vUv.y ) > 1.0 ) discard;
 				float across = abs( vUv.x );
-				float core = clamp( ( soft.x - across ) / max( fwidth( vUv.x ), 1e-5 ) + 0.5, 0.0, 1.0 );
+				float core = clamp( ( soft.x - across ) / acrossW + 0.5, 0.0, 1.0 );
 				float halo = 1.0 - smoothstep( soft.x * 0.6, 1.0, across );
 				alpha *= max( core, halo * halo * soft.y );
 			#endif

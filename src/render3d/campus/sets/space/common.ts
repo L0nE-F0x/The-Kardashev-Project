@@ -630,7 +630,7 @@ export function stripMat(c: Paint, base = 0.6, amp = 2.4) {
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         {
           float w = mod(vWX - uT * uSpeed, 64.0);
-          float p = exp(-pow((w - 32.0) / 5.0, 2.0));
+          float q = (w - 32.0) / 5.0, p = exp(-q * q);
           totalEmissiveRadiance *= uBase + uAmp * p;
         }`);
   };

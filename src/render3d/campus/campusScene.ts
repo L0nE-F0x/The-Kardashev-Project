@@ -359,7 +359,7 @@ export class CampusScene implements Scene3D {
     const skyMode = this.scenery === 'moon' ? 'lunar' : this.scenery === 'space' ? 'space' : this.scenery === 'asteroid' ? 'asteroid' : this.scenery === 'habitat' ? 'habitat' : 'earth';
     // far enough from the equator, clear nights bring the aurora
     const polar = Math.abs(this.site.lat);
-    this.sky = new CampusSky(this.scene, weather, skyMode, { place: ex.place, swarm: ex.swarm, habitats: ex.habitats, aurora: offWorld ? 0 : THREE.MathUtils.smoothstep(polar, 50, 62) });
+    this.sky = new CampusSky(this.scene, weather, skyMode, { place: ex.place, swarm: ex.swarm, habitats: ex.habitats, aurora: offWorld ? 0 : THREE.MathUtils.smoothstep(polar, 50, 62), still: this.game.settings.reducedMotion });
     this.precip = new Precip(weather, seed);
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
@@ -1087,6 +1087,14 @@ export class CampusScene implements Scene3D {
     return this.sky.night > 0.55 ? 'night' : 'campus';
   }
 
+  /**
+   * Settings → Weather or Reduce motion changed: the weather is chosen when the campus is built, so build it again
+   * (it used to rain on until the player left the campus).
+   */
+  weatherSettingsChanged() {
+    this.build();
+  }
+
   /** Photo mode and QA: film in this weather (rebuilds the scene); null = the site's own again. */
   setWeather(w: Weather | null) {
     if (w === this.forceWeather) return;
@@ -1114,6 +1122,8 @@ export class CampusScene implements Scene3D {
   private pickWeather(): Weather {
     if (this.forceWeather) return this.forceWeather;
     if (!this.game.settings.weather) return 'clear';
+    // Reduce motion: no rain, snow or blowing dust (the clouds hold still too: CampusSky's `still`)
+    const calm = this.game.settings.reducedMotion;
     // the menu tour films in fair weather (a few shots under cloud, for variety)
     if (this.game.mode === 'title') return noise(this.site.lon * 0.37 + 0.5, this.site.lat * 0.53 + 0.5, 23) > 0.74 ? 'cloudy' : 'clear';
     const day = this.game.view?.day ?? 0;
@@ -1122,9 +1132,9 @@ export class CampusScene implements Scene3D {
     if (r < wet) {
       const month = new Date().getUTCMonth();
       const winter = this.site.lat > 0 ? month < 3 || month > 10 : month > 4 && month < 9;
-      return this.site.climateC < 8 && winter ? 'snow' : 'rain';
+      return calm ? 'cloudy' : this.site.climateC < 8 && winter ? 'snow' : 'rain';
     }
-    if (this.site.backdrop === 'desert' && r > 0.92) return 'dust';
+    if (this.site.backdrop === 'desert' && r > 0.92) return calm ? 'clear' : 'dust';
     return r < wet + 0.2 ? 'cloudy' : 'clear';
   }
 

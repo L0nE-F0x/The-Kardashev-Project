@@ -18,7 +18,7 @@ export function FootStrip() {
   // a plan's horizon is years off: say the year once it is more than a year away
   const when = (day: number) => (jumps && day - s.day > 360 ? String(Math.floor(yearOf(day))) : fmtDays(day - s.day));
   const news = s.news[0];
-  const canSkip = !jumps && s.meta.tutorialStep < 0 && !game.skip && !game.blocked;
+  const canSkip = !jumps && s.meta.tutorialStep < 0 && !game.skip && !game.blocked && !game.briefing;
   return (
     <div class="foot interactive">
       <button class="foot-news btnless" onClick={() => game.openPanel('news')} data-tip="Open the news log" data-key="N">

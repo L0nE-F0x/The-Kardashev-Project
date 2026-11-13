@@ -230,7 +230,7 @@ export class SunFlare {
           int s = int(vShape + 0.5);
           if (s == 0) I = exp(-d * d * 9.0) + 0.22 / (1.0 + d * d * 60.0) * (1.0 - smoothstep(0.6, 1.0, d));
           else if (s == 1) I = exp(-abs(vUv.y) * 90.0) * exp(-abs(vUv.x) * 3.4) + exp(-abs(vUv.y) * 22.0) * exp(-abs(vUv.x) * 9.0) * 0.3;
-          else if (s == 2) { float a = atan(vUv.y, vUv.x) + uSpin;
+          else if (s == 2) { float a = atan(vUv.y, d > 1e-6 ? vUv.x : 1.0) + uSpin;
             I = (pow(abs(cos(a * 3.0)), 90.0) + pow(abs(cos(a * 7.0 + 0.6)), 40.0) * 0.22 + pow(abs(sin(a * 11.0)), 24.0) * 0.1) * exp(-d * 4.2); }
           else if (s == 3) I = (1.0 - smoothstep(0.9, 1.0, d)) * (0.35 + 0.65 * smoothstep(0.4, 1.0, d));
           else if (s == 4) I = exp(-(d - 0.8) * (d - 0.8) / 0.0049);

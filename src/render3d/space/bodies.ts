@@ -89,7 +89,7 @@ const SURFACE: Record<BodyKind, string> = {
       for (int i = 0; i < ${RAYS.length}; i++) {
         vec3 c = uRays[i].xyz; float ang = acos(clamp(dot(p, c), -1.0, 1.0));
         vec3 e1 = normalize(cross(c, vec3(0.0, 1.0, 0.1))), e2 = cross(c, e1);
-        float phi = atan(dot(p, e2), dot(p, e1));
+        float py = dot(p, e2), px = dot(p, e1), phi = atan(py, abs(px) + abs(py) > 1e-7 ? px : 1.0);
         float streak = pow(vnoise(vec3(cos(phi), sin(phi), float(i)) * 5.0), 3.0);
         float reach = uRays[i].w;
         alb += vec3(0.3) * (streak * exp(-ang / (0.42 * reach)) * smoothstep(0.02, 0.06, ang) * 1.6 + exp(-ang * ang / 0.0012) * 0.8) * reach;

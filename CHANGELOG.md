@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.14.2 — Clear View (2026-11-14)
+The square that flickered on the globe is gone, along with a run of small bugs.
+
+- **Fixed: a square that strobed on the globe** in the Linux app, in the main menu and in game, while the camera moved or zoomed. Two of the globe's effects, the sea's reflection of the sky and the aurora seen edge-on, could make a broken pixel on some graphics engines, and the glow spread it into a flashing square. Both are fixed where they start, along with the same kind of mistake in the clouds, the cable lines, the campus skies and the shading. The glow now drops a broken pixel instead of spreading it.
+- **Keyboard shortcuts:**
+  - Ctrl+C and other Ctrl, Cmd and Alt combinations no longer open panels (Ctrl+C opened Compute).
+  - Holding a key no longer flickers a panel open and shut; only panning and zooming repeat.
+  - After dragging a slider, Space, 1–4 and the panel keys work straight away, without a click elsewhere first. The slider keeps its arrow keys.
+  - Escape leaves a text field and closes New company or Import.
+  - During the Type I ending only Escape does anything. M used to swap the globe in under it, and the ending lost its music, its last shot and the end card's picture.
+- **Skip ahead:**
+  - It ran at half speed while the mouse was still.
+  - It kept going under a briefing, then started the clock behind it. It now stops for one and can't start while one is open.
+  - With Pause for decisions off, a decision already waiting made every skip stop after one day.
+- **Double clicks:** Update could start two downloads, Found the company and Import could each make two saves, and a double click on a decision could answer the next card too.
+- **On the globe, the Charter HQ, the megaprojects and the launch sites** said "Logic fabs" when you pointed at them. They now say where they are and what they are.
+- **Settings that do what they say:**
+  - Reduce motion now stills the campus clouds and leaves out rain, snow and dust.
+  - Turning Weather on or off applies at once on a campus.
+  - Battery saver's description says what it does: it draws about 30 frames a second instead of 60.
+  - Reset settings no longer forgets the interface looks you have reached.
+- **Small things:** no "running slowly… about 0 frames a second" question when the game starts in a window you can't see; the 3D view stays sharp when the window moves to a screen with a different scale; a contract you were halfway through posting in the Charter no longer carries over into another save.
+
 ## 0.14.1 — Distinct (2026-11-13)
 Colour-blind safe colours now show up in every look.
 

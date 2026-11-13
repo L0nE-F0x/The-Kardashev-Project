@@ -151,6 +151,8 @@ function LoadGame() {
   const game = useGame();
   const [confirm, setConfirm] = useState<string | null>(null);
   const [code, setCode] = useState('');
+  // once: the menu goes only on the next frame, and a double-click imported the company into two slots
+  const imported = useRef(false);
   const [msg, setMsg] = useState('');
   const slots = game.slots();
   return (
@@ -204,9 +206,10 @@ function LoadGame() {
           class="btn"
           disabled={!code}
           onClick={() => {
+            if (imported.current) return;
             const s = importSave(code);
             if (!s) return setMsg('That save code did not work.');
-            game.importCompany(s);
+            imported.current = game.importCompany(s);
           }}
         >
           Import
@@ -222,7 +225,8 @@ function LoadGame() {
               if (!f) return;
               const s = importSave(await f.text());
               if (!s) return setMsg('That file is not a Kardashev save.');
-              game.importCompany(s);
+              if (imported.current) return;
+              imported.current = game.importCompany(s);
             }}
           />
         </label>

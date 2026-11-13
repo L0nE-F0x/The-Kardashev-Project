@@ -154,7 +154,7 @@ function Display() {
       />
       <Toggle label="Weather" hint="Rain, snow and dust storms in campus views." value={st.weather} onChange={(v) => game.updateSettings({ weather: v })} />
       <Toggle label="Day & night" hint="Local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
-      <Toggle label="Battery saver" hint="Draw at ~30 fps with fewer particles." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
+      <Toggle label="Battery saver" hint="Draw at ~30 frames a second instead of 60." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
       <Choice
         label="3D detail"
         hint="High: soft shadows, ambient occlusion and the full countryside. Low: for older laptops. Auto picks for this machine."
@@ -406,7 +406,8 @@ function Data() {
         <button
           class="btn"
           onClick={() => {
-            const fresh = { ...defaultSettings(), lastSeenVersion: game.settings.lastSeenVersion, tutorialOffered: game.settings.tutorialOffered };
+            // (what the player has reached is kept: it isn't a preference. The looks offered here went back to the garage's)
+            const fresh = { ...defaultSettings(), lastSeenVersion: game.settings.lastSeenVersion, tutorialOffered: game.settings.tutorialOffered, lookReached: game.settings.lookReached };
             saveSettings(fresh);
             game.updateSettings(fresh);
             setMsg('Settings reset to defaults.');

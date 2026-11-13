@@ -462,8 +462,19 @@ const DETAIL = `
       if (k > 0.0) b = textureGrad(t, up, px, py);
       return mix(a, b, k);
     }
+    // the same with the footprint given: (gx, gy) = uv's screen derivatives, (nx, ny) = those of n.xz (for code after
+    // a discard, where derivatives are undefined)
+    vec4 detailAtG(sampler2D t, vec3 n, vec2 uv, vec2 f, float o, vec2 gx, vec2 gy, vec2 nx, vec2 ny){
+      float k = smoothstep(0.707, 0.848, abs(n.y));
+      vec2 ue = uv * f + o, up = n.xz * (f.y * 0.3183) + o;
+      vec4 a = vec4(0.0), b = vec4(0.0);
+      if (k < 1.0) a = textureGrad(t, ue, gx * f, gy * f);
+      if (k > 0.0) b = textureGrad(t, up, nx * (f.y * 0.3183), ny * (f.y * 0.3183));
+      return mix(a, b, k);
+    }
   #else
     #define detailAt(t, n, uv, f, o) texture2D(t, (uv) * (f) + (o))
+    #define detailAtG(t, n, uv, f, o, gx, gy, nx, ny) textureGrad(t, (uv) * (f) + (o), (gx) * (f), (gy) * (f))
   #endif`;
 
 const AMBER = 'vec3(1.0, 0.56, 0.22)', WHITE = 'vec3(1.0, 0.88, 0.70)';
@@ -615,12 +626,16 @@ export function earthMaterial(t: EarthTextures, W: number, H: number, level: Qua
           vec2 rip = texture2D(tRelief, vUv * vec2(246.0, 150.0) + vec2(time * 0.004, time * 0.002)).rg + texture2D(tRelief, vUv * vec2(436.0, 266.0) - vec2(time * 0.003, -time * 0.005)).rg - 1.0;
           Nw = normalize(n + (east * rip.x + north * rip.y) * 0.13);
         #endif
-        float nh = max(dot(Nw, normalize(sunDir + V)), 0.0);
+        // (the half vector vanishes where the sun stands exactly behind the point: normalize() of it is NaN)
+        vec3 hv = sunDir + V;
+        float nh = max(dot(Nw, hv * inversesqrt(max(dot(hv, hv), 1e-12))), 0.0);
         // calm water mirrors the sun, ruffled water spreads it
         float calm = 0.55 + dat.g * 0.9;
         float glint = pow(nh, 36.0) * 0.12 + pow(nh, 260.0 * calm) * 0.55 * calm + pow(nh, 1400.0) * 0.5;
         c += sunC * vec3(1.0, 0.93, 0.80) * glint * water * smoothstep(0.0, 0.2, dn) * shade;
-        c += ${lin('sky3')} * pow(1.0 - nvc, 4.0) * water * day * 0.35;
+        // (where the ground faces the camera head-on, dot(n, V) rounds to a hair over 1: pow() of the negative base
+        // is undefined, and WebKitGTK's driver path returns NaN, which the bloom then spread into a flashing square)
+        c += ${lin('sky3')} * pow(max(1.0 - nvc, 0.0), 4.0) * water * day * 0.35;
         // city lights on the night side: amber sodium and white LED, brighter where the lookup shrinks many into one
         float night = (1.0 - smoothstep(-0.15, 0.05, dn)) * land * nightLights;
         if (night > 0.0) {
@@ -673,16 +688,19 @@ export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.le
       ${CLOUD}
       ${DETAIL}
       void main(){
+        vec3 n = normalize(vN);
+        vec3 nt = vec3(n.x * vTurn.x - n.z * vTurn.y, n.y, n.z * vTurn.x + n.x * vTurn.y);
+        // every screen-space derivative is taken here, before the discard: after it they are undefined (a pixel's
+        // neighbours may have stopped), and every lookup below is given its footprint explicitly
+        vec2 gx = dFdx(vUv), gy = dFdy(vUv), nx = dFdx(nt.xz), ny = dFdy(nt.xz);
         float deep;
-        float d0 = cloudAt(vUv, deep);
+        float d0 = cloudAtG(vUv, gx, gy, deep);
         // clear sky stops here: nothing below can lift it to the cloud's edge
         if (d0 < 0.2) discard;
-        vec3 n = normalize(vN);
         float dn = dot(n, sunDir);
         // billows from the tiling detail, riding east with the cloud (mipmapped: frilly up close, smooth from far out)
         vec2 uv = vUv - vec2(cloudShift, 0.0);
-        vec3 nt = vec3(n.x * vTurn.x - n.z * vTurn.y, n.y, n.z * vTurn.x + n.x * vTurn.y);
-        float bA = detailAt(tRelief, nt, uv, vec2(52.0, 32.0), 0.0).a, bB = detailAt(tRelief, nt, uv, vec2(194.0, 118.0), 0.5).a;
+        float bA = detailAtG(tRelief, nt, uv, vec2(52.0, 32.0), 0.0, gx, gy, nx, ny).a, bB = detailAtG(tRelief, nt, uv, vec2(194.0, 118.0), 0.5, gx, gy, nx, ny).a;
         float d = d0 + (bA - 0.55) * 0.26 + (bB - 0.55) * 0.14;
         // soft at the edge, a thin veil first, thickening slowly into solid cloud (deep weather more so)
         float a = smoothstep(0.40, 0.64, d) * (0.5 + (0.32 + deep * 0.18) * smoothstep(0.55, 1.05, d));
@@ -693,7 +711,7 @@ export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.le
           vec3 sT = sunDir - n * dn;
           vec2 off = vec2(dot(sT, east) / max(length(n.xz), 0.08), -dot(sT, north) * 2.0) * 0.004;
           float deep2;
-          self += (d0 - cloudAt(vUv + off, deep2)) * (1.2 + deep * 2.4);
+          self += (d0 - cloudAtG(vUv + off, gx, gy, deep2)) * (1.2 + deep * 2.4);
         #endif
         self = clamp(self, 0.0, 1.0);
         // clouds stand in the light a little after the ground below has lost it
@@ -702,7 +720,8 @@ export function cloudMaterial(t: EarthTextures, level: QualityLevel = quality.le
         vec3 c = body * sunTint(dn + 0.05) * lit * 0.97 + vec3(0.020, 0.027, 0.052) * (1.0 - lit);
         #ifdef HQ
           // the towns' glow on the cloud's underside
-          vec2 li = texture2D(tLights, vUv, 4.0).rg;
+          // (blurred four levels: the footprint ×16)
+          vec2 li = textureGrad(tLights, vUv, gx * 16.0, gy * 16.0).rg;
           c += (li.r * ${AMBER} + li.g * ${WHITE}) * (1.0 - smoothstep(-0.15, 0.05, dn)) * 0.3;
         #endif
         // less opacity clears the thin veils first and leaves the cloud's white heart (a wash of grey over the

@@ -33,6 +33,8 @@ export class Stage3D implements GameStage {
   private zoom = 1;
   private width = 1;
   private height = 1;
+  /** The device pixel ratio the stage was last laid out for. */
+  private dpr = 1;
   private readonly blank = new THREE.Scene();
   private readonly blankCam = new THREE.PerspectiveCamera();
   /**
@@ -113,7 +115,7 @@ export class Stage3D implements GameStage {
   }
 
   private layout() {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = (this.dpr = window.devicePixelRatio || 1);
     const w = window.innerWidth, h = window.innerHeight;
     this.width = w;
     this.height = h;
@@ -156,6 +158,9 @@ export class Stage3D implements GameStage {
   }
 
   frame(dt: number, now: number) {
+    // the window moved to a screen with another scale (or the system's scale changed): the size in CSS pixels stays
+    // the same, so no resize event comes, and the 3D view went on drawing at the old resolution (blurry)
+    if ((window.devicePixelRatio || 1) !== this.dpr) this.layout();
     const s = this.scene;
     if (!s || !this.post) {
       this.renderer.render(this.blank, this.blankCam);

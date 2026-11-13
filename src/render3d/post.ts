@@ -60,14 +60,21 @@ uniform vec4 dof;
 // x: strength, y: focus (0 bottom .. 1 top)
 uniform vec2 tilt;
 varying vec2 vUv;
-float viewDist(vec2 uv) { float d = texture2D(tDepth, uv).x; return clip.x * clip.y / (clip.y - d * (clip.y - clip.x)); }
+// a colour that can be trusted: one non-finite pixel (NaN or Inf, from any shader or a driver's quirk) would be
+// smeared over every pixel the blur reaches. (Lookups at level 0: the taps sit in branches that differ per pixel,
+// where implicit derivatives are undefined.)
+// (tested on the bits: a fast-math compiler may fold a float comparison as if NaN couldn't happen)
+bool finite3(vec3 c) { uvec3 e = floatBitsToUint(c) & 0x7f800000u; return all(notEqual(e, uvec3(0x7f800000u))); }
+vec4 fin(vec4 c) { return finite3(c.rgb) ? c : vec4(0.0, 0.0, 0.0, 1.0); }
+vec4 tap(vec2 uv) { return fin(textureLod(tColor, uv, 0.0)); }
+float viewDist(vec2 uv) { float d = textureLod(tDepth, uv, 0.0).x; return clip.x * clip.y / (clip.y - d * (clip.y - clip.x)); }
 float coc(float z) {
   // the sky stays crisp (its stars and the sun's disc are points)
   if (z > clip.y * 0.9) return 0.0;
   return smoothstep(1.0, 3.4, abs(z - dof.x) * dof.y) * dof.z;
 }
 void main() {
-  vec4 c = texture2D(tColor, vUv);
+  vec4 c = tap(vUv);
   if (dof.w > 0.5) {
     float z0 = viewDist(vUv);
     float r0 = coc(z0);
@@ -84,7 +91,7 @@ void main() {
           #else
             float w = w0;
           #endif
-          sum += texture2D(tColor, uv).rgb * w; ws += w;
+          sum += tap(uv).rgb * w; ws += w;
         }
       }
       c.rgb = sum / ws;
@@ -93,11 +100,15 @@ void main() {
     float k = smoothstep(0.16, 0.56, abs(vUv.y - tilt.y)) * tilt.x;
     if (k > 0.01) {
       vec4 sum = vec4(0.0); float ws = 0.0;
-      for (int i = -6; i <= 6; i++) { float w = exp(-float(i * i) / 16.0); sum += texture2D(tColor, vUv + dir * float(i) * k / res) * w; ws += w; }
+      for (int i = -6; i <= 6; i++) { float w = exp(-float(i * i) / 16.0); sum += tap(vUv + dir * float(i) * k / res) * w; ws += w; }
       c = sum / ws;
     }
   }
-  if (aoK > 0.0) c.rgb *= mix(1.0, texture2D(tAO, vUv).r, aoK);
+  if (aoK > 0.0) {
+    float ao = textureLod(tAO, vUv, 0.0).r;
+    if ((floatBitsToUint(ao) & 0x7f800000u) == 0x7f800000u) ao = 1.0;
+    c.rgb *= mix(1.0, ao, aoK);
+  }
   gl_FragColor = c;
 }`;
 
@@ -177,6 +188,15 @@ export class Post {
       this.gtao.output = GTAOPass.OUTPUT.Off;
       this.gtao.updateGtaoMaterial({ radius: 1.6, distanceExponent: 1.5, thickness: 1.5, scale: 1.0, samples: 12 });
       this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+      // three's GTAO takes sqrt(1 - cos²) and acos(cos) of horizon cosines that are dot products of unit vectors:
+      // they round past ±1 where a normal rebuilt from depth stands square to the view (silhouettes, far ground at a
+      // grazing angle), and the NaN that gives would be spread by the denoiser into a dark blot
+      const gm = this.gtao.gtaoMaterial;
+      const horizon = 'vec2 sinHorizons = sqrt(1. - cosHorizons * cosHorizons);';
+      if (gm.fragmentShader.includes(horizon)) {
+        gm.fragmentShader = gm.fragmentShader.replace(horizon, 'cosHorizons = clamp(cosHorizons, -1., 1.);\n\t\t\t\tvec2 sinHorizons = sqrt(max(1. - cosHorizons * cosHorizons, 0.));');
+        gm.needsUpdate = true;
+      } else console.warn('post: the GTAO shader changed shape; its horizon clamp is not in');
     }
     this.blur = new THREE.ShaderMaterial({
       uniforms: {
@@ -195,6 +215,18 @@ export class Post {
       vertexShader: quadVS, fragmentShader: FILM_FS, depthTest: false, depthWrite: false, toneMapped: false,
     });
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.2, 0.55, 1.4);
+    // The bloom blurs its input through five ever coarser levels, so a single non-finite pixel (NaN or Inf, from any
+    // shader or a driver's quirk) comes out as a large flashing square: on the globe in v0.14.1, through WebKitGTK,
+    // that was one pixel of the sky's reflection on the sea. The causes are fixed where they were; its way in drops
+    // any such pixel as well, so one bad pixel stays one pixel.
+    const hp = this.bloom.materialHighPassFilter;
+    const read = 'vec4 texel = texture2D( tDiffuse, vUv );';
+    if (hp.fragmentShader.includes(read)) {
+      // (tested on the bits: a fast-math compiler may fold a float comparison as if NaN couldn't happen)
+      const test = 'any( equal( floatBitsToUint( texel.rgb ) & 0x7f800000u, uvec3( 0x7f800000u ) ) )';
+      hp.fragmentShader = hp.fragmentShader.replace(read, `${read}\n\t\t\tif ( ${test} ) texel = vec4( 0.0 );`);
+      hp.needsUpdate = true;
+    } else console.warn('post: the bloom high-pass changed shape; its non-finite guard is not in');
     // no MSAA (the medium and low presets): a cheap FXAA pass keeps edges from stair-stepping
     if (!samples) {
       this.fxaa = new FXAAPass();

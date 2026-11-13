@@ -75,9 +75,13 @@ export function MapTooltip() {
       body = `Cable landing station · ${REGIONS[site.region].name}\nClick to lease subsea cable capacity`;
     } else if (site.kind === 'mine') {
       body = `${REGIONS[site.region].name}\n${site.blurb}\nClick to buy a stake`;
+    } else if (site.supplier) {
+      const c = COMPANIES[site.supplier as keyof typeof COMPANIES];
+      body = `${c?.sector ?? REGIONS[site.region].name}\n${site.blurb}`;
     } else {
-      const c = COMPANIES[(site.supplier ?? 'lumen') as keyof typeof COMPANIES];
-      body = `${c?.sector ?? ''}\n${site.blurb}`;
+      // the Charter's places (Acts III–V: its HQ, the megaproject and launch sites) belong to no company: their
+      // card said "Logic fabs", the first supplier's trade
+      body = `${REGIONS[site.region].name}\n${site.blurb}${site.kind === 'charter' || site.kind === 'mega' || site.kind === 'launch' ? '\nDouble-click to view' : ''}`;
     }
   } else if (h.kind === 'region') {
     const r = REGIONS[h.id];

@@ -25,11 +25,18 @@ function useScrollHint(n: number) {
     };
     check();
     el.addEventListener('scroll', check, { passive: true });
-    const ro = new ResizeObserver(check);
+    // (a frame later: `tight` changes the dock's own size, and changing it inside the observer's callback raised a
+    // "ResizeObserver loop completed with undelivered notifications" error on the page)
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(check);
+    });
     ro.observe(el);
     return () => {
       el.removeEventListener('scroll', check);
       ro.disconnect();
+      cancelAnimationFrame(raf);
     };
   }, [n]);
   return { ref, more, tight };

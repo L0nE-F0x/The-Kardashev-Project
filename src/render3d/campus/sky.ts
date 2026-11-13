@@ -110,14 +110,14 @@ void main() {
     float star = step(0.9, h) * smoothstep(0.26, 0.0, length(fp + (vec3(fract(h * 7.1), fract(h * 13.3), fract(h * 23.7)) - 0.5) * 0.5)) * (0.25 + mag * 2.6) * tw;
     vec3 tint = mix(vec3(0.75, 0.84, 1.0), vec3(1.0, 0.86, 0.7), fract(h * 57.0));
     vec3 axis = normalize(vec3(0.35, 0.5, -0.8));
-    float band = exp(-pow(dot(d, axis) * 3.4, 2.0));
+    float ba = dot(d, axis) * 3.4, band = exp(-ba * ba);
     float mw = band * (0.35 + 0.65 * texture2D(tNoise, d.xz * 0.9 + d.y * 0.5).r) * texture2D(tNoise, d.zy * 2.3 + 0.2).r;
     c += (tint * star + vec3(0.42, 0.5, 0.78) * mw * 0.16) * stars * clear * smoothstep(starFloor, starFloor + 0.17, y);
   }
   if (aurora > 0.01 && y > 0.02 && d.z < 0.4) {
     // the northern lights: curtains whose hems wander along the northern sky; each is a row of fine rays, bright
     // at the hem and fading far up, green below and violet above
-    float az = atan(d.x, -d.z);
+    float az = atan(d.x, abs(d.x) + abs(d.z) > 1e-7 ? -d.z : 1.0);
     vec3 acc = vec3(0.0);
     for (int i = 0; i < 3; i++) {
       float fi = float(i);
@@ -170,7 +170,7 @@ export class CampusSky {
 
   /** 'earth' (the default), 'lunar' (the Moon), 'space' (the yards, the ring), 'habitat' (inside Aurora), 'asteroid'. */
   private readonly lunar: boolean;
-  constructor(scene: THREE.Scene, private weather: Weather = 'clear', readonly mode: 'earth' | 'lunar' | 'space' | 'habitat' | 'asteroid' | boolean = 'earth', private extra: { place?: string; swarm?: number; habitats?: number; /** Northern (southern) lights on clear nights, 0..1. */ aurora?: number } = {}) {
+  constructor(scene: THREE.Scene, private weather: Weather = 'clear', readonly mode: 'earth' | 'lunar' | 'space' | 'habitat' | 'asteroid' | boolean = 'earth', private extra: { place?: string; swarm?: number; habitats?: number; /** Northern (southern) lights on clear nights, 0..1. */ aurora?: number; /** Clouds that hold still (Reduce motion). */ still?: boolean } = {}) {
     if (mode === true) mode = 'lunar';
     if (mode === false) mode = 'earth';
     this.mode = mode;
@@ -189,7 +189,7 @@ export class CampusSky {
     this.sun.shadow.radius = 2.2;
     scene.add(this.sun, this.sun.target, this.hemi);
     const cover = weather === 'clear' ? 0.42 : weather === 'dust' ? 0.2 : weather === 'cloudy' ? 0.78 : 1;
-    this.uni.cloud.value.set(cover, this.lunar || mode === 'habitat' ? 0 : 1, weather === 'rain' || weather === 'snow' ? 1 : 0.55, 0.0016);
+    this.uni.cloud.value.set(cover, this.lunar || mode === 'habitat' ? 0 : 1, weather === 'rain' || weather === 'snow' ? 1 : 0.55, extra.still ? 0 : 0.0016);
     this.fog = new THREE.Fog(0xffffff, 380, 1900);
     scene.fog = this.fog;
     if (this.lunar && mode !== 'asteroid') {

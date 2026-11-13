@@ -462,9 +462,9 @@ function withRock<M extends THREE.MeshStandardMaterial>(m: M): M {
             float t = (vGrainW.y + warp) / uStrataStep;
             t += sin(t * 1.7) * 0.6;
             float f = fract(t);
-            int i = int(mod(floor(t), 6.0));
+            int i = int(clamp(mod(floor(t), 6.0), 0.0, 5.0));
             vec3 mean = (uStrata[0] + uStrata[1] + uStrata[2] + uStrata[3] + uStrata[4] + uStrata[5]) / 6.0;
-            vec3 band = mix(mean, mix(uStrata[i], uStrata[int(mod(float(i) + 1.0, 6.0))], smoothstep(0.82, 1.0, f)), 0.62);
+            vec3 band = mix(mean, mix(uStrata[i], uStrata[int(clamp(mod(float(i) + 1.0, 6.0), 0.0, 5.0))], smoothstep(0.82, 1.0, f)), 0.62);
             // a shadowed ledge under each layer, streaks where water runs down the face
             band *= 1.0 - 0.2 * smoothstep(0.8, 0.97, f) * (1.0 - smoothstep(0.97, 1.0, f));
             float streak = texture2D(uGrain, vec2((vGrainW.x + vGrainW.z) * 0.035, vGrainW.y * 0.004)).r;

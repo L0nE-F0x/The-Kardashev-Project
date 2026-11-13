@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { Choice, Icon, Toggle, Window, useGame } from '../components';
 import { HOME_SITES } from '../../content/sites';
 import { REGIONS } from '../../content/regions';
@@ -31,8 +31,12 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
   const lod = game.world.lods[1];
   const startCash = (cash ?? DIFFICULTIES[difficulty].cash) + FOUNDERS[founder].cash;
 
+  // once: the screen goes only on the next frame, and a double-click founded two companies in two slots
+  const founded = useRef(false);
   const found = () => {
-    game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: !sb && start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4, act5: start === 5, sandbox: sb ? sandbox : undefined });
+    if (founded.current) return;
+    founded.current = true;
+    if (!game.startNew({ name, homeSite: home, seed, difficulty, founder, eventRate, rivalPace, startCash: cash ?? undefined, tutorial: !sb && start === 1 && tutorial, act2: start === 2, act3: start === 3, act4: start === 4, act5: start === 5, sandbox: sb ? sandbox : undefined })) founded.current = false;
   };
 
   return (
