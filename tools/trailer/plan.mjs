@@ -27,8 +27,10 @@ export const EDITS = {
       ['globe-cables', B(15), B(16), 2.2],
       // Act III
       ['geneva', B(16), B(18), 1.6, { x: 0.5 }],
-      ['sahara', B(18), B(19), 0.8],
-      ['northsea', B(19), B(20), 1.8],
+      ['sahara', B(18), B(18.5), 1.3],
+      ['northsea', B(18.5), B(19), 2.2],
+      // the Charter's own interface (every act's look is in the cut: I hud-build, II hud-map + hud-event, III here, IV hud-planet, V hud-system)
+      ['hud-charter', B(19), B(20), 0.3],
       // Act IV
       ['fusion', B(20), B(21), 1.6],
       ['supergrid', B(21), B(22), 2.6],
@@ -61,7 +63,7 @@ export const EDITS = {
       { kind: 'chip', t0: 32.4, t1: 35.8, text: 'ACT III', name: 'THE CHARTER', year: '2035' },
       { kind: 'line', t0: 32.6, t1: 35.7, kicker: 'THEN THE WORLD HANDS YOU', head: 'THE PLANET' },
       { kind: 'flash', t: B(18), a: 0.5 },
-      { kind: 'line', t0: 36.3, t1: 39.7, head: 'BUILD AT PLANET SCALE' },
+      { kind: 'line', t0: 36.25, t1: 37.85, head: 'BUILD AT PLANET SCALE' },
       { kind: 'chip', t0: 40.2, t1: 43.8, text: 'ACT IV', name: 'PLANETARY', year: '2045' },
       { kind: 'line', t0: 40.25, t1: 41.8, head: 'IGNITE FUSION' },
       { kind: 'flash', t: B(22), a: 0.45 },

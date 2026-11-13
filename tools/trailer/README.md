@@ -17,6 +17,7 @@ these scripts from the running game. Nothing here is part of the game or its bui
 | `titles.html` / `titles.mjs` | the animated titles, one transparent PNG a frame |
 | `edit.mjs` | cuts clips + titles + music into a video (ffmpeg) |
 | `art.html` / `art.mjs` | key art from the stills: logo over a picture at the sizes the sites ask for |
+| `kit.mjs` | the last step: files the finished pieces into the kit folder under the names people see (stills numbered in story order, a 1080p copy of the trailer and teaser); `--keep <folder>` sets aside what it replaces |
 | `x.mjs`, `shots-try/` | directing by hand: run a snippet in a tab that stays open and look at the result |
 
 ## Making it again
@@ -34,6 +35,18 @@ node tools/trailer/score/render.mjs all               # the music (needs its own
 node tools/trailer/titles.mjs all                     # don't edit titles.html while this runs (Vite reloads the page)
 for e in trailer teaser teaser-tall day day-tall liftoff liftoff-tall type1 type1-tall; do node tools/trailer/edit.mjs $e; done
 node tools/trailer/art.mjs
+node tools/trailer/kit.mjs stills tall-stills art music trailer teaser teaser-tall day day-tall liftoff liftoff-tall type1 type1-tall
+```
+
+**When only the interface changed** (v0.14's five looks, 2026-11-14): the shots without interface were measured
+against the build first (six stills re-shot, under 0.5% mean difference: people and clouds standing elsewhere) and
+kept; only the `hud-*` shots, the two cuts that use them and their stills were made again:
+
+```bash
+H=hud-build,hud-map,hud-research,hud-event,hud-campus,hud-charter,hud-planet,hud-system
+node tools/trailer/capture.mjs $H && node tools/trailer/capture.mjs $H --still
+node tools/trailer/titles.mjs trailer,teaser && node tools/trailer/edit.mjs trailer && node tools/trailer/edit.mjs teaser
+node tools/trailer/kit.mjs stills trailer teaser --shots $H --keep "Previous (v0.13.2)"
 ```
 
 `edit.mjs <edit> --draft` cuts a half-size draft in a minute; look at it as a sheet of frames:
@@ -48,5 +61,10 @@ node tools/trailer/art.mjs
 - The clips are full-range BT.601 (Chrome's JPEG screenshots); `edit.mjs` converts to ordinary BT.709 video. Checked
   against the game's own frame: within 2 levels.
 - The vertical cuts are recorded upright (a wider lens, the globe from further off), not cropped from the wide ones.
+- Each act has its own interface look (v0.14): a company started in an act (`D.start('act3')` …) wears that act's.
+  Every act has one `hud-*` shot in the trailer, so the cut shows all five.
+- A company played forward by a bot has every unlock briefing still waiting, and each opens a panel over the shot:
+  `await D.briefed()` after `D.days(…)`. The bot's own days also call Council sessions; let the game's clock run
+  the shot instead (`game.setSpeed`).
 - The launch pads run on the scene's clock (`sets/launch/pad.ts`): the liftoff shots set that clock so the rocket
   leaves on a bar line.

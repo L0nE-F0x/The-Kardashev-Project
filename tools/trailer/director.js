@@ -225,6 +225,12 @@
     if (g.showActComplete) g.dismissActComplete();
     if (g.toasts?.length) { g.toasts.length = 0; g.notify(); }
   };
+  /** Every unlock briefing counts as shown (a company played forward by a bot has them all waiting: each opens a panel). */
+  D.briefed = async () => {
+    const { BRIEFINGS } = await import('/src/game/briefings.ts');
+    g.state.meta.briefings = BRIEFINGS.map((x) => x.id);
+    for (let i = 0; i < 6 && g.briefing; i++) g.briefingSkip();
+  };
   /** Play `days` game days at once with a bot at the controls (`bot(s, ctx)` before each day). */
   D.days = (days, bot) => {
     const s = g.state;

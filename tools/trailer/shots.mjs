@@ -131,6 +131,20 @@ export const SHOTS = [
     `[D.at(-D.W() * 0.14, 26, 0.42, -0.8, 1.53, 10, 30), D.at(-4, 2, 0.74, -0.4, 1.3, 8, 30)]`, { still: [0.3, 0.95] }),
   campus('sahara', 4, 'mega-sahara', { light: 'golden' }, 6,
     `[D.at(-30, 60, 0.5, -0.5, 1.36, 18, 30), D.at(-10, 30, 0.62, -0.2, 1.24, 14, 30)]`, { still: [0.6] }),
+  // the Charter as you run it: four years in (the Act III bot), megaprojects on the map, the player opens the Charter
+  {
+    id: 'hud-charter', kind: 'hud', secs: 5, warm: 30, preview: [0.1, 0.4, 0.9],
+    setup: `await D.bots(); D.start('act3', 'west-texas'); D.days(1500, D.bot.b3); await D.briefed(); game.enterMap(); await D.runAsync(30); await D.loaded();
+      D.scene = game.stage.getScene(); D.kind = 'globe'; D.scene.clampView = function () {}; game.select?.(null); game.openPanel(null); game.setSpeed(4); D.pointer();
+      D.move([{ lon: -26, lat: 30, dist: 150, hour: 11.2 }, { lon: -8, lat: 30, dist: 138, hour: 12.2 }], 'soft');
+      // (the game's own clock runs the days here: the bot's would call a Council session over the shot)
+      D.each = (u, f) => {
+        D.ptrMove(f, 24, 66, '[data-tut="dock-charter"]');
+        D.ptrMove(f, 96, 140, [innerWidth * 0.8, innerHeight * 0.66], () => {});
+      };
+      D.post = () => { D.calm(); };`,
+    still: [0.6],
+  },
 
   // ── Act IV: planetary ─────────────────────────────────────────────────────────────────────────────────────────
   campus('northsea', 4, 'mega-northsea', { light: 'golden' }, 6,
