@@ -161,7 +161,7 @@ export function lab(o: { seed: number; tier: number }): Piece {
   if (bushes.length) g.add(plants('shrub', bushes));
   parkedCars(g, -6, pz, 6, 2.4, o.seed + 78, Math.PI / 2);
   const lm = glowMat('yel1', 0);
-  lm.userData.nightOnly = 0.9;
+  lm.userData.nightOnly = 0.7;
   const glow = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.3, size.y * 0.3, 0.05), lm);
   glow.position.set(mx - size.x * 0.05, size.y * 0.25, mz + size.z / 2 - 0.4);
   g.add(glow);
