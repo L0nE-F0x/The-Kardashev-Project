@@ -9,15 +9,8 @@ import { glowMat, Kit, rng } from '../kit';
 import { model } from '../models';
 import { batteryYard, dataHall, solarFarm, windFarm, type Piece } from '../pieces';
 import { parkedCars } from './life';
-import { Plume } from '../fx';
 import type { PieceFactory } from './registry';
-
-function beaconAt(g: THREE.Object3D, x: number, y: number, z: number, phase = 0) {
-  const b = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 6), glowMat('red3', 0.2).clone());
-  b.position.set(x, y, z);
-  b.userData.beacon = phase;
-  g.add(b);
-}
+import { gas } from './act1/gas';
 
 /** The garage the company started in, on its own lot with a driveway and a car. */
 function hq(o: { seed: number }): Piece {
@@ -84,61 +77,6 @@ function hall(o: { seed: number; tier: number }): Piece {
 function solar(o: { seed: number; w: number; d: number; tier: number }): Piece {
   const rows = o.tier >= 3 ? 14 : o.tier === 2 ? 11 : 8;
   return solarFarm(o.seed, o.w - 2, o.d - 3, rows, o.tier >= 2 ? 1.3 : 0.9);
-}
-
-/** A gas plant: tier 1 the peaker; tier 2 adds a heat-recovery boiler and its stack (combined cycle); tier 3 a second block. */
-function gas(o: { seed: number; tier: number }): Piece {
-  const g = new THREE.Group();
-  const big = o.tier >= 2;
-  const m = model('gasplant', big ? 19 : 24);
-  m.position.set(big ? -3 : 0, 0, big ? 2 : 0);
-  g.add(m);
-  const s = m.userData.size as THREE.Vector3;
-  beaconAt(g, m.position.x - s.x * 0.2, s.y * 0.97, m.position.z - s.z * 0.15, 1.3);
-  const plumes: Plume[] = [];
-  if (big) {
-    const k = new Kit(rng(o.seed));
-    const blocks = o.tier >= 3 ? 2 : 1;
-    for (let b = 0; b < blocks; b++) {
-      const x = 9 - b * 6, z = -7;
-      // heat-recovery steam generator: a tall boxy boiler, a steel stack, a duct back to the turbine
-      k.box(4.2, 9, 3.4, '#c9c1b6', x, 0, z, { r: 0.12, shade: 0.2 });
-      for (let y = 1.5; y < 9; y += 1.5) k.box(4.25, 0.12, 3.45, '#a39a91', x, y, z, { r: 0, jitter: 0 });
-      k.cyl(0.9, 1.05, 16, '#8a8490', x, 0, z - 2.8, 16);
-      k.cyl(0.95, 0.95, 0.5, '#df5f3e', x, 14.5, z - 2.8, 16);
-      k.box(1.6, 1.6, 6, '#9d95a6', x - 3.2, 3, z + 3, { r: 0.1 });
-      beaconAt(g, x, 16.3, z - 2.8, b * 2);
-      const p = new Plume({ count: 16, life: 6, rise: 2.4, size0: 1.6, size1: 6, color: '#ece8e2', opacity: 0.35, radius: 0.6 }, o.seed + b);
-      p.obj.position.set(x, 16, z - 2.8);
-      plumes.push(p);
-      g.add(p.obj);
-    }
-    // an air-cooled condenser deck on stilts with its fans
-    if (o.tier >= 3) {
-      k.box(9, 0.6, 5, '#b9c2c4', -4, 6, -8.5, { r: 0.08 });
-      for (let x = -8; x <= 0; x += 2.6) for (let y = 0; y < 2; y++) k.cyl(0.9, 0.9, 0.2, '#5e6670', x + 0.3, 6.6, -9.7 + y * 2.4, 14);
-      for (const x of [-8, -4, 0]) for (const z of [-10.5, -6.5]) k.box(0.3, 6, 0.3, '#8a8490', x, 0, z, { r: 0, jitter: 0 });
-    }
-    g.add(k.build());
-  }
-  // the operators' pickup, inside the yard by the gate
-  parkedCars(g, big ? 9.5 : 11.7, big ? 6.5 : 5, 1, 3, o.seed + 4, Math.PI / 2, ['pickup']);
-  // the model stands on a concrete platform 0.9 m high with no steps up: nobody walks on it (they would wade
-  // through it), the operators come and go at its front edge
-  const L = big ? 19 : 24, mx = m.position.x, mz = m.position.z, hx = (0.839 * L) / 2, hz = L / 2;
-  const blockers = [{ x0: mx - hx - 0.15, z0: mz - hz - 0.15, x1: mx + hx + 0.15, z1: mz + hz + 0.15 }];
-  if (big) {
-    for (let b = 0; b < (o.tier >= 3 ? 2 : 1); b++) blockers.push({ x0: 9 - b * 6 - 2.2, z0: -10.9, x1: 9 - b * 6 + 2.2, z1: -5.2 });
-    if (o.tier >= 3) blockers.push({ x0: -8.2, z0: -10.7, x1: 0.2, z1: -6.3 });
-  }
-  return {
-    obj: g, w: 26, d: 24, h: big ? 17 : s.y + 0.5,
-    // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
-    // gate (the middle of the fence's front, 12.4 from the plot's centre: a step in ends between its posts)
-    doors: [{ x: 0, z: 12.85 }],
-    blockers,
-    update(e) { for (const p of plumes) p.update(e); },
-  };
 }
 
 /** A research lab: tier 2 adds a wing, tier 3 makes it a small campus round a courtyard. */
