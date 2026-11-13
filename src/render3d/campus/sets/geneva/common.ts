@@ -332,19 +332,49 @@ export function bench(k: Kit, x: number, y: number, z: number, ry = 0) {
 
 const SHIRTS: Paint[] = ['cyn3', 'org1', 'blu4', 'red3', 'yel0', '#e9e1d2', 'vio3', 'grn5', 'pnk0'];
 const SKIN: Paint[] = ['skn2', 'skn3', 'skn4', 'skn5'];
-/** Someone sitting (on a bench or a café chair, seat at y), facing +z turned by ry. */
+/**
+ * Someone sitting (on a bench or a café chair, seat at y), facing +z turned by ry: two legs with
+ * shoes on the ground, a torso with shoulders, arms down to hands resting on the thighs, a head
+ * with hair. Built into the piece's own mesh, in the proportions of the rigged walkers beside them
+ * (a block with a ball on it read as a placeholder next to those).
+ */
+const HAIR: Paint[] = ['snd1', 'ink2', 'snd4', 'org0', '#5c3a26', '#2f2a3d', '#c9c2c4', '#8c4a3a'];
+const TROUSERS: Paint[] = ['#3b4a6e', '#4e4148', '#7d5232', '#2f2a3d', '#6a6f7a', '#8a7a5c'];
 export function sitter(k: Kit, x: number, y: number, z: number, ry: number, seed: number, floor = 0) {
-  const r = rng(seed);
+  // (neighbouring seeds give neighbouring first draws: every sitter wore the same yellow shirt. Scramble the seed.)
+  const r = rng(Math.floor(Math.abs(Math.sin(seed * 12.9898 + 4.1) * 43758.5453) * 1000) + 1);
   const c = Math.cos(ry), s = Math.sin(ry);
   const at = (lx: number, lz: number): [number, number] => [x + lx * c + lz * s, z - lx * s + lz * c];
   const shirt = SHIRTS[Math.floor(r() * SHIRTS.length)];
-  const legs: Paint = (['#3b4a6e', '#4e4148', '#7d5232', '#2f2a3d'] as Paint[])[Math.floor(r() * 4)];
-  let [px, pz] = at(0, 0.16);
-  k.box(0.4, 0.17, 0.46, legs, px, y, pz, { r: 0.05, ry });
-  [px, pz] = at(0, 0.4);
-  k.box(0.38, y - floor - 0.02, 0.17, legs, px, floor + 0.02, pz, { r: 0.04, ry });
-  [px, pz] = at(0, -0.06);
-  k.box(0.46, 0.58, 0.28, shirt, px, y + 0.12, pz, { r: 0.09, ry });
-  k.geo(new THREE.SphereGeometry(0.17, 10, 8).translate(px, y + 0.88, pz), SKIN[Math.floor(r() * SKIN.length)], 0.02);
-  if (r() < 0.55) k.geo(new THREE.SphereGeometry(0.18, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2.2).translate(px, y + 0.92, pz - 0.02), (['snd1', 'ink2', 'snd4', 'org0'] as Paint[])[Math.floor(r() * 4)], 0);
+  const legs = TROUSERS[Math.floor(r() * TROUSERS.length)];
+  const skin = SKIN[Math.floor(r() * SKIN.length)];
+  const hair = HAIR[Math.floor(r() * HAIR.length)];
+  const sleeves = r() < 0.5; // long sleeves, or bare forearms
+  const lean = (r() - 0.5) * 0.12; // nobody sits bolt upright in line
+  const put = (w: number, h: number, d: number, paint: Paint, lx: number, ly: number, lz: number, rad = 0.04) => {
+    const [px, pz] = at(lx, lz);
+    k.box(w, h, d, paint, px, ly, pz, { r: rad, ry, jitter: 0.02 });
+  };
+  const knee = y + 0.15;
+  for (const sx of [-0.115, 0.115]) {
+    put(0.17, 0.16, 0.5, legs, sx, y, 0.2, 0.05); // thigh
+    put(0.15, knee - floor - 0.07, 0.15, legs, sx, floor + 0.07, 0.4, 0.04); // shin
+    put(0.16, 0.09, 0.28, '#2f2a3d', sx, floor, 0.46, 0.03); // shoe
+  }
+  put(0.4, 0.2, 0.26, legs, 0, y, -0.04, 0.06); // hips
+  put(0.42, 0.44, 0.25, shirt, 0, y + 0.17, -0.06 + lean, 0.09); // chest
+  put(0.5, 0.13, 0.25, shirt, 0, y + 0.5, -0.06 + lean, 0.06); // shoulders
+  for (const sx of [-0.27, 0.27]) {
+    put(0.12, 0.34, 0.14, shirt, sx, y + 0.24, -0.02 + lean, 0.05); // upper arm
+    put(0.11, 0.11, 0.3, sleeves ? shirt : skin, sx * 0.85, y + 0.17, 0.14, 0.04); // forearm along the thigh
+    put(0.1, 0.09, 0.11, skin, sx * 0.7, y + 0.17, 0.31, 0.04); // hand
+  }
+  put(0.13, 0.1, 0.13, skin, 0, y + 0.61, -0.05 + lean, 0.04); // neck
+  const [hx, hz] = at(0, -0.04 + lean);
+  const hy = y + 0.87;
+  k.geo(new THREE.SphereGeometry(0.19, 12, 9).scale(1, 1.06, 1).translate(hx, hy, hz), skin, 0.02);
+  // hair: a cap over the crown and down the back of the head (longer on some)
+  const long = r() < 0.4;
+  const cap = new THREE.SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI * (long ? 0.62 : 0.5)).rotateX(-0.42).rotateY(ry).translate(hx, hy + 0.03, hz);
+  k.geo(cap, hair, 0.03);
 }
