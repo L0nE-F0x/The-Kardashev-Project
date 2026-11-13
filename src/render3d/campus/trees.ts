@@ -33,15 +33,18 @@ let leafTex: THREE.Texture | null = null;
 function leafTexture(): THREE.Texture {
   if (leafTex) return leafTex;
   const W = 1024, H = 512, S = 256;
-  if (typeof document === 'undefined') {
+  // (no canvas to draw on, as in the tests' stand-in page: a plain white sheet, the trees are still built)
+  const blank = () => {
     leafTex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
     leafTex.needsUpdate = true;
     return leafTex;
-  }
+  };
+  if (typeof document === 'undefined') return blank();
   const cv = document.createElement('canvas');
   cv.width = W;
   cv.height = H;
-  const g = cv.getContext('2d', { willReadFrequently: true })!;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  if (!g || !(g.getImageData(0, 0, 1, 1) as ImageData | undefined)?.data) return blank();
   const r = rng(4711);
   const grey = (v: number) => { const k = Math.round(Math.max(0, Math.min(255, v))); return `rgb(${k},${k},${k})`; };
   /** A pointed leaf from its stalk at (x, y), `len` long, pointing along `ang`. */

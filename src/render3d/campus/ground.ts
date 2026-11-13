@@ -116,6 +116,8 @@ export interface GroundOpts {
   flat: Rect;
   /** Where nothing may grow (the campus as it is today); defaults to `flat`. */
   clear?: Rect;
+  /** A desert of the Americas (saguaros, barrel cacti); elsewhere a desert grows thorn trees and scrub. Default: yes. */
+  cacti?: boolean;
   /** Bring the sea in to this z (a landing station's beach). Turns any backdrop into a coast. */
   seaZ?: number;
   /** A small world: the ground falls away with this radius (an asteroid's horizon). */
@@ -336,7 +338,11 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const carpet: BackdropDef['plants'] = o.backdrop === 'lunar' ? [] : o.backdrop === 'desert'
     ? [{ kind: 'sage', n: 320, s: [0.45, 0.9] }, { kind: 'rock', n: 220, s: [0.25, 0.8] }]
     : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: dryLand ? 'sage' : 'shrub', n: 220, s: [0.55, 1.2] }, { kind: 'rock', n: 55, s: [0.5, 1.0] }];
-  for (const p of [...def.plants, ...carpet.map((c) => ({ ...c, carpet: true }))] as (BackdropDef['plants'][number] & { carpet?: boolean })[]) {
+  // (an Old World desert: a thorn tree here and there where the saguaros would stand, scrub for the barrel cacti)
+  const land: BackdropDef['plants'] = o.cacti === false
+    ? def.plants.map((p) => (p.kind === 'saguaro' ? { kind: 'acacia' as const, n: Math.round(p.n / 4), s: [0.9, 1.4] as [number, number] } : p.kind === 'barrel' ? { ...p, kind: 'sage' as const } : p))
+    : def.plants;
+  for (const p of [...land, ...carpet.map((c) => ({ ...c, carpet: true }))] as (BackdropDef['plants'][number] & { carpet?: boolean })[]) {
     const at: Placement[] = [];
     const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' || p.kind === 'sage' ? 320 : 700;
     const centres: [number, number][] = [];

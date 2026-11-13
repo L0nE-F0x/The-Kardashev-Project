@@ -27,7 +27,7 @@ import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
 import { BACKDROPS, buildGround, type Backdrop, type Ground, type GroundModels } from './ground';
-import { habFloor, habitatShell, HAB_R } from './habitatShell';
+import { habFloor, habitatShell, HAB_LAND_Z, HAB_R } from './habitatShell';
 import { plantField, treeUniforms, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
@@ -308,6 +308,8 @@ export class CampusScene implements Scene3D {
     } else {
       this.groundOpts = {
         backdrop, seed, flat, clear: { ...this.layout.bounds, x1: this.layout.bounds.x1 + 12 }, carve, seaZ, open,
+        // (saguaros and barrel cacti grow in the Americas only)
+        cacti: this.site.lon > -170 && this.site.lon < -30,
         curve: this.scenery === 'asteroid' ? 160 + Math.sqrt(ex.km ?? 10) * 30 : undefined,
         // the highway runs along its own valley; the access road is graded after it, so it meets the highway level
         roads: roadless ? [] : [
@@ -847,11 +849,11 @@ export class CampusScene implements Scene3D {
         : bd === 'tropical' ? 'palm' : bd === 'plains' || bd === 'savanna' ? 'mesquite' : null;
       const dry = bd === 'plains' || bd === 'savanna' || bd === 'desert' || bd === 'volcanic';
       const size = { broadleaf: 1.15, birch: 1.25, palm: 1.0, mesquite: 0.8, saguaro: 1.0 } as Partial<Record<TreeKind, number>>;
-      const isle = street ?? 'saguaro';
+      const isle = street ?? (this.site.lon > -170 && this.site.lon < -30 ? 'saguaro' : 'palm');
       this.roads.add(plantField(isle, [{ x: bulb.cx + 0.1, y: y + 0.18, z: FZ - 0.1, s: size[isle] ?? 1, ry: 1.3 }]));
       const cover: Placement[] = [];
       for (let i = 0; i < 5; i++) { const a = 0.6 + i * 1.26, d = 0.95 + (i % 2) * 0.3; cover.push({ x: bulb.cx + Math.cos(a) * d, y: y + 0.18, z: FZ + Math.sin(a) * d, s: 0.55 + (i % 3) * 0.12, ry: i * 2.1 }); }
-      this.roads.add(plantField(bd === 'desert' ? 'barrel' : dry ? 'sage' : 'shrub', cover, { shadow: false }));
+      this.roads.add(plantField(isle === 'saguaro' ? 'barrel' : dry ? 'sage' : 'shrub', cover, { shadow: false }));
       if (street) {
         const row: Placement[] = [];
         const sub = L.substation;
@@ -1040,7 +1042,8 @@ export class CampusScene implements Scene3D {
     const plan = sitePlan(w, d, e.piece, { scaffold: e.clip && !e.online, crane: withCrane });
     // the scaffold rings the building itself (its first blocker when the piece says), else the middle of the footprint
     if (plan.scaffold) {
-      const sc = scaffold(plan.scaffold.w, e.piece.h, plan.scaffold.d, hashStr(e.f.id));
+      // (no taller than a scaffold goes: a plant's stacks and towers stand well above the cage round its buildings)
+      const sc = scaffold(plan.scaffold.w, Math.min(e.piece.h, 13), plan.scaffold.d, hashStr(e.f.id));
       sc.position.set(plan.scaffold.x, 0, plan.scaffold.z);
       site.add(sc);
     }
@@ -1690,10 +1693,10 @@ function habitatMeadow(seed: number, b: Rect, rects: Rect[]): THREE.Group {
   const X0 = b.x0 - 240, X1 = b.x1 + 240, n = Math.round(3200 * quality.plants);
   const grove = (x: number, z: number) => fbm(x * 0.012, z * 0.012, 11, 3);
   // groves where the noise is in its top fifth, scrub at their edges (by rank, whatever the noise's range)
-  const sample = Array.from({ length: 400 }, () => grove(X0 + r() * (X1 - X0), (r() * 2 - 1) * 180)).sort((a, c) => a - c);
+  const sample = Array.from({ length: 400 }, () => grove(X0 + r() * (X1 - X0), (r() * 2 - 1) * (HAB_LAND_Z - 10))).sort((a, c) => a - c);
   const treeAt = sample[Math.floor(sample.length * 0.8)], scrubAt = sample[Math.floor(sample.length * 0.68)];
   for (let i = 0; i < n; i++) {
-    const x = X0 + r() * (X1 - X0), z = (r() * 2 - 1) * 180;
+    const x = X0 + r() * (X1 - X0), z = (r() * 2 - 1) * (HAB_LAND_Z - 10);
     if (!free(x, z, 2.5)) continue;
     const gv = grove(x, z);
     let kind: keyof typeof kinds;

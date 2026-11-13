@@ -5,6 +5,7 @@
  * hand-painted, matte) in the game's palette.
  */
 import * as THREE from 'three';
+import { plantOn } from '../trees';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { col, glowMat, Kit, lightPool, mix, poolMat, withClouds, type Paint } from '../../kit';
 import { sign } from '../../fx';
@@ -408,16 +409,14 @@ export function carPark(k: Kit, x: number, z: number, w: number, d: number, bay 
   for (let xx = x - w / 2 + 0.4; xx <= x + w / 2 - 0.3; xx += bay) k.box(0.1, 0.02, d * 0.42, '#e6e0e3', xx, G + 0.06, z - d * 0.25, { r: 0, jitter: 0 });
 }
 
-/** A low hedge / shrubs and a few round trees for corporate landscaping. */
-export function shrubs(k: Kit, pts: [number, number, number][], green: Paint = '#4a7a3a') {
-  for (const [x, z, s] of pts) {
-    k.geo(new THREE.IcosahedronGeometry(0.62 * s, 1).scale(1.15, 0.72, 1).translate(x, 0.36 * s, z), green, 0.22);
-    k.geo(new THREE.IcosahedronGeometry(0.42 * s, 1).scale(1, 0.8, 1).translate(x + 0.45 * s, 0.3 * s, z + 0.2 * s), mix(green, '#7d8a45', 0.35), 0.22);
-  }
+/** A low hedge / shrubs and a few trees for corporate landscaping: the shared plants, hung on the kit's mesh. */
+export function shrubs(k: Kit, pts: [number, number, number][], _green?: Paint) {
+  void _green;
+  pts.forEach(([x, z, s], i) => plantOn(k, 'shrub', { x, y: 0.1, z, s: s * 1.15, ry: i * 2.4 + x }, false));
 }
-export function tree(k: Kit, x: number, z: number, s = 1, green: Paint = '#3f7b35') {
-  k.cyl(0.16 * s, 0.22 * s, 1.5 * s, '#5c3a26', x, 0, z, 6);
-  k.geo(new THREE.IcosahedronGeometry(1.35 * s, 1).scale(1, 0.92, 1).translate(x, 2.5 * s, z), green, 0.18);
+export function tree(k: Kit, x: number, z: number, s = 1, _green?: Paint) {
+  void _green;
+  plantOn(k, 'broadleaf', { x, y: 0.08, z, s: s * 0.95, ry: x * 1.7 + z });
 }
 
 /** A forklift (forward = +z), about 3 long. */

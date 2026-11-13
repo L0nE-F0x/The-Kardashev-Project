@@ -6,6 +6,7 @@
  * utility building, ultrapure water, a bulk gas yard, a chemical tank farm, Kestrel's office).
  */
 import * as THREE from 'three';
+import { plantOn } from '../trees';
 import { Kit, rng, type Paint } from '../../kit';
 import type { Piece } from '../../pieces';
 import { model } from '../../models';
@@ -121,7 +122,7 @@ export function packaging(o: PieceOpts): Piece {
   bayLines(k, -12.2, 10.4, 5, 2.3, 3.0);
   parkedCars(g, -11.05, 10.4, 5, 2.3, o.seed + 9, Math.PI / 2);
   for (const x of [-12.8, 0.4]) poleLamp(k, lamps, g, x, 8.2, 4.4, x < 0 ? 1 : -1);
-  for (let x = -12.6; x < -0.4; x += 1.0) k.geo(new THREE.IcosahedronGeometry(0.5, 0).scale(1, 0.8, 1).translate(x, 0.5, 12.6), '#4a7a3a', 0.2);
+  for (let x = -12.6; x < -0.4; x += 1.0) plantOn(k, 'shrub', { x, y: 0.12, z: 12.6, s: 0.85, ry: x * 2.3 }, false);
   g.add(k.build(), lit.build(winMat), cool.build(coolWinMat), sky.build(skyMat), lamps.build(lampHeadMat));
   return { obj: g, w: o.w, d: o.d, h: Math.max(top + 1.9, oTop, tier >= 2 ? 7.4 : 6.4) };
 }

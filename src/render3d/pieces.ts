@@ -56,9 +56,6 @@ const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 const hallPool = poolMat('#ffe2b0', 0.5);
 
-/** Panel glass: a touch of sheen so the rows catch the sun. */
-const panelMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.25 }));
-
 // ── shared bits ──────────────────────────────────────────────────────────────────────────────
 function beacon(parent: THREE.Object3D, x: number, y: number, z: number, phase = 0) {
   const m = glowMat('red3', 0.2);
@@ -149,7 +146,8 @@ export function crane(h: number, jib: number, seed = 1) {
   k2.box(0.35, 0.4, 0.35, 'org0', jib * 0.6, -h * 0.55 - 0.4, 0, { r: 0.05 });
   top.add(k2.build());
   g.add(top);
-  beacon(g, jib - 1.2 + 0, h + 1.6, 0, seed);
+  // (on the slewing top: it turns with the jib)
+  beacon(top, jib - 1.2, 1.6, 0, seed);
   g.userData.top = top;
   return g;
 }
@@ -379,80 +377,8 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
 }
 
 // ── solar ────────────────────────────────────────────────────────────────────────────────────
-export function solarFarm(seed: number, W = 26, D = 23, n = 8, trackerH = 0.9): Piece {
-  const g = new THREE.Group();
-  const rows: THREE.Mesh[] = [];
-  const len = W - 2;
-  for (let i = 0; i < n; i++) {
-    const kit = new Kit(rng(seed + i));
-    const z = -D / 2 + 1.4 + i * ((D - 2.8) / (n - 1));
-    // posts and a torque tube
-    for (let x = -len / 2 + 0.6; x <= len / 2; x += 2.4) kit.box(0.12, trackerH, 0.12, '#8a8490', x, 0, z, { r: 0, jitter: 0 });
-    kit.box(len, 0.1, 0.1, '#7a7186', 0, trackerH, z, { r: 0, jitter: 0 });
-    const row = new THREE.Group();
-    const pk = new Kit(rng(seed * 7 + i));
-    // panels: modules with a light frame, tilted towards the camera (south)
-    const m = 1.05;
-    for (let x = -len / 2 + m / 2; x < len / 2; x += m) {
-      pk.box(m - 0.06, 0.06, 1.9, '#2c3f6e', x, 0, 0, { r: 0.015, jitter: 0.08, shade: 0 });
-      pk.box(m - 0.02, 0.03, 1.94, '#9cb0c8', x, -0.03, 0, { r: 0, jitter: 0, shade: 0 });
-    }
-    const panels = pk.build(panelMat);
-    panels.rotation.x = 0.42;
-    panels.position.set(0, trackerH + 0.15, z);
-    row.add(panels);
-    const posts = kit.build();
-    row.add(posts);
-    g.add(row);
-    rows.push(panels);
-    row.userData.row = true;
-  }
-  // inverter skid in the middle
-  const inv = new Kit(rng(seed + 50));
-  inv.box(2.4, 1.6, 1.4, '#e7dfd2', W / 2 - 1.5, 0, D / 2 + 0.6, { r: 0.1 });
-  inv.box(1.2, 1.4, 1.2, '#8a959a', W / 2 - 3.6, 0, D / 2 + 0.6, { r: 0.08 });
-  g.add(inv.build());
-  const rowGroups = g.children.filter((c) => c.userData.row);
-  return {
-    obj: g, w: W, d: D + 2, h: 3,
-    progress(p) { rowGroups.forEach((r, i) => { r.visible = p >= 1 || i < Math.floor(p * rowGroups.length + 0.3); }); },
-  };
-}
 
 // ── battery yard ─────────────────────────────────────────────────────────────────────────────
-export function batteryYard(seed: number, tier = 1): Piece {
-  const g = new THREE.Group();
-  const units: THREE.Object3D[] = [];
-  const r = rng(seed);
-  const rowsN = tier >= 2 ? 4 : 3, levels = tier >= 3 ? 2 : 1;
-  for (let lv = 0; lv < levels; lv++)
-  for (let row = 0; row < rowsN; row++)
-    for (let c = 0; c < 5; c++) {
-      const kit = new Kit(r);
-      const x = -9.6 + c * 4.6, z = rowsN > 3 ? -8.4 + row * 4.4 : -7 + row * 5.6;
-      kit.box(3.9, 1.6, 1.7, '#ece6dc', 0, 0.12, 0, { r: 0.12, shade: 0.15 });
-      kit.box(3.94, 0.28, 1.74, 'cyn3', 0, 1.25, 0, { r: 0.05, shade: 0 });
-      for (let k = 0; k < 4; k++) kit.box(0.6, 0.7, 0.06, '#9d95a6', -1.35 + k * 0.9, 0.4, 0.86, { r: 0.02, jitter: 0 });
-      kit.box(1.2, 0.35, 0.9, '#b9c2c4', 1.1, 1.72, 0, { r: 0.06 }); // HVAC on top
-      kit.box(1.2, 0.12, 1.9, '#8a8490', 0, 0, 0, { r: 0, jitter: 0 }); // sleepers
-      const u = kit.build();
-      u.position.set(x, lv * 2.05, z);
-      g.add(u);
-      units.push(u);
-    }
-  // inverters / transformer at the front
-  const k = new Kit(rng(seed + 9));
-  for (let i = 0; i < 3; i++) {
-    k.box(1.6, 1.8, 1.4, '#c9c1b6', -6 + i * 6, 0, 9.4, { r: 0.08 });
-    k.box(0.9, 0.9, 0.9, '#8a959a', -4.6 + i * 6, 0, 9.4, { r: 0.06 });
-  }
-  g.add(k.build());
-  g.scale.setScalar(rowsN > 3 ? 1.0 : 1.12);
-  return {
-    obj: g, w: 25, d: 22, h: 3 + levels * 2,
-    progress(p) { units.forEach((u, i) => { u.visible = p >= 1 || i < Math.floor(p * units.length); }); },
-  };
-}
 
 // ── wind ─────────────────────────────────────────────────────────────────────────────────────
 export function windTurbine(seed: number, H = 19): { obj: THREE.Group; rotor: THREE.Group; tower: THREE.Object3D } {
@@ -479,73 +405,9 @@ export function windTurbine(seed: number, H = 19): { obj: THREE.Group; rotor: TH
   return { obj: g, rotor, tower };
 }
 
-export function windFarm(seed: number, tier = 1): Piece {
-  const g = new THREE.Group();
-  const spots: [number, number][] = tier >= 3 ? [[-9, 7], [-3, -7], [4, 6], [10, -5]] : [[-8, 6], [1, -6], [9, 5]];
-  const H = tier >= 3 ? 30 : tier >= 2 ? 24 : 18;
-  const ts = spots.map(([x, z], i) => {
-    const t = windTurbine(seed + i * 5, H + i * 1.2);
-    t.obj.position.set(x, 0, z);
-    t.obj.rotation.y = -0.35;
-    g.add(t.obj);
-    return t;
-  });
-  const k = new Kit(rng(seed + 20));
-  k.box(3, 1.8, 2, '#e7dfd2', -10, 0, -8, { r: 0.1 });
-  k.box(1.6, 2.4, 1.6, '#8a959a', -7.4, 0, -8, { r: 0.08 });
-  // gravel crane pads at each turbine
-  for (const [x, z] of spots) k.box(4, 0.08, 4, '#c4b8a6', x + 2.5, 0.06, z, { r: 0.04, shade: 0 });
-  const pads = k.build();
-  pads.castShadow = false;
-  g.add(pads);
-  let done = 1;
-  return {
-    obj: g, w: 26, d: 24, h: H + 10,
-    progress(p) {
-      done = p;
-      ts.forEach((t, i) => {
-        const local = Math.min(1, Math.max(0, p * 3 - i));
-        t.obj.visible = local > 0 || p >= 1;
-        t.rotor.visible = local >= 1;
-        t.obj.scale.y = Math.max(0.05, local);
-      });
-    },
-    update(e) { for (const [i, t] of ts.entries()) if (done >= 1 || t.rotor.visible) t.rotor.rotation.z -= e.dt * (0.9 + i * 0.13); },
-  };
-}
 
 // ── Meshy-based facilities ───────────────────────────────────────────────────────────────────
-export function gasPlant(): Piece {
-  const g = new THREE.Group();
-  const m = model('gasplant', 24);
-  m.rotation.y = 0;
-  g.add(m);
-  const s = m.userData.size as THREE.Vector3;
-  beacon(g, -s.x * 0.2, s.y * 0.97, -s.z * 0.15, 1.3);
-  return { obj: g, w: 26, d: 24, h: s.y + 0.5 };
-}
 
-export function researchLab(): Piece {
-  const g = new THREE.Group();
-  const m = model('lab', 15);
-  m.position.z = -2;
-  g.add(m);
-  const kit = new Kit(rng(77));
-  // a small car park in front
-  kit.box(14, 0.06, 6, '#6f6878', 0, 0.08, 8.4, { r: 0.04, shade: 0 });
-  for (let i = 0; i < 6; i++) kit.box(0.12, 0.02, 2.4, 'ink9', -6 + i * 2.4, 0.13, 8.2, { r: 0, jitter: 0 });
-  const lot = kit.build();
-  lot.castShadow = false;
-  g.add(lot);
-  parkedCars(g, -6, 8.3, 6, 2.4, 78, Math.PI / 2);
-  const s = m.userData.size as THREE.Vector3;
-  const lm = glowMat('yel1', 0);
-  lm.userData.nightOnly = 0.9;
-  const glow = new THREE.Mesh(new THREE.BoxGeometry(s.x * 0.3, s.y * 0.3, 0.05), lm);
-  glow.position.set(-s.x * 0.05, s.y * 0.25, -2 + s.z / 2 - 0.4);
-  g.add(glow);
-  return { obj: g, w: 18, d: 22, h: s.y + 0.3 };
-}
 
 // ── set dressing ─────────────────────────────────────────────────────────────────────────────
 /** An oil pumpjack (the Permian Basin), nodding. */
