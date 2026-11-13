@@ -53,3 +53,32 @@ html.contrast:is([data-look='2'], [data-look='3'], [data-look='4'], [data-look='
   background: rgb(0 0 0 / 0.82);
   border-radius: 3px;
 }
+
+/*
+ * Colour-blind palettes (Settings → Accessibility). styles.css sets --good/--bad/--warn on
+ * html.cb-deutan and html.cb-tritan, but every look sets those three again afterwards, and with
+ * more specificity, so the switch did nothing. These match the look rules and come last, including
+ * over high contrast. Look 3 also paints the pair onto the sticky note itself.
+ */
+html.edition-3d.cb-deutan:not(.ui-classic),
+html.edition-3d.cb-deutan.contrast:not(.ui-classic) {
+  --good: #4a9ff0;
+  --bad: #f08a46;
+  --warn: #fbd46e;
+}
+html.edition-3d.cb-tritan:not(.ui-classic),
+html.edition-3d.cb-tritan.contrast:not(.ui-classic) {
+  --good: #2fae9b;
+  --bad: #e86aa0;
+  --warn: #df5f3e;
+}
+html.edition-3d.cb-deutan:not(.ui-classic)[data-look='3'] :is(.objectives, .toast, .advisor-tip) {
+  --good: #4a9ff0;
+  --bad: #f08a46;
+  --warn: #fbd46e;
+}
+html.edition-3d.cb-tritan:not(.ui-classic)[data-look='3'] :is(.objectives, .toast, .advisor-tip) {
+  --good: #2fae9b;
+  --bad: #e86aa0;
+  --warn: #df5f3e;
+}

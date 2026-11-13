@@ -9,7 +9,7 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
+Current build: **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
 plywood and paper in the garage to nothing but light at Type I, the title and loading screens included: SPEC §34;
 on the first pass of the overhaul: a display typeface, panels that lead with tiles, a build menu with pictures:
 SPEC §33) on top of v0.13.3 "Steady Hand" (the Linux app no longer crashes at the first click on the stronger
@@ -520,7 +520,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
 rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
 clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and
-loading screens included). Built and uncommitted on 2026-11-13: ask how it looks to them before going further.
+loading screens included). Shipped on 2026-11-13. Ask how it looks to them before going further.
 SPEC §33 and §34 each end with what a next pass would take. Before it, v0.13.2 "Solid Ground"
 (SPEC §32) was the visual sweep asked for on 2026-11-11 ("get onto perfecting everything"). They had still not said how v0.13's new art looks in their app (the logo, the busts, the
 icons), nor tried the graphics-card switch on Windows: ask. SPEC §32 ends with what the helpers saw and left: the

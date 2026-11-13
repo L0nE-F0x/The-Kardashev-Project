@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.1 — Distinct (2026-11-13)
+Colour-blind safe colours now show up in every look.
+
+- **Fixed: Settings → Accessibility → Colour-blind safe colours did nothing once the interface grew looks.** The looks painted good, bad and warning again afterwards, so red and green stayed red and green. Red–green and blue–yellow now win in all five looks, on the Charter's sticky notes, and with high contrast on.
+
 ## 0.14.0 — Mission Control (2026-11-13)
 The interface now grows up with your company: plywood and paper in the garage, pure light by Type I.
 
