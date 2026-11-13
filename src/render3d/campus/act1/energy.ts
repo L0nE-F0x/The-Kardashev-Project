@@ -246,19 +246,9 @@ function turbine(seed: number, H: number): Turbine {
   const white = '#f1ece4';
   const r0 = 0.5 + H * 0.014, r1 = 0.3 + H * 0.006;
   const base = new Kit(rng(seed));
-  // the foundation's pedestal, the door at the foot with its steps and lamp
+  // the foundation's pedestal (poured first)
   base.cyl(r0 + 1.2, r0 + 1.5, 0.3, '#a39a91', 0, 0.08, 0, 16, { shade: 0.1 });
   base.cyl(r0 + 0.25, r0 + 0.3, 0.3, '#b9b1a6', 0, 0.36, 0, 16, { shade: 0 });
-  base.box(0.7, 1.9, 0.12, '#c9c7c0', 0, 0.75, r0 * 0.98, { r: 0.03 });
-  base.box(0.5, 1.6, 0.05, '#8a959a', 0, 0.9, r0 * 0.98 + 0.07, { r: 0.02, jitter: 0, shade: 0 });
-  base.box(1.0, 0.1, 0.8, P.steel2, 0, 0.66, r0 + 0.45, { r: 0, jitter: 0.02, shade: 0 });
-  for (let i = 0; i < 3; i++) base.box(0.9, 0.05, 0.26, P.steel2, 0, 0.5 - i * 0.17, r0 + 0.98 + i * 0.26, { r: 0, jitter: 0.02, shade: 0 });
-  for (const sx of [-0.48, 0.48]) {
-    base.box(0.04, 0.95, 0.04, P.safety, sx, 0.7, r0 + 0.82, { r: 0, jitter: 0 });
-    base.beam(V(sx, 1.65, r0 + 0.1), V(sx, 1.65, r0 + 0.82), 0.04, P.safety);
-    base.beam(V(sx, 1.65, r0 + 0.82), V(sx, 1.05, r0 + 1.7), 0.04, P.safety);
-    base.box(0.04, 0.9, 0.04, P.safety, sx, 0.16, r0 + 1.7, { r: 0, jitter: 0 });
-  }
   g.add(base.build());
   const sections: THREE.Object3D[] = [];
   const y0 = 0.6;
@@ -268,6 +258,19 @@ function turbine(seed: number, H: number): Turbine {
     const ra = r0 + (r1 - r0) * a, rb = r0 + (r1 - r0) * b;
     sk.cyl(rb, ra, (H - y0) / 3, white, 0, y0 + (H - y0) * a, 0, 18, { shade: s === 0 ? 0.08 : 0, jitter: 0.012 });
     sk.cyl(rb * 1.05, rb * 1.05, 0.1, '#d8d2c8', 0, y0 + (H - y0) * b - 0.1, 0, 18, { shade: 0, jitter: 0 });
+    if (s === 0) {
+      // the door at the foot with its landing, steps and rails (they come with the first section)
+      sk.box(0.7, 1.9, 0.12, '#c9c7c0', 0, 0.75, r0 * 0.98, { r: 0.03 });
+      sk.box(0.5, 1.6, 0.05, '#8a959a', 0, 0.9, r0 * 0.98 + 0.07, { r: 0.02, jitter: 0, shade: 0 });
+      sk.box(1.0, 0.1, 0.8, P.steel2, 0, 0.66, r0 + 0.45, { r: 0, jitter: 0.02, shade: 0 });
+      for (let i = 0; i < 3; i++) sk.box(0.9, 0.05, 0.26, P.steel2, 0, 0.5 - i * 0.17, r0 + 0.98 + i * 0.26, { r: 0, jitter: 0.02, shade: 0 });
+      for (const sx of [-0.48, 0.48]) {
+        sk.box(0.04, 0.95, 0.04, P.safety, sx, 0.7, r0 + 0.82, { r: 0, jitter: 0 });
+        sk.beam(V(sx, 1.65, r0 + 0.1), V(sx, 1.65, r0 + 0.82), 0.04, P.safety);
+        sk.beam(V(sx, 1.65, r0 + 0.82), V(sx, 1.05, r0 + 1.7), 0.04, P.safety);
+        sk.box(0.04, 0.9, 0.04, P.safety, sx, 0.16, r0 + 1.7, { r: 0, jitter: 0 });
+      }
+    }
     const m = sk.build();
     g.add(m);
     sections.push(m);

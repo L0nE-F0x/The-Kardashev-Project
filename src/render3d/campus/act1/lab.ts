@@ -147,10 +147,11 @@ export function lab(o: { seed: number; tier: number }): Piece {
   // the car park in front: asphalt inside a kerb, bay lines, wheel stops, two lamps (a walk is left between it
   // and the building, so the doors can be reached)
   const pz = 9.55;
-  k.box(15.2, 0.12, 5.95, '#b9b1a6', 0, 0.03, pz - 0.075, { r: 0.03, shade: 0 });
-  k.box(14.8, 0.06, 5.8, '#6f6878', 0, 0.083, pz, { r: 0.02, shade: 0, jitter: 0.02 });
-  for (let i = 0; i <= 6; i++) k.box(0.1, 0.02, 4.4, '#e6e0e3', -7.2 + i * 2.4, 0.13, pz - 0.5, { r: 0, jitter: 0, shade: 0 });
-  for (let i = 0; i < 6; i++) k.box(1.6, 0.12, 0.22, '#cfc6bd', -6 + i * 2.4, 0.14, pz - 2.55, { r: 0.04, shade: 0 });
+  for (const sx of [-1, 1]) k.box(0.2, 0.1, 5.95, '#b9b1a6', sx * 7.5, 0.06, pz - 0.075, { r: 0.03, shade: 0, jitter: 0.02 });
+  k.box(15.2, 0.1, 0.2, '#b9b1a6', 0, 0.06, pz - 2.95, { r: 0.03, shade: 0, jitter: 0.02 });
+  k.box(14.8, 0.06, 5.8, '#6f6878', 0, 0.085, pz, { r: 0.02, shade: 0, jitter: 0.02 });
+  for (let i = 0; i <= 6; i++) k.box(0.1, 0.02, 4.4, '#e6e0e3', -7.2 + i * 2.4, 0.132, pz - 0.5, { r: 0, jitter: 0, shade: 0 });
+  for (let i = 0; i < 6; i++) k.box(1.6, 0.12, 0.2, '#cfc6bd', -6 + i * 2.4, 0.14, pz - 2.72, { r: 0.04, shade: 0 });
   for (const x of [-7.9, 7.9]) poleLamp(k, lamps, g, x, pz - 2.2, 4.6, x < 0 ? 1 : -1, 0.1);
   // the walk from the car park to the entrance
   k.box(15.2, 0.06, 1.5, '#cfc6bd', 0, 0.09, pz - 3.85, { r: 0.02, shade: 0, jitter: 0.02 });
