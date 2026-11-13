@@ -141,9 +141,15 @@ export function restart(o: PieceOpts): Piece {
     transformer(a, bx, 8.6, 0.9);
     bush.push([-0.585, 0, 0.585].map((b) => V(bx + b, 3.2 * 0.9 + 0.32, 8.78)));
   }
+  // their bus: bars up to a duct along the hall's wall, over the roller door (strung straight across, the
+  // conductors hung at head height over the car park and across the door), then overhead into the yard
+  const by = 6.25, bz = 4.4 + 2.9 + 0.26, bx1 = 4.5;
+  k.box(bx1 + 9.9, 0.3, 0.42, '#b9b1a6', (bx1 - 9.9) / 2, by, bz, { r: 0.04, shade: 0 });
+  for (let x = -9.4; x < bx1; x += 2.3) k.box(0.1, 0.5, 0.5, P.steel, x, by - 0.3, bz - 0.02, { r: 0, jitter: 0 });
   const wires: THREE.Vector3[][] = [];
-  bush.forEach((b, i) => b.forEach((p, j) => wires.push([p, lines[i * 2]?.[j] ?? p])));
-  sagWires(k, wires, 0.5, '#4a4452', 0.03);
+  for (const b of bush) for (const p of b) k.beam(p, V(p.x, by + 0.05, bz + 0.12), 0.045, '#8c5a44');
+  for (let j = 0; j < 3; j++) wires.push([V(bx1, by + 0.15, bz - 0.14 + j * 0.14), lines[0]?.[j] ?? V(bx1, by, bz)]);
+  sagWires(k, wires, 0.35, '#4a4452', 0.03);
   // the admin block and car park (front-left)
   office(k, lit, lamps, g, -9.2, 11.4, 7.0, 2.4, 3.6, r);
   paving(k, -0.6, 10.8, 9.6, 3.4);
