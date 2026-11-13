@@ -245,9 +245,19 @@ export function megaOffice(o: Act3SetOpts): Piece {
   const px = W / 2 - 3.6, pz = -D / 2 + 3.2;
   cabin(k, glow, px, pz, 6, 2.6);
   cabin(k, glow, px, pz, 6, 2.6, P.cream, CHARTER.field, 2.95);
-  for (let i = 0; i < 9; i++) k.box(1.0, 0.1, 0.4, P.steel, px - 3.6, 0.3 + i * 0.32, pz + 1.0 - i * 0.28, { r: 0 });
-  k.box(1.2, 0.1, 1.2, P.steel, px - 3.6, 3.0, pz - 1.6, { r: 0 });
-  k.beam(V(px - 4.1, 0, pz + 1.0), V(px - 4.1, 3.4, pz - 1.6), 0.06, P.steel);
+  const sz = pz + 1.3 + 0.55; // the stair's centre line, in front of the cabins
+  for (let i = 0; i < 9; i++) k.box(0.4, 0.1, 1.0, P.steel, px - 1.5 + i * 0.4, 0.3 + i * 0.32, sz, { r: 0 });
+  k.box(1.5, 0.1, 1.1, P.steel, px + 2.75, 3.1, sz, { r: 0 });
+  for (const dz of [-0.5, 0.5]) k.beam(V(px - 1.7, 0.1, sz + dz), V(px + 2.0, 3.06, sz + dz), 0.07, P.steel);
+  // the handrail on the open side, the landing's posts and rail
+  k.beam(V(px - 1.7, 1.1, sz + 0.5), V(px + 2.0, 4.06, sz + 0.5), 0.05, P.steel);
+  for (let i = 0; i <= 3; i++) k.box(0.05, 1.0, 0.05, P.steel, px - 1.7 + i * 1.23, 0.1 + i * 0.987, sz + 0.5, { r: 0 });
+  for (const x of [px + 2.05, px + 3.45]) {
+    k.box(0.08, 3.1, 0.08, P.steel, x, 0, sz + 0.5, { r: 0 });
+    k.box(0.05, 1.0, 0.05, P.steel, x, 3.15, sz + 0.5, { r: 0 });
+  }
+  k.beam(V(px + 2.05, 4.12, sz + 0.5), V(px + 3.45, 4.12, sz + 0.5), 0.05, P.steel);
+  k.beam(V(px + 3.45, 4.12, sz + 0.5), V(px + 3.45, 4.12, sz - 0.5), 0.05, P.steel);
   // the flag, the board, lamps
   flag(g, anim, W / 2 - 2.4, D / 2 - 7.4, 7.5, 'charter', o.seed);
   for (const sx of [-2.6, 2.6]) k.box(0.22, 3.9, 0.22, P.timberD, 2.8 + sx, 0, D / 2 - 7.2, { r: 0.03 });
@@ -261,8 +271,9 @@ export function megaOffice(o: Act3SetOpts): Piece {
   windows(g, glow);
   windows(g, facade, winBig);
   parkedCars(g, -W / 2 + 3.5, D / 2 - 3.9, 6, 2.6, o.seed + 9, Math.PI / 2);
-  strollers(g, anim, [[[bx - 2.5, bz + bd / 2 + 1.8], [bx - 2.5, D / 2 - 6.6], [-W / 2 + 6, D / 2 - 6.6]], [[px - 3.4, pz + 1.8], [px - 3.4, D / 2 - 6.4], [2, D / 2 - 6.4]]], o.seed + 11);
-  standing(g, 2.0, D / 2 - 6.2, 2.6, o.seed + 12, 'engineer');
+  // (everyone keeps north of the parked cars' noses at z = D / 2 - 6.1, and clear of the board's posts)
+  strollers(g, anim, [[[bx - 2.5, bz + bd / 2 + 0.7], [bx - 2.5, bz + bd / 2 + 1.25], [bx + 2.2, bz + bd / 2 + 1.25]], [[px - 2.3, sz + 0.1], [px - 2.4, sz + 1.5], [W / 2 - 3.1, D / 2 - 8.6], [W / 2 - 3.1, D / 2 - 6.75], [4.4, D / 2 - 6.7]]], o.seed + 11);
+  standing(g, 2.2, D / 2 - 6.65, 2.9, o.seed + 12, 'engineer');
   return { obj: g, w: W, d: D, h: ry + 3.4, update: anim.update, ground: () => null };
 }
 

@@ -133,7 +133,7 @@ export function vab(o: Act3SetOpts): Piece {
       g.add(m);
       lightPool(g, x, 0.4, Z1 + 3.4, x > X1 ? 3.2 : 5.5, pool);
     }
-    crawler(k, -4, 14.2, accent);
+    crawler(k, -4, 13.6, accent);
     const truck = model('pickup', 4.4);
     truck.rotation.y = Math.PI / 2 + 0.1;
     truck.position.set(14.6, 0.05, 13.4);
@@ -192,7 +192,7 @@ export function vab(o: Act3SetOpts): Piece {
   if (!dark.empty) g.add(dark.build(glassMat));
   const ppl = new People(0.05);
   if (!building) {
-    ppl.walk([[AX0 + 1.5, AZ1 + 3.6], [AX0 + 7.5, AZ1 + 4.2], [AX0 + 9, 16.5], [1.6, 17.2]], 'engineer');
+    ppl.walk([[AX0 + 1.5, AZ1 + 3.6], [AX0 + 4.6, AZ1 + 4.0], [AX0 + 4.9, 16.6], [2.6, 16.9]], 'engineer');
     ppl.stand(-9.6, 10.6, 0.6, 'worker');
     ppl.stand(AX0 + 3.6, AZ1 + 2.0, 2.6, 'office');
   } else {
@@ -305,7 +305,7 @@ function factory(o: Act3SetOpts): Piece {
   }
   g.add(k.build(), sky.build(litGlass('yel1', 0.9)), warm.build(litGlass('yel1', 1.0)));
   const ppl = new People(0.05);
-  ppl.walk([[-14, 5.8], [8, 5.8], [8, 16.4], [-14, 16.4]], 'worker');
+  ppl.walk([[-14, 5.9], [8, 5.9], [8, 15.9], [-14, 15.9]], 'worker');
   ppl.stand(4.6, 11, -1.2, 'engineer');
   g.add(ppl.group);
   return {

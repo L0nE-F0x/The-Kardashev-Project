@@ -223,7 +223,7 @@ export function plaza(o: Act3SetOpts): Piece {
   ppl.walk([[-13.6, 12.6], [13.6, 12.6]], 'scientist');
   ppl.stand(0.8, 3.6, 0.6, 'engineer');
   ppl.stand(1.6, 4.3, -2.5, 'office');
-  ppl.stand(8.6, -8.0, Math.PI, 'worker');
+  ppl.stand(8.6, -6.55, Math.PI, 'worker');
   ppl.stand(-2.8, 1.8, -1.2, town ? 'kid_b' : null, town ? 1.28 : 1.12);
   const balloon = new THREE.Group();
   const bk = new Kit(rng(o.seed + 20));
