@@ -757,6 +757,8 @@ function field(geo: THREE.BufferGeometry, mat: THREE.Material, at: Placement[]):
   im.castShadow = true;
   im.receiveShadow = true;
   im.computeBoundingSphere();
+  // (pieces.ts `clipAbove`: planting isn't cut by a rising building's clip, it arrives when the building opens)
+  im.userData.plant = true;
   return im;
 }
 

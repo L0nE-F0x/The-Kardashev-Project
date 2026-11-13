@@ -85,6 +85,30 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   stand on `walkH` (campusScene: ground, pads and pavements, a building model's low decks: `deckOf` in models.ts);
   parked cars are stood on whatever is under them by `settleCars` (life.ts). Paved paths: routed round car parks on
   their own map, or laid by the piece itself (`Piece.walks`).
+- **Plants (v0.15):** every tree, bush, cactus and tuft is built in code in `campus/trees.ts`, as a model-maker
+  builds them: a trunk and limbs (`tube`), a dark heart of foliage (`blob`), a shell of leaf sprays (`card`: quads
+  cut out by one painted leaf sheet's alpha, drawn in `leafTexture`, lit by the whole crown's roundness, not the
+  card's). Kinds come in variants and two levels of detail; `plantField(kind, placements, { far, shadow })` mixes
+  the variants (one instanced mesh each, one shared material that sways the foliage in the wind:
+  `treeUniforms.uTreeSway`, 0 with Reduce motion). `ground.ts` plants the land: the full trees within `NEAR_R` of
+  the campus, the plain ones beyond, sagebrush instead of leafy bushes in dry country, and no tall kind in the
+  meadow south of the highway (the low views of a campus are taken from there). A piece that wants a plant calls
+  `plantField` (the older `treeField(kind, at)` still works). The Meshy trees are gone; rocks and cows are still
+  models. Measured on the Intel card at Medium: 3.5 ms a frame for the plants, against 4.7 for the old ones.
+- **Vehicles (v0.15):** `models.ts` gives everything on wheels its own material (`carMaterial`): glass (the
+  texture's dark, cool texels above the wheels, never a level roof: thresholds per model in `CAR_GLASS`) goes
+  smooth and near-black so it mirrors the sky, and `paintCar(obj, pick)` turns the body colour to one of
+  `CAR_PAINTS` in the shader (the body's own hue is read off the texture when the model loads; a white body is
+  tinted instead). `parkedCars` never parks two of one colour side by side. A new model must be drawn with dark
+  blue-grey glass (say so in the concept) and gets a row in `CAR_GLASS`. Lamps (`vehicles.ts lampsFor`) are set
+  on the bodywork by a ray from ahead and behind, once per model. Vehicles on the campus roads wait for anyone
+  on foot in their way (`Traffic.walkers`).
+- **The road's end, doors, the yard (v0.15):** the frontage road ends in a turning circle (`roads.ts`: `bulbAt`,
+  `bulbMesh`, `bulbHalf`; the island, the barrier and its planting in `buildRoads`); deliveries drive round the
+  island (`RoadNet.turn`). Doors open: `campusScene.buildDoorways` puts a leaf (the wall's own colour, read
+  where a ray from the step meets it) over a dark doorway at every door people use, `people.doorBusy` swings it,
+  and `Door.in` is how far in they walk to be out of sight. The grid substation has a fenced gravel yard
+  (`dressStatic`). Lamp posts, poles and street trees are on the walk map (`placesNow` extra).
 - **Shaders must stay defined (the globe's "strobing square", fixed in v0.14.2):** WebKitGTK's GL path turns
   undefined GLSL into NaN where Chrome's happens not to, and the bloom spreads one NaN pixel into a large flashing
   square (one injected NaN blacked out a whole frame). So: never `pow()` a base that can be negative, including

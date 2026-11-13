@@ -194,6 +194,8 @@ export function clipAbove(obj: THREE.Object3D, y: number | null) {
   obj.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
+    // planting goes in when the building opens (and is never cut through by the rising clip)
+    if (m.userData.plant) { m.visible = y === null; return; }
     if (y === null) {
       if (m.userData.ownMat) {
         m.material = m.userData.ownMat.orig;

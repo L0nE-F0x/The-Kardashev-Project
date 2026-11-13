@@ -11,7 +11,7 @@ import { PALETTE } from '../render/palette';
 import { withClouds } from './kit';
 
 export type ModelName =
-  | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'mesquite' | 'oak'
+  | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'oak'
   | 'pickup' | 'semitruck' | 'sedan' | 'hatchback' | 'suv' | 'van' | 'mixer' | 'flatbed'
   | 'rock_a' | 'boulder_a' | 'cow_a' | 'cow_b';
 /** Scenery models near a campus: rocks (trees and bushes are built in code: campus/trees.ts). */
