@@ -155,7 +155,8 @@ export function lab(o: { seed: number; tier: number }): Piece {
   k.box(15.2, 0.06, 1.5, '#cfc6bd', 0, 0.09, pz - 3.85, { r: 0.02, shade: 0, jitter: 0.02 });
   // tier 1: a bed down the east wall
   if (o.tier <= 1) for (let i = 0; i < 5; i++) bushes.push({ x: bx1 + 0.75 + (i % 2) * 0.15, y: 0.12, z: bz1 - 1.2 - i * 1.5, s: 0.9 + r() * 0.35, ry: r() * 6.3 });
-  g.add(k.build(), lit.build(winMat), lamps.build(lampHeadMat));
+  g.add(k.build(), lamps.build(lampHeadMat));
+  if (!lit.empty) g.add(lit.build(winMat));
   if (trees.length) g.add(plants('broadleaf', trees));
   if (bushes.length) g.add(plants('shrub', bushes));
   parkedCars(g, -6, pz, 6, 2.4, o.seed + 78, Math.PI / 2);

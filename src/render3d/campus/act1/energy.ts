@@ -55,18 +55,18 @@ export function solar(o: { seed: number; w: number; d: number; tier: number }): 
       for (let j = 0; j <= 4; j++) {
         const x = cx - tl / 2 + 0.5 + (j * (tl - 1.0)) / 4;
         fk.box(0.13, H, 0.13, '#8a8490', x, 0.1, z, { r: 0, jitter: 0.02 });
-        fk.box(0.34, 0.1, 0.34, P.concrete2, x, 0.08, z, { r: 0.02, shade: 0 });
+        fk.box(0.34, 0.1, 0.34, P.concrete2, x, 0.08, z, { r: 0, shade: 0 });
       }
       fk.geo(new THREE.CylinderGeometry(0.07, 0.07, tl, 6).rotateZ(Math.PI / 2).translate(cx, H + 0.08, z), '#7a7186', 0.02, 0);
-      fk.box(0.36, 0.3, 0.3, '#5e6670', cx, H - 0.2, z, { r: 0.04 });
+      fk.box(0.36, 0.3, 0.3, '#5e6670', cx, H - 0.2, z, { r: 0.04, seg: 1 });
       const bx = side * (lane / 2 + 0.28);
-      fk.box(0.36, 0.5, 0.2, '#c9c7c0', bx, H - 0.62, z - 0.22, { r: 0.02 });
+      fk.box(0.36, 0.5, 0.2, '#c9c7c0', bx, H - 0.62, z - 0.22, { r: 0 });
       fk.box(0.05, H - 0.62, 0.05, '#8a8490', bx, 0.1, z - 0.22, { r: 0, jitter: 0 });
       // modules: glass over a light frame, a busbar line across each
       for (let j = 0; j < nm; j++) {
         const x = cx - tl / 2 + (j + 0.5) * mod;
         pk.box(mod - 0.02, 0.03, 1.94, '#9cb0c8', x, -0.03, 0, { r: 0, jitter: 0, shade: 0 });
-        pk.box(mod - 0.07, 0.06, 1.88, '#2a3c6c', x, 0, 0, { r: 0.012, jitter: 0.09, shade: 0, seg: 1 });
+        pk.box(mod - 0.07, 0.06, 1.88, '#2a3c6c', x, 0, 0, { r: 0, jitter: 0.09, shade: 0 });
         pk.box(mod - 0.09, 0.006, 0.02, '#7f93b8', x, 0.06, 0, { r: 0, jitter: 0, shade: 0 });
       }
     }
@@ -133,26 +133,26 @@ ledMat.userData.scope = 0;
 function cabinet(seed: number, band: Paint) {
   const k = new Kit(rng(seed));
   const L = 5.5, D = 1.65, Hh = 2.3;
-  k.box(L, Hh, D, '#ece6dc', 0, 0.3, 0, { r: 0.07, shade: 0.12, jitter: 0.02 });
-  k.box(L + 0.04, 0.24, D + 0.04, band, 0, 0.3 + Hh - 0.42, 0, { r: 0.03, shade: 0, jitter: 0.02 });
-  k.box(L + 0.02, 0.14, D + 0.02, '#a39a91', 0, 0.3, 0, { r: 0.02, shade: 0, jitter: 0 });
+  k.box(L, Hh, D, '#ece6dc', 0, 0.3, 0, { r: 0.07, shade: 0.12, jitter: 0.02, seg: 1 });
+  k.box(L + 0.04, 0.24, D + 0.04, band, 0, 0.3 + Hh - 0.42, 0, { r: 0.03, shade: 0, jitter: 0.02, seg: 1 });
+  k.box(L + 0.02, 0.14, D + 0.02, '#a39a91', 0, 0.3, 0, { r: 0, shade: 0, jitter: 0 });
   // eight door leaves with a vent and a handle each, both long sides
   for (const sz of [-1, 1])
     for (let i = 0; i < 8; i++) {
       const x = -L / 2 + 0.36 + i * ((L - 0.72) / 7);
-      k.box(0.58, 1.55, 0.03, '#ded7cb', x, 0.5, sz * (D / 2 + 0.012), { r: 0.01, jitter: 0.03, shade: 0 });
+      k.box(0.58, 1.55, 0.03, '#ded7cb', x, 0.5, sz * (D / 2 + 0.012), { r: 0, jitter: 0.03, shade: 0 });
       for (let j = 0; j < 3; j++) k.box(0.42, 0.04, 0.03, '#8f877c', x, 0.62 + j * 0.1, sz * (D / 2 + 0.03), { r: 0, jitter: 0, shade: 0 });
       k.box(0.03, 0.18, 0.03, '#5b5562', x + 0.2, 1.3, sz * (D / 2 + 0.035), { r: 0, jitter: 0 });
     }
   // the thermal unit on the roof: a low housing, two fan grilles
-  k.box(2.4, 0.3, 1.2, P.hvac, -1.1, 0.3 + Hh, 0, { r: 0.05 });
+  k.box(2.4, 0.3, 1.2, P.hvac, -1.1, 0.3 + Hh, 0, { r: 0.05, seg: 1 });
   for (const fx of [-1.7, -0.5]) {
     k.cyl(0.42, 0.42, 0.04, '#5e6670', fx, 0.6 + Hh, 0, 14, { shade: 0 });
     k.cyl(0.1, 0.1, 0.06, '#433c52', fx, 0.6 + Hh, 0, 8, { shade: 0 });
   }
-  k.box(1.4, 0.1, 1.0, '#cfc9c0', 1.5, 0.3 + Hh, 0, { r: 0.02, shade: 0 });
+  k.box(1.4, 0.1, 1.0, '#cfc9c0', 1.5, 0.3 + Hh, 0, { r: 0, shade: 0 });
   // the customer cubicle at the end, a hazard label
-  k.box(0.05, 1.7, 1.2, '#d3ccc0', L / 2 + 0.02, 0.5, 0, { r: 0.01, jitter: 0.02, shade: 0 });
+  k.box(0.05, 1.7, 1.2, '#d3ccc0', L / 2 + 0.02, 0.5, 0, { r: 0, jitter: 0.02, shade: 0 });
   k.box(0.03, 0.26, 0.26, 'yel0', L / 2 + 0.05, 1.5, -0.3, { r: 0, jitter: 0, shade: 0 });
   const g = new THREE.Group();
   g.add(k.build());
@@ -173,7 +173,7 @@ export function battery(o: { seed: number; tier: number }): Piece {
   const units: THREE.Object3D[] = [];
   rows.forEach((z, ri) => {
     // two plinth beams the length of the row, a cable trench cover in front
-    for (const dz of [-0.55, 0.55]) k.box(24.2, 0.3, 0.4, P.concrete2, 0, 0.06, z + dz, { r: 0.03, shade: 0.1 });
+    for (const dz of [-0.55, 0.55]) k.box(24.2, 0.3, 0.4, P.concrete2, 0, 0.06, z + dz, { r: 0.03, shade: 0.1, seg: 1 });
     const front = o.tier >= 3 ? (ri % 2 ? 1 : -1) : 1;
     for (let x = -11.8; x < 11.9; x += 1.2) k.box(1.14, 0.04, 0.5, '#8f877c', x + 0.6, 0.11, z + front * 1.3, { r: 0, jitter: 0.05, shade: 0 });
     xs.forEach((x, ci) => {

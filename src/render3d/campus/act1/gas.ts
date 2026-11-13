@@ -263,7 +263,8 @@ export function gas(o: { seed: number; tier: number }): Piece {
     blockers.push({ x0: 5.4, z0: gz1 - 0.7, x1: 7.6, z1: 12.2 });
     parkedCars(g, 10.2, 9.6, 1, 3, o.seed + 4, Math.PI / 2, ['pickup']);
   }
-  g.add(k.build(), lit.build(winMat), lamps.build(lampHeadMat));
+  g.add(k.build(), lamps.build(lampHeadMat));
+  if (!lit.empty) g.add(lit.build(winMat));
   return {
     obj: g, w: 26, d: 24, h: top + 0.5,
     // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
