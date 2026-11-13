@@ -319,7 +319,9 @@ export class CampusScene implements Scene3D {
       };
       // Meshy scenery near the campus: width in metres at scale 1 (the code-built kinds' own sizes, a bit larger)
       // (off the Earth the rocks lose their sandstone tan: the texture's warm cast is cancelled to the regolith's grey)
-      const offEarth: [number, number, number] | undefined = this.scenery === 'moon' || this.scenery === 'asteroid' ? [0.64, 0.75, 1.02] : undefined;
+      // (and on green land: a sandstone boulder in a meadow reads as a brown ball, so it goes to grey granite there)
+      const dryLand = backdrop === 'plains' || backdrop === 'desert' || backdrop === 'savanna';
+      const offEarth: [number, number, number] | undefined = this.scenery === 'moon' || this.scenery === 'asteroid' ? [0.64, 0.75, 1.02] : dryLand ? undefined : [0.7, 0.78, 0.92];
       const meshy = (n: SceneryName, w: number, light: number) => (at: { x: number; y: number; z: number; s: number; ry: number }[]) => {
         const p = sceneryParts(n);
         return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light, offEarth) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
@@ -461,23 +463,29 @@ export class CampusScene implements Scene3D {
       });
       for (const d of p.doors) {
         const y0 = this.walkH(d.x, d.z);
-        // the wall behind the step: the nearest face that looks back at the step, at chest height (else at the knee)
+        // the wall behind the step: the nearest face that looks back at the step at chest height, and the same wall
+        // again at head height (a door needs a wall as tall as itself: not a raised deck's edge, not a sill)
         let hit: THREE.Intersection | null = null;
-        for (const hgt of [1.25, 0.6]) {
+        const wallAt = (hgt: number) => {
           from.set(d.x + d.nx * 0.5, y0 + hgt, d.z + d.nz * 0.5);
           dir.set(-d.nx, 0, -d.nz);
           this.ray.set(from, dir);
-          this.ray.far = 4.5;
+          this.ray.far = 2;
           for (const h of this.ray.intersectObjects(targets, false)) {
             if (!h.face) continue;
             n.copy(h.face.normal).transformDirection(h.object.matrixWorld);
-            if (n.x * d.nx + n.z * d.nz > 0.7) { hit = h; break; }
+            if (n.x * d.nx + n.z * d.nz > 0.7) return h;
           }
-          if (hit) break;
-        }
+          return null;
+        };
+        const chest = wallAt(1.25), head = chest && wallAt(1.9);
+        if (chest && head && Math.abs(head.distance - chest.distance) < 0.4) hit = chest;
         this.ray.far = Infinity;
         if (!hit) continue;
         const back = hit.distance - 0.5;
+        // (a wall some way behind the step is not this door's wall: a raised deck in between, an open bay. There
+        // people go as they always did, a short step in)
+        if (back > 1.2) continue;
         // how far in to walk to be through the doorway and out of sight
         d.in = Math.max(0.55, back + 0.5);
         const g = new THREE.Group();

@@ -2568,3 +2568,84 @@ system's) by inspector snapshots; `npm test` (88 pass), `npm run build`, `npm ru
 - The marketing kit (trailer, stills) shows the old interface wherever it shows any.
 - Not checked: Windows, macOS, the colour-blind palettes per look, the Act V ending in look 5, a Steam Deck's
   touch on the foot strip.
+
+## 35. v0.15.0 "True to Life": the realism pass on the 3D world (built 2026-11-14)
+
+**The ask (the user, 2026-11-14):** "another polish pass ... we're approaching version 1.0.0 ... move back to just
+in-game graphics ... a red car that has red windows, cars have glass windows ... things need to behave and look
+the way that they would in real life ... I don't want people walking through walls ... streets end on what looks
+like a cul-de-sac, just a grey semicircle with no textures ... some of the trees are a little bit too generic and
+bad looking, not detailed enough ... these are just small examples ... keep going until it's all flawless." Then,
+going to bed: "when done ship it".
+
+**How it was run:** I took what every campus shares (vehicles, roads, plants, people's doors, the land round a
+campus); two helpers in git worktrees took the facility pieces (Acts I–II) and the view-only places (Acts III–V),
+each with its own dev server and headless Chrome. A usage limit cut both helpers off once; their commits were
+safe and they were resumed with "converge and report".
+
+**The root causes worth remembering:**
+- **The vehicles' windows were whatever the texture painted**: one model came with body-coloured windows, two with
+  cream ones. Glass is now a property of the material, not of the paint (`carMaterial`: dark, cool texels above
+  the wheels turn smooth and mirror the sky), and the three models were re-made from concepts that ask for dark
+  glass. A car park of one model was a row of clones: the body colour is now turned to another in the shader.
+- **Lamps were placed by a table of sizes**, so they hung in the air behind any model whose rear is not where the
+  table said (a mixer's chute, a flatbed's deck). They are now found on the bodywork by a ray, once per model.
+- **The turning circle was a fan of triangles with no road coordinates**, so the street's own paint (edge line,
+  tyre tracks, dust) stopped at its rim. `bulbMesh` lays rings in from the outline and gives each vertex the
+  street's cross-section coordinate, so one shader paints both.
+- **Trees were either thinned-out Meshy models (jagged triangles close up) or cones and balls.** Leaf detail
+  cannot come from triangles at this budget: it comes from one painted leaf sheet cut out by alpha, on cards that
+  are lit by the crown's roundness (their own normals would make a crown of flat flakes). Cheaper than before.
+- **People went in by walking 0.55 m into a painted door and vanishing.** The door now opens (a leaf in the
+  wall's own colour over a dark doorway, set where a ray from the step meets the wall), and they walk far enough
+  in to be behind the wall before they go.
+
+**Calls I made:**
+- Twelve paints (`CAR_PAINTS`), about a third of cars keeping their model's own colour; the flatbed keeps its own
+  (its timber deck is its cab's hue, a new paint would stain it); the semi, the mixer and the van change only
+  their coloured parts.
+- A planted island in the turning circle (a tree of the country, low cover at its foot), a striped barrier where
+  the road will go on, deliveries round the island at 5 m.
+- A row of trees up the access road's outer verge, none in front of the plots (they would hide the buildings a
+  player has to click), and no tall plant in the meadow south of the highway (a pine stood a few metres from the
+  lens in the menu film's Luleå shot).
+- Sagebrush replaces leafy bushes on plains, savanna, desert and volcanic land.
+- Vehicles wait for people on foot; after 25 s of a stand-off they edge on.
+- The substation gets a fenced gravel yard; the ranch corner real cattle (two Meshy models) and moves off the
+  fields.
+- Planting inside a piece arrives when the building opens (the construction clip would cut through it).
+
+**Meshy:** hatchback, semi, flatbed and two cows: about 180 credits, about 430 left.
+
+**Checked:** headless Chrome on the RTX for looks; `bumpcheck` and `feetcheck` on eleven campuses; a ten-minute
+run of deliveries with every wheel on the asphalt and 1.8 m clear of the island; the plants' frame cost on the
+Intel card; and in the app's own web engine (the debug app in a headless Hyprland, `HYPRLAND_HEADLESS_ONLY=1`,
+so no window on the desktop): 120 poses on five campuses before the merges and 80 on ten places after them
+(Geneva, Guiana, the Sahara, the Moon, Aurora and Eros among them), day and night, no non-finite pixel, no
+shader error. Not on Windows, not on macOS, not in a packaged AppImage.
+
+**The helpers' work (their reports, shortened):**
+- **Facility pieces (Acts I–II):** the Act I pieces moved out of `campus/act1.ts` into `campus/act1/` (`hq.ts`,
+  `lab.ts`, `gas.ts`, `energy.ts` = solar, battery, wind), built with the Act II parts library; `act1.ts` is the
+  registry and the `hall` wrapper. Gas plant, lab, solar, battery and wind rebuilt (see the changelog); the pit's
+  shovel moved into view; the restart's bus duct; night lights where there were none. A light pool laid above the
+  asphalt is taken for a surface by `settleCars` and lifts the cars under it: lamps stand on the ground.
+- **View-only places (Acts III–V):** the launch cycle is a pure function of time (the booster lands, a transporter
+  and the tower's crane bring the next stack; `rocket()` builds booster and upper stack as two meshes); pumped
+  hydro's footprint is 62×64; North Sea lights; Geneva's seated figures; asteroid vents and dust.
+
+**Seen and left (theirs and mine):**
+- People: one talk spot on the garage's front step stands 16 cm into it, and one sample in a thousand floats or
+  sinks at a deck's or a pad's edge (the deck grid is 18 cm a cell); astronauts walk with an Earth gait on small
+  asteroids; a child or two overlaps Aurora's playground kit.
+- Construction: an upgrade shows the finished next tier from day one; a restart "builds" its old tower from the
+  ground; one clip height for a whole piece, so low buildings finish early and only the tallest part keeps rising.
+- Places: every launch site has a sea coast, the inland cosmodrome too; asteroid conveyors carry loose rock on an
+  open belt; finished panels drift off the yards untethered; the secretariat's pool is a flat blue; the gas
+  plant's and the lab's models have few lit windows (a new model would beat code); the road lamps are a square L
+  close up.
+- Vehicles: wheels do not turn (the models are one mesh); the flatbed is always orange.
+- Not looked at closely: hydro, geothermal, SMR, packaging and the gigawatt campus beyond one close shot each; the
+  suppliers' fabs and yards at close range; megaprojects in a real stage-2 world; the fusion designs' build
+  states; Ring One and the yards under construction; the Moon's build piece.
+

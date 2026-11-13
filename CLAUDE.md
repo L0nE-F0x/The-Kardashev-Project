@@ -9,7 +9,7 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
+Current build: **v0.15.0 "True to Life"** (the realism pass on the 3D world: glass and paint on the cars, a real turning circle, trees rebuilt, doors that open, the facility pieces and the later places gone over one by one: SPEC §35) on top of **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
 plywood and paper in the garage to nothing but light at Type I, the title and loading screens included: SPEC §34;
 on the first pass of the overhaul: a display typeface, panels that lead with tiles, a build menu with pictures:
 SPEC §33) on top of v0.13.3 "Steady Hand" (the Linux app no longer crashes at the first click on the stronger
@@ -73,7 +73,7 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   cards, acts); the loading screen is in `play/index.html`. Scenes free their GPU memory in `destroy()` via
   `disposeObject` (kit.ts: skips anything with `userData.shared`, e.g. model materials, cached kit textures, the
   Earth's textures); a campus rebuild frees the old world too.
-- **Pieces:** `campus/registry.ts` maps facility types (`act1.ts`, `plants2.ts`) and set pieces (`industry.ts`,
+- **Pieces:** `campus/registry.ts` maps facility types (`act1.ts` + `act1/*.ts`, `plants2.ts`) and set pieces (`industry.ts`,
   `act3sets.ts` → `sets/*.ts`; footprints in `act3sizes.ts`) to builders returning `Piece` (pieces.ts). Conventions
   and the lab: `art3d/PIECES.md`; lab page `/play/lab.html?piece=…|set=…` (dev). Art direction: `art3d/DIRECTION.md`.
 - **Meshy:** `tools/meshy.mjs` (concept image first with one style brief; `--char` = rigged people), `tools/glb-tex.mjs`
@@ -117,8 +117,10 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   (take `dFdx` first, then `textureGrad`); `centroid` varyings on geometry seen edge-on under MSAA (the aurora). The
   bloom's high-pass and the blur pass drop non-finite pixels with a bit test (`floatBitsToUint`: a fast-math
   compiler folded a float compare), so a NaN now shows as a black dot: still find its cause. Check in WebKit, not
-  Chrome: the debug app over `vite preview --port 5317` (the production build) inside a nested Hyprland
-  (`Hyprland --config <scratch conf>` with WAYLAND_DISPLAY set; capture with `grim` on its socket), sweeping poses
+  Chrome: the debug app over the dev server (or `vite preview --port 5317`, the production build) inside a
+  Hyprland of its own (`HYPRLAND_HEADLESS_ONLY=1 Hyprland --config <scratch conf>`: no window on the desktop;
+  start the app with its `WAYLAND_DISPLAY`; read pictures with `stage.frame` + `canvas.toDataURL` over the
+  inspector, or `grim` on its socket), sweeping poses
   and scanning `game.stage.post.rtScene` (half floats: exponent bits all set) for NaN.
 - **Automatic visual checks** (`tools/qa/`, with the dev server and the headless Chrome below running; `PLAYWRIGHT=`
   as for gen:assets, `CDP=` / `BASE=` to point elsewhere): `feetcheck.mjs <sites> [hour]` (feet and wheels on the
@@ -490,7 +492,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 | Want | Edit |
 |---|---|
-| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, a builder in `render3d/campus/registry.ts` (`art3d/PIECES.md`), its globe marker in `render3d/globe/markers.ts`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx`; its build-menu picture: add it to `ALL` in `tools/thumbs.mjs` and run it |
+| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, a builder in `render3d/campus/registry.ts` (`art3d/PIECES.md`; a plant in it: `plantOn(kit, kind, placement)` from `campus/trees.ts`), its globe marker in `render3d/globe/markers.ts`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx`; its build-menu picture: add it to `ALL` in `tools/thumbs.mjs` and run it |
 | An interface look | `render3d/ui/looks/lookN.css` (tokens first, then overrides); shared paper / light rules in `paper.css` / `light.css`; the layout in `layout.css`; SPEC §34's table says what each look is made of |
 | A panel's layout | `ui/kit.tsx` parts (Tiles first, then Cards); `ComputePanel.tsx` is the model |
 | Loading-screen tip | `TIPS` in `play/index.html` |
@@ -509,6 +511,8 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | Sound effect | a `SoundId` + its recipe in `audio/sfx.ts` (layers: transient, body, tail), then `sfx(id)` where it happens |
 | People (models, clips, a working day) | `render3d/models.ts` (PEOPLE, TOWNSFOLK), `render3d/campus/people.ts` + `paths.ts`; `tests/render3d-people.test.ts` |
 | Campus behaviour, traffic | `render3d/campus/life.ts`, `vehicles.ts` |
+| A tree, bush or cactus kind | a builder in `render3d/campus/trees.ts` (`treeGeometry`: near and far, `VARIANTS`); where it grows: `BACKDROPS` in `ground.ts` |
+| A vehicle model | `tools/meshy.mjs` (ask for dark blue-grey glass), `models.ts` (`ModelName`, `VEHICLES`, a `CAR_GLASS` row), lengths in `life.ts` / `vehicles.ts` |
 | New difficulty / founder perk | `content/difficulty.ts` (founder mods feed `techMult`) |
 | Tutorial step | `game/tutorial.ts` (+ a `data-tut` attribute on the target) |
 | Dock icon | `ui/dockIcons.ts` (32 grid, same name as the panel's icon in `icons.ts`); check `/play/icons.html?group=dock` |
@@ -516,7 +520,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 | A time of day's look | `KEYS` in `render3d/campus/sky.ts` (by sun altitude: sky, key, fill, haze, exposure) |
 | A lamp that lights its surroundings | `lightPool(parent, x, y, z, r, poolMat(colour))` (kit.ts): it joins the lamp field |
 | Re-tune the economy | `sim/model.ts` constants, `content/facilities.ts`, `content/companies.ts` |
-| Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render3d/campus/` (`act1.ts`, `plants2.ts`, `registry.ts`) |
+| Facility tier / new Act II facility | `content/facilities.ts` (`tiers`, `act`, `phase`, `needs`, `slots`); art in `render3d/campus/` (`act1/`, `plants2/`, `registry.ts`) |
 | Supply deal, mine | `content/stack.ts` |
 | Cable system / landing station | `content/network.ts` + a `landing(...)` row in `content/sites.ts` |
 | Export rule, treaty, sovereign deal | `content/politics.ts` |
@@ -551,7 +555,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
+**Next:** v0.15.0 "True to Life" (SPEC §35) is the realism pass the user asked for on 2026-11-14 and told me to ship while they slept: ask how it looks in their app (the cars, the trees, the doors), and pick from §35's "Seen and left" when they ask for more. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
 rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
 clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and

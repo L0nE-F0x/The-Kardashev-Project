@@ -373,7 +373,8 @@ export function deckOf(n: string): Deck | null {
       const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
       const ny = uz * vx - ux * vz;
       const nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
-      if (nl < 1e-9 || Math.abs(ny) / nl < 0.75) continue;
+      // (a bevelled lip counts: people stand on an apron's sloped edge as on its top)
+      if (nl < 1e-9 || Math.abs(ny) / nl < 0.5) continue;
       const den = ux * vz - vx * uz;
       if (Math.abs(den) < 1e-12) continue;
       const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x, c.x) - d.x0) / cell));
@@ -430,8 +431,16 @@ export function deckHeight(o: THREE.Object3D, inv: THREE.Matrix4, x: number, y: 
   // the copy's own matrix scales the template: model units are the template's
   const fx = (deckLocal.x - d.x0) / d.cell, fz = (deckLocal.z - d.z0) / d.cell;
   const i = Math.round(fx), j = Math.round(fz);
-  if (i < 0 || j < 0 || i >= d.nx || j >= d.nz) return null;
-  const h = d.h[j * d.nx + i];
+  if (i < -1 || j < -1 || i > d.nx || j > d.nz) return null;
+  // a foot is as wide as a cell, and a deck's lip is often a cell the grid missed (a bevel, a long sliver of a
+  // triangle): whoever stands at a deck's edge stands on the deck (the highest floor in the cells round them), not
+  // 20 cm down in the lawn beside it
+  let h = 0;
+  for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+    const ii = i + di, jj = j + dj;
+    if (ii < 0 || jj < 0 || ii >= d.nx || jj >= d.nz) continue;
+    h = Math.max(h, d.h[jj * d.nx + ii]);
+  }
   if (h <= 0) return null;
   return deckLocal.set(deckLocal.x, h, deckLocal.z).applyMatrix4(o.matrixWorld).y;
 }

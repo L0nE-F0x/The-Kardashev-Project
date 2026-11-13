@@ -20,6 +20,8 @@ for (const site of sites) {
       for (let k = 0; k < 25; k++) sc.update(0.1);
       for (const a of sc.people.agents) {
         if (a.state !== 'out' || !a.obj.visible) continue;
+        // (going in or out by a door: it stands open for them, and they walk through the doorway in the wall)
+        if (a.tasks[0]?.k === 'in' || a.tasks[0]?.k === 'out') continue;
         samples++;
         const p = a.obj.position; let worst = 9, what = '';
         for (let i = 0; i < 8; i++) {

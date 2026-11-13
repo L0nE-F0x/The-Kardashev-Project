@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.15.0 — True to Life (2026-11-14)
+A pass over the 3D world for everything that would not be so in real life.
+
+- **Cars have glass.** Every vehicle's windows are dark glass that mirrors the sky and catches the sun. The red hatchback with red windows is replaced by a new one, and the semi and the flatbed are new models too.
+- **Cars come in colours.** A car park is no longer a row of the same red car: each car gets its own paint (white, silver, grey, black, blue, red, green, mustard and more), and no two side by side match.
+- **Lamps sit on the bodywork.** Tail lights were pale balls hanging in the air behind trucks. They are red lenses on each vehicle's own rear now, headlights likewise.
+- **The street ends properly.** The grey disc at the end of a campus road is a real turning circle: the road flares into it, the edge line runs all the way round, there is a planted island in the middle and a striped barrier where the road will go on when the campus grows. Deliveries drive round the island.
+- **Roads look like roads:** sealed cracks, a ragged gravel edge where the asphalt meets the verge.
+- **Trees, rebuilt.** Every tree, bush and cactus is new: real trunks and limbs, crowns of leaves instead of blobs and cones, several shapes of each kind, pines with drooping boughs, palms with fronds, birches, acacias, mesquites, sagebrush in dry country. They sway a little in the wind (not with Reduce motion on). Far-off trees are simpler ones of the same shape and colour. They also cost less to draw than the old ones.
+- **Doors open.** People used to walk into a shut door and vanish. A door now swings open as someone comes up to it, they walk through into the dark, and it closes behind them.
+- **Traffic waits for people** crossing a campus road.
+- **Nobody walks through a lamp post, a power pole or a street tree.**
+- **The grid substation has a yard:** crushed stone, a chain-link fence with warning plates, a gate and an apron onto the road. It used to stand on bare grass.
+- **The ranch:** real cattle (the box cows are gone) at a pond with a trodden bank, reeds and rippling water, on open range instead of in a ploughed field.
+- **Trees along the access road** and in the turning circle's island, of the country the campus is in. No tree stands right in front of the camera in the low views any more.
+- **The buildings you build, looked at one by one:**
+  - Gas plant: a way up onto its deck, a gas metering skid, transformers, lamps (it was black at night), the red warning lights on the stack rims instead of floating over a roof. The bigger plants are real combined-cycle blocks now: boilers behind the halls, a turbine house, a cooling tower.
+  - Research lab: wings with windows, doors and roof plant instead of blank boxes, lit at night; the car park's bays sit between the lines; the biggest lab no longer hangs off the back of its plot.
+  - Solar farm, battery yard, wind farm: rebuilt. Battery cabinets are taller than a person now, wind towers go up in sections while they are built, the solar field has a service lane and an inverter station inside its plot.
+  - The garage: a real picket fence, a letter box, lit windows at night, a porch light, proper bushes and a leafy tree.
+  - Open pit: the shovel digs where you can see it. Reactor restart: the conductors no longer run across the roller door. Lights for the fab, the crate yard and the crusher at night.
+- **The later places:**
+  - Launch pad: nothing fades in any more. The booster comes back down and lands on its mount, a transporter brings the next upper stack, the tower's crane lifts it on, and it launches.
+  - North Sea wind farm at night: a lamp on every foundation, crew boats with lit wheelhouses and navigation lights.
+  - Pumped hydro: the back of the mountain is a forested slope, not a wall; the stream has a bed.
+  - Geneva: people on benches and at the café are figures, not blocks; nobody walks through a canopy post, a planter or the kiosk.
+  - Asteroids: no smoke rising in a vacuum, finer dust, and the dark ones are no longer near-black.
+  - Aurora's trees stay off the window frame. Cacti grow only in American deserts (the Sahara had saguaros).
+- **Small things:** a crane's warning light turns with its jib; boulders on green land are grey stone, not orange; scaffolding stops at a sensible height; people at the edge of a porch stand on it, not in it.
+
 ## 0.14.2 — Clear View (2026-11-14)
 The square that flickered on the globe is gone, along with a run of small bugs.
 
