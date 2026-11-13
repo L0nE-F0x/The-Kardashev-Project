@@ -417,7 +417,7 @@ export class CampusScene implements Scene3D {
     }
     // the substation where the grid comes in (and its yard)
     const s = this.layout.substation;
-    extra.push({ x0: s.x - 8, z0: s.z - 8, x1: s.x + 8, z1: s.z + 8 });
+    extra.push({ x0: s.x - 9.2, z0: s.z - 8, x1: s.x + 9.2, z1: s.z + 8 });
     for (const t of this.streetTrees) extra.push({ x0: t.x - 0.45, z0: t.z - 0.45, x1: t.x + 0.45, z1: t.z + 0.45 });
     for (const t of this.posts) extra.push({ x0: t.x - 0.22, z0: t.z - 0.22, x1: t.x + 0.22, z1: t.z + 0.22 });
     return { places, cars, extra, roots };
@@ -649,6 +649,29 @@ export class CampusScene implements Scene3D {
     const sub = model('substation', 15);
     sub.position.set(L.substation.x, 0, L.substation.z);
     g.add(sub);
+    {
+      // its yard, as a high-voltage yard is kept: crushed stone underfoot, a chain-link fence all round with
+      // warning plates, a gate and an apron onto the access road
+      const yard = new THREE.Group();
+      yard.position.set(L.substation.x, 0, L.substation.z);
+      // (the fence helper's gate is on its +z side: turned to face the road, east)
+      yard.rotation.y = Math.PI / 2;
+      const YW = 16, YD = 18.4;
+      yard.add(pad(YW, YD, '#a8a29a', 77));
+      const fk = new Kit(rng(78));
+      fence(fk, YW - 0.5, YD - 0.5, 4.4, '#7f7a86');
+      for (const [x, z, ry] of [[-3.4, YD / 2 - 0.2, 0], [3.4, YD / 2 - 0.2, 0], [-YW / 2 + 0.2, 0, Math.PI / 2], [YW / 2 - 0.2, 0, Math.PI / 2], [0, -YD / 2 + 0.2, 0]] as const) {
+        fk.box(0.62, 0.46, 0.04, 'yel1', x, 0.62, z, { r: 0, jitter: 0, shade: 0, ry });
+        fk.box(0.2, 0.26, 0.05, '#2b2a30', x, 0.72, z, { r: 0, jitter: 0, shade: 0, ry });
+      }
+      // the apron out to the road's edge
+      fk.box(4.4, 0.06, (L.accessX - 3 - (L.substation.x + YD / 2)) + 0.5, '#5a5760', 0, 0.08, YD / 2 + (L.accessX - 3 - (L.substation.x + YD / 2)) / 2, { r: 0, jitter: 0.02, shade: 0 });
+      const fm = fk.build();
+      fm.castShadow = false;
+      yard.add(fm);
+      fenceMesh(yard, YW - 0.5, YD - 0.5, 4.4);
+      g.add(yard);
+    }
     const pyl: THREE.Vector3[] = [];
     for (let i = 5; i >= 1; i--) {
       const x = L.substation.x - i * 38, z = L.substation.z - 18 - i * 6;
@@ -680,7 +703,10 @@ export class CampusScene implements Scene3D {
           this.updaters.push(pj.update);
         }
       }
-      const px = L.bounds.x1 + 30, pz = -55;
+      // the ranch corner stands on open range: the first of a few spots that no field covers
+      const open = (x: number, z: number) => !(this.ground.fields ?? []).some((f) => inField(f, x, z, 16));
+      const spot = ([[L.bounds.x1 + 30, -55], [L.bounds.x1 + 44, -18], [L.bounds.x1 + 36, -96], [L.bounds.x1 + 70, -60], [L.bounds.x0 - 70, -40], [L.bounds.x1 + 40, 24]] as const).find(([x, z]) => open(x, z));
+      for (const [px, pz] of spot ? [spot] : []) {
       const pond = stockPond(4.5, 3);
       pond.position.set(px, h(px, pz), pz);
       g.add(pond);
@@ -696,6 +722,7 @@ export class CampusScene implements Scene3D {
         c.obj.rotation.y = r() * 6;
         g.add(c.obj);
         this.updaters.push(c.update);
+      }
       }
     }
     void s;
@@ -761,7 +788,7 @@ export class CampusScene implements Scene3D {
       const bulb = this.bulb;
       if (bulb && x > bulb.throat - 1 && Math.abs(z - FRONT_Z) < bulbHalf(bulb, x) + 0.6) return false;
       for (const l of lanes) if (Math.abs(z - l.z) < 1.9 && x > ax && x < l.x1) return false;
-      if (Math.abs(x - L.substation.x) < 8.5 && Math.abs(z - L.substation.z) < 8.5) return false;
+      if (x > L.substation.x - 9.6 && x < ax - 2.5 && Math.abs(z - L.substation.z) < 8.4) return false;
     }
     const inside = (r: Rect, m = 0.2) => x > r.x0 - m && x < r.x1 + m && z > r.z0 - m && z < r.z1 + m;
     for (const f of this.ground.fields ?? []) if (inField(f, x, z, 0.5)) return false;

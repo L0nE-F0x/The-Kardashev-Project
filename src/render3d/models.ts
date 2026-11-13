@@ -13,7 +13,7 @@ import { withClouds } from './kit';
 export type ModelName =
   | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'mesquite' | 'oak'
   | 'pickup' | 'semitruck' | 'sedan' | 'hatchback' | 'suv' | 'van' | 'mixer' | 'flatbed'
-  | 'rock_a' | 'boulder_a' | 'broadleaf_a' | 'pine_a';
+  | 'rock_a' | 'boulder_a' | 'cow_a' | 'cow_b';
 /** Scenery models near a campus: rocks (trees and bushes are built in code: campus/trees.ts). */
 export const SCENERY: ModelName[] = ['rock_a', 'boulder_a'];
 export type PersonName = 'worker' | 'engineer' | 'researcher' | 'scientist' | 'office'

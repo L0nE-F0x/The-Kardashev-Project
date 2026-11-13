@@ -3,8 +3,10 @@
  * house style (bevelled boxes, matte hand-painted colour, the game's palette).
  */
 import * as THREE from 'three';
-import { col, glowMat, Kit, lightPool, poolMat, rng, withClouds, type Paint } from './kit';
-import { model } from './models';
+import { col, glowMat, Kit, lightPool, paintMat, poolMat, rng, withClouds, type Paint } from './kit';
+import { hasModel, loadModels, model } from './models';
+import { waterMaterial } from './campus/water';
+import { plantField, type Placement } from './campus/trees';
 import { parkedCars } from './campus/life';
 
 export interface Env {
@@ -767,35 +769,110 @@ export function windpump(seed: number) {
   return { obj: g, update(e: Env) { wheel.rotation.z -= e.dt * 1.6; } };
 }
 
-const waterMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#3b7fae'), roughness: 0.18, metalness: 0.1, transparent: true, opacity: 0.92 }));
+let pondWater: THREE.MeshStandardMaterial | null = null;
+/**
+ * A stock pond (a ranch's earthen tank): an uneven pool behind a low bank of trodden earth, wet mud at the water's
+ * edge, reeds and scrub round it. The water is the lakes' own (ripples, a soft edge), shallow and a little green.
+ */
 export function stockPond(r: number, seed: number) {
   const g = new THREE.Group();
-  const k = new Kit(rng(seed));
-  // a muddy bank, then the water
-  k.geo(new THREE.CylinderGeometry(r + 1.4, r + 2.2, 0.35, 28).translate(0, -0.1, 0), '#9c6c3d', 0.03);
-  const bank = k.build();
+  const rr = rng(seed);
+  const ph = [rr() * 6, rr() * 6, rr() * 6];
+  const R = (a: number) => r * (1 + 0.14 * Math.sin(2 * a + ph[0]) + 0.08 * Math.sin(3 * a + ph[1]) + 0.05 * Math.sin(5 * a + ph[2]));
+  const N = 40;
+  // the bank: wet rim, crest, a trodden top, the foot running out into the land
+  const rings: [number, number, string][] = [[-0.35, 0.06, '#4f3f30'], [0.15, 0.2, '#6a5238'], [0.7, 0.34, '#8f6f4a'], [1.5, 0.3, '#9c7c52'], [2.9, -0.06, '#a98a5c']];
+  const pos: number[] = [], cols: number[] = [], idx: number[] = [];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2, base = R(a);
+    rings.forEach(([d, y, c2], k) => {
+      const wob = k >= 3 ? (rr() - 0.5) * 0.5 : 0;
+      pos.push(Math.cos(a) * (base + d + wob), y, Math.sin(a) * (base + d + wob));
+      const cc = col(c2), j = 0.92 + rr() * 0.16;
+      cols.push(cc.r * j, cc.g * j, cc.b * j);
+    });
+  }
+  const W = rings.length;
+  for (let i = 0; i < N; i++) for (let k = 0; k + 1 < W; k++) {
+    const p0 = i * W + k, p1 = ((i + 1) % N) * W + k;
+    idx.push(p0, p0 + 1, p1, p1, p0 + 1, p1 + 1);
+  }
+  const bg = new THREE.BufferGeometry();
+  bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  bg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  bg.setIndex(idx);
+  bg.computeVertexNormals();
+  const bank = new THREE.Mesh(bg, paintMat);
   bank.castShadow = false;
+  bank.receiveShadow = true;
   g.add(bank);
-  const w = new THREE.Mesh(new THREE.CircleGeometry(r, 32).rotateX(-Math.PI / 2), waterMat);
-  w.position.y = 0.1;
+  // the water: deeper toward the middle
+  const wp: number[] = [0, 0.14, 0], wd: number[] = [1.6], wi: number[] = [];
+  const fr: [number, number][] = [[0.55, 1.0], [0.88, 0.35], [1.02, -0.06]];
+  for (let i = 0; i < N; i++) {
+    const a = (i / N) * Math.PI * 2, base = R(a);
+    for (const [f, d] of fr) { wp.push(Math.cos(a) * base * f, 0.14, Math.sin(a) * base * f); wd.push(d); }
+  }
+  for (let i = 0; i < N; i++) {
+    const p0 = 1 + i * 3, p1 = 1 + ((i + 1) % N) * 3;
+    wi.push(0, p1, p0);
+    for (let k = 0; k < 2; k++) wi.push(p0 + k, p1 + k, p0 + k + 1, p1 + k, p1 + k + 1, p0 + k + 1);
+  }
+  const wg = new THREE.BufferGeometry();
+  wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
+  wg.setAttribute('aDepth', new THREE.Float32BufferAttribute(wd, 1));
+  wg.setIndex(wi);
+  wg.computeVertexNormals();
+  pondWater ??= waterMaterial('#6f9a84', '#2f5a66');
+  pondWater.userData.shared = true;
+  const w = new THREE.Mesh(wg, pondWater);
   w.receiveShadow = true;
   g.add(w);
+  // reeds at the water's edge, scrub on the bank
+  const reeds: Placement[] = [], scrubs: Placement[] = [];
+  for (let i = 0; i < 22; i++) { const a = rr() * Math.PI * 2, d = R(a) + 0.05 + rr() * 0.5; reeds.push({ x: Math.cos(a) * d, y: 0.16, z: Math.sin(a) * d, s: 1.3 + rr() * 0.9, ry: rr() * 6, tint: 0.8 + rr() * 0.2 }); }
+  for (let i = 0; i < 4; i++) { const a = rr() * Math.PI * 2, d = R(a) + 1.6 + rr() * 0.8; scrubs.push({ x: Math.cos(a) * d, y: 0.2, z: Math.sin(a) * d, s: 0.7 + rr() * 0.5, ry: rr() * 6 }); }
+  g.add(plantField('tuft', reeds, { shadow: false }), plantField('sage', scrubs, { shadow: false }));
   return g;
 }
 
+// cattle: two sculpted cows (standing, grazing), loaded the first time a place has any
+let cowDark: Map<THREE.Material, THREE.Material> | null = null;
+/**
+ * A cow (about 2.3 m long, facing +x). The models load on first use: until then the group is empty. One in three
+ * is a black one (the same model, its hide darkened).
+ */
 export function cow(seed: number) {
   const r = rng(seed);
-  const k = new Kit(r);
-  const hide: Paint = (['#7d5232', '#3b2a24', '#a8703f', '#e9e1d2'] as Paint[])[Math.floor(r() * 4)];
-  for (const [x, z] of [[-0.5, -0.22], [-0.5, 0.22], [0.5, -0.22], [0.5, 0.22]]) k.box(0.14, 0.6, 0.14, '#3b2a24', x, 0, z, { r: 0.03 });
-  k.box(1.5, 0.62, 0.7, hide, 0, 0.55, 0, { r: 0.16 });
-  k.box(0.5, 0.42, 0.42, hide, 0.92, 0.82, 0, { r: 0.1 });
-  k.box(0.18, 0.2, 0.36, '#c58a5a', 1.18, 0.78, 0, { r: 0.05 });
-  if (hide === '#e9e1d2') k.box(0.5, 0.3, 0.71, '#3b2a24', -0.2, 0.75, 0, { r: 0.08 });
-  const m = k.build();
   const g = new THREE.Group();
-  g.add(m);
-  const head = m;
-  const ph = r() * 6;
-  return { obj: g, update(e: Env) { head.rotation.z = Math.max(0, Math.sin(e.t * 0.4 + ph)) * -0.06; } };
+  const kind = r() < 0.55 ? 'cow_b' : 'cow_a';
+  const dark = r() < 0.33, size = 2.15 + r() * 0.35, flip = r() < 0.5;
+  const fill = () => {
+    const m = model(kind, size);
+    // (the models stand along z)
+    m.rotation.y = Math.PI / 2;
+    if (flip) m.scale.z *= -1;
+    if (dark) {
+      cowDark ??= new Map();
+      m.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const src = mesh.material as THREE.MeshStandardMaterial;
+        let d = cowDark!.get(src);
+        if (!d) {
+          const c = src.clone();
+          c.color.setRGB(0.3, 0.27, 0.26);
+          c.onBeforeCompile = src.onBeforeCompile;
+          c.customProgramCacheKey = src.customProgramCacheKey;
+          c.userData.shared = true;
+          cowDark!.set(src, d = c);
+        }
+        mesh.material = d;
+      });
+    }
+    g.add(m);
+  };
+  if (hasModel(kind)) fill();
+  else loadModels([kind]).then(fill).catch(() => {});
+  return { obj: g, update(_e: Env) { void _e; } };
 }

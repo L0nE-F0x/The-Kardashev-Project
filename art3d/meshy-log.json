@@ -1753,5 +1753,59 @@
     "step": "model.done",
     "id": "01a1d670-9632-7621-b5c2-36063fbc0e6d",
     "credits": 30
+  },
+  {
+    "at": "2026-11-13T20:25:43.373Z",
+    "name": "cow_b",
+    "step": "concept",
+    "id": "01a1d696-663a-77fd-81a7-ee7ca065d379",
+    "subject": "A brown Hereford beef cow with a white face, grazing with its head lowered to the ground, standing on four legs, seen from a three-quarter side view"
+  },
+  {
+    "at": "2026-11-13T20:25:43.378Z",
+    "name": "cow_a",
+    "step": "concept",
+    "id": "01a1d696-663b-743b-ab5f-336dfeac6304",
+    "subject": "A brown Hereford beef cow with a white face and white belly, standing square on four legs, head up, calm, seen from a three-quarter side view"
+  },
+  {
+    "at": "2026-11-13T20:26:00.436Z",
+    "name": "cow_b",
+    "step": "concept.done",
+    "id": "01a1d696-663a-77fd-81a7-ee7ca065d379",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-13T20:26:00.472Z",
+    "name": "cow_a",
+    "step": "concept.done",
+    "id": "01a1d696-663b-743b-ab5f-336dfeac6304",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-13T20:26:47.757Z",
+    "name": "cow_a",
+    "step": "model",
+    "id": "01a1d697-5af4-74cc-9d01-6a13f7c70453"
+  },
+  {
+    "at": "2026-11-13T20:26:47.792Z",
+    "name": "cow_b",
+    "step": "model",
+    "id": "01a1d697-5aeb-73bf-b6b3-56ad834bbca6"
+  },
+  {
+    "at": "2026-11-13T20:27:33.037Z",
+    "name": "cow_a",
+    "step": "model.done",
+    "id": "01a1d697-5af4-74cc-9d01-6a13f7c70453",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-13T20:27:38.651Z",
+    "name": "cow_b",
+    "step": "model.done",
+    "id": "01a1d697-5aeb-73bf-b6b3-56ad834bbca6",
+    "credits": 30
   }
 ]
