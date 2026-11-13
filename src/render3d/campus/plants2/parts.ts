@@ -9,7 +9,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { col, glowMat, Kit, lightPool, poolMat, withClouds, type BoxOpts, type Paint } from '../../kit';
 import { Plume, type PlumeOpts } from '../../fx';
 import type { Env } from '../../pieces';
-import { treeField, type Placement, type TreeKind } from '../trees';
+import { treeField, treeGeometry, type Placement, type TreeKind } from '../trees';
 
 export const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -55,6 +55,8 @@ export const riverMat = withClouds(new THREE.MeshStandardMaterial({ color: col('
 /** Glazing with a little sheen (vertex coloured). */
 export const glassMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.15 }));
 const plantMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
+/** For the kinds that bring their own soft normals (shrubs). */
+const plantSmoothMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
 
 /** A red aviation light that blinks (the scene and the lab blink anything with userData.beacon). */
 export function beacon(g: THREE.Object3D, x: number, y: number, z: number, phase = 0) {
@@ -67,7 +69,7 @@ export function beacon(g: THREE.Object3D, x: number, y: number, z: number, phase
 
 /** Trees, rocks, scrub (instanced, from the ground's own kinds). */
 export function plants(kind: TreeKind, at: Placement[]) {
-  const m = treeField(kind, at, plantMat);
+  const m = treeField(kind, at, treeGeometry(kind).userData.smooth ? plantSmoothMat : plantMat);
   m.castShadow = true;
   m.receiveShadow = true;
   return m;

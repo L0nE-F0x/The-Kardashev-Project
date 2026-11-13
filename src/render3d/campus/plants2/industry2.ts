@@ -144,6 +144,11 @@ export function fab(o: PieceOpts): Piece {
   for (const sz of [-1, 1]) for (let y = 1.4; y < 3.8; y += 0.32) k.box(fw - 2, 0.05, 0.08, '#aaa6a0', fx, y, fz + sz * (fd / 2 + 0.04), { r: 0, jitter: 0, shade: 0 });
   const t2 = shed(k, fx, fz - 0.4, fw - 1.6, fd - 2.4, 8.4, { wall: CLEAN, band: ACC, ribs: 2.4, rib: '#d9d6d0', plinth: null, y: t1 - 0.35 });
   k.box(fw - 1.56, 0.16, fd - 2.36, HI, fx, t2 - 1.12, fz - 0.4, { r: 0, shade: 0 });
+  // a ribbon of corridor glazing down each long side of the fab floor (cool white at night: the fab never sleeps)
+  for (const sx of [-1, 1]) {
+    k.box(0.06, 0.9, fd - 7.6, '#4a4f58', fx + sx * ((fw - 1.6) / 2 + 0.01), t1 + 1.25, fz - 0.4, { r: 0, jitter: 0, shade: 0 });
+    for (let z = fz - 0.4 - (fd - 8) / 2; z < fz - 0.4 + (fd - 8) / 2 - 0.5; z += 2.4) cool.box(0.08, 0.7, 2.2, '#86a9b5', fx + sx * ((fw - 1.6) / 2 + 0.03), t1 + 1.35, z + 1.2, { r: 0, jitter: 0.03, shade: 0 });
+  }
   // a mechanical floor band half way up
   k.box(fw - 1.5, 1.0, fd - 2.3, '#c9c6c0', fx, t1 + 3.4, fz - 0.4, { r: 0.04, shade: 0 });
   for (const sz of [-1, 1]) for (let y = t1 + 3.55; y < t1 + 4.35; y += 0.25) k.box(fw - 2.4, 0.04, 0.06, '#9d9993', fx, y, fz - 0.4 + sz * ((fd - 2.3) / 2 + 0.02), { r: 0, jitter: 0, shade: 0 });

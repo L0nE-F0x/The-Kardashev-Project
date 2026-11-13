@@ -318,6 +318,8 @@ const crusher: SetPieceFactory = (o) => {
   g.add(truck.obj);
   const tipX = hx + 1.8 + 2.7;
   lamps(g, k, [[12.6, -9.6], [-5.6, 9.2]], [-1, 0]);
+  // floods on the crusher house over the conveyor's foot and the hopper
+  wallLights(g, [[cx - 1.4, 5.6, cz + 4.0], [cx + 3.25, 6.4, cz - 0.2]], 2.6, 4.2);
   g.add(k.build());
   const pool = poolMat('#ffe2b0', 0.5);
   lightPool(g, 8, PH, -3.6, 5.4, pool);

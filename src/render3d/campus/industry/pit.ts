@@ -405,19 +405,20 @@ export const openPit: SetPieceFactory = (o) => {
   const roadMesh = road.build();
   roadMesh.castShadow = false;
   g.add(roadMesh);
-  // the shovel on the floor, digging the west face. (It stood in the back-left corner, where the haul road comes
-  // down along the back wall: the trucks had no room to turn there and drove through the rock to reach it.)
-  const shx = -15.7, shz = -2.0;
-  const [fx, fz] = P(N - 1 + fOf(0.86 * Math.PI), 0.86 * Math.PI);
+  // the shovel on the floor, digging the north-west face: the one part of the floor's edge the place's first view
+  // sees whole (at the foot of the west face the near benches hid all but the top of its boom), with room east of
+  // it for the trucks to turn where the haul road comes off the back wall
+  const shx = -13.1, shz = -10.5;
+  const [fx, fz] = P(N - 1 + fOf(-0.75 * Math.PI), -0.75 * Math.PI);
   const sh = shovel(o.seed);
   sh.obj.position.set(shx, -HB * N + 0.05, shz);
   const faceYaw = Math.atan2(fx - shx, fz - shz);
   sh.obj.rotation.y = faceYaw;
   g.add(sh.obj);
   const FY = -HB * N + 0.08;
-  // the trucks turn round on a loop in the open north-west of the floor: in along the back wall, round it
-  // anticlockwise past the shovel (the loading spot is where the loop comes nearest to it), out the way they came
-  const LOOP = { x: -10.5, z: -9.4, r: 3.0 };
+  // the trucks turn round on a loop at the foot of the haul road: off the back wall, round it anticlockwise past
+  // the shovel (the loading spot is where the loop comes nearest to it), out the way they came
+  const LOOP = { x: -4.4, z: -8.8, r: 3.0 };
   const loopAt = (deg: number) => new THREE.Vector3(LOOP.x + LOOP.r * Math.sin(deg * RAD), FY, LOOP.z - LOOP.r * Math.cos(deg * RAD));
   const loadDeg = Math.atan2(shx - LOOP.x, -(shz - LOOP.z)) / RAD + 360;
   const loadSpot = loopAt(loadDeg);
@@ -425,11 +426,10 @@ export const openPit: SetPieceFactory = (o) => {
   // down the outer lane → along the back wall → onto the loop → shovel
   const pts: THREE.Vector3[] = [];
   pts.push(loadSpot);
-  for (const deg of [180, 135, 90]) pts.push(loopAt(deg));
-  pts.push(new THREE.Vector3(LOOP.x + 3.0, FY, LOOP.z - 1.0));
-  pts.push(new THREE.Vector3(LOOP.x + 3.6, FY, LOOP.z - 2.4));
-  pts.push(new THREE.Vector3(LOOP.x + 5.0, FY, LOOP.z - 3.0));
-  for (let th = TH_E - 0.02; th <= TH_S + LEAD + 0.001; th += 0.035) pts.push(lanePoint(th, 1));
+  for (const deg of [225, 180, 135, 90]) if (deg < loadDeg - 20) pts.push(loopAt(deg));
+  pts.push(new THREE.Vector3(LOOP.x + 3.2, FY, LOOP.z - 1.5));
+  pts.push(new THREE.Vector3(LOOP.x + 3.8, FY, LOOP.z - 2.8));
+  for (let th = TH_E + 0.12; th <= TH_S + LEAD + 0.001; th += 0.035) pts.push(lanePoint(th, 1));
   pts.push(new THREE.Vector3(bend.x - 1.6, 0.12, bend.z + 1.0));
   pts.push(new THREE.Vector3(padC.x + 3.2, 0.12, padC.z - 2.6));
   pts.push(new THREE.Vector3(padC.x - 0.6, 0.12, padC.z - 3.4));
@@ -439,9 +439,7 @@ export const openPit: SetPieceFactory = (o) => {
   pts.push(new THREE.Vector3(padC.x + 2.6, 0.12, padC.z + 0.4));
   pts.push(new THREE.Vector3(bend.x + 0.8, 0.12, bend.z + 1.6));
   for (let th = TH_S + LEAD; th >= TH_E - 0.02 - 0.001; th -= 0.035) pts.push(lanePoint(th, 0));
-  pts.push(new THREE.Vector3(LOOP.x + 5.6, FY, LOOP.z - 3.15));
-  pts.push(new THREE.Vector3(LOOP.x + 3.0, FY, LOOP.z - 3.0));
-  for (const deg of [360, 315, 270]) pts.push(loopAt(deg));
+  for (const deg of [360, 315, 270]) if (deg > loadDeg + 20) pts.push(loopAt(deg));
   const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
   const M = 900;
   const path = curve.getSpacedPoints(M);
@@ -535,7 +533,7 @@ export const openPit: SetPieceFactory = (o) => {
   const [dx, dz] = P(fOf(thDrill) + (1 - fOf(thDrill)) * 0.5, thDrill);
   const mast = drill(k, dx, -HB, dz, thDrill + Math.PI / 2);
   beacon(g, mast[0], mast[1], mast[2], 0.4);
-  lightTower(g, k, lampK, shx + 4.6, -HB * N, shz + 3.4, Math.atan2(-4.6, -3.4), pool);
+  lightTower(g, k, lampK, shx + 1.5, -HB * N, shz + 5.5, Math.atan2(-1.5, -5.5), pool);
   lightTower(g, k, lampK, padC.x + 4.6, 0.1, padC.z + 3.8, -2.4, pool);
   // the site office, a fuel tank and a pickup in the front-right corner
   k.box(5.2, 2.5, 2.4, '#ece6dc', 29.4, 0.05, 20.6, { r: 0.12 });
