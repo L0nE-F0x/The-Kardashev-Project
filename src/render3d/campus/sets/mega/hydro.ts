@@ -18,8 +18,14 @@ import {
 
 type Win = [number, number, number, number, number, number?][];
 
-/** The scheme is designed on a 62 × 52 footprint and scaled to fit others. */
-const NW = 62, ND = 52;
+/**
+ * The scheme is designed on a 62 × 52 footprint, with BACK more behind it for the massif to come down to the land at
+ * a mountain's slope (on 52 alone its back was a wall), and scaled to fit others. Z0..Z1 = its depth, back to front.
+ */
+const NW = 62, ND = 52, BACK = 12;
+const Z0 = -ND / 2 - BACK, Z1 = ND / 2;
+/** How far inside the footprint's edge a point is. */
+const inside = (x: number, z: number) => Math.min(NW / 2 - Math.abs(x), z - Z0, Z1 - z);
 const TOP = 21, CREST = 19.8, FLOOR = 15.4, UPPER = 18.6, LOWER = -0.6, DAM_Z = -6.2, TOE = 10.6;
 
 interface Shape { bx: number; lx: number; px: number; peaks: [number, number, number][]; seed: number }
@@ -35,10 +41,11 @@ function shapeOf(v: number, seed: number): Shape {
 function heightOf(sh: Shape) {
   const { bx, lx, px } = sh;
   return (x: number, z: number) => {
-    const edge = smooth(0, 5, Math.min(NW / 2 - Math.abs(x), ND / 2 - Math.abs(z)));
+    const edge = smooth(0, 5, inside(x, z));
     // the massif: a plateau with falling flanks, rugged up high, three summits on the rim
+    // (the back falls over half as far again as the flanks: a long ridge running away behind the reservoir)
     const dxo = Math.max(0, Math.abs(x - bx) - 15), dzb = Math.max(0, -18 - z), dzf = Math.max(0, z + 6.5);
-    const d = Math.hypot(dxo, dzb, dzf * 1.08);
+    const d = Math.hypot(dxo, dzb * 0.7, dzf * 1.08);
     const base = TOP * (1 - smooth(0, 13, d));
     let h = base + (fbm(x * 0.09, z * 0.09, sh.seed, 3) - 0.35) * 5 * smooth(3, 16, base);
     for (const [px2, pz, ph] of sh.peaks) h += ph * Math.exp(-((x - px2) ** 2 + (z - pz) ** 2) / 34) * smooth(8, 18, base);
@@ -61,7 +68,7 @@ function heightOf(sh: Shape) {
     if (h <= 0) return h * edge;
     // the foot of the massif wanders in and out (the footprint's straight edge showed as a ruled line under a sheer
     // wall, from behind above all)
-    const foot = Math.min(NW / 2 - Math.abs(x), ND / 2 - Math.abs(z)) - 4.2 * fbm(x * 0.13 + 9, z * 0.13, sh.seed + 11, 2);
+    const foot = inside(x, z) - 4.2 * fbm(x * 0.13 + 9, z * 0.13, sh.seed + 11, 2);
     return h * smooth(0, 5.5, foot);
   };
 }
@@ -78,7 +85,7 @@ const terrainMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexC
  * The mountain's own skin (the real ground sits just under it): meadow at the foot, forest on the
  * lower flanks, alpine meadow, bare rock on the steep faces and the summits, snow on the peaks.
  */
-function mountainMesh(h: (x: number, z: number) => number, backdrop: string | undefined, seed: number) {
+function mountainMesh(h: (x: number, z: number) => number, backdrop: string | undefined, seed: number, sh: Shape, wet: boolean) {
   const bd = (backdrop ?? 'mountain') as Backdrop;
   const ground = BACKDROPS[bd]?.ground ?? BACKDROPS.mountain.ground;
   const green = bd === 'mountain' || bd === 'boreal' || bd === 'temperate' || bd === 'coast' || bd === 'tropical';
@@ -92,7 +99,7 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
   const step = 0.75, inset = 0.6;
   const xs: number[] = [], zs: number[] = [];
   for (let x = -NW / 2 + inset; x <= NW / 2 - inset + 0.01; x += step) xs.push(x);
-  for (let z = -ND / 2 + inset; z <= ND / 2 - inset + 0.01; z += step) zs.push(z);
+  for (let z = Z0 + inset; z <= Z1 - inset + 0.01; z += step) zs.push(z);
   const pos = new Float32Array(xs.length * zs.length * 3), cols = new Float32Array(xs.length * zs.length * 3);
   const c = new THREE.Color();
   let i = 0;
@@ -107,6 +114,10 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
       c.lerp(n2 > 0.5 ? pal.rock : pal.rockD, Math.max(smooth(3.0, 3.8, slope + n * 0.5), smooth(17, 20.5, y + n * 3)));
       if (y > TOE - 1 && y < FLOOR + 0.5 && slope < 0.6) c.lerp(pal.scree, 0.6);
       if (y < LOWER - 0.2) c.lerp(pal.mud, smooth(LOWER - 0.2, LOWER - 1.2, y));
+      // a shingle shore round the lower lake, and the stream's stony bed down the gully
+      const shore = Math.hypot((x - sh.lx) / 21, (z - 15) / 7.5);
+      if (shore > 0.9 && shore < 1.16 && y < 1.2) c.lerp(pal.scree, 0.7 * (1 - Math.abs(shore - 1.03) / 0.13) * (0.7 + n * 0.6));
+      if (wet && z > DAM_Z + 3 && z < 9.6) c.lerp(n2 > 0.5 ? pal.scree : pal.rock, 0.85 * (1 - smooth(1.0, 2.5, Math.abs(x - creekX(sh, z)) + n * 0.6)));
       if (snowy) c.lerp(pal.snow, smooth(23, 25.5, y + n * 3) * (1 - smooth(1.8, 2.6, slope) * 0.5));
       c.multiplyScalar(0.94 + n * 0.12);
       // round the foot the skin dives under the real ground, so the seam follows the contour
@@ -130,6 +141,8 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
   m.receiveShadow = true;
   return m;
 }
+/** Where the stream runs, down the gully from the dam's toe. */
+const creekX = (sh: Shape, z: number) => sh.bx + Math.sin(z * 0.7) * 0.9;
 /** The dam: horizontal lifts along a gentle arch (bulging upstream), stepped on the downstream face. */
 function dam(k: Kit, sh: Shape, top: number, lamps: THREE.Vector3[]) {
   const n = 12, half = 9.6;
@@ -187,8 +200,12 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   root.add(people);
   const anim = new Anim();
   const W = o.w, D = o.d;
-  const s = Math.min(W / NW, D / ND);
+  const s = Math.min(W / NW, D / (ND + BACK));
   g.scale.setScalar(s);
+  // (the scheme's own origin stands BACK / 2 in front of the footprint's centre)
+  const OFF = (BACK / 2) * s;
+  g.position.z = OFF;
+  people.position.z = OFF;
   const v = (o.vseed ?? 0) % 3;
   const sh = shapeOf(v, o.seed);
   const h = heightOf(sh);
@@ -197,7 +214,7 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   const k = new Kit(rng(o.seed));
   const glow: Win = [];
   const lamps: THREE.Vector3[] = [];
-  g.add(mountainMesh(h, o.backdrop, sh.seed));
+  g.add(mountainMesh(h, o.backdrop, sh.seed, sh, p >= 1));
   const put = (x: number, z: number, ry: number, seed: number, kind?: 'worker' | 'engineer', y?: number) => standing(people, x * s, z * s, ry, seed, kind, (y ?? h(x, z)) * s);
   // the reservoirs
   if (p > 0.75) {
@@ -309,10 +326,23 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   // the stream from the stilling basin at the dam's toe down the gully to the lake
   if (p >= 1) {
     const cpts: [number, number][] = [];
-    for (let z = DAM_Z + 5.4; z <= 8.4; z += 0.8) cpts.push([sh.bx + Math.sin(z * 0.7) * 0.9, z]);
-    const creek = new THREE.Mesh(ribbon(cpts, 1.5, h, 0.1), lakeMat);
+    for (let z = DAM_Z + 5.4; z <= 8.4; z += 0.8) cpts.push([creekX(sh, z), z]);
+    const creek = new THREE.Mesh(ribbon(cpts, 1.3, h, 0.1), lakeMat);
     creek.receiveShadow = true;
     g.add(creek);
+    const cr = rng(o.seed + 90);
+    for (let z = DAM_Z + 5.6; z <= 8.8; z += 0.55) {
+      // stones on both banks; a streak of white water every so often where the bed steepens
+      for (const sd of [-1, 1]) {
+        if (cr() < 0.25) continue;
+        const x = creekX(sh, z) + sd * (0.95 + cr() * 0.5), rs = 0.22 + cr() * 0.3;
+        k.geo(new THREE.IcosahedronGeometry(rs, 0).scale(1, 0.7, 1).rotateY(cr() * 6).translate(x, h(x, z) + rs * 0.25, z), cr() < 0.5 ? '#9a8f88' : '#b3a596', 0.06);
+      }
+      if (cr() < 0.4) {
+        const x = creekX(sh, z);
+        k.box(0.7 + cr() * 0.4, 0.05, 0.3, '#e8f3f0', x, h(x, z) + 0.13, z, { r: 0, jitter: 0.02, shade: 0, ry: cr() - 0.5 });
+      }
+    }
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.2).rotateX(-Math.PI / 2), lakeMat);
     pool.position.set(sh.bx, TOE + 0.12, DAM_Z + 4.6);
     g.add(pool);
@@ -327,7 +357,7 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   const trees: { x: number; y: number; z: number; s: number; ry: number; tint: number }[] = [];
   const rocks: typeof trees = [];
   for (let i = 0; i < 1100; i++) {
-    const x = (r() - 0.5) * (NW - 4), z = (r() - 0.5) * (ND - 4);
+    const x = (r() - 0.5) * (NW - 4), z = Z0 + 2 + r() * (Z1 - Z0 - 4);
     const y = h(x, z);
     if (y < 1.2) continue;
     if (Math.abs(x - sh.bx) < 9.5 && z > -10.5 && z < 8) continue;
@@ -337,7 +367,7 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
     const u = Math.max(0, Math.min(1, t / L2));
     if (Math.hypot(x - (top.x + (bot.x - top.x) * u) - 1.2, z - (top.z + (bot.z - top.z) * u)) < 4) continue;
     if (Math.abs(x - (sh.px + 3)) < 11 && Math.abs(z - 4.6) < 4.5) continue;
-    if (y < 13.5 && trees.length < 340) trees.push({ x, y: y - 0.1, z, s: (conifer ? 0.85 : 0.6) + r() * 0.5, ry: r() * 6.28, tint: 0.85 + r() * 0.3 });
+    if (y < 13.5 && trees.length < 420) trees.push({ x, y: y - 0.1, z, s: (conifer ? 0.85 : 0.6) + r() * 0.5, ry: r() * 6.28, tint: 0.85 + r() * 0.3 });
     else if (y > 12 && rocks.length < 40) rocks.push({ x, y: y - 0.3, z, s: 0.3 + r() * 0.45, ry: r() * 6.28, tint: 0.85 + r() * 0.3 });
   }
   const kind: TreeKind = conifer ? 'pine' : 'shrub';
@@ -393,7 +423,11 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   windows(g, glow);
   return {
     obj: root, w: W, d: D, h: (CREST + 12) * s, update: anim.update,
-    ground: (x, z) => (Math.abs(x) <= W / 2 && Math.abs(z) <= D / 2 ? (h(x / s, z / s) - dipAt(h(x / s, z / s))) * s : null),
+    ground: (x, z) => {
+      if (Math.abs(x) > W / 2 || Math.abs(z) > D / 2) return null;
+      const y = h(x / s, (z - OFF) / s);
+      return (y - dipAt(y)) * s;
+    },
   };
 }
 
