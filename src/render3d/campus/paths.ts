@@ -11,7 +11,8 @@
 export interface Rect { x0: number; z0: number; x1: number; z1: number }
 export interface P2 { x: number; z: number }
 /** A door: the spot just outside it, and the way out (unit normal). */
-export interface Door { x: number; z: number; nx: number; nz: number }
+/** A way in: where one stands on the step, which way the door faces, and (once the scene has found the wall) how far in to walk to be through it. */
+export interface Door { x: number; z: number; nx: number; nz: number; in?: number }
 /** A parked car's bay: its centre, its heading (rotation about y), its length and width. */
 export interface Bay { x: number; z: number; ry: number; len: number; wid: number }
 

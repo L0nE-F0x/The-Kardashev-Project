@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { col, fbm, mix, noise, rng, smooth, withClouds, withGrain, type Paint } from '../kit';
 import type { Rect } from './layout';
-import { treeField, type Placement, type TreeKind } from './trees';
+import { plantField, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { grassColours, grassMaterial, sharedClump } from './grass';
 import { inField, planFields, type Field } from './fields';
@@ -29,7 +29,7 @@ interface BackdropDef {
   water: number | null;
   /** Where the sea is (coast): z beyond this goes under (negative = behind the campus). */
   seaZ?: number;
-  plants: { kind: TreeKind | 'mesquite' | 'oak'; n: number; s: [number, number]; near?: boolean; cluster?: number }[];
+  plants: { kind: TreeKind; n: number; s: [number, number]; near?: boolean; cluster?: number }[];
   /** Strata colours for mesa and cliff sides (bottom → top). */
   strata?: Paint[];
 }
@@ -38,12 +38,12 @@ export const BACKDROPS: Record<Backdrop, BackdropDef> = {
   plains: {
     ground: ['#c9a861', '#a9a556', '#b9784a'], rock: '#a8703f', snowLine: null, relief: 2.4, far: 'mesas', farH: 0.5, water: null,
     strata: ['#9c4f34', '#b5623c', '#e3c891', '#c08850', '#a8703f', '#d4a862'],
-    plants: [{ kind: 'mesquite', n: 120, s: [0.7, 1.3], near: true, cluster: 4 }, { kind: 'shrub', n: 1600, s: [0.6, 1.4] }, { kind: 'tuft', n: 1400, s: [0.8, 1.4] }, { kind: 'rock', n: 260, s: [0.4, 1.2] }, { kind: 'acacia', n: 220, s: [0.9, 1.4] }],
+    plants: [{ kind: 'mesquite', n: 120, s: [0.9, 1.5], near: true, cluster: 4 }, { kind: 'sage', n: 1600, s: [0.6, 1.4] }, { kind: 'tuft', n: 1400, s: [0.8, 1.4] }, { kind: 'rock', n: 260, s: [0.4, 1.2] }, { kind: 'acacia', n: 220, s: [0.9, 1.4] }],
   },
   desert: {
     ground: ['#e0bf82', '#d8b070', '#c9925a'], rock: '#b5623c', snowLine: null, relief: 3, far: 'mesas', water: null,
     strata: ['#8c4a3a', '#b5623c', '#d9925a', '#e9c48a', '#c08850', '#e0b070'],
-    plants: [{ kind: 'saguaro', n: 220, s: [0.8, 1.5] }, { kind: 'barrel', n: 260, s: [0.7, 1.3] }, { kind: 'shrub', n: 500, s: [0.4, 0.9] }, { kind: 'rock', n: 500, s: [0.5, 1.6] }, { kind: 'boulder', n: 90, s: [0.6, 1.8] }],
+    plants: [{ kind: 'saguaro', n: 220, s: [0.8, 1.5] }, { kind: 'barrel', n: 260, s: [0.7, 1.3] }, { kind: 'sage', n: 500, s: [0.5, 1.0] }, { kind: 'rock', n: 500, s: [0.5, 1.6] }, { kind: 'boulder', n: 90, s: [0.6, 1.8] }],
   },
   coast: {
     ground: ['#6f8f45', '#93a052', '#a88a52'], rock: '#9a8574', snowLine: null, relief: 4, far: 'hills', water: -1.2, seaZ: -150,
@@ -67,11 +67,11 @@ export const BACKDROPS: Record<Backdrop, BackdropDef> = {
   },
   savanna: {
     ground: ['#c9a454', '#b0a05a', '#b9784a'], rock: '#9a7a5a', snowLine: null, relief: 2, far: 'hills', water: null,
-    plants: [{ kind: 'mesquite', n: 90, s: [0.9, 1.4], near: true }, { kind: 'acacia', n: 500, s: [1.1, 1.8] }, { kind: 'tuft', n: 2400, s: [0.9, 1.6] }, { kind: 'shrub', n: 500, s: [0.5, 1.1] }, { kind: 'boulder', n: 70, s: [0.8, 2.2] }],
+    plants: [{ kind: 'mesquite', n: 90, s: [1.0, 1.6], near: true }, { kind: 'acacia', n: 500, s: [1.2, 2.0] }, { kind: 'tuft', n: 2400, s: [0.9, 1.6] }, { kind: 'sage', n: 500, s: [0.6, 1.2] }, { kind: 'boulder', n: 70, s: [0.8, 2.2] }],
   },
   volcanic: {
     ground: ['#7a8a50', '#5f6a4c', '#4a4244'], rock: '#4a4044', snowLine: 110, relief: 4, far: 'volcano', water: -2,
-    plants: [{ kind: 'shrub', n: 900, s: [0.4, 1.0] }, { kind: 'tuft', n: 900, s: [0.8, 1.2] }, { kind: 'rock', n: 900, s: [0.6, 1.8] }, { kind: 'boulder', n: 200, s: [0.6, 1.8] }],
+    plants: [{ kind: 'sage', n: 900, s: [0.5, 1.1] }, { kind: 'tuft', n: 900, s: [0.8, 1.2] }, { kind: 'rock', n: 900, s: [0.6, 1.8] }, { kind: 'boulder', n: 200, s: [0.6, 1.8] }],
   },
   lunar: {
     ground: ['#a19c9f', '#8d898c', '#7b7680'], rock: '#66575a', snowLine: null, relief: 3, far: 'flat', water: null,
@@ -132,13 +132,17 @@ export interface GroundOpts {
 
 /** Kinds with a Meshy model for the near ring: how many of them near the campus at most (full detail), how near. */
 const NEAR_MODEL: Partial<Record<TreeKind, { cap: number; r: number }>> = {
-  rock: { cap: 260, r: 170 }, boulder: { cap: 90, r: 220 }, shrub: { cap: 240, r: 150 }, broadleaf: { cap: 170, r: 200 }, pine: { cap: 240, r: 210 },
+  rock: { cap: 260, r: 170 }, boulder: { cap: 90, r: 220 },
 };
+/** The kinds tall enough to stand in a camera's way. */
+const TALL = new Set<TreeKind>(['pine', 'broadleaf', 'oak', 'birch', 'palm', 'acacia', 'mesquite', 'blob']);
+/** How far out from the campus's ground the trees are the full ones (leaf sprays and limbs); beyond, the plain ones. */
+const NEAR_R = 210;
 
 /** How far out from the campus centre plants cast shadows (the sun's shadow map covers about this much). */
 const SHADOW_R = 240;
 
-export type GroundModels = Partial<Record<'mesquite' | 'oak' | TreeKind, (at: Placement[]) => THREE.Object3D | null>>;
+export type GroundModels = Partial<Record<TreeKind, (at: Placement[]) => THREE.Object3D | null>>;
 
 export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const def = BACKDROPS[o.backdrop];
@@ -314,7 +318,7 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
   const plants = new THREE.Group();
   const r = rng(s + 50);
   const clear = o.clear ?? o.flat;
-  const okAt = (x: number, z: number, near: boolean) => {
+  const okAt = (x: number, z: number, near: boolean, tall: boolean) => {
     if (distToRect(x, z, clear) < 3) return false;
     for (const f of fields) if (inField(f, x, z, 2.5)) return false;
     for (const rd of o.roads) if (segDist(x, z, rd.a, rd.b) < rd.w / 2 + 2) return false;
@@ -322,15 +326,19 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
     if (water !== null && y < water + 0.6) return false;
     if (def.snowLine !== null && y > def.snowLine) return false;
     if (near && Math.hypot(x - centre.x, z - centre.z) > 220) return false;
+    // trees keep out of the meadow in front of the campus (south of the highway): the low views of the campus
+    // are taken from there, and a trunk a few metres from the lens hides everything
+    if (tall && o.roads.length && x > clear.x0 - 20 && x < clear.x1 + 20 && z > clear.z1 - 2 && z < clear.z1 + 46) return false;
     return true;
   };
   const tintR = () => 0.85 + r() * 0.3;
+  const dryLand = o.backdrop === 'plains' || o.backdrop === 'savanna' || o.backdrop === 'volcanic';
   const carpet: BackdropDef['plants'] = o.backdrop === 'lunar' ? [] : o.backdrop === 'desert'
-    ? [{ kind: 'shrub', n: 320, s: [0.35, 0.8] }, { kind: 'rock', n: 220, s: [0.25, 0.8] }]
-    : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: 'shrub', n: 220, s: [0.45, 1.1] }, { kind: 'rock', n: 55, s: [0.5, 1.0] }];
+    ? [{ kind: 'sage', n: 320, s: [0.45, 0.9] }, { kind: 'rock', n: 220, s: [0.25, 0.8] }]
+    : [{ kind: 'tuft', n: 4200, s: [0.7, 1.4] }, { kind: dryLand ? 'sage' : 'shrub', n: 220, s: [0.55, 1.2] }, { kind: 'rock', n: 55, s: [0.5, 1.0] }];
   for (const p of [...def.plants, ...carpet.map((c) => ({ ...c, carpet: true }))] as (BackdropDef['plants'][number] & { carpet?: boolean })[]) {
     const at: Placement[] = [];
-    const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' ? 320 : 700;
+    const radius = p.carpet ? 150 : p.near ? 200 : p.kind === 'tuft' || p.kind === 'shrub' || p.kind === 'sage' ? 320 : 700;
     const centres: [number, number][] = [];
     if (p.cluster) for (let i = 0; i < p.n / p.cluster; i++) centres.push([centre.x + (r() - 0.5) * radius * 2, centre.z + (r() - 0.5) * radius * 2]);
     const want = Math.round(p.n * quality.plants);
@@ -346,24 +354,19 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
         x = centre.x + Math.cos(a) * d;
         z = centre.z + Math.sin(a) * d * 0.9;
       }
-      if (!okAt(x, z, !!p.near)) continue;
+      if (!okAt(x, z, !!p.near, TALL.has(p.kind))) continue;
       at.push({ x, y: surface(x, z) - 0.05, z, s: p.s[0] + r() * (p.s[1] - p.s[0]), ry: r() * Math.PI * 2, tint: tintR() });
     }
-    if (p.kind === 'mesquite' || p.kind === 'oak') {
-      const obj = models[p.kind]?.(at);
-      if (obj) plants.add(obj);
-      continue;
-    }
-    // the nearest few as Meshy models, the rest code-built
-    const nm = NEAR_MODEL[p.kind as TreeKind];
-    const make = models[p.kind as TreeKind];
+    // rocks: the nearest few as the sculpted models, the rest code-built
+    const nm = NEAR_MODEL[p.kind];
+    const make = models[p.kind];
     if (nm && make && quality.plants >= 0.5) {
       const near: Placement[] = [], far: Placement[] = [];
       const cap = Math.round(nm.cap * quality.plants);
       for (const a of at) (near.length < cap && Math.hypot(a.x - centre.x, a.z - centre.z) < nm.r ? near : far).push(a);
       const obj = near.length ? make(near) : null;
       if (obj) {
-        if (p.kind === 'rock' || p.kind === 'shrub') obj.traverse((c) => { c.castShadow = false; });
+        if (p.kind === 'rock') obj.traverse((c) => { c.castShadow = false; });
         plants.add(obj);
         at.length = 0;
         at.push(...far);
@@ -388,14 +391,24 @@ export function buildGround(o: GroundOpts, models: GroundModels = {}): Ground {
       plants.add(im);
       continue;
     }
-    // ground cover's shadows are too small to see, but thousands of them fill the shadow pass; and only plants
-    // near the campus can cast into the shadow map at all (it covers the campus), so the far ones don't try
-    const quiet = p.kind === 'rock' || (p.kind === 'shrub' && p.carpet);
-    const nearAt = quiet ? [] : at.filter((a) => Math.hypot(a.x - centre.x, a.z - centre.z) < SHADOW_R);
-    const farAt = quiet ? at : at.filter((a) => Math.hypot(a.x - centre.x, a.z - centre.z) >= SHADOW_R);
-    const mat = p.kind === 'shrub' ? plantMatSmooth : plantMat;
-    if (nearAt.length) plants.add(treeField(p.kind, nearAt, mat));
-    if (farAt.length) { const f = treeField(p.kind, farAt, mat); f.castShadow = false; plants.add(f); }
+    // the full trees near the campus (leaf sprays, limbs, a little sway), the plain ones for the far land; only
+    // plants near the campus can cast into the shadow map at all (it covers the campus), and ground cover's
+    // shadows are too small to see while thousands of them fill the shadow pass
+    const stone = p.kind === 'rock' || p.kind === 'boulder';
+    const cover = p.kind === 'shrub' || p.kind === 'sage' || p.kind === 'barrel';
+    const reach = quality.plants < 0.5 || stone ? 0 : (cover ? 120 : NEAR_R) * Math.min(1, 0.6 + quality.plants * 0.4);
+    const dist = (a: Placement) => distToRect(a.x, a.z, o.flat);
+    at.sort((a, c) => dist(a) - dist(c));
+    const capN = Math.round((cover ? (p.carpet ? 200 : 300) : 420) * quality.plants);
+    const nearAt: Placement[] = [], farAt: Placement[] = [];
+    for (const a of at) (nearAt.length < capN && dist(a) < reach ? nearAt : farAt).push(a);
+    if (nearAt.length) plants.add(plantField(p.kind, nearAt, { shadow: !(cover && p.carpet) }));
+    if (stone) {
+      const sh = p.kind === 'boulder' ? farAt.filter((a) => Math.hypot(a.x - centre.x, a.z - centre.z) < SHADOW_R) : [];
+      if (sh.length) plants.add(plantField(p.kind, sh));
+      const rest = p.kind === 'boulder' ? farAt.filter((a) => Math.hypot(a.x - centre.x, a.z - centre.z) >= SHADOW_R) : farAt;
+      if (rest.length) plants.add(plantField(p.kind, rest, { shadow: false }));
+    } else if (farAt.length) plants.add(plantField(p.kind, farAt, { far: true, shadow: false }));
   }
   return { mesh, water: waterMesh, plants, h: surface, tint, def, fields };
 }
@@ -493,7 +506,6 @@ function withRock<M extends THREE.MeshStandardMaterial>(m: M): M {
 }
 
 const groundMat = withRock(withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }))));
-const plantMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
 /** Bushes shade smooth (their normals are rounded off in trees.ts). */
 export const plantMatSmooth = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92 }));
 plantMatSmooth.userData.shared = true;

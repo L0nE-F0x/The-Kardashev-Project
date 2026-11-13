@@ -56,7 +56,7 @@ const look: Look = { ...defaultLook(), ao: true, tone: 'filmic', contrast: 0.12,
 let t = 0;
 
 async function show(o: LabOpts = {}) {
-  await loadModels(['garage', 'lab', 'gasplant', 'substation', 'watertower', 'mesquite', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...PEOPLE]);
+  await loadModels(['garage', 'lab', 'gasplant', 'substation', 'watertower', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...PEOPLE]);
   if (scope) closeScope(scope);
   scope = openScope();
   post?.dispose();

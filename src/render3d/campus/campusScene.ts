@@ -17,7 +17,7 @@ import { MAX_EXTRA_SLOTS } from '../../sim/model';
 import type { AdvisorId, Facility, GameState } from '../../sim/types';
 import { subsolar } from '../../world/sun';
 import { dir } from '../globe/earth';
-import { closeScope, disposeObject, fbm, Kit, openScope, rng, noise, smooth, withClouds, withGrain } from '../kit';
+import { closeScope, disposeObject, fbm, Kit, mix, openScope, rng, noise, smooth, withClouds, withGrain } from '../kit';
 import { deckHeight, hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
   blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
@@ -26,9 +26,9 @@ import {
 import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
-import { BACKDROPS, buildGround, plantMatSmooth, type Backdrop, type Ground, type GroundModels } from './ground';
+import { BACKDROPS, buildGround, type Backdrop, type Ground, type GroundModels } from './ground';
 import { habFloor, habitatShell, HAB_R } from './habitatShell';
-import { treeField, type Placement, type TreeKind } from './trees';
+import { plantField, treeUniforms, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
 import { act3Key } from './plan';
@@ -37,11 +37,11 @@ import { atmo, LampField } from '../atmosphere';
 import { Precip } from './weather';
 import { Crowd, makeBit, settleCars } from './life';
 import { Traffic } from './vehicles';
-import { cornerMesh, discMesh, paintMesh, roadMesh } from './roads';
+import { bulbAt, bulbHalf, bulbMesh, cornerMesh, paintMesh, roadMesh, type Bulb } from './roads';
 import { GrassPatch, grassColours, grassMaterial, sharedClump } from './grass';
 import { fieldMesh, hedgePoints, inField } from './fields';
 import { CampusPeople, shapeOf, type CarObj } from './people';
-import { FENCED, placeKind, placeOf, sitePlan, type Place, type Rect as WRect } from './paths';
+import { FENCED, placeKind, placeOf, sitePlan, type Door, type Place, type Rect as WRect } from './paths';
 import { deskHolder } from '../../sim/systemView';
 import { sfx } from '../../audio/sfx';
 
@@ -298,10 +298,6 @@ export class CampusScene implements Scene3D {
     const far = maxCols ? cellRect(maxCols, maxCols * 2 - 1) : this.layout.bounds;
     const flat: Rect = { x0: this.layout.bounds.x0, z0: this.layout.bounds.z0, x1: Math.max(this.layout.bounds.x1, far.x1 + 10), z1: this.layout.bounds.z1 };
     const seed = hashStr(this.siteId);
-    const mesq = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('mesquite'); return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, 1.25) })), p.size, at, 6.5) : null; };
-    // the leafy broadleaf (it reads as a real tree beside the figures) stands in for the old chunky oak; foliage
-    // models are lifted a little (their crowns shade themselves nearly black under the filmic curve otherwise)
-    const oak = (at: { x: number; y: number; z: number; s: number; ry: number }[]) => { const p = sceneryParts('broadleaf_a') ?? modelParts('oak'); return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, 1.5) })), p.size, at.map((a) => ({ ...a, s: a.s * 1.1, y: a.y - 0.1 })), 6.2) : null; };
     const roadless = this.scenery !== 'campus' && this.scenery !== 'geneva' && this.scenery !== 'launch' && this.scenery !== 'mega';
     const ex = this.sceneExtra as { km?: number; type?: string; place?: string; swarm?: number; habitats?: number; lived?: number };
     if (this.scenery === 'space') {
@@ -326,7 +322,7 @@ export class CampusScene implements Scene3D {
         const p = sceneryParts(n);
         return p ? instanced(p.parts.map((q) => ({ ...q, mat: sceneryMat(q.mat, light, offEarth) })), p.size, at.map((a) => ({ ...a, y: a.y - 0.08 * a.s })), w) : null;
       };
-      this.groundModels = { mesquite: mesq, oak, rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1), broadleaf: meshy('broadleaf_a', 4.6, 1.5), pine: meshy('pine_a', 2.5, 1.3) };
+      this.groundModels = { rock: meshy('rock_a', 1.6, 2.3), boulder: meshy('boulder_a', 3.0, 1.1) };
       if (this.scenery === 'campus' || this.scenery === 'mega') this.groundOpts.farms = { highwayZ: HIGHWAY_Z };
       this.ground = buildGround(this.groundOpts, this.groundModels);
       if (this.scenery === 'asteroid') tintAsteroid(this.ground.mesh, ex.type ?? 'C');
@@ -360,6 +356,7 @@ export class CampusScene implements Scene3D {
     // far enough from the equator, clear nights bring the aurora
     const polar = Math.abs(this.site.lat);
     this.sky = new CampusSky(this.scene, weather, skyMode, { place: ex.place, swarm: ex.swarm, habitats: ex.habitats, aurora: offWorld ? 0 : THREE.MathUtils.smoothstep(polar, 50, 62), still: this.game.settings.reducedMotion });
+    treeUniforms.uTreeSway.value = this.game.settings.reducedMotion ? 0 : 1;
     this.precip = new Precip(weather, seed);
     this.scene.add(this.precip.obj);
     const reach = Math.max(150, (this.layout.bounds.x1 - this.layout.bounds.x0) * 0.6, (this.layout.bounds.z1 - this.layout.bounds.z0) * 0.6);
@@ -384,7 +381,8 @@ export class CampusScene implements Scene3D {
 
   // ── the walk map's places ─────────────────────────────────────────────────────────────────
   /** Everything people walk round and go into, as places (world coordinates), and the cars in their bays. */
-  private placesNow(): { places: Place[]; cars: CarObj[]; extra: WRect[] } {
+  private placesNow(): { places: Place[]; cars: CarObj[]; extra: WRect[]; roots: Map<string, THREE.Object3D> } {
+    const roots = new Map<string, THREE.Object3D>();
     const places: Place[] = [];
     const cars: CarObj[] = [];
     const extra: WRect[] = [];
@@ -401,6 +399,7 @@ export class CampusScene implements Scene3D {
         };
       }
       places.push(p);
+      roots.set(id, root);
       for (const c of cs) cars.push({ ...c, place: id });
     };
     for (const e of this.entries.values()) {
@@ -419,7 +418,92 @@ export class CampusScene implements Scene3D {
     // the substation where the grid comes in (and its yard)
     const s = this.layout.substation;
     extra.push({ x0: s.x - 8, z0: s.z - 8, x1: s.x + 8, z1: s.z + 8 });
-    return { places, cars, extra };
+    for (const t of this.streetTrees) extra.push({ x0: t.x - 0.45, z0: t.z - 0.45, x1: t.x + 0.45, z1: t.z + 0.45 });
+    for (const t of this.posts) extra.push({ x0: t.x - 0.22, z0: t.z - 0.22, x1: t.x + 0.22, z1: t.z + 0.22 });
+    return { places, cars, extra, roots };
+  }
+
+  // ── doors ─────────────────────────────────────────────────────────────────────────────────
+  /**
+   * The doors people use open for them. A piece paints its door on its wall; here each one in use gets a leaf of
+   * the wall's own colour over a dark doorway, set on the wall behind the step (found by a ray from the step). The
+   * leaf is only there while it moves: it swings out as someone comes up, they walk through into the dark, it
+   * closes behind them. Without it people walked into a shut door and were gone.
+   */
+  private doorways = new THREE.Group();
+  private doors: { door: Door; pivot: THREE.Object3D; hole: THREE.Object3D; open: number }[] = [];
+  private buildDoorways(places: Place[], roots: Map<string, THREE.Object3D>) {
+    for (const c of [...this.doorways.children]) {
+      this.doorways.remove(c);
+      c.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | undefined; if (m && !m.userData.shared) m.dispose(); });
+    }
+    this.doors = [];
+    if (!this.doorways.parent) this.scene.add(this.doorways);
+    const from = new THREE.Vector3(), dir = new THREE.Vector3(), n = new THREE.Vector3();
+    const W = 0.95, H = 2.05;
+    doorLeaf ??= new THREE.BoxGeometry(W, H, 0.05).translate(W / 2, H / 2, 0);
+    doorHole ??= new THREE.PlaneGeometry(W, H).translate(0, H / 2, 0);
+    doorLeaf.userData.shared = doorHole.userData.shared = true;
+    doorDark ??= new THREE.MeshBasicMaterial({ color: 0x0c0d11 });
+    doorDark.userData.shared = true;
+    for (const p of places) {
+      const root = roots.get(p.id);
+      if (!root || p.site) continue;
+      root.updateMatrixWorld(true);
+      const targets: THREE.Object3D[] = [];
+      root.traverse((o) => {
+        if (!(o as THREE.Mesh).isMesh || (o as THREE.InstancedMesh).isInstancedMesh) return;
+        // (not the cars in its car park, nor anything hidden)
+        for (let q: THREE.Object3D | null = o; q && q !== root; q = q.parent) if (q.userData.bay || !q.visible) return;
+        targets.push(o);
+      });
+      for (const d of p.doors) {
+        const y0 = this.walkH(d.x, d.z);
+        // the wall behind the step: the nearest face that looks back at the step, at chest height (else at the knee)
+        let hit: THREE.Intersection | null = null;
+        for (const hgt of [1.25, 0.6]) {
+          from.set(d.x + d.nx * 0.5, y0 + hgt, d.z + d.nz * 0.5);
+          dir.set(-d.nx, 0, -d.nz);
+          this.ray.set(from, dir);
+          this.ray.far = 4.5;
+          for (const h of this.ray.intersectObjects(targets, false)) {
+            if (!h.face) continue;
+            n.copy(h.face.normal).transformDirection(h.object.matrixWorld);
+            if (n.x * d.nx + n.z * d.nz > 0.7) { hit = h; break; }
+          }
+          if (hit) break;
+        }
+        this.ray.far = Infinity;
+        if (!hit) continue;
+        const back = hit.distance - 0.5;
+        // how far in to walk to be through the doorway and out of sight
+        d.in = Math.max(0.55, back + 0.5);
+        const g = new THREE.Group();
+        g.position.set(d.x - d.nx * back, y0, d.z - d.nz * back);
+        g.rotation.y = Math.atan2(d.nx, d.nz);
+        const hole = new THREE.Mesh(doorHole, doorDark);
+        hole.position.z = 0.02;
+        const pivot = new THREE.Group();
+        pivot.position.set(-W / 2, 0, 0.035);
+        const leaf = new THREE.Mesh(doorLeaf, new THREE.MeshStandardMaterial({ color: surfaceColour(hit), roughness: 0.8 }));
+        leaf.castShadow = false;
+        pivot.add(leaf);
+        g.add(hole, pivot);
+        g.visible = false;
+        this.doorways.add(g);
+        this.doors.push({ door: d, pivot, hole: g, open: 0 });
+      }
+    }
+  }
+  private swingDoors(dt: number) {
+    for (const d of this.doors) {
+      const want = this.people?.doorBusy(d.door) ? 1 : 0;
+      if (!want && d.open === 0) continue;
+      d.open += (want - d.open) * Math.min(1, dt * (want ? 9 : 4.5));
+      if (!want && d.open < 0.01) d.open = 0;
+      d.pivot.rotation.y = -d.open * 1.85;
+      d.hole.visible = d.open > 0;
+    }
   }
 
   /** Tell the people about the places (when something is built, finished, upgraded or knocked down). */
@@ -429,7 +513,8 @@ export class CampusScene implements Scene3D {
     const key = [L.cols, ...[...this.entries.values()].map((e) => `${e.f.id}${e.rectKey}${e.site ? 'b' : ''}`), ...[...this.rivals.keys()], this.setPieces.length].join('|');
     if (!force && key === this.peopleKey) return;
     this.peopleKey = key;
-    const { places, cars, extra } = this.placesNow();
+    const { places, cars, extra, roots } = this.placesNow();
+    this.buildDoorways(places, roots);
     const east = this.eastEnd(L);
     this.people.setPlaces(L.bounds, { frontZ: FRONT_Z, accessX: L.accessX, highwayZ: HIGHWAY_Z, east: east + 6, laneZ: this.viewOnly ? null : -PD - 4, accessNorth: -PD - 4 }, places, cars, extra, this.localHour());
   }
@@ -648,16 +733,16 @@ export class CampusScene implements Scene3D {
         }
       }
     }
-    const meshyTree = conifer ? 'pine_a' : 'broadleaf_a';
-    const tm = sceneryParts(meshyTree);
-    if (tm && trees.length) g.add(instanced(tm.parts, tm.size, trees, conifer ? 2.5 : 4.6));
-    if (bushes.length) { const t = treeField('shrub', bushes.map((b) => ({ ...b, s: b.s * 1.25 })), plantMatSmooth); t.castShadow = false; g.add(t); }
-    if (farTrees.length) { const t = treeField(conifer ? 'pine' : 'broadleaf', farTrees, plantMat3); t.castShadow = false; g.add(t); }
-    if (farBushes.length) { const t = treeField('shrub', farBushes, plantMatSmooth); t.castShadow = false; g.add(t); }
+    // (near the campus the full trees and bushes; further out the plain ones)
+    const tree: TreeKind = conifer ? 'pine' : 'broadleaf';
+    const bush: TreeKind = bd === 'plains' || bd === 'savanna' || bd === 'desert' || bd === 'volcanic' ? 'sage' : 'shrub';
+    if (trees.length) g.add(plantField(tree, trees.map((t) => ({ ...t, s: t.s * (conifer ? 1.5 : 1.35) }))));
+    if (bushes.length) g.add(plantField(bush, bushes.map((b) => ({ ...b, s: b.s * 1.25 })), { shadow: false }));
+    if (farTrees.length) g.add(plantField(tree, farTrees.map((t) => ({ ...t, s: t.s * (conifer ? 1.5 : 1.35) })), { far: true, shadow: false }));
+    if (farBushes.length) g.add(plantField(bush, farBushes, { far: true, shadow: false }));
     if (orchard.length) {
-      const t = treeField(bd === 'tropical' ? 'palm' : 'blob', orchard as Placement[], plantMat3);
-      if (Math.hypot(orchard[0].x - cx, orchard[0].z - cz) > 230) t.castShadow = false;
-      g.add(t);
+      const away = Math.hypot(orchard[0].x - cx, orchard[0].z - cz) > 230;
+      g.add(plantField(bd === 'tropical' ? 'palm' : 'blob', orchard as Placement[], { far: away || quality.plants < 0.5, shadow: !away }));
     }
     this.scene.add(g);
   }
@@ -673,7 +758,8 @@ export class CampusScene implements Scene3D {
       if (Math.abs(z - HIGHWAY_Z) < 5.6) return false;
       if (x > ax - 3.5 && x < ax + 4.6 && z > BACK - 2 && z < HIGHWAY_Z) return false;
       if (z > FRONT_Z - 4.6 && z < FRONT_Z + 3.4 && x > ax && x < east) return false;
-      if ((x - east) ** 2 + (z - FRONT_Z) ** 2 < 49) return false;
+      const bulb = this.bulb;
+      if (bulb && x > bulb.throat - 1 && Math.abs(z - FRONT_Z) < bulbHalf(bulb, x) + 0.6) return false;
       for (const l of lanes) if (Math.abs(z - l.z) < 1.9 && x > ax && x < l.x1) return false;
       if (Math.abs(x - L.substation.x) < 8.5 && Math.abs(z - L.substation.z) < 8.5) return false;
     }
@@ -702,9 +788,55 @@ export class CampusScene implements Scene3D {
     const accA: [number, number] = [ax, HZ - HW / 2 + 0.2], accB: [number, number] = [ax, BACK - 1.6];
     const jt = accA[1] - FZ;
     this.roads.add(roadMesh({ kind: 'street', a: accA, b: accB, w: SW, breaks: [[jt - SW / 2 - R, jt + SW / 2 + R, 'r'], [jt - SW / 2, jt + SW / 2, 'c'], [accA[1] - BACK - 2, 999, 'all']] }, h));
-    // the frontage road along the plots, ending in a turning circle
-    this.roads.add(roadMesh({ kind: 'street', a: [ax + SW / 2 - 0.2, FZ], b: [east, FZ], w: SW, breaks: [[0, 1.2, 'all']] }, h));
-    this.roads.add(discMesh('street', [east, FZ], 6.5, h));
+    // the frontage road along the plots, ending in a turning circle: the road flares into a round head with a
+    // planted island in its middle, its edge line carried all the way round, a barrier where the road will go on
+    // when the campus grows (the centre line stops short of the flare)
+    const bulb = bulbAt(east - 5.5, FZ, SW / 2);
+    this.bulb = bulb;
+    const frontLen = bulb.throat + 0.3 - (ax + SW / 2 - 0.2);
+    this.roads.add(roadMesh({ kind: 'street', a: [ax + SW / 2 - 0.2, FZ], b: [bulb.throat + 0.3, FZ], w: SW, breaks: [[0, 1.2, 'all'], [frontLen - 3, frontLen + 1, 'c']] }, h));
+    this.roads.add(bulbMesh('street', bulb, h));
+    {
+      const k = new Kit(rng(31));
+      const y = h(bulb.cx, FZ);
+      // the island: a kerb ring, soil and planting inside it
+      k.cyl(2.0, 2.06, 0.2, '#b7b0a6', bulb.cx, y - 0.02, FZ, 28, { jitter: 0.02, shade: 0.15 });
+      k.cyl(1.72, 1.72, 0.05, mix(this.ground.def.ground[0], '#5b4a36', 0.45), bulb.cx, y + 0.17, FZ, 24, { jitter: 0.03, shade: 0 });
+      // where the road ends for now: a striped board on two posts, reflector posts either side
+      const bx = bulb.cx + bulb.r + 1.3, by = h(bx, FZ);
+      for (const dz of [-1.5, 1.5]) k.box(0.1, 1.25, 0.1, '#6b6670', bx, by, FZ + dz, { r: 0, jitter: 0 });
+      for (let i = 0; i < 8; i++) k.box(0.05, 0.42, 0.44, i % 2 ? '#ece7de' : '#c8452f', bx - 0.06, by + 0.72, FZ - 1.54 + i * 0.44, { r: 0, jitter: 0, shade: 0 });
+      for (const a of [-0.62, 0.62]) {
+        const px = bulb.cx + Math.cos(a) * (bulb.r + 0.9), pz = FZ + Math.sin(a) * (bulb.r + 0.9);
+        k.box(0.12, 0.95, 0.12, '#ece7de', px, h(px, pz), pz, { r: 0.02, jitter: 0 });
+        k.box(0.13, 0.16, 0.13, '#c8452f', px, h(px, pz) + 0.7, pz, { r: 0, jitter: 0, shade: 0 });
+      }
+      this.roads.add(k.build());
+      // planting: a tree of the country in the island with low cover round its foot, and a row of them up the
+      // access road's outer verge (clear of the substation's yard)
+      this.streetTrees = [];
+      const bd = this.site.backdrop ?? 'plains';
+      const street: TreeKind | null = bd === 'temperate' || bd === 'coast' ? 'broadleaf' : bd === 'boreal' || bd === 'mountain' || bd === 'volcanic' ? 'birch'
+        : bd === 'tropical' ? 'palm' : bd === 'plains' || bd === 'savanna' ? 'mesquite' : null;
+      const dry = bd === 'plains' || bd === 'savanna' || bd === 'desert' || bd === 'volcanic';
+      const size = { broadleaf: 1.15, birch: 1.25, palm: 1.0, mesquite: 0.8, saguaro: 1.0 } as Partial<Record<TreeKind, number>>;
+      const isle = street ?? 'saguaro';
+      this.roads.add(plantField(isle, [{ x: bulb.cx + 0.1, y: y + 0.18, z: FZ - 0.1, s: size[isle] ?? 1, ry: 1.3 }]));
+      const cover: Placement[] = [];
+      for (let i = 0; i < 5; i++) { const a = 0.6 + i * 1.26, d = 0.95 + (i % 2) * 0.3; cover.push({ x: bulb.cx + Math.cos(a) * d, y: y + 0.18, z: FZ + Math.sin(a) * d, s: 0.55 + (i % 3) * 0.12, ry: i * 2.1 }); }
+      this.roads.add(plantField(bd === 'desert' ? 'barrel' : dry ? 'sage' : 'shrub', cover, { shadow: false }));
+      if (street) {
+        const row: Placement[] = [];
+        const sub = L.substation;
+        for (let z = -PD + 2; z <= HZ - 9; z += 12) {
+          const x = ax - 6.6;
+          if (Math.abs(z - sub.z) < 11 && x > sub.x - 10) continue;
+          row.push({ x, y: h(x, z) - 0.05, z, s: (size[street] ?? 1) * (0.92 + ((z * 7.3) % 1 + 1) % 1 * 0.2), ry: z * 0.7 });
+        }
+        if (row.length) this.roads.add(plantField(street, row));
+        this.streetTrees = row.map((t) => ({ x: t.x, z: t.z }));
+      }
+    }
     // rounded corners where the roads meet
     for (const sx of [-1, 1]) this.roads.add(cornerMesh('highway', [ax + sx * SW / 2, HZ - HW / 2 + 0.05], [0, -1], [sx, 0], R, h));
     this.roads.add(cornerMesh('street', [ax + SW / 2, FZ - SW / 2], [0, -1], [1, 0], R, h));
@@ -726,14 +858,15 @@ export class CampusScene implements Scene3D {
     const poles: THREE.Vector3[] = [];
     for (let x = L.accessX + 4; x <= east - 8; x += 14) { const y = h(x, FRONT_Z + 5); poles.push(V(x, y + 6, FRONT_Z + 5)); }
     const pk = new Kit(rng(5));
+    this.posts = poles.map((p) => ({ x: p.x, z: p.z }));
     for (const p of poles) { const lk = pk; lk.cyl(0.13, 0.16, 6.5, '#7d5232', p.x, p.y - 6, p.z, 6); lk.beam(V(p.x, p.y - 0.5, p.z - 1.1), V(p.x, p.y - 0.5, p.z + 1.1), 0.13, '#6b4a2c'); }
     void utilityPole;
     this.roads.add(pk.build());
     this.roads.add(wires([poles.map((p) => p.clone().add(V(0, -0.5, -0.9))), poles.map((p) => p.clone().add(V(0, -0.5, 0.9)))], 0.45));
     // lamps up the access road (beside its pavement) and along the far verge of the frontage road
     const lamps = new Kit(rng(8));
-    for (let z = -PD; z <= HIGHWAY_Z - 8; z += 12) if (Math.abs(z - FRONT_Z) > 5) streetLamp(this.roads, lamps, L.accessX + 4.8, h(L.accessX + 4.8, z), z, -1);
-    for (let x = L.accessX + 11; x <= east - 8; x += 16) streetLamp(this.roads, lamps, x, h(x, FRONT_Z + 3.7), FRONT_Z + 3.7, 1);
+    for (let z = -PD; z <= HIGHWAY_Z - 8; z += 12) if (Math.abs(z - FRONT_Z) > 5) { streetLamp(this.roads, lamps, L.accessX + 4.8, h(L.accessX + 4.8, z), z, -1); this.posts.push({ x: L.accessX + 4.8, z }); }
+    for (let x = L.accessX + 11; x <= east - 8; x += 16) { streetLamp(this.roads, lamps, x, h(x, FRONT_Z + 3.7), FRONT_Z + 3.7, 1); this.posts.push({ x, z: FRONT_Z + 3.7 }); }
     this.roads.add(lamps.build());
   }
 
@@ -990,6 +1123,12 @@ export class CampusScene implements Scene3D {
     const e = L.cells.length ? L.cells.reduce((a, c) => Math.max(a, c.x1), 0) : L.bounds.x1 - 10;
     return this.lakeX === null ? e : Math.min(e, this.lakeX - 26);
   }
+  /** Lamp posts and power poles along the roads (nobody walks through one). */
+  private posts: { x: number; z: number }[] = [];
+  /** The trees planted along the access road (nobody walks through a trunk). */
+  private streetTrees: { x: number; z: number }[] = [];
+  /** The turning circle at the frontage road's end (set when the roads are built). */
+  private bulb: Bulb | null = null;
   /** The pavements' rectangles (straight runs along the axes), kept when the roads are built: `walkH`. */
   private pavements: { x0: number; z0: number; x1: number; z1: number }[] = [];
 
@@ -1048,7 +1187,7 @@ export class CampusScene implements Scene3D {
     // deliveries: in along the highway, up the access road, along the frontage, round the turning circle, a stop to
     // unload outside the front-row buildings, out onto the highway again (right-hand traffic, see vehicles.ts)
     const docks = L.items.filter((it) => it.kind === 'facility' && it.rect.z0 > 0).map((it) => (it.rect.x0 + it.rect.x1) / 2);
-    this.traffic.deliveries({ highwayZ: HIGHWAY_Z, accessX: L.accessX, frontZ: FRONT_Z, east: east + 6, docks }, ['flatbed', 'van', 'pickup'], h);
+    this.traffic.deliveries({ highwayZ: HIGHWAY_Z, accessX: L.accessX, frontZ: FRONT_Z, east: east + 6, docks, turn: this.bulb ? { x: this.bulb.cx, throat: this.bulb.throat } : undefined }, ['flatbed', 'van', 'pickup'], h);
   }
 
   /** Who of the cast is out on this campus (as the pixel campus picks them). */
@@ -1207,6 +1346,8 @@ export class CampusScene implements Scene3D {
     this.crowd.update(env);
     this.camera.updateMatrixWorld();
     this.people?.update(env, this.localHour(), this.camera);
+    if (this.people) this.people.walkers(this.traffic.walkers);
+    this.swingDoors(env.dt);
     this.traffic.update(env);
     blinkBeacons(this.world, env);
     if (this.bit) {
@@ -1539,8 +1680,7 @@ function habitatMeadow(seed: number, b: Rect, rects: Rect[]): THREE.Group {
     const s = kind === 'tuft' ? 0.7 + r() * 0.5 : kind === 'shrub' ? 0.8 + r() * 0.5 : 0.9 + r() * 0.6;
     kinds[kind].push({ x, y: habFloor(z) - 0.05, z, s, ry: r() * Math.PI * 2, rx: -Math.asin(Math.max(-0.98, Math.min(0.98, z / HAB_R))), tint: 0.88 + r() * 0.24 });
   }
-  const mat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
-  for (const [k, at] of Object.entries(kinds)) if (at.length && k !== 'tuft') g.add(treeField(k as TreeKind, at, mat));
+  for (const [k, at] of Object.entries(kinds)) if (at.length && k !== 'tuft') g.add(plantField(k as TreeKind, at, { shadow: k !== 'shrub' }));
   // the meadow's grass: clumps of blades, swaying, in the land's own greens
   const tufts = kinds.tuft;
   if (tufts.length) {
@@ -1616,46 +1756,38 @@ function emptyPlot(r: Rect, i: number) {
   return m;
 }
 
-type SceneryName = 'rock_a' | 'boulder_a' | 'broadleaf_a' | 'pine_a' | 'mesquite';
-
-/**
- * A scenery model's parts with soft foliage: the crown's normals point out from its middle (blended with its own),
- * so a Meshy tree or bush shades as one rounded mass with the painted leaves on it, not as crumpled facets.
- * Done once per model (the geometry is shared).
- */
-const SOFT: Partial<Record<SceneryName, { from: number; k: number; cone?: boolean }>> = {
-  broadleaf_a: { from: 0.3, k: 0.8 }, mesquite: { from: 0.3, k: 0.75 }, pine_a: { from: 0.12, k: 0.7, cone: true },
-};
-function sceneryParts(n: SceneryName) {
-  const p = modelParts(n);
-  const soft = SOFT[n];
-  if (!p || !soft) return p;
-  for (const part of p.parts) {
-    const g = part.geo;
-    if (g.userData.soft) continue;
-    g.userData.soft = true;
-    g.computeBoundingBox();
-    const b = g.boundingBox!;
-    const H = b.max.y - b.min.y, cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2;
-    const y0 = b.min.y + H * Math.max(0, soft.from), cy = b.min.y + H * (soft.from < 0 ? 0.35 : 0.62);
-    const pos = g.attributes.position, nrm = g.attributes.normal;
-    if (!nrm) continue;
-    const v = new THREE.Vector3(), o = new THREE.Vector3();
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);
-      if (y < y0) continue;
-      // a soft ramp in from the trunk, so the crown's underside doesn't snap
-      const t = Math.min(1, (y - y0) / (H * 0.12 + 1e-6)) * soft.k;
-      v.set(pos.getX(i) - cx, soft.cone ? H * 0.35 : y - cy, pos.getZ(i) - cz).normalize();
-      o.set(nrm.getX(i), nrm.getY(i), nrm.getZ(i)).lerp(v, t).normalize();
-      nrm.setXYZ(i, o.x, o.y, o.z);
+let doorLeaf: THREE.BufferGeometry | null = null;
+let doorHole: THREE.BufferGeometry | null = null;
+let doorDark: THREE.MeshBasicMaterial | null = null;
+/** A texture's pixels, small (for reading a colour off a model's surface). */
+const texels = new WeakMap<object, ImageData | null>();
+/** The colour of a surface where a ray met it: its vertex paint, its texture, or its material's own. */
+function surfaceColour(hit: THREE.Intersection): THREE.Color {
+  const mesh = hit.object as THREE.Mesh;
+  const mat = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.MeshStandardMaterial;
+  const out = new THREE.Color(mat.color ?? 0xffffff);
+  const vc = mesh.geometry.attributes.color;
+  if (vc && mat.vertexColors && hit.face) return out.multiply(new THREE.Color(vc.getX(hit.face.a), vc.getY(hit.face.a), vc.getZ(hit.face.a)));
+  const img = mat.map?.image as (CanvasImageSource & { width: number; height: number }) | undefined;
+  if (img && hit.uv && typeof document !== 'undefined') {
+    let px = texels.get(img);
+    if (px === undefined) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 256;
+      const cx = cv.getContext('2d', { willReadFrequently: true });
+      try { cx?.drawImage(img, 0, 0, 256, 256); px = cx?.getImageData(0, 0, 256, 256) ?? null; } catch { px = null; }
+      texels.set(img, px);
     }
-    nrm.needsUpdate = true;
+    if (px) {
+      const u = ((hit.uv.x % 1) + 1) % 1, v0 = ((hit.uv.y % 1) + 1) % 1, v = mat.map!.flipY ? 1 - v0 : v0;
+      const k = (Math.min(255, Math.floor(v * 256)) * 256 + Math.min(255, Math.floor(u * 256))) * 4;
+      out.multiply(new THREE.Color().setRGB(px.data[k] / 255, px.data[k + 1] / 255, px.data[k + 2] / 255, THREE.SRGBColorSpace));
+    }
   }
-  return p;
+  return out;
 }
-const plantMat3 = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }));
-plantMat3.userData.shared = true;
+type SceneryName = 'rock_a' | 'boulder_a';
+const sceneryParts = (n: SceneryName) => modelParts(n);
 /** A scenery model's material, lightened (some Meshy textures come out darker than the land round them). Shared per source. */
 const sceneryMats = new Map<string, THREE.Material>();
 function sceneryMat(m: THREE.Material, light: number, tint?: [number, number, number]): THREE.Material {

@@ -120,6 +120,17 @@ export class CampusPeople {
   readonly group = new THREE.Group();
   private decor = new THREE.Group();
   private agents: Agent[] = [];
+  /** When each door was last used (the scene swings it open for a moment). */
+  private doorUsed = new Map<Door, number>();
+  private now = 0;
+  /** Is someone going through this door just now (or about to)? */
+  doorBusy(d: Door) { return this.now - (this.doorUsed.get(d) ?? -99) < 0.35; }
+  /** Everyone out of doors just now (what the traffic gives way to). */
+  walkers(out: { x: number; z: number }[]) {
+    out.length = 0;
+    for (const a of this.agents) if (a.state === 'out' && a.obj.visible) out.push(a.obj.position);
+    return out;
+  }
   private byKey = new Map<string, Agent>();
   private places = new Map<string, Place>();
   map!: WalkMap;
@@ -726,7 +737,8 @@ export class CampusPeople {
     const R = this.roads, pz = frontPavementZ(R), ax = accessPavementX(R);
     const stops: P2[] = [{ x: ax, z: pz }];
     for (const p of [...places].filter((q) => STAFF[q.kind]).sort((q, s) => q.cx - s.cx)) stops.push(p.doors[0]);
-    stops.push({ x: R.east + 3, z: pz });
+    // (to the end of the pavement: beyond it the road flares into the turning circle)
+    stops.push({ x: R.east - 6.5, z: pz });
     if (R.laneZ !== null) stops.push({ x: R.east + 2, z: R.laneZ }, { x: ax, z: R.laneZ });
     this.patrol = stops.map((s) => this.map.nearestFree(s.x, s.z, 3)).filter((s): s is P2 => !!s && this.map.connected(stops[0], s));
   }
@@ -822,6 +834,7 @@ export class CampusPeople {
 
   // ── the frame ──────────────────────────────────────────────────────────────────────────────
   update(e: Env, hour: number, cam: THREE.Camera) {
+    this.now += Math.min(0.5, e.dt);
     if (hour < this.hour - 12) this.day++;
     const jump = Math.abs(wrapHours(hour - this.hour)) > 0.5;
     this.hour = hour;
@@ -934,16 +947,20 @@ export class CampusPeople {
           a.heading = Math.atan2(t.door.nx, t.door.nz);
           this.setAct(a, 'walk', 0);
         }
-        a.step = Math.min(1, a.step + e.dt / 0.6);
-        a.pos.set(t.door.x - t.door.nx * STEP_IN * (1 - a.step), 0, t.door.z - t.door.nz * STEP_IN * (1 - a.step));
+        const reach = t.door.in ?? STEP_IN;
+        this.doorUsed.set(t.door, this.now);
+        a.step = Math.min(1, a.step + e.dt / (0.6 * Math.max(1, reach / STEP_IN)));
+        a.pos.set(t.door.x - t.door.nx * reach * (1 - a.step), 0, t.door.z - t.door.nz * reach * (1 - a.step));
         a.pos.y = this.h(a.pos.x, a.pos.z);
         if (a.step >= 1) { a.step = 0; a.tasks.shift(); }
         return;
       }
       case 'in': {
         if (a.step === 0) { a.heading = Math.atan2(-t.door.nx, -t.door.nz); this.setAct(a, 'walk'); }
-        a.step = Math.min(1, a.step + e.dt / 0.6);
-        a.pos.set(t.door.x - t.door.nx * STEP_IN * a.step, 0, t.door.z - t.door.nz * STEP_IN * a.step);
+        const reach = t.door.in ?? STEP_IN;
+        this.doorUsed.set(t.door, this.now);
+        a.step = Math.min(1, a.step + e.dt / (0.6 * Math.max(1, reach / STEP_IN)));
+        a.pos.set(t.door.x - t.door.nx * reach * a.step, 0, t.door.z - t.door.nz * reach * a.step);
         a.pos.y = this.h(a.pos.x, a.pos.z);
         if (a.step >= 1) {
           a.step = 0;
@@ -971,6 +988,9 @@ export class CampusPeople {
           a.route = keepRight(r, this.map, a.r() < 0.5 ? 0.28 : 0.18);
           a.ri = 0;
         }
+        // nearly at a door they're about to go in by: it opens ahead of them
+        const next = a.tasks[1];
+        if (next?.k === 'in' && Math.hypot(a.pos.x - next.door.x, a.pos.z - next.door.z) < 1.5) this.doorUsed.set(next.door, this.now);
         const speed = (t.speed ?? (a.role === 'advisor' ? 1.15 : 1.25)) * (0.92 + (hashKey(a.key) % 17) / 100);
         this.setAct(a, t.act ?? 'walk');
         a.fig?.pace(speed);

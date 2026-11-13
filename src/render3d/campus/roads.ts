@@ -66,6 +66,8 @@ function roadNoise() {
   return noiseTex;
 }
 
+/** Half the ribbon's width for a kind (where its gravel rim lies). */
+const half = (p: Paint) => (p.edge > 3 ? 5 : 3);
 const mats = new Map<RoadKind, THREE.MeshStandardMaterial>();
 function roadMaterial(kind: RoadKind) {
   const m0 = mats.get(kind);
@@ -119,6 +121,14 @@ function roadMaterial(kind: RoadKind) {
           col *= 1.0 - 0.09 * tracks;
           col = mix(col, col * 1.18, smoothstep(0.66, 0.74, nc.g) * 0.8);
           col = mix(col, col * vec3(1.18, 1.12, 1.0), smoothstep(${(p.edge - 0.4).toFixed(2)}, ${(p.edge + 0.6).toFixed(2)}, abs(u)) * 0.5);
+          // sealed cracks: thin dark lines wandering across the lanes (near the camera only)
+          float crk = texture2D(uRoadNoise, vRoadW * 0.047 + 0.63).g;
+          float crkW = max(fwidth(crk), 1e-5);
+          // (in stretches, not rings: only where a second field is high)
+          col *= 1.0 - 0.17 * (1.0 - smoothstep(0.5, 1.5, abs(crk - 0.5) / crkW)) * smoothstep(0.5, 0.62, nc.b + nc.r * 0.5) * (1.0 - smoothstep(18.0, 55.0, distance(cameraPosition.xz, vRoadW)));
+          // the ragged edge: loose gravel where the asphalt meets the verge
+          float rim = smoothstep(${(half(p) - 0.42).toFixed(2)}, ${(half(p) - 0.1).toFixed(2)}, abs(u) + (nz.r - 0.5) * 0.3 + (nc.r - 0.5) * 0.2);
+          col = mix(col, vec3(0.42, 0.39, 0.34) * (0.75 + nz.b * 0.5), rim * 0.85);
           float worn = 0.78 + nz.g * 0.3;
           float edgeL = roadLine(u + ${p.edge.toFixed(2)}, ${p.edgeW.toFixed(3)}) * vMarks.x;
           float edgeR = roadLine(u - ${p.edge.toFixed(2)}, ${p.edgeW.toFixed(3)}) * vMarks.z;
@@ -225,17 +235,83 @@ export function cornerMesh(kind: RoadKind, c: [number, number], da: [number, num
   return fan(kind, pos, road, marks, n);
 }
 
-/** A round patch of road (a turning circle at a dead end). */
-export function discMesh(kind: RoadKind, c: [number, number], r: number, h: H): THREE.Mesh {
-  const pos: number[] = [c[0], h(c[0], c[1]) + 0.03, c[1]], road: number[] = [0, 0], marks: number[] = [0, 0, 0];
-  const n = 28;
-  for (let i = 0; i <= n; i++) {
-    const a = (i / n) * Math.PI * 2, x = c[0] + Math.cos(a) * r, z = c[1] + Math.sin(a) * r;
-    pos.push(x, h(x, z) + 0.03, z);
-    road.push(0, 0);
-    marks.push(0, 0, 0);
+/**
+ * The turning circle at the end of a street: the road flares out through two fillets into a round head, as a real
+ * cul-de-sac is laid. `throat` = where the straight road stops and the flare begins.
+ */
+export interface Bulb { cx: number; cz: number; r: number; throat: number; half: number; fillet: number }
+export function bulbAt(throat: number, z: number, half = 3, r = 8, fillet = 5): Bulb {
+  return { cx: throat + Math.sqrt((r + fillet) ** 2 - (half + fillet) ** 2), cz: z, r, throat, half, fillet };
+}
+/** Half the asphalt's width at x along a bulb (0 beyond its head). */
+export function bulbHalf(b: Bulb, x: number) {
+  if (x <= b.throat) return b.half;
+  if (x >= b.cx + b.r) return 0;
+  // where the fillet hands over to the head
+  const px = b.cx + (b.throat - b.cx) * (b.r / (b.r + b.fillet));
+  if (x < px) return b.half + b.fillet - Math.sqrt(Math.max(0, b.fillet ** 2 - (x - b.throat) ** 2));
+  return Math.sqrt(Math.max(0, b.r ** 2 - (x - b.cx) ** 2));
+}
+
+/**
+ * The bulb's asphalt: rings laid in from its outline, so the street's own paint carries round it (the edge line
+ * follows the kerb line all the way round, the tyre tracks circle the island, the dust gathers at the rim).
+ */
+export function bulbMesh(kind: RoadKind, b: Bulb, h: H): THREE.Mesh {
+  const edge = PAINT[kind].edge;
+  // one side's outline from the throat to the tip, each point with its inward normal
+  const out: { x: number; z: number; nx: number; nz: number }[] = [];
+  const F = { x: b.throat, z: b.half + b.fillet };
+  const a1 = Math.atan2(-(b.half + b.fillet), b.cx - b.throat);
+  const nf = 10;
+  for (let i = 0; i <= nf; i++) {
+    const a = -Math.PI / 2 + ((a1 + Math.PI / 2) * i) / nf;
+    out.push({ x: F.x + Math.cos(a) * b.fillet, z: F.z + Math.sin(a) * b.fillet, nx: Math.cos(a), nz: Math.sin(a) });
   }
-  return fan(kind, pos, road, marks, n);
+  const a2 = Math.atan2(b.half + b.fillet, b.throat - b.cx);
+  const nc = 30;
+  for (let i = 1; i <= nc; i++) {
+    const a = a2 * (1 - i / nc);
+    out.push({ x: b.cx + Math.cos(a) * b.r, z: Math.sin(a) * b.r, nx: -Math.cos(a), nz: -Math.sin(a) });
+  }
+  const rings = [0, 0.25, 0.55, 1.2, 2.4];
+  const pos: number[] = [], road: number[] = [], marks: number[] = [], idx: number[] = [];
+  const W = rings.length + 1;
+  for (const side of [1, -1]) {
+    const base = pos.length / 3;
+    let v = 0;
+    out.forEach((p, i) => {
+      if (i) v += Math.hypot(p.x - out[i - 1].x, p.z - out[i - 1].z);
+      for (const d of rings) {
+        const x = p.x + p.nx * d, z = b.cz + side * (p.z + p.nz * d);
+        pos.push(x, h(x, z) + 0.035, z);
+        // the street's own cross-section: its edge is `edge + 0.4` from the middle
+        road.push(edge + 0.4 - d, v);
+        marks.push(0, 0, 1);
+      }
+      // the middle: straight in to the axis, or the head's centre
+      const ax = Math.min(b.cx, p.x + p.nx * rings[rings.length - 1]);
+      pos.push(ax, h(ax, b.cz) + 0.035, b.cz);
+      road.push(0, v);
+      marks.push(0, 0, 1);
+    });
+    for (let i = 0; i + 1 < out.length; i++)
+      for (let k = 0; k + 1 < W; k++) {
+        const a = base + i * W + k, c = a + W;
+        // (wound to face up: the two sides run opposite ways round)
+        if (side > 0) idx.push(a, c, a + 1, a + 1, c, c + 1); else idx.push(a, a + 1, c, a + 1, c + 1, c);
+      }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('road', new THREE.Float32BufferAttribute(road, 2));
+  g.setAttribute('marks', new THREE.Float32BufferAttribute(marks, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const mesh = new THREE.Mesh(g, roadMaterial(kind));
+  mesh.receiveShadow = true;
+  mesh.name = 'road:bulb';
+  return mesh;
 }
 
 function fan(kind: RoadKind, pos: number[], road: number[], marks: number[], n: number) {

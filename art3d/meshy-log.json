@@ -1672,5 +1672,86 @@
     "step": "animate.done",
     "id": "01a1c164-9e16-71b1-8870-c0263b278ce1",
     "credits": 6
+  },
+  {
+    "at": "2026-11-13T19:41:12.163Z",
+    "name": "semitruck2",
+    "step": "concept",
+    "id": "01a1d66d-a3d6-705e-943b-bec583fed8b0",
+    "subject": "A semi truck: a cab-over tractor with slate-blue paint pulling a long white box trailer, three-quarter view. The cab's windscreen and side windows are dark blue-grey tinted glass, clearly darker than the body; black tyres; white headlights"
+  },
+  {
+    "at": "2026-11-13T19:41:12.168Z",
+    "name": "flatbed2",
+    "step": "concept",
+    "id": "01a1d66d-a3d7-70c1-93f0-a8cfbb473645",
+    "subject": "A flatbed truck with a terracotta orange cab carrying a big grey electrical power transformer strapped down on the bed, three-quarter view. The cab's windscreen and side windows are dark blue-grey tinted glass, clearly darker than the body; black tyres"
+  },
+  {
+    "at": "2026-11-13T19:41:12.180Z",
+    "name": "hatchback2",
+    "step": "concept",
+    "id": "01a1d66d-a3db-71a4-8baa-fbc1dc2e8590",
+    "subject": "A small three-door city hatchback car with mustard yellow paint, three-quarter view. All of its windows and its windscreen are dark blue-grey tinted glass, clearly darker than the body, with thin black window frames; black tyres with grey hubcaps; red tail lights and white headlights"
+  },
+  {
+    "at": "2026-11-13T19:41:29.198Z",
+    "name": "flatbed2",
+    "step": "concept.done",
+    "id": "01a1d66d-a3d7-70c1-93f0-a8cfbb473645",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-13T19:41:29.223Z",
+    "name": "semitruck2",
+    "step": "concept.done",
+    "id": "01a1d66d-a3d6-705e-943b-bec583fed8b0",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-13T19:41:34.766Z",
+    "name": "hatchback2",
+    "step": "concept.done",
+    "id": "01a1d66d-a3db-71a4-8baa-fbc1dc2e8590",
+    "credits": 6
+  },
+  {
+    "at": "2026-11-13T19:44:26.207Z",
+    "name": "semitruck2",
+    "step": "model",
+    "id": "01a1d670-955b-744d-845d-90205aa48f7b"
+  },
+  {
+    "at": "2026-11-13T19:44:27.166Z",
+    "name": "hatchback2",
+    "step": "model",
+    "id": "01a1d670-9621-76aa-ba62-f6eeedd2c73a"
+  },
+  {
+    "at": "2026-11-13T19:44:27.192Z",
+    "name": "flatbed2",
+    "step": "model",
+    "id": "01a1d670-9632-7621-b5c2-36063fbc0e6d"
+  },
+  {
+    "at": "2026-11-13T19:45:33.724Z",
+    "name": "semitruck2",
+    "step": "model.done",
+    "id": "01a1d670-955b-744d-845d-90205aa48f7b",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-13T19:45:45.849Z",
+    "name": "hatchback2",
+    "step": "model.done",
+    "id": "01a1d670-9621-76aa-ba62-f6eeedd2c73a",
+    "credits": 30
+  },
+  {
+    "at": "2026-11-13T19:45:51.473Z",
+    "name": "flatbed2",
+    "step": "model.done",
+    "id": "01a1d670-9632-7621-b5c2-36063fbc0e6d",
+    "credits": 30
   }
 ]

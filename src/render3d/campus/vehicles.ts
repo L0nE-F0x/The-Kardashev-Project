@@ -6,7 +6,7 @@
  * Right-hand traffic. Wheels stay on the ground, nose pitched with the slope.
  */
 import * as THREE from 'three';
-import { model, type ModelName } from '../models';
+import { model, paintCar, type ModelName } from '../models';
 import { glowMat, lightPool, poolMat, rng } from '../kit';
 import type { Env } from '../pieces';
 
@@ -32,6 +32,9 @@ interface Car {
   heldT: number;
   /** Stops already served this lap. */
   served: Set<number>;
+  /** How long it has stood for someone on foot, and (after far too long) how long it may edge on regardless. */
+  yieldT: number;
+  pushT: number;
   pos: THREE.Vector2;
   dir: THREE.Vector2;
 }
@@ -103,21 +106,61 @@ function sample(r: Route, s: number, pos: THREE.Vector2, dir: THREE.Vector2) {
   return lo;
 }
 
-function vehicle(n: ModelName, headMat: THREE.Material, tailMat: THREE.Material, beam: THREE.MeshBasicMaterial) {
+/** Where each model's lamps sit (x, y, z per lamp, the vehicle's own space), found once by probing its bodywork. */
+const lampSpots = new Map<string, { head: THREE.Vector3[]; tail: THREE.Vector3[] }>();
+/**
+ * The lamps go on the bodywork itself: a ray from dead ahead (and from behind) at lamp height finds the front (rear)
+ * face on each side, whatever the model's shape, so no lamp hangs in the air behind a mixer's chute or a flatbed's
+ * deck.
+ */
+function lampsFor(n: ModelName, body: THREE.Object3D, len: number) {
+  const hit0 = lampSpots.get(n);
+  if (hit0) return hit0;
+  const out = { head: [] as THREE.Vector3[], tail: [] as THREE.Vector3[] };
+  const size = body.userData.size as THREE.Vector3 | undefined;
+  if (!size || !body.userData.model) return out;
+  body.updateMatrixWorld(true);
+  const truck = len > 6;
+  const w = size.z, h = size.y;
+  const ray = new THREE.Raycaster();
+  const from = new THREE.Vector3(), dir = new THREE.Vector3();
+  const probe = (sx: number, front: boolean, y0: number, y1: number) => {
+    let best: THREE.Vector3 | null = null;
+    for (let i = 0; i <= 4; i++) {
+      from.set(sx, y0 + ((y1 - y0) * i) / 4, front ? len : -len);
+      dir.set(0, 0, front ? -1 : 1);
+      ray.set(from, dir);
+      const hit = ray.intersectObject(body, true)[0];
+      // the face that sticks out furthest at this height band (the lamp's housing, the bumper's corner)
+      if (hit && (!best || (front ? hit.point.z > best.z : hit.point.z < best.z))) best = hit.point.clone();
+    }
+    return best;
+  };
+  for (const sx of [-w * 0.33, w * 0.33]) {
+    const hd = truck ? probe(sx, true, 0.7, 1.15) : probe(sx, true, h * 0.36, h * 0.52);
+    const tl = truck ? probe(sx, false, 0.75, 1.2) : probe(sx, false, h * 0.42, h * 0.62);
+    if (hd) out.head.push(hd);
+    if (tl) out.tail.push(tl);
+  }
+  lampSpots.set(n, out);
+  return out;
+}
+
+let lens: THREE.BufferGeometry | null = null;
+function vehicle(n: ModelName, headMat: THREE.Material, tailMat: THREE.Material, beam: THREE.MeshBasicMaterial, paint: number) {
   const len = LEN[n] ?? 4.4;
   const o = new THREE.Group();
-  const body = model(n, len);
+  const body = paintCar(model(n, len), paint);
   // the Meshy vehicles' fronts are at -x; turn them so +z is forward
   body.rotation.y = Math.PI / 2;
+  const spots = lampsFor(n, body, len);
   o.add(body);
-  const hy = len > 6 ? 0.9 : 0.6, hw = len > 6 ? 0.75 : 0.55;
-  for (const sx of [-hw, hw]) {
-    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.15, 6, 4), headMat);
-    hl.position.set(sx, hy, len / 2 + 0.02);
-    const tl = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), tailMat);
-    tl.position.set(sx, hy, -len / 2 - 0.02);
-    o.add(hl, tl);
-  }
+  // lamps as lenses set into the bodywork (a flattened ball, half sunk)
+  lens ??= new THREE.SphereGeometry(1, 10, 6).scale(1, 0.8, 0.35);
+  lens.userData.shared = true;
+  const r = len > 6 ? 0.14 : 0.105;
+  for (const p of spots.head) { const hl = new THREE.Mesh(lens, headMat); hl.scale.setScalar(r); hl.position.copy(p); o.add(hl); }
+  for (const p of spots.tail) { const tl = new THREE.Mesh(lens, tailMat); tl.scale.setScalar(r * 0.9); tl.position.copy(p); o.add(tl); }
   lightPool(o, 0, 0, len / 2 + 4.5, 3.2, beam, 0.55);
   o.rotation.order = 'YXZ';
   return { o, len };
@@ -132,27 +175,32 @@ export interface RoadNet {
   east: number;
   /** Where deliveries pull up to unload (x on the frontage road), if anywhere. */
   docks: number[];
+  /** The turning circle at the frontage road's end: its centre's x and where the road begins to flare. */
+  turn?: { x: number; throat: number };
 }
 
 export class Traffic {
   readonly group = new THREE.Group();
   private cars: Car[] = [];
   private head = glowMat('yel2', 0);
-  private tail = glowMat('red3', 0);
+  private tail = glowMat('#d8241a', 0);
   private beam = poolMat('#ffe9c0', 0.7);
   private h: H = () => 0;
+  /** People on foot (the campus fills it each frame): a vehicle waits for anyone in its way. */
+  walkers: { x: number; z: number }[] = [];
   private tmpP = new THREE.Vector2();
   private tmpD = new THREE.Vector2();
 
   constructor() {
     this.head.userData.nightOnly = 4;
-    this.tail.userData.nightOnly = 3;
+    // (red, not bloomed out to pink)
+    this.tail.userData.nightOnly = 1.5;
   }
 
-  private add(n: ModelName, route: Route, s: number, v0: number) {
-    const { o, len } = vehicle(n, this.head, this.tail, this.beam);
+  private add(n: ModelName, route: Route, s: number, v0: number, paint: number) {
+    const { o, len } = vehicle(n, this.head, this.tail, this.beam, paint);
     this.group.add(o);
-    const c: Car = { obj: o, len, route, s, v: v0 * 0.8, v0, held: -1, heldT: 0, served: new Set(), pos: new THREE.Vector2(), dir: new THREE.Vector2(1, 0) };
+    const c: Car = { obj: o, len, route, s, v: v0 * 0.8, v0, held: -1, heldT: 0, served: new Set(), yieldT: 0, pushT: 0, pos: new THREE.Vector2(), dir: new THREE.Vector2(1, 0) };
     sample(route, s, c.pos, c.dir);
     this.cars.push(c);
     return c;
@@ -172,7 +220,7 @@ export class Traffic {
       for (let i = 0; i < n; i++) {
         const kind = pool[Math.floor(r() * pool.length)];
         const heavy = kind === 'semitruck' || kind === 'mixer' || kind === 'flatbed';
-        this.add(kind, route, (i + r() * 0.6) * (route.total / n), (heavy ? 13.5 : 16.5) + (r() - 0.5) * 3);
+        this.add(kind, route, (i + r() * 0.6) * (route.total / n), (heavy ? 13.5 : 16.5) + (r() - 0.5) * 3, r());
       }
     }
   }
@@ -186,15 +234,17 @@ export class Traffic {
     this.h = h;
     const { highwayZ: HZ, accessX: ax, frontZ: FZ, east } = net;
     const far = -1450;
-    const C = { x: east + 0.5, z: FZ };
+    const C = { x: net.turn?.x ?? east + 0.5, z: FZ };
+    // (round the island: 5 m out, so a truck's inner side clears its kerb and its nose stays inside the edge line)
+    const R = net.turn ? 5 : 4, lead = net.turn ? net.turn.throat + 1 : east - 7;
     const loop: [number, number][] = [];
     // the circle at the dead end, from the south side round by the east to the north side
-    for (let i = 0; i <= 10; i++) { const a = (100 - (200 * i) / 10) * Math.PI / 180; loop.push([C.x + Math.cos(a) * 4, C.z + Math.sin(a) * 4]); }
+    for (let i = 0; i <= 12; i++) { const a = (112 - (224 * i) / 12) * Math.PI / 180; loop.push([C.x + Math.cos(a) * R, C.z + Math.sin(a) * R]); }
     const pts: [number, number][] = [
-      [far, HZ + 2], [ax + 1.5, HZ + 2], [ax + 1.5, FZ + 1.5], [east - 7, FZ + 1.5], ...loop, [east - 7, FZ - 1.5], [ax - 1.5, FZ - 1.5], [ax - 1.5, HZ - 2], [far, HZ - 2],
+      [far, HZ + 2], [ax + 1.5, HZ + 2], [ax + 1.5, FZ + 1.5], [lead, FZ + 1.5], ...loop, [lead, FZ - 1.5], [ax - 1.5, FZ - 1.5], [ax - 1.5, HZ - 2], [far, HZ - 2],
     ];
     const radii = pts.map(() => 0);
-    radii[1] = 7; radii[2] = 4.5; radii[3] = 2.5; radii[3 + loop.length + 1] = 2.5; radii[3 + loop.length + 2] = 4.5; radii[3 + loop.length + 3] = 4;
+    radii[1] = 7; radii[2] = 4.5; radii[3] = net.turn ? 4 : 2.5; radii[3 + loop.length + 1] = net.turn ? 4 : 2.5; radii[3 + loop.length + 2] = 4.5; radii[3 + loop.length + 3] = 4;
     const sm = smoothRoute(pts, radii, false, 15);
     const at = (x: number, z: number) => {
       let best = 0, bd = 1e9;
@@ -216,7 +266,7 @@ export class Traffic {
     stops.sort((a, b) => a.s - b.s);
     const route: Route = { ...sm, stops, wrap: true };
     kinds.forEach((k, i) => {
-      const c = this.add(k, route, (i / kinds.length) * route.total * 0.9 + 30, k === 'van' ? 12 : 10.5);
+      const c = this.add(k, route, (i / kinds.length) * route.total * 0.9 + 30, k === 'van' ? 12 : 10.5, ((i * 0.37 + 0.11) % 1));
       // each one checks the way is clear of everyone but itself
       c.route = { ...route, stops: stops.map((st) => ({ ...st, clear: st.clear ? this.clearFor(c, st) : undefined })) };
     });
@@ -254,6 +304,21 @@ export class Traffic {
         const g = ahead - (o.len + c.len) / 2;
         if (g < gap) { gap = g; vLead = o.v * Math.max(0, o.dir.dot(c.dir)); }
       }
+      // someone on foot in the way (on the campus roads; nobody walks the highway): stop short and let them cross
+      let yielding = false;
+      if (c.v0 < 13 && c.pushT <= 0) {
+        for (const w of this.walkers) {
+          const dx = w.x - c.pos.x, dz = w.z - c.pos.y;
+          const ahead = dx * c.dir.x + dz * c.dir.y;
+          if (ahead <= c.len / 2 - 0.3 || ahead > 26) continue;
+          if (Math.abs(dx * c.dir.y - dz * c.dir.x) > 1.45) continue;
+          const g = ahead - c.len / 2 - 1.2;
+          if (g < gap) { gap = Math.max(0, g); vLead = 0; yielding = true; }
+        }
+      }
+      // (a guard against a stand-off: someone who never moves out of the way is edged round after a long wait)
+      if (yielding && c.v < 0.2) { c.yieldT += dt; if (c.yieldT > 25) { c.pushT = 6; c.yieldT = 0; } } else if (!yielding) c.yieldT = 0;
+      if (c.pushT > 0) c.pushT -= dt;
       const s0 = 2.2;
       for (let k = 0; k < r.stops.length; k++) {
         const st = r.stops[k];

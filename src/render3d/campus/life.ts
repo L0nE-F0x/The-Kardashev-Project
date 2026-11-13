@@ -3,7 +3,7 @@
  * plaza, Aurora's town, the Moon). A campus's working day (staff, crews, the guard, the advisors) is people.ts.
  */
 import * as THREE from 'three';
-import { CARS, model, person, PEOPLE, type Act, type Figure, type ModelName, type PersonName } from '../models';
+import { CARS, model, paintCar, person, PEOPLE, type Act, type Figure, type ModelName, type PersonName } from '../models';
 import { glowMat, rng, Kit } from '../kit';
 import { person as boxPerson, type Env } from '../pieces';
 
@@ -143,7 +143,7 @@ export function makeBit() {
 
 
 /** Each car model's width as a share of its length (mirrors and all). */
-const WID: Partial<Record<ModelName, number>> = { sedan: 0.518, hatchback: 0.567, suv: 0.487, pickup: 0.439, van: 0.551 };
+const WID: Partial<Record<ModelName, number>> = { sedan: 0.518, hatchback: 0.474, suv: 0.487, pickup: 0.439, van: 0.551 };
 
 const LEN: Partial<Record<ModelName, number>> = { semitruck: 11, mixer: 7.5, flatbed: 7.5, van: 5.2, pickup: 4.6, sedan: 4.3, hatchback: 3.8, suv: 4.6 };
 
@@ -195,6 +195,9 @@ export function settleCars(root: THREE.Object3D) {
  */
 export function parkedCars(parent: THREE.Object3D, x0: number, z: number, n: number, gap: number, seed: number, facing = 0, kinds: ModelName[] = CARS) {
   const r = rng(seed);
+  // (the paints have their own dice, so which bays are taken stays as it was)
+  const pr = rng(seed + 991);
+  let lastPaint = -1;
   const widthOf = (k: ModelName) => (LEN[k] ?? 4.3) * (WID[k] ?? 0.52);
   // the far side of the last car parked, along the row: the models are broad (mirrors and all, up to 2.4 m), so a
   // car only takes a bay when it clears its neighbour by a door's opening, a narrower make if that one fits
@@ -211,6 +214,9 @@ export function parkedCars(parent: THREE.Object3D, x0: number, z: number, n: num
     taken = x0 + i * gap + widthOf(kind) / 2;
     const len = LEN[kind] ?? 4.3;
     const c = model(kind, len);
+    // no two cars side by side in the same colour
+    for (let tries = 0; tries < 4; tries++) { paintCar(c, pr()); if (c.userData.paint !== lastPaint) break; }
+    lastPaint = c.userData.paint ?? -1;
     c.rotation.y = facing + (r() - 0.5) * 0.06;
     // on the plot's pad (its top is 0.12 above the ground the piece stands on); `settleCars` then stands it on
     // whatever the piece laid there

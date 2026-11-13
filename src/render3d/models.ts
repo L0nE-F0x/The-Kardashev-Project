@@ -14,8 +14,8 @@ export type ModelName =
   | 'garage' | 'lab' | 'gasplant' | 'substation' | 'watertower' | 'bungalow' | 'mesquite' | 'oak'
   | 'pickup' | 'semitruck' | 'sedan' | 'hatchback' | 'suv' | 'van' | 'mixer' | 'flatbed'
   | 'rock_a' | 'boulder_a' | 'broadleaf_a' | 'pine_a';
-/** Scenery models near a campus: rocks, a bush, two trees (the code-built ones stand further out). */
-export const SCENERY: ModelName[] = ['rock_a', 'boulder_a', 'broadleaf_a', 'pine_a'];
+/** Scenery models near a campus: rocks (trees and bushes are built in code: campus/trees.ts). */
+export const SCENERY: ModelName[] = ['rock_a', 'boulder_a'];
 export type PersonName = 'worker' | 'engineer' | 'researcher' | 'scientist' | 'office'
   | 'adv_juno' | 'adv_penny' | 'adv_mira' | 'adv_sol' | 'adv_iris' | 'adv_kip' | 'adv_lena' | 'astronaut'
   | 'kid_a' | 'kid_b' | 'resident_a' | 'resident_b';
@@ -26,6 +26,8 @@ export const PEOPLE: PersonName[] = ['worker', 'engineer', 'researcher', 'scient
 export const TOWNSFOLK: PersonName[] = ['kid_a', 'kid_b', 'resident_a', 'resident_b'];
 const RIGGED = new Set<string>([...PEOPLE, ...TOWNSFOLK, 'adv_juno', 'adv_penny', 'adv_mira', 'adv_sol', 'adv_iris', 'adv_kip', 'adv_lena', 'astronaut']);
 export const CARS: ModelName[] = ['sedan', 'hatchback', 'suv', 'pickup', 'van'];
+/** Everything on wheels: these get glass that mirrors the sky, and a paint job of their own (`paintCar`). */
+const VEHICLES = new Set<string>(['pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed']);
 
 // the page lives at /play/: the models sit next to it, in /3d/models/
 const BASE = '../3d/models/';
@@ -66,6 +68,197 @@ function paletteMaterial(src: THREE.MeshStandardMaterial, skinned = false) {
   return withClouds(m);
 }
 
+// ── vehicles: glass and paint ─────────────────────────────────────────────────────────────────
+// The vehicles come with everything painted into one texture, windows included. Two things make them read as real
+// cars. Glass: the dark, cool texels above the wheels (never the level roof) turn smooth and near-black, so they
+// mirror the sky and catch the sun like a windscreen. Paint: a car park of one model is a row of clones, so each
+// car's body colour is turned to another one in the shader (the body's own hue, found from its texture when the
+// model loads, is rotated and scaled to the new colour; a white body is tinted instead), leaving tyres, lights,
+// trim and glass as they were.
+
+/** What a vehicle's texture says about it: its body paint (mean colour in YIQ of the square-rooted colour). */
+interface CarLook { mode: 0 | 1 | 2; i: number; q: number; y: number; ch: number }
+/** Per model: the luma under which a texel is glass (from, to), how far up the vehicle glass starts, and the paint mode if the texture's own answer is wrong. */
+const CAR_GLASS: Record<string, { lum: [number, number]; from: number; mode?: 0 | 1 | 2; hubs?: boolean; tol?: number }> = {
+  // (hubs: the model's wheels are painted a colour no wheel has: the wheel zone's odd colours go to steel)
+  sedan: { lum: [0.075, 0.115], from: 0.46, hubs: true },
+  hatchback: { lum: [0.09, 0.15], from: 0.44 },
+  suv: { lum: [0.1, 0.15], from: 0.5 },
+  pickup: { lum: [0.1, 0.16], from: 0.5 },
+  van: { lum: [0.14, 0.21], from: 0.36, mode: 1 },
+  semitruck: { lum: [0.09, 0.15], from: 0.36, mode: 1 },
+  // (the flatbed's timber deck is nearly its cab's colour, so a new paint would stain the deck: it keeps its own)
+  flatbed: { lum: [0.09, 0.15], from: 0.4, mode: 0 },
+  mixer: { lum: [0.0, 0.001], from: 0.4, mode: 1 },
+};
+/** The colours cars come in (muted, in the palette's spirit); null = the model's own. */
+const CAR_PAINTS: (string | null)[] = [null, '#d9d4c8', '#8f959b', '#3b3e44', '#1c1d20', '#2f5a86', '#8c2f2a', '#2f6157', '#c79a3a', '#6d7f8c', '#7a3140', '#b9aa8c'];
+const yiq = (c: THREE.Color) => {
+  // (on the square root of the linear colour: close to how the eye spaces colours, cheap in a shader)
+  const r = Math.sqrt(c.r), g = Math.sqrt(c.g), b = Math.sqrt(c.b);
+  return { y: 0.299 * r + 0.587 * g + 0.114 * b, i: 0.596 * r - 0.274 * g - 0.322 * b, q: 0.211 * r - 0.523 * g + 0.312 * b };
+};
+
+/** Read a vehicle's body paint off its texture: the hue most of its coloured texels share, or a white body. */
+function carLook(map: THREE.Texture | null): CarLook {
+  const none: CarLook = { mode: 0, i: 1, q: 0, y: 1, ch: 0 };
+  const img = map?.image as CanvasImageSource | undefined;
+  if (!img || typeof document === 'undefined') return none;
+  const N = 96;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = N;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  if (!cx) return none;
+  cx.drawImage(img, 0, 0, N, N);
+  const d = cx.getImageData(0, 0, N, N).data;
+  const BINS = 36;
+  const hist = new Float32Array(BINS), si = new Float32Array(BINS), sq = new Float32Array(BINS), sy = new Float32Array(BINS), sn = new Float32Array(BINS);
+  let white = 0, whiteY = 0, coloured = 0;
+  const c = new THREE.Color();
+  for (let k = 0; k < d.length; k += 4) {
+    c.setRGB(d[k] / 255, d[k + 1] / 255, d[k + 2] / 255, THREE.SRGBColorSpace);
+    const { y, i, q } = yiq(c);
+    const ch = Math.hypot(i, q);
+    if (ch > 0.09 && y > 0.2) {
+      const b = Math.floor(((Math.atan2(q, i) / (Math.PI * 2) + 1) % 1) * BINS) % BINS;
+      hist[b] += ch; si[b] += i; sq[b] += q; sy[b] += y; sn[b]++;
+      coloured++;
+    } else if (ch < 0.06 && y > 0.68) { white++; whiteY += y; }
+  }
+  // the fullest three neighbouring bins (30° of hue)
+  let best = 0, bw = -1;
+  for (let b = 0; b < BINS; b++) { const w = hist[(b + BINS - 1) % BINS] + hist[b] + hist[(b + 1) % BINS]; if (w > bw) { bw = w; best = b; } }
+  let I = 0, Q = 0, Y = 0, n = 0;
+  for (const b of [(best + BINS - 1) % BINS, best, (best + 1) % BINS]) { I += si[b]; Q += sq[b]; Y += sy[b]; n += sn[b]; }
+  if (white > coloured * 0.9 && white > 300) return { mode: 2, i: 1, q: 0, y: whiteY / white, ch: 0 };
+  if (n < 120) return none;
+  const ch = Math.hypot(I, Q) / n;
+  return { mode: 1, i: I / n / ch, q: Q / n / ch, y: Y / n, ch };
+}
+
+/** The uniforms that turn a body of `look` into `paint` (null: leave it). */
+function paintUniforms(look: CarLook, mode: 0 | 1 | 2, paint: string | null) {
+  const body = new THREE.Vector4(look.i, look.q, 0.86, 0);
+  const to = new THREE.Vector4(1, 0, 1, 1);
+  if (paint && mode) {
+    const t = new THREE.Color(paint);
+    const p = yiq(t);
+    if (mode === 2) {
+      // a white body: lay the colour over it (the body's own white comes out as the colour)
+      const w = look.y * look.y;
+      to.set(Math.min(1.6, t.r / w), Math.min(1.6, t.g / w), Math.min(1.6, t.b / w), 0);
+      body.w = 2;
+    } else if (look.ch > 0.02) {
+      const pc = Math.hypot(p.i, p.q);
+      // turn the body's hue to the paint's (a grey or black paint keeps the hue and drops the colour)
+      const turn = pc > 0.03 ? Math.atan2(p.q, p.i) - Math.atan2(look.q, look.i) : 0;
+      to.set(Math.cos(turn), Math.sin(turn), Math.min(2.2, pc / look.ch), Math.min(2, p.y / look.y));
+      body.w = 1;
+    }
+  }
+  return { body, to };
+}
+
+function carMaterial(map: THREE.Texture | null, name: string, up: THREE.Vector4, look: CarLook, paint: string | null) {
+  const cfg = CAR_GLASS[name] ?? { lum: [0.09, 0.15] as [number, number], from: 0.45 };
+  const m = new THREE.MeshStandardMaterial({ map, color: 0xffffff, roughness: 0.55, metalness: 0 });
+  const { body, to } = paintUniforms(look, cfg.mode ?? look.mode, paint);
+  if (cfg.tol) body.z = cfg.tol;
+  const glass = new THREE.Vector4(cfg.lum[0], cfg.lum[1], cfg.from, cfg.hubs ? 1 : 0);
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uPalPull = paletteUniforms.uPalPull;
+    sh.uniforms.uPal = { value: palLinear };
+    sh.uniforms.uCarBody = { value: body };
+    sh.uniforms.uCarPaint = { value: to };
+    sh.uniforms.uCarGlass = { value: glass };
+    sh.uniforms.uCarUp = { value: up };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform vec4 uCarUp; varying float vCarY;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarY = dot(uCarUp.xyz, position) + uCarUp.w;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uPalPull; uniform vec3 uPal[${palLinear.length}];
+        uniform vec4 uCarBody; uniform vec4 uCarPaint; uniform vec4 uCarGlass; varying float vCarY;
+        float kpGlass = 0.0;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        {
+          vec3 c = max(diffuseColor.rgb, 0.0);
+          float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));
+          // glass: dark and cool, above the wheels
+          kpGlass = (1.0 - smoothstep(uCarGlass.x, uCarGlass.y, lum)) * smoothstep(-0.012, 0.012, c.b - c.r) * smoothstep(uCarGlass.z, uCarGlass.z + 0.07, vCarY);
+          vec3 g = sqrt(c);
+          float Y = dot(g, vec3(0.299, 0.587, 0.114));
+          vec2 iq = vec2(dot(g, vec3(0.596, -0.274, -0.322)), dot(g, vec3(0.211, -0.523, 0.312)));
+          float ch = length(iq);
+          float own = smoothstep(uCarBody.z, uCarBody.z + (1.0 - uCarBody.z) * 0.6, dot(iq / max(ch, 1e-4), uCarBody.xy));
+          if (uCarGlass.w > 0.5) {
+            float hub = (1.0 - smoothstep(0.28, 0.34, vCarY)) * (1.0 - own) * smoothstep(0.08, 0.14, ch) * smoothstep(0.3, 0.42, Y);
+            c = mix(c, vec3(Y * Y * 0.9) * vec3(0.97, 1.0, 1.04), hub);
+          }
+          if (uCarBody.w > 1.5) {
+            // a white body takes the paint; lights and chrome keep a little of their own
+            float m = smoothstep(0.5, 0.66, Y) * (1.0 - smoothstep(0.05, 0.11, ch));
+            c = mix(c, c * uCarPaint.rgb, m);
+          } else if (uCarBody.w > 0.5) {
+            float m = own * smoothstep(0.03, 0.09, ch) * (1.0 - kpGlass);
+            vec2 q2 = vec2(iq.x * uCarPaint.x - iq.y * uCarPaint.y, iq.x * uCarPaint.y + iq.y * uCarPaint.x) * uCarPaint.z;
+            float y2 = Y * uCarPaint.w;
+            vec3 g2 = clamp(vec3(y2 + 0.956 * q2.x + 0.621 * q2.y, y2 - 0.272 * q2.x - 0.647 * q2.y, y2 - 1.106 * q2.x + 1.703 * q2.y), 0.0, 1.0);
+            c = mix(c, g2 * g2, m);
+          }
+          vec3 best = c; float bd = 1e9;
+          for (int i = 0; i < ${palLinear.length}; i++) {
+            vec3 d = (sqrt(uPal[i]) - sqrt(c)) * vec3(0.9, 1.2, 0.8);
+            float dd = dot(d, d);
+            if (dd < bd) { bd = dd; best = uPal[i]; }
+          }
+          diffuseColor.rgb = mix(c, best, uPalPull * 0.6);
+        }`)
+      .replace('#include <lights_physical_fragment>', `
+        {
+          // (a level roof is never a window)
+          kpGlass *= 1.0 - smoothstep(0.9, 0.98, inverseTransformDirection(normal, viewMatrix).y);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.012, 0.02, 0.03), kpGlass * 0.8);
+          roughnessFactor = mix(roughnessFactor, 0.07, kpGlass);
+        }
+        #include <lights_physical_fragment>
+        material.specularColor = mix(material.specularColor, vec3(0.07), kpGlass);`);
+  };
+  m.customProgramCacheKey = () => 'kp-car';
+  m.userData.shared = true;
+  return withClouds(m);
+}
+
+/** Per vehicle model: each mesh's texture, its "up" in the mesh's own space, its look, and the paints made so far. */
+const carParts = new Map<string, { look: CarLook; meshes: { map: THREE.Texture | null; up: THREE.Vector4 }[]; mats: Map<number, THREE.Material[]> }>();
+
+function carMats(n: string, paint: number): THREE.Material[] | null {
+  const info = carParts.get(n);
+  if (!info) return null;
+  let m = info.mats.get(paint);
+  if (!m) {
+    m = info.meshes.map((p) => carMaterial(p.map, n, p.up, info.look, CAR_PAINTS[paint]));
+    info.mats.set(paint, m);
+  }
+  return m;
+}
+
+/**
+ * Give a vehicle from `model()` a paint job: `pick` (0–1, e.g. from the scene's seeded random) chooses among the
+ * colours cars come in. About a third keep the model's own colour.
+ */
+export function paintCar(o: THREE.Object3D, pick: number) {
+  const n = o.userData.model as string;
+  if (!carParts.has(n)) return o;
+  const k = pick < 0.3 ? 0 : 1 + Math.floor(((pick - 0.3) / 0.7) * (CAR_PAINTS.length - 1)) % (CAR_PAINTS.length - 1);
+  const mats = carMats(n, k);
+  if (!mats) return o;
+  let i = 0;
+  o.traverse((c) => { const mesh = c as THREE.Mesh; if (mesh.isMesh) mesh.material = mats[i++] ?? mesh.material; });
+  o.userData.paint = k;
+  return o;
+}
+
 function prepare(root: THREE.Object3D, skinned: boolean) {
   root.traverse((c) => {
     const mesh = c as THREE.Mesh;
@@ -97,6 +290,24 @@ export function loadModels(names: (ModelName | PersonName)[]): Promise<void> {
       root.position.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
       wrap.add(root);
       wrap.userData.size = box.getSize(new THREE.Vector3());
+      if (VEHICLES.has(n)) {
+        // each mesh's height up the vehicle (0 at the tyres' contact, 1 at the roof) from its own coordinates
+        const size = wrap.userData.size as THREE.Vector3;
+        const meshes: { map: THREE.Texture | null; up: THREE.Vector4 }[] = [];
+        let look: CarLook | null = null;
+        root.traverse((c) => {
+          const mesh = c as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          const e = mesh.matrixWorld.elements;
+          const map = (mesh.material as THREE.MeshStandardMaterial).map;
+          look ??= carLook(map);
+          meshes.push({ map, up: new THREE.Vector4(e[1] / size.y, e[5] / size.y, e[9] / size.y, (e[13] - box.min.y) / size.y) });
+        });
+        carParts.set(n, { look: look ?? { mode: 0, i: 1, q: 0, y: 1, ch: 0 }, meshes, mats: new Map() });
+        const own = carMats(n, 0)!;
+        let i = 0;
+        root.traverse((c) => { const mesh = c as THREE.Mesh; if (mesh.isMesh) mesh.material = own[i++]; });
+      }
       templates.set(n, wrap);
       // people come as Meshy's walk file (the rigged figure and its walk cycle in one) with the library clips added
       if (person && g.animations[0]) clips.set(n, new Map(g.animations.map((a, i) => [i === 0 ? 'walk' : a.name, a])));
