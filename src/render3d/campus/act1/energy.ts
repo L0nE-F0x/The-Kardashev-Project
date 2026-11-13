@@ -84,7 +84,7 @@ export function solar(o: { seed: number; w: number; d: number; tier: number }): 
   const lz0 = z0 - 1.4, lz1 = o.d / 2 - 0.6;
   k.box(lane - 0.3, 0.05, lz1 - lz0, '#b3a58a', 0, 0.1, (lz0 + lz1) / 2, { r: 0.02, shade: 0, jitter: 0.02 });
   for (const sx of [-0.62, 0.62]) k.box(0.36, 0.012, lz1 - lz0 - 0.4, '#a09276', sx, 0.15, (lz0 + lz1) / 2, { r: 0, jitter: 0.02, shade: 0 });
-  for (let z = lz0 + 0.6; z < z1 + 1.2; z += 1.25) k.box(0.34, 0.03, 1.18, '#8f877c', -lane / 2 + 0.02, 0.13, z, { r: 0, jitter: 0.05, shade: 0 });
+  for (let z = lz0 + 0.6; z < z1 + 1.2; z += 1.25) k.box(0.34, 0.03, 1.18, '#8f877c', -lane / 2 + 0.02, 0.125, z, { r: 0, jitter: 0.05, shade: 0 });
   // the inverter station and a lamp in the front strip, a weather mast with its pyranometer
   const sx0 = lane / 2 + 5.2, sz = o.d / 2 - 2.5;
   inverterStation(k, sx0, sz);
@@ -175,7 +175,7 @@ export function battery(o: { seed: number; tier: number }): Piece {
     // two plinth beams the length of the row, a cable trench cover in front
     for (const dz of [-0.55, 0.55]) k.box(24.2, 0.3, 0.4, P.concrete2, 0, 0.06, z + dz, { r: 0.03, shade: 0.1 });
     const front = o.tier >= 3 ? (ri % 2 ? 1 : -1) : 1;
-    for (let x = -11.8; x < 11.9; x += 1.2) k.box(1.14, 0.04, 0.5, '#8f877c', x + 0.6, 0.13, z + front * 1.3, { r: 0, jitter: 0.05, shade: 0 });
+    for (let x = -11.8; x < 11.9; x += 1.2) k.box(1.14, 0.04, 0.5, '#8f877c', x + 0.6, 0.11, z + front * 1.3, { r: 0, jitter: 0.05, shade: 0 });
     xs.forEach((x, ci) => {
       const u = cabinet(o.seed + ri * 7 + ci, band);
       u.position.set(x, 0.06, z);
@@ -186,27 +186,29 @@ export function battery(o: { seed: number; tier: number }): Piece {
   });
   // the main trench across the front of the rows, to the power-conversion skids: one per row (pair)
   const tz = 6.0;
-  for (let x = -11.8; x < 11.9; x += 1.2) k.box(1.14, 0.04, 0.6, '#8f877c', x + 0.6, 0.13, tz, { r: 0, jitter: 0.05, shade: 0 });
+  for (let x = -11.8; x < 11.9; x += 1.2) k.box(1.14, 0.04, 0.6, '#8f877c', x + 0.6, 0.11, tz, { r: 0, jitter: 0.05, shade: 0 });
+  // (they stand clear of the lane in from the gate, which is the middle of the fence's front)
   const nSkid = o.tier >= 2 ? 3 : 2;
-  const skidX = nSkid === 3 ? [-7.6, -0.4, 6.8] : [-5.4, 3.4];
+  const skidX = nSkid === 3 ? [-9.9, -4.6, 4.6] : [-5.2, 4.9];
   const sz = 8.6;
   for (const x of skidX) {
-    k.box(6.0, 0.12, 2.5, P.concrete2, x, 0.08, sz, { r: 0.03, shade: 0, jitter: 0.02 });
+    k.box(5.0, 0.12, 2.5, P.concrete2, x, 0.08, sz, { r: 0.03, shade: 0, jitter: 0.02 });
     // the inverter: a cabinet with doors and louvres, a hood on top
-    k.box(2.6, 2.1, 1.4, '#e7dfd2', x - 1.5, 0.2, sz, { r: 0.08 });
-    k.box(2.66, 0.12, 1.46, '#b9b1a6', x - 1.5, 2.3, sz, { r: 0.03, shade: 0 });
-    k.box(2.62, 0.22, 1.42, band, x - 1.5, 1.86, sz, { r: 0.02, shade: 0 });
+    k.box(2.3, 2.1, 1.4, '#e7dfd2', x - 1.25, 0.2, sz, { r: 0.08 });
+    k.box(2.36, 0.12, 1.46, '#b9b1a6', x - 1.25, 2.3, sz, { r: 0.03, shade: 0 });
+    k.box(2.32, 0.22, 1.42, band, x - 1.25, 1.86, sz, { r: 0.02, shade: 0 });
     for (let i = 0; i < 3; i++) {
-      k.box(0.76, 1.5, 0.04, '#d8cfc3', x - 2.32 + i * 0.82, 0.32, sz + 0.71, { r: 0.01, jitter: 0.02, shade: 0 });
-      slots(k, x - 2.32 + i * 0.82, 0.46, sz + 0.735, 0.56, 0.42, 4);
-      k.box(0.04, 0.2, 0.05, '#5b5562', x - 2.32 + i * 0.82 + 0.26, 1.2, sz + 0.74, { r: 0, jitter: 0 });
+      const dx = x - 1.97 + i * 0.72;
+      k.box(0.66, 1.5, 0.04, '#d8cfc3', dx, 0.32, sz + 0.71, { r: 0.01, jitter: 0.02, shade: 0 });
+      slots(k, dx, 0.46, sz + 0.735, 0.5, 0.42, 4);
+      k.box(0.04, 0.2, 0.05, '#5b5562', dx + 0.22, 1.2, sz + 0.74, { r: 0, jitter: 0 });
     }
-    transformer(new At(k, x + 1.5, 0.14, sz), 0, 0, 0.66);
+    transformer(new At(k, x + 1.35, 0.14, sz), 0, 0, 0.62);
     // bollards on the road side
-    for (const dx of [-2.8, 0, 2.8]) k.cyl(0.08, 0.08, 0.85, 'yel0', x + dx, 0.12, sz + 1.55, 8, { shade: 0 });
+    for (const dx of [-2.3, 0, 2.3]) k.cyl(0.08, 0.08, 0.85, 'yel0', x + dx, 0.12, sz + 1.55, 8, { shade: 0 });
   }
   // the e-house (switchgear and controls) in the front corner, its door and lamp; a fire cabinet beside it
-  const ex = nSkid === 3 ? 11.3 : 10.6, ez = 9.4;
+  const ex = 10.9, ez = 9.4;
   k.box(2.6, 0.2, 3.6, P.concrete2, ex, 0.06, ez, { r: 0.03, shade: 0 });
   k.box(2.3, 2.5, 3.3, '#e9e1d2', ex, 0.24, ez, { r: 0.08, shade: 0.12 });
   k.box(2.4, 0.16, 3.4, P.roof, ex, 2.74, ez, { r: 0.04, shade: 0 });
@@ -218,7 +220,7 @@ export function battery(o: { seed: number; tier: number }): Piece {
   k.box(0.5, 1.3, 0.4, 'red3', ex - 1.0, 0.14, ez - 2.3, { r: 0.03 });
   // lamps on masts at the yard's corners and by the skids
   for (const [x, z, dir] of [[-12.2, -11.3, 1], [12.2, -11.3, -1], [-12.2, 4.6, 1], [12.2, 4.6, -1]] as [number, number, number][]) poleLamp(k, lamps, g, x, z, 5.4, dir, 0.1);
-  wallLamp(lamps, g, skidX[0] - 1.5, 2.46, sz + 0.75, 0, warmPool, 3);
+  for (const x of skidX) wallLamp(lamps, g, x - 1.25, 2.46, sz + 0.75, 0, warmPool, 2.8);
   g.add(k.build(), lamps.build(lampHeadMat));
   const h = 3.4;
   return {
@@ -227,7 +229,7 @@ export function battery(o: { seed: number; tier: number }): Piece {
     doors: [{ x: ex - 1.9, z: ez + 0.6, nx: -1, nz: 0 }],
     blockers: [
       ...rows.map((z) => ({ x0: -12.2, z0: z - 0.95, x1: 12.2, z1: z + 0.95 })),
-      ...skidX.map((x) => ({ x0: x - 3.05, z0: sz - 1.3, x1: x + 3.05, z1: sz + 1.7 })),
+      ...skidX.map((x) => ({ x0: x - 2.55, z0: sz - 1.3, x1: x + 2.55, z1: sz + 1.7 })),
       { x0: ex - 1.3, z0: ez - 2.6, x1: ex + 1.3, z1: ez + 1.8 },
     ],
     // the cabinets are craned on one at a time
@@ -351,7 +353,7 @@ export function wind(o: { seed: number; tier: number }): Piece {
   // a gravel crane pad and a kiosk transformer at each foot, the site track linking them to the gate
   const cs = Math.cos(0.35), sn = Math.sin(0.35);
   for (const [x, z] of spots) {
-    k.box(5.2, 0.07, 4.2, '#b9ab90', x + 3.6, 0.1, z + 0.4, { r: 0.03, shade: 0, jitter: 0.02 });
+    k.box(5.2, 0.07, 4.2, '#b9ab90', x + 3.6, 0.08, z + 0.4, { r: 0.03, shade: 0, jitter: 0.02 });
     // (beside the door, which faces the way the turbine does)
     const kx = x + cs * 2.3 + sn * 1.2, kz = z - sn * 2.3 + cs * 1.2;
     k.box(1.5, 0.1, 1.3, P.concrete2, kx, 0.09, kz, { r: 0.02, shade: 0 });
@@ -363,7 +365,7 @@ export function wind(o: { seed: number; tier: number }): Piece {
   }
   const track = (x0: number, z0: number, x1: number, z1: number) => {
     const len = Math.hypot(x1 - x0, z1 - z0);
-    k.box(len + 2.4, 0.06, 2.6, '#b3a58a', (x0 + x1) / 2, 0.095, (z0 + z1) / 2, { r: 0.03, shade: 0, jitter: 0.02, ry: -Math.atan2(z1 - z0, x1 - x0) });
+    k.box(len + 2.4, 0.06, 2.6, '#b3a58a', (x0 + x1) / 2, 0.085, (z0 + z1) / 2, { r: 0.03, shade: 0, jitter: 0.02, ry: -Math.atan2(z1 - z0, x1 - x0) });
   };
   for (let i = 0; i + 1 < spots.length; i++) track(spots[i][0] + 3.6, spots[i][1] + 0.4, spots[i + 1][0] + 3.6, spots[i + 1][1] + 0.4);
   track(spots[0][0] + 3.6, spots[0][1] + 0.4, spots[0][0] + 3.6, 11.8);

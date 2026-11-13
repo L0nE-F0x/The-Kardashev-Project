@@ -121,7 +121,11 @@ export function hq(o: { seed: number }): Piece {
     doors: [{ x: 2.9, z: 0.8 }, { x: -5.0, z: 0.3 }],
     blockers: [
       { x0: -8.6, z0: -7.1, x1: 8.6, z1: -0.4 },
-      { x0: 3.8, z0: -0.4, x1: 8.6, z1: 0.9 },
+      // the front wall proper (measured on the model: the pier beside the garage door, the wall with the window
+      // and the door, the gabled wing), so nobody stands with a shoulder in the render
+      { x0: -2.55, z0: -0.4, x1: -1.4, z1: 0.6 },
+      { x0: -1.4, z0: -0.4, x1: 3.7, z1: 0.2 },
+      { x0: 3.6, z0: -0.4, x1: 8.6, z1: 1.6 },
       ...spots.map(([x, z]) => ({ x0: x - 0.7, z0: z - 0.55, x1: x + 0.7, z1: z + 0.55 })),
       { x0: 3.95, z0: 3.95, x1: 9.85, z1: 5.4 },
       { x0: -12.9, z0: -10.6, x1: -11.5, z1: 10.6 },

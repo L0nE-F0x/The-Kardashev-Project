@@ -70,7 +70,7 @@ function wing(k: Kit, lit: Kit, lamps: Kit, g: THREE.Group, fans: THREE.Object3D
     for (const sx of [-0.12, 0.12]) k.box(0.04, 0.5, 0.06, '#c9c7c0', dx + sx, 1.2, r.z1 + 0.11, { r: 0, jitter: 0 });
     k.box(3.0, 0.2, 1.7, TEAL, dx + 0.1, 2.85, r.z1 + 0.85, { r: 0.05, shade: 0 });
     for (const sx of [-1.2, 1.4]) k.box(0.1, 2.65, 0.1, FRAME, dx + sx, 0.2, r.z1 + 1.55, { r: 0, jitter: 0 });
-    k.box(2.8, 0.1, 1.6, '#cfc6bd', dx + 0.1, 0.12, r.z1 + 0.85, { r: 0.02, shade: 0, jitter: 0.02 });
+    k.box(2.8, 0.09, 1.6, '#cfc6bd', dx + 0.1, 0.06, r.z1 + 0.85, { r: 0.02, shade: 0, jitter: 0.02 });
     wallLamp(lamps, g, dx + 0.1, 2.72, r.z1 + 0.5, 0, undefined, 3);
   }
   // the roof: air handlers with their fans, a stair head, flues
@@ -147,10 +147,10 @@ export function lab(o: { seed: number; tier: number }): Piece {
   // the car park in front: asphalt inside a kerb, bay lines, wheel stops, two lamps (a walk is left between it
   // and the building, so the doors can be reached)
   const pz = 9.55;
-  k.box(15.2, 0.14, 5.95, '#b9b1a6', 0, 0.02, pz - 0.075, { r: 0.03, shade: 0 });
-  k.box(14.8, 0.06, 5.8, '#6f6878', 0, 0.11, pz, { r: 0.02, shade: 0, jitter: 0.02 });
-  for (let i = 0; i <= 6; i++) k.box(0.1, 0.02, 4.4, '#e6e0e3', -7.2 + i * 2.4, 0.16, pz - 0.5, { r: 0, jitter: 0, shade: 0 });
-  for (let i = 0; i < 6; i++) k.box(1.6, 0.12, 0.22, '#cfc6bd', -6 + i * 2.4, 0.17, pz - 2.55, { r: 0.04, shade: 0 });
+  k.box(15.2, 0.12, 5.95, '#b9b1a6', 0, 0.03, pz - 0.075, { r: 0.03, shade: 0 });
+  k.box(14.8, 0.06, 5.8, '#6f6878', 0, 0.083, pz, { r: 0.02, shade: 0, jitter: 0.02 });
+  for (let i = 0; i <= 6; i++) k.box(0.1, 0.02, 4.4, '#e6e0e3', -7.2 + i * 2.4, 0.13, pz - 0.5, { r: 0, jitter: 0, shade: 0 });
+  for (let i = 0; i < 6; i++) k.box(1.6, 0.12, 0.22, '#cfc6bd', -6 + i * 2.4, 0.14, pz - 2.55, { r: 0.04, shade: 0 });
   for (const x of [-7.9, 7.9]) poleLamp(k, lamps, g, x, pz - 2.2, 4.6, x < 0 ? 1 : -1, 0.1);
   // the walk from the car park to the entrance
   k.box(15.2, 0.06, 1.5, '#cfc6bd', 0, 0.09, pz - 3.85, { r: 0.02, shade: 0, jitter: 0.02 });
