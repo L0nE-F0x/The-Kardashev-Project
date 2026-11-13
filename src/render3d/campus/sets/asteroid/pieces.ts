@@ -463,12 +463,7 @@ export function astRig(o: Act3SetOpts): Piece {
       a.anim.add((e) => sparks.update(e));
     }
     if (t === 'C') {
-      // boiled-off volatiles: with no air nothing billows or rises; the gas leaves the stack in a
-      // straight widening cone and thins to nothing within a few metres
-      const vap = new Spray({ count: 110, life: 1.5, dir: V(0.05, 1, -0.08).normalize(), spread: 0.3, speed: [2.6, 5.2], g: 0, size: [0.5, 2.4], color: '#e6e0e3', opacity: 0.13 }, seed + 2);
-      vap.obj.position.set(bx + 0.6, deckY + bh + 0.6, bz - 0.4);
-      a.g.add(vap.obj);
-      a.anim.add((e) => vap.update(e));
+      // the volatiles' vent stack (what it lets go is gas into a vacuum: nothing to see, least of all rising smoke)
       k.cyl(0.35, 0.4, 0.7, STEEL, bx + 0.6, deckY + bh, bz - 0.4, 10);
     }
   }

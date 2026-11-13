@@ -35,7 +35,8 @@ export function drape(g: THREE.BufferGeometry, lift = 0.04) {
 // ── rock by type ─────────────────────────────────────────────────────────────────────────────
 export interface RockLook { base: string; lit: string; dark: string; dust: string; hi: string; fresh: string; tint: string }
 export const ROCK: Record<Rock, RockLook> = {
-  C: { base: '#3d3848', lit: '#4d4759', dark: '#26222f', dust: '#2a3352', hi: '#6a6378', fresh: '#857d92', tint: '#33405e' },
+  // (carbon rock is the darkest of the three, but still has to read against a black sky: it was near-black in shade)
+  C: { base: '#4c4659', lit: '#5f586d', dark: '#342f40', dust: '#374262', hi: '#7e768f', fresh: '#978fa5', tint: '#3d4a6c' },
   S: { base: '#7a6a66', lit: '#8f7c76', dark: '#56484a', dust: '#a08a70', hi: '#b3a093', fresh: '#cdbdaa', tint: '#9c7c62' },
   M: { base: '#666176', lit: '#7f7a92', dark: '#45405a', dust: '#4f5d80', hi: '#b9b4c8', fresh: '#e0dce8', tint: '#566a96' },
 };
