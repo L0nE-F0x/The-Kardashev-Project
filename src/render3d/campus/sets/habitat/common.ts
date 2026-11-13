@@ -19,7 +19,7 @@ import { hasModel, person as rigged, type PersonName } from '../../../models';
 const STAND_IN: Partial<Record<PersonName, PersonName>> = { resident_a: 'office', resident_b: 'engineer', kid_a: 'office', kid_b: 'researcher' };
 const fig = (k: PersonName): PersonName => (hasModel(k) ? k : STAND_IN[k] ?? k);
 import { habFloor } from '../../habitatShell';
-import { treeGeometry, type TreeKind } from '../../trees';
+import { plantField, type TreeKind } from '../../trees';
 import { glassMat } from '../../plants2/parts';
 import { Anim, plantMat, V } from '../mega/common';
 
@@ -176,19 +176,22 @@ export class Hab {
     add(this.lit, litMat, false);
     add(this.leaf, plantMat);
     for (const [kind, at] of this.trees) {
-      const geo = kind === 'cypress' ? cypressGeo() : kind === 'blossom' ? blossomGeo() : treeGeometry(kind === 'fruit' ? 'blob' : kind);
-      const im = new THREE.InstancedMesh(geo, plantMat, at.length);
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
-      at.forEach((p, i) => {
-        q.setFromAxisAngle(UP, p.ry);
-        m.compose(V(p.x, p.y + floorY(p.z), p.z), q, V(p.s, p.s, p.s));
-        im.setMatrixAt(i, m);
-        im.setColorAt(i, c.setScalar(p.tint));
-      });
-      im.castShadow = true;
-      im.receiveShadow = true;
-      im.computeBoundingSphere();
-      this.g.add(im);
+      // the town's own two shapes are built here; every other kind is one of the shared plants (trees.ts), a mix of
+      // its variants, standing on the curved floor
+      if (kind === 'cypress' || kind === 'blossom') {
+        const im = new THREE.InstancedMesh(kind === 'cypress' ? cypressGeo() : blossomGeo(), plantMat, at.length);
+        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
+        at.forEach((p, i) => {
+          q.setFromAxisAngle(UP, p.ry);
+          m.compose(V(p.x, p.y + floorY(p.z), p.z), q, V(p.s, p.s, p.s));
+          im.setMatrixAt(i, m);
+          im.setColorAt(i, c.setScalar(p.tint));
+        });
+        im.castShadow = true;
+        im.receiveShadow = true;
+        im.computeBoundingSphere();
+        this.g.add(im);
+      } else this.g.add(plantField(kind === 'fruit' ? 'blob' : kind, at.map((p) => ({ x: p.x, y: p.y + floorY(p.z), z: p.z, s: p.s, ry: p.ry, tint: p.tint }))));
     }
     if (this.dots.length) {
       const im = new THREE.InstancedMesh(dotGeo, plantMat, this.dots.length);

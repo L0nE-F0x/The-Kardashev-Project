@@ -4,6 +4,7 @@
  * a blue disc), glass that lights up at night, signs that glow after dark, and people.
  */
 import * as THREE from 'three';
+import { plantOn } from '../../trees';
 import { glowMat, Kit, rng, withClouds, type Paint } from '../../../kit';
 import { sign } from '../../../fx';
 import type { Env } from '../../../pieces';
@@ -294,13 +295,9 @@ export function paving(k: Kit, x0: number, z0: number, x1: number, z1: number, y
 /** Leafy clumps (planters, balconies, roof gardens): faceted blobs. */
 export function greenery(k: Kit, x: number, y: number, z: number, s: number, seed: number, flowers = false) {
   const r = rng(seed);
-  const greens: Paint[] = ['#3f7b35', '#4a8a3a', '#5a9537', '#367030'];
-  const n = 2 + Math.floor(r() * 2);
-  for (let i = 0; i < n; i++) {
-    const g = new THREE.IcosahedronGeometry(s * (0.55 + r() * 0.35), 0).scale(1, 0.8, 1).translate(x + (r() - 0.5) * s * 1.2, y + s * 0.35, z + (r() - 0.5) * s * 0.6);
-    k.geo(g, greens[Math.floor(r() * greens.length)], 0.15);
-  }
-  if (flowers && r() < 0.7) k.geo(new THREE.IcosahedronGeometry(s * 0.22, 0).translate(x + (r() - 0.5) * s, y + s * 0.7, z + s * 0.25), r() < 0.5 ? 'pnk1' : 'yel1', 0.1);
+  // a leafy clump (the shared plants: trees.ts), a bloom or two on top
+  plantOn(k, 'shrub', { x, y: y - 0.02, z, s: s * (0.95 + r() * 0.3), ry: r() * 6.3, tint: 0.92 + r() * 0.16 }, false);
+  if (flowers && r() < 0.7) k.geo(new THREE.IcosahedronGeometry(s * 0.2, 0).translate(x + (r() - 0.5) * s * 0.8, y + s * 0.78, z + s * 0.2), r() < 0.5 ? 'pnk1' : 'yel1', 0.1);
 }
 
 /** A round planter with a small tree in it (base at y). */
@@ -308,12 +305,7 @@ export function plantedTree(k: Kit, x: number, y: number, z: number, s: number, 
   const r = rng(seed);
   k.cyl(s * 0.9, s * 0.8, s * 0.55, '#bdb3a6', x, y, z, 14, { shade: 0.15 });
   k.cyl(s * 0.8, s * 0.8, 0.06, '#5f3b28', x, y + s * 0.5, z, 14);
-  k.cyl(s * 0.08, s * 0.12, s * 1.4, '#5c3a26', x, y + s * 0.5, z, 6);
-  const greens: Paint[] = ['#3f7b35', '#4a8a3a', '#367030', '#5a9537'];
-  for (let i = 0; i < 3; i++) {
-    const g = new THREE.IcosahedronGeometry(s * (0.55 + r() * 0.25), 1).translate(x + (r() - 0.5) * s * 0.8, y + s * (1.9 + r() * 0.5), z + (r() - 0.5) * s * 0.8);
-    k.geo(g, greens[i % greens.length], 0.16);
-  }
+  plantOn(k, 'blob', { x, y: y + s * 0.52, z, s: s * 0.9, ry: r() * 6.3, tint: 0.94 + r() * 0.12 });
 }
 
 /** A timber park bench facing +z rotated by ry, at (x, y, z). */

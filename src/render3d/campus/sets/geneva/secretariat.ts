@@ -5,9 +5,9 @@
  * roof, and the twelve blocs' banners along the forecourt behind a reflecting pool.
  */
 import * as THREE from 'three';
+import { plantField } from '../../trees';
 import { glowMat, Kit, lightPool, poolMat, rng, withClouds, type Paint } from '../../../kit';
-import { instanced, streetLamp, type Piece } from '../../../pieces';
-import { modelParts } from '../../../models';
+import { streetLamp, type Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
 import { bench, CH, CHARTER_FLAG, emblemDisc, flagPole, Flags, glassMat, greenery, litGlass, litSign, lampMat, paving, People, plantedTree, type FlagSpec } from './common';
 
@@ -191,9 +191,7 @@ export function secretariat(o: Act3SetOpts): Piece {
   plantedTree(k, 9.5, B, 6.8, 1.15, seed + 21);
   plantedTree(k, -21.5, B, 6.2, 1.1, seed + 22);
   for (const x of [-24.4, 24.2]) for (const z of [-13.6, -9.4, -5.2]) greenery(k, x, B, z, 0.8, seed + 70 + x + z);
-  const oak = modelParts('oak');
-  if (oak) g.add(instanced(oak.parts, oak.size, [{ x: 20.5, y: B, z: 5.2, s: 1, ry: 0.4 }, { x: -23, y: B, z: 1.6, s: 0.78, ry: 2.2 }], 7));
-  else plantedTree(k, 20.5, B, 5.2, 1.6, seed + 23);
+  g.add(plantField('oak', [{ x: 20.5, y: B, z: 5.2, s: 1.1, ry: 0.4 }, { x: -23, y: B, z: 1.6, s: 0.86, ry: 2.2 }]));
   for (const x of [-19, -7, 5, 17]) streetLamp(g, k, x, B, 13.9, 1);
   // ── night light: the canopy's downlights, lit lobby floors ──
   const dl = lampMat('yel1', 2.2);

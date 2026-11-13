@@ -5,9 +5,9 @@
  * THE KARDASHEV PROJECT in gold on blue. At night the chamber glows through the glass.
  */
 import * as THREE from 'three';
+import { plantField } from '../../trees';
 import { Kit, lightPool, poolMat, rng, type Paint } from '../../../kit';
-import { instanced, type Piece } from '../../../pieces';
-import { modelParts } from '../../../models';
+import { type Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
 import { KEYS, PALETTE } from '../../../../render/palette';
 import { BLOC_FRIEZE, BLOC_ORDER } from '../../planKit';
@@ -144,8 +144,7 @@ export function council(o: Act3SetOpts): Piece {
   flagPole(k, 9.2, B, PZ1 + 1.8, 8.6);
   plantedTree(k, -14.8, B + 0.2, 11.4, 1.15, o.seed + 31);
   plantedTree(k, 14.8, B + 0.2, 11.4, 1.15, o.seed + 32);
-  const oak = modelParts('oak');
-  if (oak) g.add(instanced(oak.parts, oak.size, [{ x: -14.2, y: B + 0.2, z: -10.6, s: 0.8, ry: 0.5 }, { x: 14.2, y: B + 0.2, z: -10.2, s: 0.74, ry: 2.6 }], 7));
+  g.add(plantField('oak', [{ x: -14.2, y: B + 0.2, z: -10.6, s: 0.88, ry: 0.5 }, { x: 14.2, y: B + 0.2, z: -10.2, s: 0.82, ry: 2.6 }]));
   const fl = new Flags([
     { x: 0.08, y: FY + 4.3, z: CZ, banner: CHARTER_FLAG, w: 2.8, h: 1.75 },
     { x: -9.12, y: B + 8.55, z: PZ1 + 1.8, banner: CHARTER_FLAG, w: 2.6, h: 1.6 },

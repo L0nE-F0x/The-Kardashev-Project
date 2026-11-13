@@ -4,10 +4,11 @@
  * striped awning and parasol tables under festoon lights, benches, trees and the Charter's flags.
  */
 import * as THREE from 'three';
+import { plantField } from '../../trees';
 import { glowMat, Kit, lightPool, poolMat, rng, type Paint } from '../../../kit';
 import { Plume, sign } from '../../../fx';
-import { instanced, streetLamp, type Env, type Piece } from '../../../pieces';
-import { hasModel, modelParts } from '../../../models';
+import { streetLamp, type Env, type Piece } from '../../../pieces';
+import { hasModel } from '../../../models';
 import type { Act3SetOpts } from '../../act3sets';
 import { bench, CHARTER_FLAG, flagPole, Flags, greenery, lampMat, litGlass, litSign, paving, People, plantedTree, sitter, V } from './common';
 import { fit, waterMat } from './secretariat';
@@ -186,8 +187,7 @@ export function plaza(o: Act3SetOpts): Piece {
   festoon(g, k, [[top(0), top(1)], [top(1), top(2)], [top(3), top(0)], [top(0), top(2)], [top(1), top(3)]], o.seed + 3);
   lightPool(g, 10, B, -1.8, 6.4, poolMat('#ffd9a0', 0.5), 1.1);
   // ── trees, planters, flags, lamps, benches at the front ──
-  const oak = modelParts('oak');
-  if (oak) g.add(instanced(oak.parts, oak.size, [{ x: -12, y: B, z: -9.3, s: 0.84, ry: 0.3 }, { x: -3.2, y: B, z: -10.4, s: 0.78, ry: 1.9 }, { x: 12, y: B, z: 9.4, s: 0.76, ry: 4 }], 7));
+  g.add(plantField('oak', [{ x: -12, y: B, z: -9.3, s: 0.92, ry: 0.3 }, { x: -3.2, y: B, z: -10.4, s: 0.86, ry: 1.9 }, { x: 12, y: B, z: 9.4, s: 0.84, ry: 4 }]));
   plantedTree(k, -13, B, 10.6, 1.1, o.seed + 11);
   plantedTree(k, 4.6, B, 10.4, 1.05, o.seed + 12);
   for (let i = 0; i < 7; i++) {

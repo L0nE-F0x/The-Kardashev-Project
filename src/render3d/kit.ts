@@ -268,7 +268,7 @@ export const kitDetail = { bevelSeg: 2 };
 export class Kit {
   private parts: THREE.BufferGeometry[] = [];
   /** Things that go with what this kit builds but can't be merged into it (planting): `build` hangs them on the mesh. */
-  extra: THREE.Object3D[] = [];
+  extra: (THREE.Object3D | (() => THREE.Object3D | null))[] = [];
   constructor(private rand: () => number = rng(7)) {}
 
   /** Bevelled box, centred at (x, y, z) with y = its bottom. */
@@ -346,7 +346,7 @@ export class Kit {
     const m = new THREE.Mesh(g, mat);
     m.castShadow = true;
     m.receiveShadow = true;
-    for (const o of this.extra) m.add(o);
+    for (const o of this.extra) { const x = typeof o === 'function' ? o() : o; if (x) m.add(x); }
     this.extra = [];
     return m;
   }

@@ -15,7 +15,7 @@ const rows = await page.evaluate(async (filter) => {
   const pcs = await import('/src/render3d/pieces.ts');
   const life = await import('/src/render3d/campus/life.ts');
   const BARE = /^set:(moon|he3|mass|rim|ice|regolith|yards|ring|hab|ast|sea|windSea|jetty|manhole)/;
-  await models.loadModels(['garage', 'lab', 'gasplant', 'substation', 'watertower', 'oak', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed']);
+  await models.loadModels(['garage', 'lab', 'gasplant', 'substation', 'watertower', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed']);
   const T = { Vector3: null };
   const out = [];
   const jobs = [];

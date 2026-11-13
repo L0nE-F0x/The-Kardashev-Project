@@ -791,3 +791,29 @@ export function treeField(kind: TreeKind, at: Placement[], _mat?: THREE.Material
   void _mat;
   return field(treeGeometry(kind, 0, false), isStone(kind) ? stoneMaterial() : foliageMaterial(), at);
 }
+
+/** What a builder kit lends to planting: things hung on the mesh it builds (kit.ts `Kit.extra`). */
+interface Planter { extra: (THREE.Object3D | (() => THREE.Object3D | null))[] }
+const beds = new WeakMap<Planter, Map<string, Placement[]>>();
+/**
+ * Plant something as part of what a kit builds (a tree in a planter, a bush by a door): everything a kit plants of
+ * one kind becomes one instanced field, hung on the kit's mesh when it is built.
+ */
+export function plantOn(k: Planter, kind: TreeKind, p: Placement, shadow = true) {
+  let bed = beds.get(k);
+  if (!bed) {
+    const made = new Map<string, Placement[]>();
+    bed = made;
+    beds.set(k, made);
+    k.extra.push(() => {
+      beds.delete(k);
+      const g = new THREE.Group();
+      for (const [key, at] of made) g.add(plantField(key.split('|')[0] as TreeKind, at, { shadow: key.endsWith('|1') }));
+      return g;
+    });
+  }
+  const key = `${kind}|${shadow ? 1 : 0}`;
+  let list = bed.get(key);
+  if (!list) bed.set(key, list = []);
+  list.push(p);
+}
