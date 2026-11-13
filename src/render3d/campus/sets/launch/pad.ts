@@ -1,11 +1,13 @@
 /**
  * The launch pad: a raised concrete hardstand over a flame trench, the launch mount, a lattice
- * service tower with swing arms and a lift shaft in the builder's colours, the deluge water tower,
- * three lightning masts with their catenary, floodlights, and the heavy lifter in the builder's
- * livery. 'liftoff' runs the launch cycle every 20 s (`cycle:P:O` = every P s, O s ahead): venting
- * on the pad → arms swing away → deluge → ignition (exhaust bursts from the trench, orange light
- * floods the pad) → liftoff (it climbs, accelerates and pitches out to sea on a long trail) → a
- * fresh rocket fades in. 'building' = the pad under construction (by `p`).
+ * service tower with swing arms and a lift shaft in the builder's colours and a slewing crane on
+ * top, the deluge water tower, three lightning masts with their catenary, floodlights, and the
+ * heavy lifter in the builder's livery. 'liftoff' runs the launch cycle (`cycle:P:O` = every P s,
+ * O s ahead): the booster comes back down on its engines and lands on the mount → a transporter
+ * brings the next upper stack up the ramp → the tower's crane lifts it onto the booster → the
+ * arms swing in, it vents → arms away → deluge → ignition (exhaust bursts from the trench, orange
+ * light floods the pad) → liftoff (it climbs, accelerates and pitches out to sea on a long trail).
+ * Nothing appears from nowhere. 'building' = the pad under construction (by `p`).
  */
 import * as THREE from 'three';
 import { Kit, lightPool, poolMat, poolMats, rng, type Paint } from '../../../kit';
@@ -28,7 +30,7 @@ export function launchPad(o: Act3SetOpts): Piece {
   const building = variant === 'building';
   const p = building ? Math.max(0, Math.min(1, o.p ?? 0)) : 1;
   let period = 0, offset = 0;
-  if (variant === 'liftoff') period = 20;
+  if (variant === 'liftoff') period = 26;
   else if (variant.startsWith('cycle:')) {
     const [, P, O] = variant.split(':');
     period = Math.max(12, Number(P) || 20);
@@ -50,7 +52,7 @@ export function launchPad(o: Act3SetOpts): Piece {
   k.box(X1 - X0 + 2, 0.08, 4.2, '#2f2a3d', (X0 + X1) / 2, 0.06, -2, { r: 0, jitter: 0 });
   for (const z of [-3.92, -0.08]) k.box(X1 - X0 - 0.4, DECK - 0.1, 0.06, SOOT, (X0 + X1) / 2, 0.05, z, { r: 0, jitter: 0.03, shade: 0.5 });
   // soot fans in front of the trench mouths
-  for (const [x, w] of [[X0 - 2.6, 5.2], [X1 + 1.6, 3.2]] as const) k.box(w, 0.04, 6.4, '#6a6070', x, 0.115, -2, { r: 0, jitter: 0.05, shade: 0 });
+  if (!building) for (const [x, w] of [[X0 - 2.6, 5.2], [X1 + 1.6, 3.2]] as const) k.box(w, 0.04, 6.4, '#6a6070', x, 0.135, -2, { r: 0, jitter: 0.05, shade: 0 });
   // the ramp from the crawlerway
   const ramp = new THREE.BoxGeometry(10, 0.5, Math.hypot(6, DECK)).rotateX(Math.atan2(DECK, 6)).translate(RX, DECK / 2 - 0.2, 15);
   k.geo(ramp, '#bdb3a6', 0.02);
@@ -58,7 +60,7 @@ export function launchPad(o: Act3SetOpts): Piece {
   // expansion joints, soot round the mount, tie-down points
   for (let x = X0 + 3; x < X1 - 1; x += 3) for (const z of [6, -10]) k.box(0.06, 0.012, 11.8, '#b3aa9e', x, DECK, z, { r: 0, jitter: 0, shade: 0 });
   for (const z of [3, 9, -7, -13]) k.box(X1 - X0 - 0.4, 0.012, 0.06, '#b3aa9e', (X0 + X1) / 2, DECK, z, { r: 0, jitter: 0, shade: 0 });
-  for (const [z, t0] of [[0, Math.PI], [-4, 0]] as const) {
+  if (!building) for (const [z, t0] of [[0, Math.PI], [-4, 0]] as const) {
     k.geo(new THREE.CircleGeometry(7.2, 24, t0, Math.PI).rotateX(-Math.PI / 2).translate(RX, DECK + 0.016, z), '#9a929a', 0.03);
     k.geo(new THREE.CircleGeometry(4.6, 20, t0, Math.PI).rotateX(-Math.PI / 2).translate(RX, DECK + 0.022, z), '#6f6676', 0.03);
   }
@@ -149,8 +151,6 @@ export function launchPad(o: Act3SetOpts): Piece {
       if (p >= 1) beacon(g, x, mh + 0.3, z, i * 1.1);
     }
     if (p >= 1) {
-      const rod = V(RX, DECK + TH + 6.6, TZ);
-      for (const [x, z] of masts) sag(k, V(x, MH, z), rod, 2.4, 0.05);
       sag(k, V(masts[0][0], MH, masts[0][1]), V(masts[1][0], MH, masts[1][1]), 3, 0.05);
       sag(k, V(masts[1][0], MH, masts[1][1]), V(masts[2][0], MH, masts[2][1]), 3, 0.05);
     }
@@ -202,11 +202,82 @@ export function launchPad(o: Act3SetOpts): Piece {
     if (p < 0.25) for (const z of [6, -10]) for (let x = X0 + 1; x < X1; x += 2) k.box(0.06, 0.9, 0.06, '#7d5232', x, DECK, z + 5.8, { r: 0 });
   }
   g.add(k.build());
+  // ── the tower's crane: a slewing jib with a trolley and a hook, parked clear of the flight path ──
+  const JY = DECK + TH + 0.5; // the slew ring, on the tower's top platform
+  const REACH = 15.6, PARK = -1.78;
+  const slew = new THREE.Group();
+  const trolley = new THREE.Group();
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 5).translate(0, -0.5, 0), new THREE.MeshStandardMaterial({ color: 0x2f2a3d, roughness: 0.8 }));
+  const hook = new THREE.Group();
+  if (!building) {
+    const ck = new Kit(rng(o.seed + 21));
+    ck.cyl(1.5, 1.7, 0.5, '#5b5562', 0, 0, 0, 16);
+    ck.box(1.5, 1.5, 1.7, accent, -1.45, 0.5, 0.2, { r: 0.12 }); // the driver's cab
+    ck.box(1.0, 0.5, 0.06, '#27304a', -1.45, 1.2, 1.06, { r: 0, jitter: 0, shade: 0 });
+    // the jib: three chords and their lacing, the counter-jib with its ballast
+    const J0 = -6.2, J1 = REACH + 1.6;
+    for (const [x, y] of [[-0.55, 0.55], [0.55, 0.55], [0, 1.75]] as const) ck.beam(V(x, y, J0), V(x, y, J1), 0.16, '#e9c44a');
+    for (let z = J0; z < J1 - 0.1; z += 1.3) {
+      const z1 = Math.min(J1, z + 1.3);
+      ck.beam(V(-0.55, 0.55, z), V(0, 1.75, z1), 0.07, '#e9c44a');
+      ck.beam(V(0.55, 0.55, z), V(0, 1.75, z1), 0.07, '#e9c44a');
+      ck.beam(V(-0.55, 0.55, z), V(0.55, 0.55, z1), 0.07, '#e9c44a');
+    }
+    ck.box(1.9, 1.5, 2.4, '#6f6676', 0, -0.15, J0 + 1.3, { r: 0.1, shade: 0.2 });
+    // the tower head and the ties down to the jib and the counter-jib
+    ck.box(0.5, 4.4, 0.5, '#e9c44a', 0, 0.5, 0, { r: 0.04 });
+    ck.beam(V(0, 4.9, 0), V(0, 1.75, J1 - 4), 0.07, '#433c52');
+    ck.beam(V(0, 4.9, 0), V(0, 1.75, J0 + 1), 0.07, '#433c52');
+    slew.add(ck.build());
+    slew.position.set(RX, JY, TZ);
+    slew.rotation.y = PARK;
+    const tk = new Kit(rng(o.seed + 22));
+    tk.box(1.5, 0.4, 1.3, '#433c52', 0, 0.12, 0, { r: 0.06 });
+    trolley.add(tk.build());
+    trolley.add(cable);
+    const hk = new Kit(rng(o.seed + 23));
+    hk.box(0.7, 0.8, 0.5, '#f7b258', 0, 0, 0, { r: 0.1 });
+    hk.cyl(0.12, 0.12, 0.5, '#2f2a3d', 0, -0.5, 0, 6);
+    // the lifting frame that grips the fairing's nose
+    hk.box(2.2, 0.16, 0.3, '#433c52', 0, -0.62, 0, { r: 0.03 });
+    hk.box(0.3, 0.16, 2.2, '#433c52', 0, -0.62, 0, { r: 0.03 });
+    hook.add(hk.build());
+    trolley.add(hook);
+    trolley.position.z = 7.2;
+    slew.add(trolley);
+    g.add(slew);
+    beacon(g, RX, JY + 5.6, TZ, 0.9);
+  }
+  /** Hang the hook `len` under the trolley. */
+  const reeve = (len: number) => { cable.scale.y = Math.max(0.3, len); hook.position.y = -Math.max(0.3, len); };
+  reeve(2.6);
+  // ── the transporter that brings the next upper stack up the ramp ──
+  const tmat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, transparent: true });
+  const spmt = new THREE.Group();
+  const CRADLE = 1.62; // where the stack's base rests, over the transporter's ground line
+  if (!building && period > 0) {
+    const sk = new Kit(rng(o.seed + 24));
+    sk.box(3.4, 0.5, 6.0, '#e9c44a', 0, 0.55, 0, { r: 0.1, shade: 0.2 });
+    for (let i = 0; i < 6; i++) for (const sx of [-1, 1]) sk.box(0.5, 0.62, 0.72, '#2f2a3d', sx * 1.25, 0, -2.5 + i, { r: 0.2, jitter: 0.02 });
+    sk.box(1.3, 0.8, 1.0, '#f3eee6', 0.9, 1.05, 2.3, { r: 0.1 }); // the power pack
+    sk.box(1.0, 0.36, 0.06, '#27304a', 0.9, 1.4, 2.81, { r: 0, jitter: 0, shade: 0 });
+    sk.cyl(1.75, 1.9, 0.3, '#5b5562', 0, 1.05, -0.4, 20);
+    sk.cyl(1.55, 1.55, 0.27, '#433c52', 0, 1.35, -0.4, 20);
+    for (let i = 0; i < 4; i++) {
+      const t = Math.PI / 4 + (i * Math.PI) / 2;
+      sk.beam(V(Math.sin(t) * 1.6, 1.3, -0.4 + Math.cos(t) * 1.6), V(Math.sin(t) * 1.48, 3.3, -0.4 + Math.cos(t) * 1.48), 0.12, '#9d95a6');
+    }
+    spmt.add(sk.build(tmat));
+    spmt.visible = false;
+    g.add(spmt);
+  }
   // ── the rocket and its launch ──
   const rmat = rocketMaterial();
   const rk = rocket(o.seed + 9, accent, hi, label, rmat);
   rk.position.set(RX, MOUNT, RZ);
   rk.rotation.y = 0.2;
+  const up = rk.userData.upper as THREE.Group;
+  const SPLIT = rk.userData.split as number, TOP = rk.userData.top as number;
   const fl = flame();
   fl.obj.position.y = 0.1;
   rk.add(fl.obj);
@@ -228,10 +299,37 @@ export function launchPad(o: Act3SetOpts): Piece {
   const fp = lightPool(g, RX, DECK, RZ, 26, flash);
   fp.visible = false;
   const IGNITE = igniteAt(period || 20), LIFT = IGNITE + 1.5;
+  // the turnaround before it, squeezed into the time there is: land, bring, lift, mate, arms in
+  const c = Math.min(1, IGNITE / 16.5);
+  const T = {
+    land0: 0.3 * c, land1: 5.0 * c, // the booster's descent
+    in0: 2.0 * c, in1: 6.0 * c, // the transporter up the ramp
+    slew0: 5.0 * c, slew1: 6.6 * c, // the jib swings over the hardstand
+    hook0: 6.4 * c, hook1: 7.2 * c, lift1: 9.4 * c, over1: 10.2 * c, mate: 10.8 * c,
+    out0: 8.4 * c, out1: 11.6 * c, // the transporter leaves
+    park0: 11.2 * c, park1: 12.9 * c,
+  };
+  const PICK_Z = 6.4; // where the transporter stops, in front of the mount
+  const pickR = PICK_Z - 0.4 - TZ, mountR = RZ - TZ;
+  const armIn = T.mate + 0.2 * c, crewAway = Math.min(IGNITE - 2.2, Math.max(T.mate + 2.2 * c, IGNITE - 4));
+  /** The ground under the transporter: the plot, the ramp, the deck. */
+  const rampY = (z: number) => (z >= 18 ? 0.14 : z <= 12 ? DECK : 0.14 + ((DECK - 0.14) * (18 - z)) / 6);
+  /** The way up and the way down are one path: straight off the mount, then leaning out to sea. */
+  const leanAt = (h: number) => Math.min(0.42, Math.max(0, h - 60) / 520);
+  const fly = (h: number, shake: number) => {
+    const lean = leanAt(h);
+    rk.position.set(RX + shake, MOUNT + h, RZ - Math.max(0, h - 60) * lean * 0.55);
+    rk.rotation.x = -lean;
+  };
   let lastIgn = NaN, lastLift = NaN, acc = [0, 0, 0, 0], trailFrom = 0;
   const r = rng(o.seed + 13);
   const swing = (u: number, a: number, d: number) => Math.min(1, Math.max(0, (u - a) / d));
   const ease = (x: number) => x * x * (3 - 2 * x);
+  const mated = () => {
+    if (up.parent !== rk) rk.add(up);
+    up.position.set(0, 0, 0);
+    up.rotation.set(0, 0, 0);
+  };
   return {
     obj: g, w: 40, d: 40, h: building ? Math.max(8, towerH + 14) : DECK + TH + 7,
     update(e: Env) {
@@ -249,25 +347,59 @@ export function launchPad(o: Act3SetOpts): Piece {
         lastIgn = u >= IGNITE ? ci : ci - 1;
         lastLift = u >= LIFT ? ci : ci - 1;
       }
-      // the fresh rocket fades in; the arms swing back to it
-      const fade = Math.min(1, u / 2.2);
-      for (const m of fades) (m as THREE.MeshStandardMaterial).opacity = fade;
-      rk.visible = fade > 0.01;
-      for (const a of arms) {
-        const away = a.at > MOUNT + 30 ? ease(swing(u, IGNITE - 4, 1.8)) : ease(swing(u, IGNITE - 1.3, 0.9));
-        const back = 1 - ease(swing(u, 0.4, 2.0));
-        a.pivot.rotation.y = a.out * Math.max(away, back);
-      }
-      for (const v of vents) v.strength = u < IGNITE - 0.4 ? fade : 0;
-      // burn and climb
+      // ── the booster: back down the way it went up, engines first, onto the mount ──
       const burn = u < IGNITE ? 0 : Math.min(1, (u - IGNITE) / 0.5);
       const s = Math.max(0, u - LIFT);
       const climb = 0.5 * 7.2 * s * s + 0.8 * s;
-      const lean = Math.min(0.42, Math.max(0, climb - 60) / 520);
-      rk.position.set(RX + (burn > 0 && climb < 4 ? (r() - 0.5) * 0.06 : 0), MOUNT + climb, RZ - Math.max(0, climb - 60) * lean * 0.55);
-      rk.rotation.x = -lean;
-      if (climb > 340) rk.visible = false;
-      fl.set(burn * (s > 0 ? 1.15 : 0.75), e.night, e.t);
+      const down = 1 - swing(u, T.land0, T.land1 - T.land0);
+      const drop = u < T.land1 ? 320 * Math.pow(down, 2.3) : 0;
+      const h = u < T.land1 ? drop : climb;
+      // the landing burn: lit for the last stretch, out at touchdown
+      const landing = u >= T.land0 && u < T.land1 + 0.25;
+      const landBurn = landing ? Math.min(1, Math.max(0, (190 - drop) / 60)) * (1 - swing(u, T.land1, 0.25)) : 0;
+      fly(h, (burn > 0 && climb < 4) || (landBurn > 0 && drop < 3 && drop > 0) ? (r() - 0.5) * 0.06 : 0);
+      rk.visible = u >= T.land0 && climb <= 340;
+      // (far up it comes into sight, as it went out of it)
+      const far = u < T.land1 ? swing(u, T.land0, 0.5 * c) : 1;
+      for (const m of fades) (m as THREE.MeshStandardMaterial).opacity = far;
+      // ── the transporter with the next upper stack ──
+      const coming = ease(swing(u, T.in0, T.in1 - T.in0)), going = ease(swing(u, T.out0, T.out1 - T.out0));
+      const sz = u < T.out0 ? 23.5 + (PICK_Z - 23.5) * coming : PICK_Z + (23.5 - PICK_Z) * going;
+      spmt.visible = u >= T.in0 && u < T.out1;
+      spmt.position.set(RX, rampY(sz), sz);
+      tmat.opacity = Math.min(swing(u, T.in0, 0.5 * c), 1 - swing(u, T.out1 - 0.5 * c, 0.5 * c));
+      // ── the crane: over the hardstand, down to the stack, up, in over the booster, down onto it ──
+      const lifted = ease(swing(u, T.hook1 + 0.2 * c, T.lift1 - T.hook1 - 0.2 * c));
+      const over = ease(swing(u, T.lift1, T.over1 - T.lift1));
+      const set = ease(swing(u, T.over1, T.mate - T.over1));
+      slew.rotation.y = u < T.park0 ? PARK * (1 - ease(swing(u, T.slew0, T.slew1 - T.slew0))) : PARK * ease(swing(u, T.park0, T.park1 - T.park0));
+      const tr = pickR + (mountR - pickR) * over;
+      trolley.position.z = u < T.park0 ? tr : mountR;
+      const onPad = MOUNT + SPLIT; // the stack's base when it stands on the booster
+      const baseY = rampY(sz) + CRADLE + (onPad + 1.3 - DECK - CRADLE) * lifted - 1.3 * set;
+      const isMated = u >= T.mate;
+      if (isMated || u < T.in0) mated();
+      else {
+        if (up.parent !== g) g.add(up);
+        // on the transporter until the hook has it, then under the trolley
+        up.position.set(RX, baseY - SPLIT, u >= T.hook1 ? TZ + tr : sz - 0.4);
+        up.rotation.set(0, 0.2, 0);
+      }
+      up.visible = isMated ? true : u >= T.in0;
+      // the hook: down to the nose, up with it, back up empty
+      const noseY = (isMated ? onPad : baseY) + (TOP - SPLIT) + 0.7;
+      const reach = u < T.hook0 ? 0 : u < T.hook1 ? ease(swing(u, T.hook0, T.hook1 - T.hook0)) : u < T.mate ? 1 : 1 - ease(swing(u, T.mate + 0.1 * c, 0.6 * c));
+      reeve(2.6 + (JY - noseY - 2.6) * reach);
+      // ── the arms: away while it lands and is stacked, in to the finished rocket, away to launch ──
+      for (const a of arms) {
+        const away = a.at > MOUNT + 30 ? ease(swing(u, crewAway, 1.4)) : ease(swing(u, IGNITE - 1.3, 0.9));
+        const back = 1 - ease(swing(u, armIn, 1.6 * c));
+        a.pivot.rotation.y = a.out * Math.max(away, back);
+      }
+      const venting = swing(u, armIn + 1.2 * c, 0.8) * (u < IGNITE - 0.4 ? 1 : 0);
+      for (const v of vents) v.strength = venting;
+      // burn and climb
+      fl.set(Math.max(burn * (s > 0 ? 1.15 : 0.75), landBurn * 0.8), e.night, e.t);
       rmat.emissiveIntensity = e.night * 0.1 + burn * (light ? 0 : 0.06);
       if (u >= IGNITE && lastIgn !== ci) { lastIgn = ci; e.cue?.('launch'); }
       if (u >= LIFT && lastLift !== ci) {
@@ -293,24 +425,30 @@ export function launchPad(o: Act3SetOpts): Piece {
         const a = r() * Math.PI * 2;
         billow.emit({ x: RX + Math.sin(a) * 2.5, y: MOUNT + 0.4, z: RZ + Math.cos(a) * 2.5, vx: Math.sin(a) * (6 + r() * 6), vy: 1.5 + r() * 3.5, vz: Math.cos(a) * (6 + r() * 6), life: 6 + r() * 4, s0: 3.2, s1: 11 + r() * 7, heat: 0.85 });
       });
+      // the landing burn's exhaust: down the trench and out of its mouths for the last seconds
+      if (landBurn > 0.5 && drop < 30) rate(3, 14, () => {
+        const dir = r() < 0.55 ? -1 : 1;
+        billow.emit({ x: dir < 0 ? X0 + 0.5 : X1 - 0.5, y: 0.7 + r() * 1.2, z: RZ + (r() - 0.5) * 3.4, vx: dir * (7 + r() * 7), vy: 1 + r() * 2.4, vz: (r() - 0.5) * 4, life: 3 + r() * 2, s0: 2, s1: 5 + r() * 3, heat: 0.8 });
+      });
       if (s > 0 && climb < 300) {
         while (trailFrom < climb - 1) {
           trailFrom += 0.8 + trailFrom * 0.009;
           const f = trailFrom / Math.max(1e-3, climb);
-          const lz = RZ - Math.max(0, trailFrom - 60) * Math.min(0.42, Math.max(0, trailFrom - 60) / 520) * 0.55;
+          const lz = RZ - Math.max(0, trailFrom - 60) * leanAt(trailFrom) * 0.55;
           billow.emit({ x: RX + (r() - 0.5) * 0.8, y: MOUNT + trailFrom - 3, z: lz + (r() - 0.5) * 0.8, vx: (r() - 0.5) * 1.6, vy: -1.5 * (1 - f) - r(), vz: (r() - 0.5) * 1.6, life: 8 + r() * 4, s0: 3.6, s1: 11 + r() * 5 + trailFrom * 0.035, heat: 1 });
         }
       }
-      // light: the burn floods the pad, then climbs away with the rocket
-      const away = 1 / (1 + climb / 22);
-      const glow = burn * away;
+      // light: the burn floods the pad, then climbs away with the rocket (and comes back down with it)
+      const away = 1 / (1 + h / 22);
+      const lit = Math.max(burn, landBurn * 0.7);
+      const glow = lit * away;
       if (light) {
-        light.position.set(RX, MOUNT + climb - 2.5, rk.position.z);
+        light.position.set(RX, MOUNT + h - 2.5, rk.position.z);
         light.intensity = glow * (900 + e.night * 2600) * (0.92 + r() * 0.16);
       }
       fp.visible = glow > 0.01;
       flash.opacity = glow * (0.28 + e.night * 0.6);
-      billow.update(e, burn > 0 ? { x: RX, y: MOUNT + climb - 3, z: rk.position.z, k: burn * (0.25 + 0.75 * away) } : null);
+      billow.update(e, lit > 0 ? { x: RX, y: MOUNT + h - 3, z: rk.position.z, k: lit * (0.25 + 0.75 * away) } : null);
       acc = acc.map((a) => Math.min(a, 4));
     },
   };
