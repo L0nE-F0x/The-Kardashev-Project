@@ -21,6 +21,15 @@ export interface Settings {
   /** 3D detail (shadows, ambient occlusion, resolution, plants); 'auto' picks by the machine. */
   quality3d: 'auto' | 'high' | 'medium' | 'low';
   fps: boolean;
+  /**
+   * The interface's look (SPEC §34): it grows with the acts ('auto': plywood and paper in the garage, metal, glass,
+   * first light, only light by Type I), or stays on one stage (1–5) the player has reached.
+   */
+  interfaceLook: 'auto' | 1 | 2 | 3 | 4 | 5;
+  /** The furthest look this player has reached: the stages Settings offers to stay on. */
+  lookReached: number;
+  /** The look last worn, so the loading screen can wear it before the game has started. */
+  lookNow: number;
   // audio (0..1)
   master: number;
   music: number;
@@ -70,6 +79,9 @@ export function defaultSettings(): Settings {
     batterySaver: false,
     quality3d: 'auto',
     fps: false,
+    interfaceLook: 'auto',
+    lookReached: 1,
+    lookNow: 1,
     master: 0.8,
     music: 0.6,
     sfx: 0.8,
@@ -116,6 +128,13 @@ export function saveSettings(s: Settings): void {
     /* storage blocked */
   }
 }
+
+/** The look for an act (1–5), or the one the player chose to stay on. */
+export function lookFor(s: Settings, act: number): number {
+  const grown = Math.max(1, Math.min(5, Math.round(act) || 1));
+  return s.interfaceLook === 'auto' ? grown : Math.max(1, Math.min(5, s.interfaceLook));
+}
+export const LOOK_NAMES = ['', 'The garage', 'The scale-up', 'The Charter', 'Planetary', 'Type I'];
 
 /** Apply the settings that live in CSS (font, contrast, colour-blind palette, UI scale). */
 export function applyCssSettings(s: Settings): void {

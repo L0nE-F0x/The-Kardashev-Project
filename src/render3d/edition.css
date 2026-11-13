@@ -10,9 +10,22 @@
 @import './ui/art-portraits.css';
 @import './ui/art-icons.css';
 @import './ui/art-logo.css';
+@import './ui/kit.css';
 @import './ui/hud.css';
 @import './ui/cards.css';
 @import './ui/menu.css';
 @import './ui/acts.css';
+@import './ui/looks/fonts.css';
+@import './ui/looks/layout.css';
+@import './ui/looks/paper.css';
+@import './ui/looks/look1.css';
+@import './ui/looks/look2.css';
+@import './ui/looks/look3.css';
+@import './ui/looks/light.css';
+@import './ui/looks/look4.css';
+@import './ui/looks/look5.css';
+@import './ui/looks/menus.css';
+@import './ui/looks/notes.css';
+@import './ui/looks/contrast.css';
 
 html.edition-3d #game canvas { position: fixed; inset: 0; display: block; image-rendering: auto; }

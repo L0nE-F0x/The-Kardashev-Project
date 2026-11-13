@@ -46,3 +46,39 @@ The game looks like a warm, well-lit scale model: clean shapes, matte materials,
   all, read the base colours.
 - Check the result where players see it: the title screen, an event card (the pop-up with choices), the dock, a
   panel list, the top bar, at 100% and 130% interface size.
+
+## The interface's own look (v0.14 "Mission Control", SPEC §33)
+
+- **Two typefaces.** Saira (`--font-display`) for anything that is a title, a label, a button or a figure;
+  Atkinson Hyperlegible Next (`--font`) for sentences. Labels are small capitals at 88% width with wide tracking.
+  A figure is always tabular (`font-variant-numeric: tabular-nums`) so columns line up and counters do not jitter.
+- **Night-blue glass.** A pane is a gradient from `--e-ink-hi` to `--e-ink-lo`, a sheen at its top, a light
+  hairline, a dark keyline outside that, a soft shadow. Nothing is blurred. A pane's head is a lit band with the
+  subject's icon on a plate and a hairline that glows under the title.
+- **Colour means something.** Cyan: what you can press, what you have picked, compute. Gold: money, the score,
+  the story. Violet: models and research under way. Yellow: power. Blue: safety. Green / amber / red: good /
+  careful / bad. A part takes its colour from a tone class (`t-gold`…), an event card from its category.
+- **A panel leads with its numbers.** First a row of tiles (the three or four figures the panel is about), then
+  cards. A share of a whole is a split bar, a level against a limit a meter, a value with a danger end a dial.
+- **Things are shown, not named, where there is a picture:** buildings are their 3D models (`tools/thumbs.mjs`),
+  people are their busts.
+- **Motion is short and means something:** a pane rises as it opens, a button lifts under the pointer, the clock's
+  light runs while time does. 120–300 ms, opacity and transform only.
+
+## The five looks (v0.14, SPEC §34)
+
+The interface is made of what the civilisation has, so it is rebuilt as each act opens. The layout never moves;
+the materials do. SPEC §34 has the table. What holds across all five:
+
+- **One clear change per act.** A new look arrives whole with the act, not piece by piece.
+- **Paper is the garage's voice and it never quite leaves.** Sticky notes outlive the plywood (looks 1–3); from
+  look 4 one note is left, Juno's from 2027, and by look 5 it is the only solid thing on screen.
+- **Legibility first.** Running text is Atkinson in every look. Handwriting (Caveat) and marker (Permanent
+  Marker) are for a few words: a figure, a goal's title, a note. Typed labels are Special Elite, readouts Share
+  Tech Mono, a clipping's headline Playfair Display.
+- **Materials are drawn, not photographed:** small tiling textures (`src/assets/ui/`: paper, plywood, board,
+  sticky, newsprint, graph paper) under CSS gradients and shadows. No pixel art, no skeuomorphic photographs.
+- **Colour:** on paper, ink blue is what you can press or have picked, red is the pen that underlines and warns,
+  yellow is the highlighter; on glass it is cyan; in light it is teal, with gold kept for the Kardashev scale
+  and for when things are due.
+

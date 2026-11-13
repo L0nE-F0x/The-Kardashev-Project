@@ -19,6 +19,7 @@ import { inventoryCount } from '../sim/supply';
 import { BUILD_SITES } from '../content/sites';
 import type { IconName } from './icons';
 import { CharterHqInspector, LaunchInspector, MegaInspector } from './panels/Act3Panels';
+import { buildArtUrl } from './buildArt';
 
 export const FAC_ICON: Record<FacilityType, IconName> = {
   datacenter: 'datacenter', solar: 'solar', wind: 'wind', gas: 'gas', battery: 'battery', lab: 'lab', hq: 'hq',
@@ -170,7 +171,7 @@ ${fmtMoney(landCost(s, id))}${canBuyLand(s, id) ? `\n✗ ${canBuyLand(s, id)}` :
           const tierLabel = tier > 1 ? def.tiers?.[tier - 2]?.label : null;
           return (
             <div class="fac" key={f.id}>
-              <Icon name={FAC_ICON[f.type]} />
+              <FacArt type={f.type} />
               <div>
                 <div class="name">
                   {def.name}
@@ -287,16 +288,20 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
               <button
                 key={type}
                 data-tut={`build-${type}`}
-                class="btn buildcard"
+                class="btn buildcard pic"
                 disabled={!!why}
                 onClick={() => game.build(id, type)}
                 data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}\nRunning cost: ${fmtMoney(def.opex)} a month${type === 'lab' ? ' (researchers’ salaries)' : ''}.${exportBlocked && (type === 'datacenter' || type === 'campus') ? `\n⛔ ${exportBlocked}` : ''}${why ? `\n✗ ${why}` : ''}`}
               >
-                <span class="t">
-                  <Icon name={FAC_ICON[type]} size="sm" /> {def.name}
+                <span class="art">
+                  {buildArtUrl(type) && <img src={buildArtUrl(type)!} alt="" draggable={false} loading="lazy" />}
+                  <span class="ic">
+                    <Icon name={why ? 'lock' : FAC_ICON[type]} size="sm" />
+                  </span>
                 </span>
+                <span class="t">{def.name}</span>
                 <span class="m">
-                  {fmtMoney(buildCost(s, type))} · {fmtDays(buildDays(s, id, type))}
+                  <b>{fmtMoney(buildCost(s, type))}</b> · {fmtDays(buildDays(s, id, type))}
                   {def.opex >= 1e6 ? ` · ${fmtMoney(def.opex)}/mo` : ''}
                 </span>
               </button>
@@ -322,6 +327,12 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
       </div>
     </Panel>
   );
+}
+
+/** A facility's picture in a list row (its icon when the type has no picture). */
+function FacArt({ type }: { type: FacilityType }) {
+  const url = buildArtUrl(type);
+  return url ? <img class="facart" src={url} alt="" draggable={false} /> : <Icon name={FAC_ICON[type]} />;
 }
 
 function PowerStrip({ id }: { id: string }) {

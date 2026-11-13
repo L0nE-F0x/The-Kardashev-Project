@@ -98,7 +98,7 @@ Your compute is split four ways in the Compute panel: **training** (the next mod
 2. **Scan the top bar.** Red or orange text is trouble: power short of what your sites need, cash falling, safety margin below zero. Hover any number for the breakdown.
 3. **Look for badges** on the dock buttons: a red number means something there is waiting for you (research idle, a run to start, an offer).
 4. **Queue the next thing before the last one finishes:** research, the next training run, chips for a hall that’s still being built, power for a hall you’re about to build.
-5. **Speed up.** Press [3] or [4] (or the ▶▶ buttons), or press **⏭ Skip to next** under the goal card to jump straight to the next thing you’re waiting for. The game stops the clock by itself when an event card needs you, so you won’t miss anything.
+5. **Speed up.** Press [3] or [4] (or the ▶▶ buttons), or click the first thing in **Coming up** along the bottom to jump straight to it. The game stops the clock by itself when an event card needs you, so you won’t miss anything.
 6. **Answer event cards** (the pop-ups with choices). Each one is a trade-off; the advisors’ lines hint at the angle. The highlighted choice is the safe default.
 
 > If nothing on screen needs you, ▶▶▶ is the right speed. Most of the waiting is concrete setting and chips at sea.`,
@@ -110,7 +110,7 @@ Your compute is split four ways in the Compute panel: **training** (the next mod
     special: 'screen',
     body: `**The map** is the world: click a site (a marker) to see it in the **inspector** on the right — its sun, wind, power price and the plots you can build on. Your own sites have a **View** button that opens the campus (or press [V]). Drag to pan, scroll or pinch to zoom.
 
-**The ticker** along the bottom is the news feed; click it for the full News panel. **Toasts** (small pop-ups, bottom right) are your advisors flagging something.
+**The strip along the bottom** has the latest news at the left (click it for the full News panel) and what is coming at the right. **Toasts** (small pop-ups, bottom right) are your advisors flagging something.
 
 Almost everything has a tooltip: hover with a mouse, long-press on a touch screen.`,
   },
@@ -127,7 +127,7 @@ Almost everything has a tooltip: hover with a mouse, long-press on a touch scree
     icon: 'ff',
     body: `At 1× one game day passes every second. [2] is twice as fast, [3] four times, [4] eight times. [Space] pauses.
 
-- **Coming up** (under the goal card) lists what you’re waiting for — builds, chips at sea, grid connections, the training run, research — with how long each takes. **⏭ Skip to next** runs the clock flat out until the first one lands; the small ⏭ on each line skips further. A card or any speed button stops a skip.
+- **Coming up** (along the bottom of the screen) lists what you’re waiting for — builds, chips at sea, grid connections, the training run, research — with how long each takes. Click one and the clock runs flat out until it lands. A card or any speed button stops a skip.
 - **Event cards stop the clock** while they’re on screen (Settings → Gameplay → Pause for decisions), then it carries on at your speed.
 - **Builds take months:** a data hall about ten, a solar farm about nine, a gas plant over two years. Start long things early and run the clock fast while they build.
 - **Slow down** when you’re juggling a finale (The Crunch and later ones) or want to watch a campus.
@@ -233,7 +233,7 @@ The checklist leads to **Solar Maximum**, then the last climb to Kardashev 1.000
     id: 'tips',
     title: 'Tips & common mistakes',
     icon: 'warn',
-    body: `- **Playing everything at 1×.** Most of Act I is waiting for builds. Use [3] or [4], or ⏭ Skip to next under the goal card; cards stop the clock for you.
+    body: `- **Playing everything at 1×.** Most of Act I is waiting for builds. Use [3] or [4], or click something in Coming up along the bottom; cards stop the clock for you.
 - **A hall with no power.** Line up grid, solar + batteries or gas at the same site before the hall opens.
 - **Solar without batteries.** Your hall goes dark every night.
 - **A half-empty hall.** Order enough chips to fill it — training speed is total compute.
@@ -264,7 +264,7 @@ export const ACT_RHYTHM: { act: number; beats: [string, string][] }[] = [
     beats: [
       ['Day 1', 'Rent chips, start Bit-1, put a little compute on safety, pick a research project.'],
       ['First weeks', 'Pick a site with cheap power and space. Start a data hall and its power (grid, or solar + batteries). Order chips to fill it.'],
-      ['Months 1–10', 'Concrete is setting. Skip ahead (⏭) or speed up; answer cards; keep research going; Bit-1 earns a little.'],
+      ['Months 1–10', 'Concrete is setting. Skip ahead (click something in Coming up) or speed up; answer cards; keep research going; Bit-1 earns a little.'],
       ['Hall online', 'Chips install, turn rentals down, start the big Bit-2 run. Revenue climbs.'],
       ['The long run', 'Bit-2 trains for most of a year: a good time for the side goals — a second site, a lab, wind, a full hall, clean power.'],
       ['Year 2', 'Bit-2, $5M/month and a safe margin: Penny brings the Series A term sheets.'],

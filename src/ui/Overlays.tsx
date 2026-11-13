@@ -13,29 +13,6 @@ import { closedChokepoints } from '../sim/effects';
 import { fmtDate, fmtDays, fmtMW } from '../sim/core';
 import type { AdvisorId } from '../sim/types';
 
-/** Scrolling news ticker along the bottom. */
-export function Ticker() {
-  const game = useGame();
-  const s = game.state!;
-  const items = s.news.slice(0, 6);
-  return (
-    <div class="ticker frame interactive" onClick={() => game.openPanel('news')} data-tip="Open the news log (N)">
-      <Icon name="news" size="sm" />
-      <div class="feed">
-        {items.length === 0 ? (
-          <span class="muted">The world waits. Click a site on the map to begin.</span>
-        ) : (
-          items.map((n, i) => (
-            <span key={`${n.day}-${i}`} class={n.kind}>
-              {rich(n.text)}
-            </span>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
 export function Toasts() {
   const game = useGame();
   return (
@@ -78,6 +55,8 @@ export function MapTooltip() {
   const h = game.hover;
   const s = game.state;
   if (!h || !s || h.clientX < 0 || game.mode === 'title') return null;
+  // on a campus the card for a building or a plot is pinned to it instead (WorldNotes.tsx)
+  if (game.mode === 'diorama' && (h.kind === 'facility' || h.kind === 'slot')) return null;
   let title = '';
   let body = '';
   if (h.kind === 'site') {
@@ -136,26 +115,32 @@ export function MapTooltip() {
 
 /** Global tooltip for any element with data-tip (hover on desktop, long-press on touch). */
 export function TipLayer() {
-  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
+  type Tip = { text: string; x: number; y: number; key?: string; at?: DOMRect };
+  const [tip, setTip] = useState<Tip | null>(null);
   const timer = useRef<number | undefined>(undefined);
   const ref = useOnScreen();
   useEffect(() => {
-    const over = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') return;
+    // `data-key` = the shortcut, drawn as a key beside the title; `data-tip-at="right"` = a label that stands
+    // beside its button (the dock) instead of following the pointer
+    const read = (e: PointerEvent, dy = 0): Tip | null => {
       const el = (e.target as HTMLElement | null)?.closest?.('[data-tip]') as HTMLElement | null;
       const text = el?.getAttribute('data-tip');
-      setTip(text ? { text, x: e.clientX, y: e.clientY } : null);
+      if (!el || !text) return null;
+      return { text, x: e.clientX, y: e.clientY + dy, key: el.getAttribute('data-key') ?? undefined, at: el.getAttribute('data-tip-at') === 'right' ? el.getBoundingClientRect() : undefined };
+    };
+    const over = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      setTip(read(e));
     };
     const move = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return;
-      setTip((t) => (t ? { ...t, x: e.clientX, y: e.clientY } : t));
+      setTip((t) => (t && !t.at ? { ...t, x: e.clientX, y: e.clientY } : t));
     };
     const down = (e: PointerEvent) => {
       if (e.pointerType !== 'touch') return;
-      const el = (e.target as HTMLElement | null)?.closest?.('[data-tip]') as HTMLElement | null;
-      const text = el?.getAttribute('data-tip');
       window.clearTimeout(timer.current);
-      if (text) timer.current = window.setTimeout(() => setTip({ text, x: e.clientX, y: e.clientY - 40 }), 450);
+      const t = read(e, -40);
+      if (t) timer.current = window.setTimeout(() => setTip(t), 450);
     };
     const up = (e: PointerEvent) => {
       // a long-press tip lingers briefly after the finger lifts; a mouse click leaves the hover tip alone
@@ -175,11 +160,34 @@ export function TipLayer() {
     };
   }, []);
   if (!tip) return null;
+  // the first of several lines is the title; a lone line is just a line
+  const cut = tip.text.indexOf('\n');
+  const title = cut > 0 || tip.key ? (cut > 0 ? tip.text.slice(0, cut) : tip.text) : null;
+  const rest = title ? (cut > 0 ? tip.text.slice(cut + 1) : '') : tip.text;
+  const body = (
+    <>
+      {title && (
+        <span class="tip-title">
+          <span>{rich(title)}</span>
+          {tip.key && <kbd>{tip.key}</kbd>}
+        </span>
+      )}
+      {rest && <span class="tip-body">{rich(rest)}</span>}
+    </>
+  );
+  if (tip.at) {
+    const top = Math.max(30, Math.min(window.innerHeight - 30, tip.at.top + tip.at.height / 2));
+    return (
+      <div class="tooltip frame flyout" ref={ref} key="fly" style={{ left: `${tip.at.right + 12}px`, top: `${top}px` }}>
+        {body}
+      </div>
+    );
+  }
   const left = Math.max(4, Math.min(window.innerWidth - 310, tip.x + 14));
   const top = Math.max(4, Math.min(window.innerHeight - 120, tip.y + 16));
   return (
     <div class="tooltip frame" ref={ref} style={{ left: `${left}px`, top: `${top}px` }}>
-      {rich(tip.text)}
+      {body}
     </div>
   );
 }

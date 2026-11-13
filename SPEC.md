@@ -2448,3 +2448,123 @@ AppImage, not Windows, not macOS.
 - Not looked at: megaprojects at stage 2, weather on view-only places, launch sites other than Guiana, the finale
   trackers, the time-lapse overlays, most Settings tabs, hover states.
 
+
+## 33. v0.14.0 "Mission Control": the interface overhaul (built 2026-11-13)
+
+**The ask (the user, 2026-11-13):** "an overhaul of the UI or the UX, like the front end, the panels, the loading
+screens, the side bar menus ... everything else is fantastic, but ... this isn't triple A yet. I'm going to put
+this on Steam, I want people to pay for it." No direction given ("I don't know what"), so the calls below are mine.
+
+**What read as less than a paid game (a survey of every screen first):** one typeface for everything, with
+Atkinson's slashed zeros in every figure (a terminal's look); grey-purple panes with hairlines and little depth;
+panels as plain label–value tables with no first thing to look at; a dock of unlabelled icons; a build menu of
+text boxes; event cards all alike; a bare loading screen.
+
+**The calls:**
+- **Type:** Saira (OFL, variable in weight 400–800 and width 75–100, 85 KB as a WOFF2 cut to Latin) is the display
+  face: titles, small-capital labels (at 88% width), buttons and every figure. Atkinson Hyperlegible Next stays
+  for running text. A second `@font-face` of the same file, limited to the ten digits and placed first in
+  `--font`, sets the figures inside running text in Saira too. Settings → Accessibility → Text font = System still
+  switches everything to the system face. Chosen against Sora, Outfit, Space Grotesk, Red Hat Display, Rajdhani,
+  Barlow, Unbounded and others on a specimen of real HUD text.
+- **Surfaces:** night-blue instead of grey-purple (`--e-ink-*` in tokens.css), a sheen at the top, a light
+  hairline with a dark keyline outside it, brighter text (`--text`, `--muted`), brighter good / warn / bad. Still
+  no backdrop blur.
+- **The shell:** the clock (speed + date in one piece, a running light, "Paused"), stat plates in each stat's
+  colour, the K meter as a ring toward the next milestone; the dock on plates, in groups, with a label that stands
+  beside the button (`data-tip-at="right"`, `data-key` for the shortcut: `TipLayer`); tooltips with a title line.
+- **A kit for panels** (`ui/kit.tsx`, `render3d/ui/kit.css`): `Tiles` / `Tile` (a big figure, its label, a line,
+  an optional small chart), `SplitBar`, `Meter`, `Gauge`, `Spark`, `Card`, `Cols`, the `lrow` list row, tone
+  classes (`t-gold`, `t-cyan`…). Compute, Finance and Research are rebuilt on it. The panels written before it lay
+  their halves out as `.row.wrap > .grow` blocks opening with an `h4`: one CSS rule turns each into a card, so
+  Acts II–V's panels gained the look without being rewritten.
+- **Pictures in the build menu:** `tools/thumbs.mjs` shoots every facility type in the piece lab (its own 3D
+  piece, warm light, a temperate plot) into `src/assets/build/*.webp` (420 × 280, about 15 KB each);
+  `ui/buildArt.ts` hands them to the build cards and the facility rows.
+- **Cards:** an event card takes its category's colour (`data-cat`); act-complete cards are `milestone` (gold).
+- **The title screen:** capitals, no small icons, three groups; Continue names the save.
+- **The loading screen** (`play/index.html`): the planet's limb at sunrise in CSS, stars, the progress line, a
+  tip from a list of twelve in the page's own script.
+
+**Checked:** every screen in Chrome on the real GPU at 1920×1080; the top bar, dock and panels in Act V at 960×540
+and 1280×800; the title screen and the HUD in a debug build of the app (WebKitGTK, the system's) by inspector
+snapshots; `npm test` (88 pass) and `npm run build`. Not a packaged AppImage, not Windows, not macOS, not 4K.
+
+**Left for a next pass:**
+- The Charter, Council, Planet and System panels wear the new surfaces and cards but do not yet open with tiles;
+  Orders, Stats, News, Goals, Team, Deals and Blocs likewise. `kit.tsx` is there for them.
+- The website took only the figures face (through base.css); its headings are still Atkinson. `ui-campus.webp`
+  was re-shot; the marketing kit's stills and trailer show the old interface where they show any.
+- Motion is where it was (eases on opening, hover lifts): no number roll-ups in tiles, no staggered lists.
+- A 960-wide window more than 900 high (a tiled half screen) gets the big logo in a 560-wide menu column.
+
+## 34. The interface grows with the acts (built 2026-11-13, in v0.14.0)
+
+§33's pass was judged "barely noticeable": a restyle, not an overhaul. After five rounds of concept pictures (nine
+directions, three fusions, then one idea of the player's own) the direction is this: **the interface is made of
+what the civilisation has**, and so it is rebuilt as each act opens. It starts as paper on plywood in a garage
+and ends as nothing but light. One clear change per act; one sticky note all the way to the end.
+
+**One layout, five looks.** Nothing moves between acts, so nothing has to be learned twice: panels down the left
+(keys with their names), the clock and the figures across the top with the Kardashev scale at the right, the next
+goals top left, the picked site on the right, the news and what is coming along the foot.
+
+| Look | Act | Rails and keys | Figures | Sheets | The Kardashev scale | Goals | A decision |
+|---|---|---|---|---|---|---|---|
+| 1 The garage | I | planks; label-maker strips | paper tags, pinned | taped paper | a tape measure | a sticky note | a newspaper clipping |
+| 2 The scale-up | II | brushed metal; lit keycaps | amber readouts | paper on clipboards | a brass gauge | a sticky note | a typed signal, stamped |
+| 3 The Charter | III | slabs of black glass; touch keys | on the glass | tablets | a ring on the glass | a sticky note on the hardware | a message on glass |
+| 4 Planetary | IV | one strip of metal; keys of light | projected panes | projected panes | a brass gauge, a pane | a pane | a transmission |
+| 5 Type I | V | none | floating light | panes of light | an arc across the sky, the Sun on it | a pane; Juno's 2027 note, framed | a transmission |
+
+**How it is built.**
+- `Game.applyLook` writes `<html data-look="1…5">`: the act's look in a game; on the title screen the look of the
+  save Continue would open (1 with none). `settings.interfaceLook` (`'auto'` or a look the player has reached:
+  `lookReached`) overrides it from Settings → Display. `lookNow` is saved so the loading screen
+  (`play/index.html`, its own styles per look) can wear it before the game exists.
+- `render3d/ui/looks/`: `layout.css` (the shared layout and its variables `--rail`, `--lrail`, `--footh`;
+  everything floating is placed by `--e-top`, `--e-left`, `--e-foot`), `fonts.css` (Caveat, Permanent Marker,
+  Special Elite, Share Tech Mono, Playfair Display; the textures in `assets/ui/`), `paper.css` (what looks 1–2
+  share: the tokens turned to ink on paper, then bars, tiles, buttons, tabs, switches redrawn), `look1.css` …
+  `look5.css`, `light.css` (what looks 4–5 share), `menus.css` (the title screen and the decision card per look).
+  All of it is CSS on the v0.14 markup; a look is a file of tokens and overrides.
+- New markup: `ui/Foot.tsx` (`FootStrip`: the latest headline, and `upcoming(s)` as buttons that skip to it; in
+  Acts IV–V `horizon(s)`, a read-only list in `sim/upcoming.ts` of the plan's end, the next stage's latest day,
+  projects and the Council; `Keepsake`: Juno's note, shown by looks 4–5). The dock's keys carry a short name
+  (`.dk-l`), hidden when a key gets under 58 px. `TopBar.tsx` draws the tape measure (`.ktape`) and the arc
+  (`KArc`) always; the looks show one or neither. The goal card's Coming up list and the ticker are gone.
+- Running text stays Atkinson in every look. Handwriting and marker are for accents (a figure's note, a goal's
+  title, a toast); typed labels are Special Elite; readouts Share Tech Mono.
+
+**Checked:** each look on the map and on a campus in Chrome on the real GPU at 1920×1080 (a fresh company per
+act, so each in its own act's world); looks 1–5 at 1280×800 and 960×540; the five title screens and loading
+screens; the clipping and the signal on real cards; all five looks in a debug build of the app (WebKitGTK, the
+system's) by inspector snapshots; `npm test` (88 pass), `npm run build`, `npm run build:site`.
+
+**Second pass, the same day** (the player: "Keep going until it's all finished"):
+- **Notes on the world** (`ui/WorldNotes.tsx`, `looks/notes.css`): on a campus the scene reports where each plot
+  stands on screen (`CampusScene.plotAnchors`: the point above the roof and the box the building fills) and a
+  frame loop pins notes there without re-rendering. Remarks (three at most, the most useful first, each said
+  once): a hall with no chips, a hall over 92% full, a build's or an expansion's time to go, a free plot. The
+  building under the pointer is ringed (a pen's ellipse in looks 1–3, brackets of light in 4–5) and its card
+  stands beside it on a leader; the pointer-following card is gone from campus buildings. Each look has its hand.
+- **Tiles in every panel** (two helpers, checked rendered): Orders, Stats, Goals, Team, Deals, Blocs, the
+  Charter's overview, the Council, the Planet's and the System's overviews. News has none on purpose.
+- **Act complete** is a certificate with a seal in looks 1–2 (its sunrise title was unreadable on paper).
+- **High contrast** per look (`looks/contrast.css`); the horizon line for Acts IV–V (the year once it is more
+  than a year off); the arc of look 5 sized by the interface scale and out of the way of a finale's tracker.
+- **Checked as well:** Bit's tutorial through its spotlight steps in look 1; the Threshold, Heat Wall and Solar
+  Maximum trackers; a five-year plan's time-lapse and report; high contrast in looks 1, 2 and 4; Interface size
+  130%; a 3840×2160 window; every panel with new tiles in the look of its act.
+- The website's interface picture (`ui-campus.webp`) is Act II with a note on the world.
+
+**Honest limits, and what a next pass would take:**
+- Notes on the world are on campuses only. The globe, orbit and the solar system keep the hover card (in each
+  look); view-only places (megaprojects, the Moon, space) have no plots and so no notes.
+- The arc of look 5 needs a window at least 1500 × 800 and hides while a panel, a card or a tracker is up (the
+  plain figure stands in). Look 4's rail is taller than the others (the strip, then the projected figures).
+- The plan and era screens, the reports and the ending take each look's tokens and nothing made for them.
+- The loading logo does not fly to the menu's in looks 1–2 (there the menu's logo is a print with a border).
+- The marketing kit (trailer, stills) shows the old interface wherever it shows any.
+- Not checked: Windows, macOS, the colour-blind palettes per look, the Act V ending in look 5, a Steam Deck's
+  touch on the foot strip.

@@ -116,8 +116,11 @@
       text-align: left;
     }
     .btn.menuitem > img.px {
-      opacity: 0.72;
-      transition: opacity 0.16s;
+      display: none;
+    }
+    .menu-gap {
+      flex: none;
+      animation: none;
     }
     .btn.menuitem:hover:not(:disabled),
     .btn.menuitem:focus-visible {
@@ -181,19 +184,64 @@
         0 0 0 3px color-mix(in srgb, var(--c-yel1, #fde9a4) 80%, transparent),
         0 14px 34px -14px var(--c-cyn4, #2fae9b);
     }
+    /* Continue: the save it opens, said in full (whose, which act, the date, how far, how long) */
+    .continue .go {
+      position: relative;
+      flex: none;
+      border-radius: 50%;
+      background: rgb(0 30 28 / 0.32);
+      box-shadow:
+        inset 0 0 0 1.5px rgb(255 255 255 / 0.5),
+        0 0 18px -2px rgb(255 255 255 / 0.25);
+      transition: scale 0.2s var(--e-spring);
+    }
+    .continue .go::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      translate: -36% -50%;
+      border-style: solid;
+      border-color: transparent transparent transparent #f4fffc;
+    }
+    .continue:hover .go {
+      scale: 1.08;
+    }
     .continue .c1 {
-      font-family: var(--font);
-      font-weight: 800;
-      letter-spacing: 0.01em;
+      display: block;
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
     }
     .continue .c2 {
+      display: block;
       opacity: 1;
+      font-family: var(--font-display);
       font-weight: 500;
-      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .continue > img.px,
+    .continue .c3 {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .continue .c3 span {
+      font-family: var(--font-display);
+      font-stretch: 88%;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      border-radius: 5px;
+      background: rgb(0 30 28 / 0.34);
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+      text-shadow: none;
+    }
     .menu-tag + .btn.menuitem > img.px,
     .menu-logo + .btn.menuitem > img.px {
+      display: block;
       opacity: 1;
       border-radius: 2px;
       background: rgb(0 0 0 / 0.2);
@@ -202,9 +250,21 @@
       filter: none;
     }
     .menu-foot {
+      display: flex;
+      align-items: center;
       color: color-mix(in srgb, var(--muted) 82%, transparent);
       text-shadow: 0 1px 6px rgb(0 0 0 / 0.8);
       text-align: left;
+    }
+    .menu-ver {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+      border: 1px solid rgb(190 205 255 / 0.22);
+      border-radius: 6px;
+      background: rgb(8 9 20 / 0.5);
+      color: color-mix(in srgb, var(--text) 80%, transparent);
     }
 
     /* the shot's caption: a lower third */
@@ -216,7 +276,7 @@
       flex-direction: column;
       align-items: flex-end;
       text-align: right;
-      font-family: var(--font);
+      font-family: var(--font-display);
       text-shadow:
         0 1px 2px rgb(0 0 0 / 0.9),
         0 2px 18px rgb(0 0 0 / 0.75);
@@ -234,8 +294,8 @@
       animation: eRule 1s var(--e-ease) both;
     }
     .tour-caption b {
-      font-weight: 800;
-      letter-spacing: 0.005em;
+      font-weight: 600;
+      letter-spacing: 0.02em;
       color: #fff;
     }
     /* the dot between the two, for the one-line caption a phone keeps */
@@ -260,7 +320,10 @@ html.edition-3d:not(.ui-classic) {
     background: radial-gradient(ellipse at 50% 45%, rgb(6 6 14 / 0.55), rgb(6 6 14 / 0.86));
   }
   .pickcard .n {
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--e-bright);
   }
   .pickcard .b {
     font-weight: 400;
@@ -277,7 +340,9 @@ html.edition-3d:not(.ui-classic) {
     box-shadow: 0 0 0 1px var(--e-line);
   }
   .setting .l {
+    font-family: var(--font-display);
     font-weight: 600;
+    letter-spacing: 0.01em;
   }
   & button.setting.toggle {
     border-radius: 0;
@@ -290,7 +355,10 @@ html.edition-3d:not(.ui-classic) {
     color: var(--text);
   }
   .slotcard .n {
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--e-bright);
   }
   .guide-item {
     background: transparent;
@@ -313,7 +381,7 @@ html.edition-3d:not(.ui-classic) {
     border-color: var(--e-accent-line);
   }
   .guide-entry h2 {
-    font-weight: 800;
+    font-weight: 600;
   }
   .release h3 {
     padding-top: 12px;
@@ -385,7 +453,8 @@ html.edition-3d:not(.ui-classic) {
       top: 0;
       bottom: 0;
       transform: none;
-      width: min(46%, 640px);
+      /* never narrower than the logo and the first button need (a 960-wide window is 46% = 441) */
+      width: clamp(560px, 46%, 640px);
       max-height: none;
       padding: 28px 24px 0 6%;
       gap: 2px;
@@ -406,44 +475,69 @@ html.edition-3d:not(.ui-classic) {
     }
     .btn.menuitem {
       min-width: 320px;
-      padding: 9px 26px 9px 16px;
+      padding: 9px 26px 9px 18px;
       gap: 15px;
-      font-size: 20px;
+      font-size: 18.5px;
       font-weight: 600;
+      letter-spacing: 0.085em;
+      text-transform: uppercase;
       border-radius: 10px;
+    }
+    .menu-gap {
+      height: 14px;
     }
     .btn.continue,
     .menu-tag + .btn.menuitem,
     .menu-logo + .btn.menuitem {
-      width: 400px;
+      width: 420px;
       min-width: 0;
-      padding: 15px 20px;
-      gap: 12px;
-      margin-bottom: 14px;
-      border-radius: 14px;
+      padding: 16px 20px 16px 18px;
+      gap: 16px;
+      margin-bottom: 16px;
+      border-radius: 16px;
     }
     .menu-tag + .btn.menuitem,
     .menu-logo + .btn.menuitem {
-      font-size: 22px;
-      font-weight: 800;
+      font-size: 21px;
+      font-weight: 700;
+    }
+    .continue .go {
+      width: 52px;
+      height: 52px;
+    }
+    .continue .go::before {
+      border-width: 10px 0 10px 16px;
     }
     .continue .c1 {
-      font-size: 23px;
-      line-height: 1.15;
+      font-size: 22px;
+      line-height: 1.1;
     }
     .continue .c2 {
-      font-size: 14px;
-      margin-top: 3px;
+      font-size: 15.5px;
+      margin-top: 2px;
+    }
+    .continue .c3 {
+      gap: 5px;
+      margin-top: 8px;
+    }
+    .continue .c3 span {
+      font-size: 12px;
+      padding: 2px 7px 3px;
     }
     .menu-foot {
       margin-top: auto;
-      padding: 22px 0 22px 2px;
-      font-size: 12.5px;
+      padding: 22px 0 24px 2px;
+      gap: 12px;
+      font-size: 13px;
       line-height: 1.5;
       max-width: 430px;
     }
+    .menu-ver {
+      font-size: 12px;
+      padding: 2px 8px 3px;
+    }
     .menu-foot-links {
-      margin-top: 1px;
+      margin-top: 0;
     }
     .tour-caption {
       right: 4.2%;
@@ -613,21 +707,38 @@ html.edition-3d:not(.ui-classic) {
       margin-bottom: 18px;
     }
     .btn.menuitem {
-      font-size: 17.5px;
-      padding: 6px 22px 6px 14px;
+      font-size: 16px;
+      padding: 5px 22px 5px 16px;
+    }
+    .menu-gap {
+      height: 7px;
     }
     .btn.continue,
     .menu-tag + .btn.menuitem,
     .menu-logo + .btn.menuitem {
-      width: 350px;
-      padding: 11px 18px;
-      margin-bottom: 10px;
+      width: 370px;
+      padding: 11px 18px 11px 14px;
+      gap: 13px;
+      margin-bottom: 9px;
+    }
+    .continue .go {
+      width: 42px;
+      height: 42px;
+    }
+    .continue .go::before {
+      border-width: 8px 0 8px 13px;
     }
     .continue .c1 {
-      font-size: 20px;
+      font-size: 19px;
+    }
+    .continue .c2 {
+      font-size: 14px;
+    }
+    .continue .c3 {
+      margin-top: 5px;
     }
     .menu-foot {
-      padding: 12px 0 14px 2px;
+      padding: 10px 0 14px 2px;
     }
     .tour-caption b {
       font-size: 25px;

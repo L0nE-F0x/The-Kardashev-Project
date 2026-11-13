@@ -1,0 +1,46 @@
+/* The looks' own typefaces (SPEC §34): handwriting, marker, typewriter and newsprint for the paper years; a
+   readout face for the instruments. Each is a Latin cut of an open-licence face (assets/fonts/LICENSE.txt). */
+@font-face {
+  font-family: 'Caveat';
+  src: url('../../../assets/fonts/caveat-latin.woff2') format('woff2');
+  font-weight: 500 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Permanent Marker';
+  src: url('../../../assets/fonts/permanent-marker-latin.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Special Elite';
+  src: url('../../../assets/fonts/special-elite-latin.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Share Tech Mono';
+  src: url('../../../assets/fonts/share-tech-mono-latin.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Playfair Display';
+  src: url('../../../assets/fonts/playfair-latin.woff2') format('woff2');
+  font-weight: 700 900;
+  font-display: swap;
+}
+html.edition-3d {
+  --font-hand: 'Caveat', 'Atkinson Hyperlegible Next', cursive;
+  --font-marker: 'Permanent Marker', 'Caveat', cursive;
+  --font-typed: 'Special Elite', 'Courier New', monospace;
+  --font-readout: 'Share Tech Mono', 'Saira', monospace;
+  --font-news: 'Playfair Display', Georgia, serif;
+  /* the looks' materials */
+  --tx-paper: url('../../../assets/ui/paper.webp');
+  --tx-ply: url('../../../assets/ui/ply.webp');
+  --tx-board: url('../../../assets/ui/board.webp');
+  --tx-kraft: url('../../../assets/ui/kraft.webp');
+  --tx-sticky: url('../../../assets/ui/sticky.webp');
+  --tx-news: url('../../../assets/ui/news.webp');
+  --tx-graph: url('../../../assets/ui/graph.png');
+  --tx-grit: url('../../../assets/ui/grit.png');
+  --m-metal: repeating-linear-gradient(90deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px), linear-gradient(180deg, #4a4e59, #2c2f37 16%, #23252c 70%, #191a1f);
+}

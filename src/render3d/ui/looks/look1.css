@@ -1,0 +1,373 @@
+/*
+ * Look 1, The Garage (SPEC §34): nobody has bought anything yet. The rails are planks, the figures are paper
+ * tags pinned to them, the clock is an index card with label-maker keys, the Kardashev scale is a tape measure,
+ * and every sheet is held up with masking tape. Everything on paper comes from paper.css.
+ */
+html.edition-3d:not(.ui-classic)[data-look='1'] {
+  --rail-bg: linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 30%, rgb(0 0 0 / 0.22)), #c9a877 var(--tx-ply);
+  --rail-shadow: inset 0 -4px 0 rgb(70 40 14 / 0.55), inset 0 2px 0 rgb(255 255 255 / 0.3), 0 10px 22px rgb(0 0 0 / 0.5);
+  --tape: linear-gradient(180deg, rgb(238 222 170 / 0.92), rgb(226 207 150 / 0.92));
+
+  /* ── the top rail: tags pinned to a plank ── */
+  .topbar > .frame {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+  .clock {
+    gap: 12px;
+  }
+  .clock::after {
+    content: none;
+  }
+  /* the date: an index card, ruled, a red line across the top */
+  .date {
+    order: 1;
+    position: relative;
+    justify-content: center;
+    min-width: 176px;
+    padding: 4px 16px 0;
+    color: var(--ink);
+    background:
+      linear-gradient(#d2553f, #d2553f) 0 19px / 100% 1.5px no-repeat,
+      repeating-linear-gradient(180deg, transparent 0 15px, rgb(60 110 190 / 0.3) 15px 16px),
+      #fffdf6;
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.25),
+      0 8px 9px -5px rgb(40 25 10 / 0.6);
+    rotate: -1.2deg;
+  }
+  .date .label,
+  .clock.paused .date .label {
+    font-family: var(--font-typed);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    color: var(--bad);
+  }
+  .date .d {
+    font-family: var(--font-marker);
+    font-weight: 400;
+    font-size: 21px;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+    text-shadow: none;
+  }
+  .clock.paused {
+    border: 0;
+    box-shadow: none;
+  }
+  .speed {
+    order: 2;
+    gap: 5px;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+  .speed .btn,
+  .speed .btn:hover:not(:disabled) {
+    width: 42px;
+    height: 34px;
+    align-self: center;
+    color: #f5f5f2;
+    background: var(--dymo);
+    border-radius: 2px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.28),
+      0 2px 3px rgb(0 0 0 / 0.5);
+    translate: none;
+  }
+  .speed .btn:hover:not(:disabled) {
+    background: #33333a;
+  }
+  .speed .btn.active,
+  .speed .btn.active:hover:not(:disabled) {
+    color: #062b12;
+    background: #7be08f;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.6),
+      0 2px 3px rgb(0 0 0 / 0.5);
+    text-shadow: none;
+  }
+  .speed .btn.active:first-child,
+  .speed .btn.active:first-child:hover:not(:disabled) {
+    color: #fff;
+    background: #cf3a26;
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.4);
+  }
+  .stats {
+    gap: 12px;
+    height: calc(var(--rail) - 22px);
+    padding: 0 4px;
+  }
+  .stat {
+    position: relative;
+    overflow: visible;
+    padding: 6px 14px 0 6px;
+    border-right: 0;
+    color: var(--ink);
+    background: #fffdf6 var(--tx-paper);
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.25),
+      0 8px 9px -5px rgb(40 25 10 / 0.6);
+    rotate: 0.8deg;
+  }
+  .stat:nth-child(even) {
+    rotate: -1deg;
+    background-color: #f6efdc;
+  }
+  .stat:nth-child(3n) {
+    rotate: 0.3deg;
+  }
+  .stat::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -6px;
+    width: 13px;
+    height: 13px;
+    margin-left: -6px;
+    border-radius: 50%;
+    background: var(--pin);
+    box-shadow: 2px 3px 3px rgb(0 0 0 / 0.35);
+    opacity: 1;
+  }
+  .stat.btnless:hover {
+    background-color: #fff6c4;
+  }
+  .stat > img.px {
+    margin: 0 6px;
+    background: none;
+    box-shadow: none;
+  }
+  .stat .v,
+  .stat .v:not(.gold, .cyan, .good, .bad, .warn),
+  .stat .v:is(.gold, .cyan) {
+    font-family: var(--font-marker);
+    font-weight: 400;
+    color: var(--ink);
+    text-shadow: none;
+  }
+  .stat .v.bad {
+    color: var(--bad);
+  }
+  .stat .v.good {
+    color: var(--good);
+  }
+  .stat .v.warn {
+    color: var(--warn);
+  }
+  .stat .s {
+    font-family: var(--font-hand);
+    font-weight: 700;
+    font-size: 14.5px;
+    color: var(--pen);
+  }
+  .stat .s.good {
+    color: var(--good);
+  }
+  .stat .s.bad {
+    color: var(--bad);
+  }
+  /* the Kardashev scale: a tape measure, a red marker where we stand */
+  .topbar > .kmeter {
+    gap: 12px;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .kring,
+  .kmeter .knext {
+    display: none;
+  }
+  .kmeter .col {
+    order: 2;
+    flex: none;
+    position: relative;
+    justify-content: center;
+    height: 100%;
+    padding: 4px 14px 0;
+    gap: 0;
+    background: #ffe86e var(--tx-sticky);
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.25),
+      0 8px 9px -5px rgb(40 25 10 / 0.6);
+    rotate: 1.4deg;
+  }
+  .kmeter .col .kbar {
+    display: none;
+  }
+  .klabel {
+    font-family: var(--font-typed);
+    font-stretch: 100%;
+    font-weight: 400;
+    color: #7a6a1e;
+  }
+  .kmeter .kv {
+    font-family: var(--font-marker);
+    font-weight: 400;
+    color: var(--ink);
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    text-shadow: none;
+  }
+  .ktape {
+    order: 1;
+    display: flex;
+    position: relative;
+    align-items: flex-end;
+    justify-content: space-between;
+    align-self: center;
+    width: clamp(150px, 15vw, 280px);
+    height: 36px;
+    padding: 0 6px 2px;
+    font-family: 'Saira', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    color: #2a2000;
+    background:
+      repeating-linear-gradient(90deg, #2a2000 0 1.5px, transparent 1.5px 33.33%) 0 0 / 100% 16px no-repeat,
+      repeating-linear-gradient(90deg, #2a2000 0 1px, transparent 1px 3.333%) 0 0 / 100% 9px no-repeat,
+      linear-gradient(180deg, #ffe14a, #f1c21b);
+    border-radius: 2px;
+    box-shadow:
+      inset 0 -2px 0 rgb(0 0 0 / 0.18),
+      0 1px 1px rgb(0 0 0 / 0.3),
+      0 8px 9px -5px rgb(40 25 10 / 0.6);
+  }
+  .ktape i {
+    position: absolute;
+    top: -6px;
+    bottom: -6px;
+    width: 4px;
+    margin-left: -2px;
+    border-radius: 2px;
+    background: #cf3a26;
+    box-shadow: 1px 1px 2px rgb(0 0 0 / 0.5);
+  }
+  .ktape i::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: -3px;
+    border: 7px solid transparent;
+    border-top-color: #cf3a26;
+    border-bottom: 0;
+  }
+
+  /* ── the left rail: a plank, with the panels as tacked cards ── */
+  .dock {
+    background: linear-gradient(90deg, rgb(255 255 255 / 0.08), transparent 40%, rgb(0 0 0 / 0.2)), #c9a877 var(--tx-ply);
+    border: 0;
+    box-shadow:
+      inset -4px 0 0 rgb(70 40 14 / 0.55),
+      10px 0 22px rgb(0 0 0 / 0.45);
+  }
+  .dock .btn,
+  .dock .btn:hover:not(:disabled) {
+    color: var(--ink);
+    background: #fffdf6 var(--tx-paper);
+    border-radius: 2px;
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.25),
+      0 6px 7px -4px rgb(40 25 10 / 0.6);
+    text-shadow: none;
+    translate: none;
+    rotate: -1deg;
+  }
+  .dock .btn:nth-of-type(even) {
+    rotate: 1.2deg;
+  }
+  .dock .btn:nth-of-type(3n) {
+    rotate: 0.2deg;
+    background-color: #f6efdc;
+  }
+  .dock .btn:hover:not(:disabled) {
+    background-color: #fff6c4;
+    translate: 0 -1px;
+  }
+  .dock .btn.active,
+  .dock .btn.active:hover:not(:disabled) {
+    background: #ffe86e var(--tx-sticky);
+    box-shadow:
+      0 0 0 2.5px var(--ink),
+      0 6px 7px -4px rgb(40 25 10 / 0.6);
+  }
+  .dock .btn.active::before {
+    content: none;
+  }
+  .dk-l {
+    padding: 2px 5px 1px;
+    font-family: 'Saira', sans-serif;
+    font-stretch: 80%;
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #f5f5f2;
+    background: var(--dymo);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28);
+    text-shadow: 0 1px 0 #000;
+  }
+  .dock .btn .badge {
+    background: #cf3a26;
+    box-shadow: 0 2px 3px rgb(0 0 0 / 0.45);
+    font-family: var(--font-marker);
+    font-weight: 400;
+  }
+  .dock .sep {
+    background: rgb(70 40 14 / 0.45);
+  }
+
+  /* ── sheets are taped up ── */
+  --e-top: calc(var(--rail) + 24px);
+  .side > .panel {
+    position: relative;
+  }
+  .side > .panel,
+  .panel.wide {
+    overflow: visible;
+    border-radius: 2px;
+    background: #fbf7ee var(--tx-paper);
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.25),
+      0 22px 30px -12px rgb(30 18 6 / 0.65);
+  }
+  .side > .panel::before,
+  .side > .panel::after,
+  .panel.wide::before,
+  .panel.wide::after {
+    content: '';
+    position: absolute;
+    top: -12px;
+    z-index: 3;
+    width: 92px;
+    height: 28px;
+    background: var(--tape);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+    pointer-events: none;
+  }
+  .side > .panel::before,
+  .panel.wide::before {
+    left: -26px;
+    rotate: -38deg;
+  }
+  .side > .panel::after,
+  .panel.wide::after {
+    right: -26px;
+    rotate: 38deg;
+  }
+  .panel.wide {
+    rotate: -0.25deg;
+  }
+}
+/* in a small window the tape measure gives its room to the figures */
+@media (max-width: 1340px) {
+  html.edition-3d:not(.ui-classic)[data-look='1'] .ktape {
+    display: none;
+  }
+}

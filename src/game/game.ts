@@ -35,7 +35,7 @@ import { siteDistanceKm } from '../content/sites';
 import { fmtMoney } from '../sim/core';
 import { getEra, onEraChange, setEra, syncCssVars, type Era } from '../render/palette';
 import { deleteSlot, listSlots, loadSlot, migrateLegacySave, newSlotId, writeSlot, MAX_SLOTS, type SlotInfo } from '../save/save';
-import { applyCssSettings, loadSettings, saveSettings, type Settings } from '../save/settings';
+import { applyCssSettings, loadSettings, lookFor, saveSettings, type Settings } from '../save/settings';
 import { guideUnseen, unlockGuide } from '../save/guide';
 import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
@@ -234,8 +234,32 @@ export class Game {
   }
 
   /** Schedule a UI refresh (coalesced to one per frame). */
+  /** What decided the look last time (the screen, the act, the setting): it is only worked out again when one changes. */
+  private lookKey = '';
+  /**
+   * The interface's look (SPEC §34): the act's, or the one the player stays on. The title screen wears the look
+   * of the company Continue would open (the garage's when there is none). Written on <html data-look>.
+   */
+  private applyLook(): void {
+    const inGame = this.mode !== 'title' && !!this.state;
+    const key = `${inGame ? `g${this.state!.act ?? 1}` : `t${this.menuScreen}`}|${this.settings.interfaceLook}`;
+    if (key === this.lookKey) return;
+    this.lookKey = key;
+    // the title screen: the company Continue would open (the newest save, unless it went bankrupt)
+    const latest = inGame ? undefined : listSlots()[0];
+    const act = inGame ? (this.state!.act ?? 1) : latest && !latest.gameOver ? (latest.typeI ? 5 : (latest.act ?? 1)) : 1;
+    const look = lookFor(this.settings, act);
+    document.documentElement.dataset.look = String(look);
+    const reached = Math.max(this.settings.lookReached ?? 1, inGame ? Math.min(5, act) : 1);
+    if (reached !== this.settings.lookReached || look !== this.settings.lookNow) {
+      this.settings = { ...this.settings, lookReached: reached, lookNow: look };
+      saveSettings(this.settings);
+    }
+  }
+
   notify(): void {
     this.version++;
+    this.applyLook();
     if (this.notifyQueued) return;
     this.notifyQueued = true;
     requestAnimationFrame(() => {

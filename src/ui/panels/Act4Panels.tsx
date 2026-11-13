@@ -5,6 +5,7 @@
  */
 import { useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, useGame } from '../components';
+import { Card, Cols, Tile, Tiles } from '../kit';
 import { rich } from '../emoji';
 import type { IconName } from '../icons';
 import type { PlanetTab } from '../../game/game';
@@ -13,7 +14,7 @@ import { CONTRACT_KINDS, PARTNERS, SIZE_NAMES, YOU } from '../../content/charter
 import { AI_IDS, AIS, DESIGN_IDS, FUSION_DESIGNS, GOVERNORS, HEAT_FRONT_NAMES, HEAT_FRONTS, PLANET, PRIORITIES, PRIORITY_IDS, SHELLS, STAGE_NAMES, SUPERGRID_ROUTES } from '../../content/planet';
 import { REGIONS } from '../../content/regions';
 import { REGION_IDS, type RegionId } from '../../content/mapcodes';
-import { canPost, contractEstimate, sizeText, biddersFor, youCanBid } from '../../sim/charter';
+import { canPost, contractEstimate, duesMonthly, sizeText, biddersFor, youCanBid } from '../../sim/charter';
 import { fmtDate, fmtDays, fmtMoney, fmtMW } from '../../sim/core';
 import { planetChecklist, stageGate } from '../../sim/act4';
 import { aiRegionCount, canDelegate, regionsOf } from '../../sim/airegions';
@@ -238,13 +239,51 @@ function OverviewTab() {
   const checks = planetChecklist(s);
   const co = pl.company;
   const auto = !!s.flags.autopilot4;
+  const w = warming(s);
+  const worst = Math.min(...REGION_IDS.map((r) => pl.provinces[r].wellbeing));
   return (
     <>
-      <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
-        <div class="grow" style={{ minWidth: '240px' }}>
-          <h4>
-            <Icon name="plan" size="sm" /> Stage {Math.min(4, pl.stage)} · {STAGE_NAMES[pl.stage]}
-          </h4>
+      <Tiles>
+        <Tile
+          label="Kardashev"
+          icon="k"
+          tone="gold"
+          value={s.stats.K.toFixed(4)}
+          sub={`${s.stats.worldTW.toFixed(1)} of ${PLANET.targetTW} TW`}
+          tip={`Kardashev scale\nThe power civilisation commands. The planetary checklist asks for 0.80, which is ${PLANET.targetTW} TW.`}
+        />
+        <Tile
+          label="Warming"
+          icon="warming"
+          tone={w >= PLANET.goalWarming ? 'bad' : w > 1.8 ? 'warn' : 'good'}
+          value={`${w.toFixed(2)} °C`}
+          sub={`the checklist needs under ${PLANET.goalWarming.toFixed(1)}`}
+          tip={`Warming\nWarming felt today. The checklist needs it under ${PLANET.goalWarming.toFixed(1)} °C; the Climate tab has the carbon budget and air capture.`}
+        />
+        <Tile
+          label="Wellbeing"
+          icon="wellbeing"
+          tone={worst >= PLANET.goalWellbeing ? 'good' : 'warn'}
+          value={
+            <>
+              {Math.round(avgWellbeing(s))}
+              <small>average</small>
+            </>
+          }
+          sub={`lowest province ${Math.round(worst)}`}
+          tip={`Wellbeing\nThe average across the provinces, weighted by their people. The checklist needs every province at ${PLANET.goalWellbeing} or more; the Provinces tab shows what drives each one.`}
+        />
+        <Tile
+          label="Treasury"
+          icon="charter"
+          tone="gold"
+          value={fmtMoney(s.charter?.budget ?? 0)}
+          sub={`+${fmtMoney(duesMonthly(s))} dues a month`}
+          tip={'Treasury\nThe Kardashev Project’s money: every contract posted from this panel is paid from it.'}
+        />
+      </Tiles>
+      <Cols class="even">
+        <Card title={`Stage ${Math.min(4, pl.stage)} · ${STAGE_NAMES[pl.stage]}`} icon="plan">
           <p class="small" style={{ margin: '4px 0 8px' }}>
             {STAGE_BLURB[pl.stage]}
           </p>
@@ -252,10 +291,6 @@ function OverviewTab() {
             rows={[
               ['Powers', pl.powers === 'planetary' ? <span class="good">Planetary</span> : pl.powers === 'limited' ? 'Limited — links and AI provinces need Council approval' : <span class="warn">Caretaker</span>, 'From Act III’s renewal vote. The “Planetary powers” resolution can upgrade them.'],
               ['Your company', co === 'utility' ? 'A public utility (the Charter’s)' : co === 'sell' ? 'Sold' : co === 'keep' ? 'Yours (two hats)' : <span class="warn">Undecided</span>],
-              ['Kardashev', `${s.stats.K.toFixed(4)} · ${s.stats.worldTW.toFixed(1)} / ${PLANET.targetTW} TW`],
-              ['Wellbeing', `${Math.round(avgWellbeing(s))} average`],
-              ['Warming', `${warming(s).toFixed(2)} °C`],
-              ['Treasury', fmtMoney(s.charter?.budget ?? 0)],
             ]}
           />
           <div class="row wrap" style={{ gap: '8px', marginTop: '6px' }}>
@@ -276,11 +311,8 @@ function OverviewTab() {
             )}
           </div>
           <NextStep />
-        </div>
-        <div class="grow" style={{ minWidth: '260px' }} data-tut="planet-checklist">
-          <h4>
-            <Icon name="goals" size="sm" /> The planetary checklist
-          </h4>
+        </Card>
+        <Card title="The planetary checklist" icon="goals" tut="planet-checklist">
           <div class="small muted" style={{ marginBottom: '4px' }}>
             From the High Frontier (stage 3), The Heat Wall begins when every item holds at once — or when the stage runs out.
           </div>
@@ -295,13 +327,10 @@ function OverviewTab() {
               </div>
             );
           })}
-        </div>
-      </div>
+        </Card>
+      </Cols>
       {pl.jumps.length > 0 && (
-        <div class="section">
-          <h4>
-            <Icon name="jump" size="sm" /> The years so far
-          </h4>
+        <Card title="The years so far" icon="jump">
           {pl.jumps
             .slice()
             .reverse()
@@ -315,7 +344,7 @@ function OverviewTab() {
                 </button>
               </div>
             ))}
-        </div>
+        </Card>
       )}
     </>
   );
@@ -950,7 +979,7 @@ export function Act4CompleteModal() {
   const designs = designsOnline(s).length;
   return (
     <div class="scrim">
-      <div class="modal frame">
+      <div class="modal frame milestone">
         <div class="head">
           <Icon name="swarm" size="lg" />
           <div class="grow">

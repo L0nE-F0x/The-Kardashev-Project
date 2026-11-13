@@ -9,7 +9,10 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.13.3 "Steady Hand"** (the Linux app no longer crashes at the first click on the stronger
+Current build: **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
+plywood and paper in the garage to nothing but light at Type I, the title and loading screens included: SPEC §34;
+on the first pass of the overhaul: a display typeface, panels that lead with tiles, a build menu with pictures:
+SPEC §33) on top of v0.13.3 "Steady Hand" (the Linux app no longer crashes at the first click on the stronger
 graphics card: the system engine's GStreamer found no plugins) on top of v0.13.2 "Solid Ground" (the visual bug sweep: feet and cars on their surfaces, car parks, paths,
 skies, the globe, the menu film, no emoji in the interface: SPEC §32) on top of v0.13.1 "Strong Suit" (the stronger
 graphics card made fast in the Linux app: SPEC §31) on top of
@@ -120,6 +123,9 @@ PLAYWRIGHT=<playwright's index.mjs> npm run gen:assets [-- logo|icons|og]
                       # Playwright + Chrome: it starts its own Vite and a software-rendered Chrome (about a minute);
                       # CDP=http://127.0.0.1:<port> / BASE=<dev server> reuse running ones. The website's still globe:
                       # node tools/og3d.mjs globe
+node tools/thumbs.mjs [type…]   # the build menu's pictures (src/assets/build/*.webp): every facility type shot in
+                      # the piece lab. Needs the dev server, the headless Chrome below (CDP= / BASE=) and ImageMagick.
+                      # Run it after changing a facility's 3D piece.
 npm run desktop:dev   # Tauri window on top of the dev server
 npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
 PREVIEW_DIR=/some/dir npx vitest run tests/dock-icons.test.ts   # writes icon-sheet.svg (every icon, dock icon, medal)
@@ -249,6 +255,9 @@ src/
                            plan, the era overlay and report, the Solar Maximum tracker, the Type I ending (cinematic,
                            epilogues, credits, stats, end card); game.ending drives it
     base.css      fonts, palette vars, frames, buttons — shared by the game and the website (`.frame` reads --frame-bg/-edge/-shadow)
+    Foot.tsx      the strip along the foot: the latest news, what is coming (click to skip to it); Juno's kept note
+    WorldNotes.tsx  notes pinned to a campus's buildings (remarks, the ring and card for the one under the pointer):
+                  placed each frame from `CampusScene.plotAnchors()`; drawn per look in `render3d/ui/looks/notes.css`
     styles.css    the HUD (its `max-height: 520px` / narrow-window rules date from the phone days: harmless, never hit in
                   the app's 960×540 minimum window; leave or prune, don't extend)
     modern.css    the modern HUD layer (v0.9): softer frames, accent rules, hairlines, motion. Its rules are scoped
@@ -338,9 +347,27 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   the showcase world during the menu tour); mutations go through `game.*` action wrappers (they refresh stats,
   play sounds, toast errors and honour the confirm-spend setting).
 - **Platform split:** game code never touches Tauri/Electron APIs directly — only `src/platform/platform.ts`.
-- **Fonts:** `--font` (Atkinson Hyperlegible Next: everything), `--font-label` (small labels; their rules set
-  capitals + `--caps-track`), `--font-pixel` (an old name: it is `var(--font)` now, used by titles). Settings →
-  Accessibility → Text font switches `html.font-system`. The logo's letters are Inter, baked into the image.
+- **Fonts (v0.14):** `--font-display` (Saira: titles, small-capital labels at `font-stretch: 88%`, buttons, every
+  figure) and `--font` (Atkinson Hyperlegible Next: running text; it starts with `KP Figures`, the same Saira
+  file limited to the ten digits, so figures in a sentence match the ones in a table). `--font-label` and
+  `--font-pixel` (old names) are the display face in the game, `var(--font)` on the website. Settings →
+  Accessibility → Text font switches `html.font-system` (everything in the system face). The logo's letters are
+  Inter, baked into the image. The loading screen declares both faces itself (play/index.html).
+- **Panels (v0.14):** a panel says its first thing in a row of `Tile`s, then `Card`s (`ui/kit.tsx`: Tiles, Tile,
+  SplitBar, Meter, Gauge, Spark, Card, Cols, `lrow`; tones `t-gold` / `t-cyan` / `t-violet` / `t-yellow` /
+  `t-blue` / `t-good` / `t-warn` / `t-bad`; styles in `render3d/ui/kit.css`). Every panel but News does (v0.14); Compute, Finance and Research are
+  the examples. An older `.row.wrap > .grow` block that opens with an `h4` is drawn as a card by CSS alone.
+  A tooltip's first line is its title; `data-key="C"` draws the shortcut as a key; `data-tip-at="right"` stands
+  the tip beside its element (the dock). An event card's colour comes from `data-cat`; an act-complete card is
+  `modal milestone`.
+- **Looks (v0.14, SPEC §34):** the interface has five looks on one layout, chosen by `<html data-look>`
+  (`Game.applyLook`: the act's, the title screen's from the save Continue opens, or `settings.interfaceLook`).
+  A look is CSS only: `render3d/ui/looks/` (`layout.css` = where everything stands, shared; `paper.css` = looks
+  1–2; `light.css` = looks 4–5; `lookN.css`; `menus.css` = title screen and decision card; the loading screen's
+  are in `play/index.html`). New interface parts get their place in `layout.css` and are then checked in all
+  five: a fresh company per act (`startNew({ act3: true })` …) or `game.updateSettings({ interfaceLook: n })`.
+  Paper looks invert the tokens (dark ink on light): never hard-code a light text colour in a component. Running
+  text stays Atkinson in every look. Float things by `--e-top` / `--e-left` / `--e-foot`, never literal pixels.
 - **Windows, not phones:** the app's window is at least 960×540; the HUD also has to hold up on big and high-DPI
   screens and on a Steam Deck (1280×800, touch). **Zoomed HUD boxes** (the `zoom: …--ui-zoom…` list in styles.css):
   size them in % of the screen, never `vh`/`vw` (zoom multiplies those; divide by `--z` if you must). Spotlight bubbles
@@ -428,7 +455,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 | Want | Edit |
 |---|---|
-| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, a builder in `render3d/campus/registry.ts` (`art3d/PIECES.md`), its globe marker in `render3d/globe/markers.ts`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx` |
+| New facility type | `FacilityType` in `sim/types.ts`, `content/facilities.ts`, power/compute effect in `sim/power.ts`/`sim/ai.ts`, a builder in `render3d/campus/registry.ts` (`art3d/PIECES.md`), its globe marker in `render3d/globe/markers.ts`; UI icon in `ui/icons.ts`, `FAC_ICON` in `ui/Inspector.tsx`; its build-menu picture: add it to `ALL` in `tools/thumbs.mjs` and run it |
+| An interface look | `render3d/ui/looks/lookN.css` (tokens first, then overrides); shared paper / light rules in `paper.css` / `light.css`; the layout in `layout.css`; SPEC §34's table says what each look is made of |
+| A panel's layout | `ui/kit.tsx` parts (Tiles first, then Cards); `ComputePanel.tsx` is the model |
+| Loading-screen tip | `TIPS` in `play/index.html` |
 | New site | `content/sites.ts` (port must reach the world ocean — `npm test` checks every supplier→site route) |
 | New tech | `content/techs.ts` (+ a `TechKey` if it needs a new multiplier, read via `techMult`) |
 | New event | `content/events.ts` |
@@ -486,8 +516,13 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.13.2 "Solid Ground" (SPEC §32) is the visual sweep the user asked for on 2026-11-11 ("get onto
-perfecting everything"). They had still not said how v0.13's new art looks in their app (the logo, the busts, the
+**Next:** v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
+triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
+rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
+clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and
+loading screens included). Built and uncommitted on 2026-11-13: ask how it looks to them before going further.
+SPEC §33 and §34 each end with what a next pass would take. Before it, v0.13.2 "Solid Ground"
+(SPEC §32) was the visual sweep asked for on 2026-11-11 ("get onto perfecting everything"). They had still not said how v0.13's new art looks in their app (the logo, the busts, the
 icons), nor tried the graphics-card switch on Windows: ask. SPEC §32 ends with what the helpers saw and left: the
 next things to pick from when they ask for more polish.
 **Versions (the user, 2026-11-11):** keep bumping small versions while the game is being perfected; v1.0.0 only when

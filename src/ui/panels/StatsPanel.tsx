@@ -1,7 +1,8 @@
 import { useState } from 'preact/hooks';
 import { Panel, useGame } from '../components';
+import { Tile, Tiles } from '../kit';
 import type { ChartPoint } from '../../sim/types';
-import { fmtDate, fmtMoney, fmtMW } from '../../sim/core';
+import { fmtDate, fmtMoney, fmtMonth, fmtMW, fmtNum as fmtTimes } from '../../sim/core';
 import { warming } from '../../sim/climate';
 
 type Range = 'act' | '5y' | 'all';
@@ -192,6 +193,11 @@ export function StatsPanel() {
   const from = range === 'all' ? -Infinity : range === '5y' ? s.day - 365 * 5 : actStart;
   const pts = all.filter((p) => p.d >= from);
   const charts = CHARTS.filter((c) => !c.optional || pts.some((p) => c.series.some((x) => ok(x.get(p)))));
+  // the tiles: where the run stands today, and how far it has come over the range the charts show
+  const first = pts.length > 1 ? pts[0] : null;
+  const since = first ? `since ${fmtMonth(first.d)}` : '';
+  const times = (from: number | undefined, to: number) => (first && ok(from) && from > 0 && to > 0 ? `×${fmtTimes(to / from)} ${since}` : null);
+  const kUp = first && ok(first.k) ? st.K - first.k : null;
   return (
     <Panel
       title="Stats"
@@ -214,6 +220,45 @@ export function StatsPanel() {
         </div>
       }
     >
+      <Tiles>
+        <Tile
+          label="Kardashev"
+          icon="k"
+          tone="gold"
+          value={st.K.toFixed(4)}
+          sub={kUp !== null ? `${kUp >= 0 ? '+' : '−'}${Math.abs(kUp).toFixed(4)} ${since}` : 'the score of the whole run'}
+          tip={'Kardashev scale\nThe score of the run: 1.0000 is Type I. The line under it is the change over the range you picked.'}
+        />
+        <Tile
+          label="Compute"
+          icon="compute"
+          tone="cyan"
+          value={fmtEF(st.computeEF)}
+          sub={times(first?.ef, st.computeEF) ?? `${(st.installedAccel + st.rentedAccel).toLocaleString()} chips at work`}
+          tip={'Compute\nEverything your halls and your rented chips can compute, and how many times it has grown over the range you picked.'}
+        />
+        <Tile
+          label="Revenue"
+          icon="cash"
+          tone="gold"
+          value={
+            <>
+              {fmtMoney(st.revenueMonth)}
+              <small>/mo</small>
+            </>
+          }
+          sub={times(first?.rev, st.revenueMonth) ?? `${fmtMoney(st.costMonth)}/mo running costs`}
+          tip={'Revenue\nWhat the company earns a month, and how many times it has grown over the range you picked.'}
+        />
+        <Tile
+          label="Capability"
+          icon="brain"
+          tone="violet"
+          value={st.capability.toFixed(2)}
+          sub={`frontier ${st.frontier.toFixed(2)}`}
+          tip={'Capability\nYour best model against the frontier: the best closed model from a rival lab.'}
+        />
+      </Tiles>
       <p class="small muted" style={{ marginTop: 0 }}>
         One point a game month. Hover a chart to read any month. Money, compute, power and chips switch to a log scale when they’ve grown a lot.
       </p>

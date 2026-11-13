@@ -6,6 +6,7 @@
  */
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, Portrait, SpeakerPortrait, speakerName, useGame } from '../components';
+import { Card, Cols, Tile, Tiles } from '../kit';
 import { rich } from '../emoji';
 import type { IconName } from '../icons';
 import type { SystemTab } from '../../game/game';
@@ -179,21 +180,61 @@ function OverviewTab() {
   const sy = s.system!;
   const checks = typeIChecklist(s);
   const auto = !!s.flags.autopilot5;
+  const over = overLine(s);
+  const surface = surfaceTW(s);
+  const line = lineTW(s);
+  const idle = idleTW(s);
   return (
     <>
-      <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
-        <div class="grow" style={{ minWidth: '240px' }}>
-          <h4>
-            <Icon name="plan" size="sm" /> Stage {Math.min(4, sy.stage)} · {STAGE5_NAMES[sy.stage]}
-          </h4>
+      <Tiles>
+        <Tile
+          label="Kardashev"
+          icon="k"
+          tone="gold"
+          value={s.stats.K.toFixed(4)}
+          sub={`${fmtTW(s.stats.worldTW)} of ${fmtTW(SYSTEM.targetTW)}`}
+          tip={`Kardashev scale\nThe power civilisation commands, on Earth and in space: ${fmtTW(s.stats.worldTW)} of ${fmtTW(SYSTEM.targetTW)} (Type I).`}
+        />
+        <Tile
+          label="In space"
+          icon="swarm"
+          tone="yellow"
+          value={fmtTW(spaceTW(s))}
+          sub={idle > 1 ? `${fmtTW(idle)} idle` : `${segmentsLit(sy.collectors)} of 12 arcs lit`}
+          tip={'In space\nCollected by the swarm and used: compute rings, habitats and industry, the foundries, beams home. Idle power has nothing to plug into yet.'}
+        />
+        <Tile
+          label="On Earth"
+          icon="thermal"
+          tone={over > 0 ? 'bad' : surface > line * 0.92 ? 'warn' : sy.thermalLine ? 'good' : 'plain'}
+          value={
+            sy.thermalLine ? (
+              <>
+                {Math.round((surface / Math.max(1, line)) * 100)}%<small>of the line</small>
+              </>
+            ) : (
+              fmtTW(surface)
+            )
+          }
+          sub={sy.thermalLine ? `${fmtTW(surface)} of ${fmtTW(line)}` : 'no Thermal Line drawn yet'}
+          tip={'On Earth\nPower used on the surface (Earth’s own plants plus beams) against the Thermal Line.'}
+        />
+        <Tile
+          label="Healthy years"
+          icon="longevity"
+          tone={sy.escape ? 'good' : 'violet'}
+          value={sy.lifeExp.toFixed(1)}
+          sub={`${sy.lifeRate >= 0 ? '+' : ''}${sy.lifeRate.toFixed(2)} a year${sy.escape ? ' · escape velocity' : ''}`}
+          tip={'Healthy life expectancy\nEscape velocity is a rise of more than a year every year. The minds’ research and clinics drive it.'}
+        />
+      </Tiles>
+      <Cols class="even">
+        <Card title={`Stage ${Math.min(4, sy.stage)} · ${STAGE5_NAMES[sy.stage]}`} icon="plan">
           <p class="small" style={{ margin: '4px 0 8px' }}>
             {STAGE_BLURB[sy.stage]}
           </p>
           <KV
             rows={[
-              ['Kardashev', <span class="gold">{s.stats.K.toFixed(4)}</span>, `${fmtTW(s.stats.worldTW)} of ${fmtTW(SYSTEM.targetTW)} (Type I).`],
-              ['On Earth', `${fmtTW(surfaceTW(s))} of ${fmtTW(lineTW(s))}`, 'Power used on the surface (Earth’s own plants plus beams) against the Thermal Line.'],
-              ['In space', `${fmtTW(spaceTW(s))}${idleTW(s) > 1 ? ` · ${fmtTW(idleTW(s))} idle` : ''}`, 'Collected by the swarm and used: compute rings, habitats and industry, the foundries, beams home. Idle power has nothing to plug into yet.'],
               ['Foundries', `${sy.foundries.length} · ${foundryMt(s).toFixed(foundryMt(s) < 10 ? 2 : 0)} Mt/yr`],
               ['Treasury', fmtMoney(s.charter?.budget ?? 0)],
             ]}
@@ -213,11 +254,8 @@ function OverviewTab() {
               </button>
             )}
           </div>
-        </div>
-        <div class="grow" style={{ minWidth: '260px' }} data-tut="system-checklist">
-          <h4>
-            <Icon name="goals" size="sm" /> The Type I checklist
-          </h4>
+        </Card>
+        <Card title="The Type I checklist" icon="goals" tut="system-checklist">
           <div class="small muted" style={{ marginBottom: '4px' }}>
             When every item holds at once, Solar Maximum begins — then the last climb to K 1.0000. Items still open when the storm comes add pressure to the front they guard (marked).
           </div>
@@ -241,14 +279,11 @@ function OverviewTab() {
               Everything holds but the number itself. The swarm gets there on its own{typeIEstimate(s) ? ` (Type I about ${typeIEstimate(s)})` : ''}; a faster growth dial or more reinvestment gets there sooner, at more risk.
             </div>
           )}
-        </div>
-      </div>
+        </Card>
+      </Cols>
       <Levers compact />
       {sy.eras.length > 0 && (
-        <div class="section">
-          <h4>
-            <Icon name="jump" size="sm" /> The eras so far
-          </h4>
+        <Card title="The eras so far" icon="jump">
           {sy.eras
             .slice()
             .reverse()
@@ -262,7 +297,7 @@ function OverviewTab() {
                 </button>
               </div>
             ))}
-        </div>
+        </Card>
       )}
     </>
   );

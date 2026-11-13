@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks';
 import { Icon, Panel, Portrait, useGame } from '../components';
 import { OBJECTIVES, actObjectives, type ObjectiveDef } from '../../content/objectives';
 import { ObjectiveBar } from '../Objectives';
+import { Tile, Tiles } from '../kit';
 import type { AdvisorId, GameState } from '../../sim/types';
 
 /** A numeric goal's bar, while it's open. */
@@ -78,6 +79,91 @@ function NewsList() {
   );
 }
 
+/**
+ * The Goals panels' first row: how many of the listed goals are done, how many are open to work on, the act's
+ * checklist goals (the ones marked "goal"), and where the act stands (its phase or stage; Act I: its side goals).
+ * `list` = the goals the panel lists under it.
+ */
+function GoalTiles({ list, stage }: { list: ObjectiveDef[]; stage?: { label: string; n: number; of: number; name: string } }) {
+  const game = useGame();
+  const s = game.state!;
+  const isDone = (o: ObjectiveDef) => (o.live ? o.done(s) : s.objectives.done.includes(o.id));
+  const done = list.filter(isDone).length;
+  const open = list.filter((o) => !isDone(o) && (o.after ?? []).every((a) => s.objectives.done.includes(a)));
+  const checklist = list.filter((o) => o.goal);
+  const checked = checklist.filter(isDone).length;
+  const side = OBJECTIVES.filter((o) => o.side && (o.act ?? 1) === (s.act ?? 1));
+  const sideDone = side.filter((o) => s.objectives.done.includes(o.id)).length;
+  return (
+    <Tiles>
+      <Tile
+        label="Done"
+        icon="check"
+        tone="good"
+        value={
+          <>
+            {done}
+            <small>of {list.length}</small>
+          </>
+        }
+        sub={stage ? `in the ${stage.label.toLowerCase()}s opened so far` : 'the act’s main goals'}
+        tip={'Goals done\nThe goals on this list that are ticked off, or that hold right now.'}
+      />
+      <Tile
+        label="Open now"
+        icon="play"
+        tone="cyan"
+        value={open.length}
+        sub={open.length ? open[0].title : done === list.length ? 'everything listed is done' : 'waiting on earlier goals'}
+        tip={'Open now\nGoals you can work on today: every step before them is done.'}
+      />
+      {checklist.length > 0 && (
+        <Tile
+          label="Checklist"
+          icon="goals"
+          tone="gold"
+          value={
+            <>
+              {checked}
+              <small>of {checklist.length}</small>
+            </>
+          }
+          sub="marked “goal” below"
+          tip={'The act’s checklist\nThe goals marked “goal” are the ones that move the act on.'}
+        />
+      )}
+      {stage ? (
+        <Tile
+          label={stage.label}
+          icon="plan"
+          value={
+            <>
+              {stage.n}
+              <small>of {stage.of}</small>
+            </>
+          }
+          sub={stage.name}
+          tip={`${stage.label} ${stage.n} of ${stage.of}\n${stage.name}.${stage.n < stage.of ? ` More goals appear as each ${stage.label.toLowerCase()} opens.` : ''}`}
+        />
+      ) : side.length > 0 ? (
+        <Tile
+          label="Side goals"
+          icon="research"
+          tone="violet"
+          value={
+            <>
+              {sideDone}
+              <small>of {side.length}</small>
+            </>
+          }
+          sub="optional, with rewards"
+          tip={'Side goals\nOptional goals for this act. Each one pays a small reward.'}
+        />
+      ) : null}
+    </Tiles>
+  );
+}
+
 export function GoalsPanel() {
   const game = useGame();
   const s = game.state!;
@@ -85,12 +171,14 @@ export function GoalsPanel() {
   if ((s.act ?? 1) >= 4 && s.planet) return <Act4Goals />;
   if ((s.act ?? 1) >= 3) return <Act3Goals />;
   if ((s.act ?? 1) >= 2) return <Act2Goals />;
+  const list = OBJECTIVES.filter((o) => (o.act ?? 1) === 1 && !o.side);
   return (
     <Panel title="Act I · The Garage" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <GoalTiles list={list} />
       <p class="small muted" style={{ marginTop: 0 }}>
         Grow from a garage startup into a real AI company: your own model, your own compute, safely — then raise a Series A. Act II makes you a hyperscaler and Act III the steward of the Kardashev Project; Act IV runs the planet, and Act V climbs to Type I.
       </p>
-      {OBJECTIVES.filter((o) => (o.act ?? 1) === 1 && !o.side).map((o) => {
+      {list.map((o) => {
         const done = o.live ? o.done(s) : s.objectives.done.includes(o.id);
         const unlocked = (o.after ?? []).every((a) => s.objectives.done.includes(a));
         return (
@@ -170,8 +258,9 @@ function Act2Goals() {
   const phases = [1, 2, 3, 4].filter((p) => p <= Math.max(1, Math.min(4, s.phase)));
   return (
     <Panel title="Act II · The Scale-Up" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <GoalTiles list={list.filter((o) => phases.includes(o.phase ?? 1))} stage={{ label: 'Phase', n: Math.max(1, Math.min(4, s.phase)), of: 4, name: PHASE_NAMES[Math.max(1, Math.min(4, s.phase))] }} />
       <p class="small muted" style={{ marginTop: 0 }}>
-        From a Series-A startup to a hyperscaler. Phase {Math.min(4, s.phase)} of 4: {PHASE_NAMES[Math.min(4, s.phase)]}. Any four of the six IPO goals in phase 3 start The Crunch; by mid-2034 it starts anyway.
+        From a Series-A startup to a hyperscaler. Any four of the six IPO goals in phase 3 start The Crunch; by mid-2034 it starts anyway.
       </p>
       {phases.map((p) => (
         <div key={p} class="section">
@@ -213,10 +302,11 @@ function Act4Goals() {
   const list = actObjectives(s);
   return (
     <Panel title="Act IV · Planetary" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <GoalTiles list={list.filter((o) => (o.phase ?? 0) <= st)} stage={{ label: 'Stage', n: st, of: 4, name: STAGE4[st] }} />
       <p class="small muted" style={{ marginTop: 0 }}>
         {s.flags.act4Complete
           ? 'The Heat Wall is behind you: the climb to Type I goes on in Act V.'
-          : `Planetary operator. Stage ${st} of 4: ${STAGE4[st]}. Five-year plans move the years; Planet → Overview shows what opens the next one. When the planetary checklist holds, the Heat Wall begins.`}
+          : `Planetary operator. Five-year plans move the years; Planet → Overview shows what opens the next one. When the planetary checklist holds, the Heat Wall begins.`}
       </p>
       {[0, 1, 2, 3, 4].filter((p) => p <= st).map((p) => (
         <div key={p} class="section">
@@ -256,10 +346,11 @@ function Act5Goals() {
   const list = actObjectives(s);
   return (
     <Panel title="Act V · Type I" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <GoalTiles list={list.filter((o) => (o.phase ?? 0) <= st)} stage={{ label: 'Stage', n: st, of: 4, name: STAGE5[st] }} />
       <p class="small muted" style={{ marginTop: 0 }}>
         {s.system?.typeI
           ? `Type I, ${dateOf(s.system.typeI).getUTCFullYear()}: Kardashev 1.0000. The climb goes on toward Type II (K 2.00).`
-          : `Civilisation steward. Stage ${st} of 4: ${STAGE5[st]}. When the Type I checklist holds (or in 2105), Solar Maximum begins; after it, the last climb runs until Kardashev reaches 1.0000 — your score is the year.`}
+          : `Civilisation steward. When the Type I checklist holds (or in 2105), Solar Maximum begins; after it, the last climb runs until Kardashev reaches 1.0000 — your score is the year.`}
       </p>
       {[0, 1, 2, 3, 4].filter((p) => p <= st).map((p) => (
         <div key={p} class="section">
@@ -304,8 +395,9 @@ function Act3Goals() {
   const phases = [1, 2, 3, 4, 5].filter((p) => p <= cp);
   return (
     <Panel title="Act III · The Charter" icon="goals" class="wide" onClose={() => game.openPanel(null)}>
+      <GoalTiles list={list.filter((o) => phases.includes(o.phase ?? 1))} stage={{ label: 'Phase', n: cp, of: 5, name: CHARTER_PHASES[cp] }} />
       <p class="small muted" style={{ marginTop: 0 }}>
-        Steward of the Kardashev Project. Phase {cp} of 5: {CHARTER_PHASES[cp]}. The Charter Mandate in phase 3 starts The Threshold; by 1 January 2044 it starts anyway. Then the Council votes on renewal.
+        Steward of the Kardashev Project. The Charter Mandate in phase 3 starts The Threshold; by 1 January 2044 it starts anyway. Then the Council votes on renewal.
       </p>
       {phases.map((p) => (
         <div key={p} class="section">

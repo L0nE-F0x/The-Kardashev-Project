@@ -15,6 +15,26 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* The display face: titles, labels, buttons and every figure (Saira, variable in weight 400–800 and width 75–100). */
+@font-face {
+  font-family: 'Saira';
+  src: url('../assets/fonts/saira-latin.woff2') format('woff2');
+  font-weight: 400 800;
+  font-stretch: 75% 100%;
+  font-display: swap;
+}
+/* The same file again for the ten digits only: placed first in --font, it sets every figure in running text
+   in the display face too, so a number looks the same in a sentence as in a table (Atkinson's slashed zero
+   reads as a terminal's). */
+@font-face {
+  font-family: 'KP Figures';
+  src: url('../assets/fonts/saira-latin.woff2') format('woff2');
+  font-weight: 400 800;
+  font-stretch: 75% 100%;
+  font-display: swap;
+  unicode-range: U+0030-0039;
+}
+
 :root {
   --px: 3px;
   --ui: 2px; /* UI pixel unit */
@@ -33,7 +53,9 @@
   --violet: var(--c-vio4, #a862c4);
   --blue: var(--c-blu5, #6c9fd2);
   /* running text, buttons, numbers */
-  --font: 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font: 'KP Figures', 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* titles, labels, buttons, figures */
+  --font-display: 'Saira', 'Atkinson Hyperlegible Next', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   /* small labels (set in capitals by their own rules) */
   --font-label: var(--font);
   /* big titles (panel and card headings). The name is from the days these were set in a pixel face. */
@@ -45,6 +67,7 @@
 /* Settings → Accessibility → Text font */
 html.font-system {
   --font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font);
   --font-label: var(--font);
   --font-pixel: var(--font);
 }

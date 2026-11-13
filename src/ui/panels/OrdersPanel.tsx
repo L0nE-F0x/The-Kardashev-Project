@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import { Bar, Icon, KV, Panel, useGame } from '../components';
+import { Card, Tile, Tiles } from '../kit';
 import { CHIP_SUPPLIERS, MARKET_SUPPLIERS } from '../../content/companies';
 import { REGIONS } from '../../content/regions';
 import { orderBlockedBy } from '../../sim/politics';
@@ -38,15 +39,56 @@ export function OrdersPanel() {
   const space = destId ? hallSpace(s, destId, chipSpec(s, supplier).kw) : null;
   const blocked = destId ? orderBlockedBy(s, supplier, siteDef(destId).region) : null;
 
+  // the panel's first line: what is being made, what is on the way, when the next lot lands, the memory market
+  const openOrders = s.orders.filter((o) => !o.done);
+  const toShip = openOrders.reduce((a, o) => a + Math.max(0, o.qty - o.shipped), 0);
+  const moving = s.shipments.reduce((a, sh) => a + sh.batch.qty, 0);
+  const late = s.shipments.filter((sh) => sh.delayed).length;
+  const next = s.shipments.reduce<(typeof s.shipments)[number] | null>((a, sh) => (!a || sh.arriveDay < a.arriveDay ? sh : a), null);
+  const hbmShort = s.market.hbm < 0.85;
+
   return (
     <Panel title="Orders · chips & shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
+      <Tiles>
+        <Tile
+          label="In production"
+          icon="orders"
+          tone="cyan"
+          value={Math.round(toShip).toLocaleString()}
+          sub={openOrders.length ? `chips · ${openOrders.length} open order${openOrders.length === 1 ? '' : 's'}` : 'no open orders'}
+          tip={'In production\nChips you have ordered that have not left the factory yet.'}
+        />
+        <Tile
+          label="In transit"
+          icon="ship"
+          tone={late ? 'warn' : 'blue'}
+          value={moving.toLocaleString()}
+          sub={s.shipments.length ? `chips · ${s.shipments.length} shipment${s.shipments.length === 1 ? '' : 's'}${late ? ` · ${late} delayed` : ''}` : 'nothing on the way'}
+          tip={'In transit\nChips at sea, in the air or on the road to your sites.'}
+        />
+        <Tile
+          label="Next arrival"
+          icon="clock"
+          tone={next?.delayed ? 'warn' : 'plain'}
+          value={next ? fmtDays(next.arriveDay - s.day) : 'None'}
+          sub={next ? `${next.batch.qty.toLocaleString()} chips → ${siteDef(next.dest).name}` : openOrders.length ? 'the next lot is still being made' : 'nothing on the way'}
+          tip={'Next arrival\nWhen the nearest shipment reaches its site. Delivered chips install by themselves if a hall has room.'}
+        />
+        <Tile
+          label="Memory supply"
+          icon="fab"
+          tone={hbmShort ? 'bad' : 'good'}
+          value={`${Math.round(s.market.hbm * 100)}%`}
+          sub={hbmShort ? 'HBM is short' : 'HBM, of normal'}
+          tip={'HBM memory supply\nShortages slow every supplier’s output.'}
+        />
+      </Tiles>
       {!destOptions.length ? (
         <div class="small">
           <Icon name="warn" size="sm" /> Build a <b>Data Center</b> first — chips ship to one of your data center sites. Click a site on the map to build.
         </div>
       ) : (
-        <>
-          <h4>New order</h4>
+        <Card title="New order" icon="orders">
           <div class="row wrap" style={{ gap: '6px', marginBottom: '8px' }}>
             {supplierIds.map((id) => {
               const def = CHIP_SUPPLIERS[id];
@@ -137,33 +179,29 @@ export function OrdersPanel() {
               </button>
             </div>
           )}
-        </>
+        </Card>
       )}
 
-      {s.orders.some((o) => !o.done) && (
-        <div class="section">
-          <h4>In production</h4>
-          {s.orders
-            .filter((o) => !o.done)
-            .map((o) => (
-              <div key={o.id} style={{ marginBottom: '6px' }}>
-                <div class="row between small">
-                  <span>
-                    {o.qty.toLocaleString()} × {CHIP_SUPPLIERS[o.supplier].short} → {siteDef(o.dest).name}
-                  </span>
-                  <span class="muted">
-                    {Math.floor(o.produced).toLocaleString()} made · {o.shipped.toLocaleString()} shipped
-                  </span>
-                </div>
-                <Bar value={o.produced / o.qty} />
+      {openOrders.length > 0 && (
+        <Card title="In production" icon="fab">
+          {openOrders.map((o) => (
+            <div key={o.id} style={{ marginBottom: '6px' }}>
+              <div class="row between small">
+                <span>
+                  {o.qty.toLocaleString()} × {CHIP_SUPPLIERS[o.supplier].short} → {siteDef(o.dest).name}
+                </span>
+                <span class="muted">
+                  {Math.floor(o.produced).toLocaleString()} made · {o.shipped.toLocaleString()} shipped
+                </span>
               </div>
-            ))}
-        </div>
+              <Bar value={o.produced / o.qty} />
+            </div>
+          ))}
+        </Card>
       )}
 
       {s.shipments.length > 0 && (
-        <div class="section">
-          <h4>In transit</h4>
+        <Card title="In transit" icon="ship">
           {s.shipments.map((sh) => (
             <div key={sh.id} class="row between small" style={{ marginBottom: '3px' }} onMouseEnter={() => game.setHover({ kind: 'shipment', id: sh.id, clientX: -1, clientY: -1 })}>
               <span>
@@ -176,11 +214,8 @@ export function OrdersPanel() {
               </span>
             </div>
           ))}
-        </div>
+        </Card>
       )}
-      <div class="small muted section">
-        HBM memory supply: <b class={s.market.hbm < 0.85 ? 'bad' : ''}>{Math.round(s.market.hbm * 100)}%</b>. Shortages slow every supplier's output.
-      </div>
     </Panel>
   );
 }

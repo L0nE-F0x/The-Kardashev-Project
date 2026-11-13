@@ -1,0 +1,176 @@
+/*
+ * Look 4, Planetary (SPEC §34): first light. One thin strip of metal is left along the top, with the date on an
+ * amber readout and the clock's keys; everything else is projected from it. The Kardashev gauge is still brass.
+ */
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic)[data-look='4'] {
+    --rail: 106px;
+    --strip: 38px;
+  }
+}
+@media (min-width: 821px) and (min-height: 521px) and (max-width: 1340px), (min-width: 821px) and (min-height: 521px) and (max-height: 760px) {
+  html.edition-3d:not(.ui-classic)[data-look='4'] {
+    --rail: 86px;
+    --strip: 30px;
+  }
+}
+html.edition-3d:not(.ui-classic)[data-look='4'] {
+  .topbar {
+    align-items: flex-end;
+    padding-bottom: 4px;
+  }
+  .topbar::before {
+    inset: 0 0 auto;
+    height: var(--strip);
+    background: var(--m-metal);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      inset 0 -2px 0 rgb(0 0 0 / 0.5),
+      0 8px 20px rgb(0 0 0 / 0.5);
+  }
+  /* the strip's own things: the date on a readout, the clock's keys */
+  .topbar > .clock {
+    align-self: flex-start;
+    height: var(--strip);
+    padding: 4px 0;
+    gap: 14px;
+    overflow: visible;
+  }
+  .date {
+    order: 1;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 12px;
+    min-width: 0;
+    background: linear-gradient(180deg, #0c0d10, #15171b);
+    box-shadow:
+      inset 0 2px 6px #000,
+      0 1px 0 rgb(255 255 255 / 0.14);
+    border-radius: 5px;
+  }
+  .date .label {
+    display: none;
+  }
+  .date .d {
+    font-family: var(--font-readout);
+    font-weight: 400;
+    font-size: 19px;
+    letter-spacing: 0.1em;
+    color: #ffb648;
+    text-shadow: 0 0 12px rgb(255 182 72 / 0.7);
+  }
+  .speed {
+    order: 2;
+    gap: 4px;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+  .speed .btn,
+  .speed .btn:hover:not(:disabled) {
+    width: 40px;
+    height: 100%;
+    color: #9aa0ac;
+    background: linear-gradient(180deg, #3d4049, #24262c);
+    border: 0;
+    border-radius: 5px;
+    clip-path: none;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 2px 0 #0e0f12;
+  }
+  .speed .btn.active,
+  .speed .btn.active:hover:not(:disabled) {
+    color: #062b12;
+    background: linear-gradient(180deg, #9dffb6, #3fd46c);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 0 18px rgb(99 240 138 / 0.75);
+  }
+  .speed .btn.active:first-child,
+  .speed .btn.active:first-child:hover:not(:disabled) {
+    color: #3a2400;
+    background: linear-gradient(180deg, #fff0c9, #ffb648);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 0 18px rgb(255 182 72 / 0.8);
+  }
+  /* the projected figures hang under the strip */
+  .stats {
+    gap: 10px;
+    height: calc(var(--rail) - var(--strip) - 10px);
+  }
+  .stat {
+    padding: 0 16px 0 8px;
+    border-right: 0;
+    border: 1px solid rgb(var(--holo) / 0.4);
+    border-top: 3px solid #5ff5e0;
+    background: var(--e-glass-hud);
+    clip-path: var(--cut-sm);
+  }
+  .stat[data-hue='gold'] {
+    border-top-color: #ffb648;
+  }
+  .topbar > .kmeter {
+    height: calc(var(--rail) - var(--strip) - 10px);
+    gap: 10px;
+    padding: 0;
+    overflow: visible;
+  }
+  .kmeter .col {
+    height: 100%;
+    padding: 0 16px;
+    border: 1px solid rgb(var(--holo) / 0.4);
+    border-top: 3px solid #ffb648;
+    background: var(--e-glass-hud);
+    clip-path: var(--cut-sm);
+  }
+  .kmeter .knext {
+    display: none;
+  }
+  .kring {
+    order: 2;
+    width: 58px;
+    height: 58px;
+    margin-top: -18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0d0e11 0 60%, #7b7f8a 61% 66%, #6a4e1c 67%, #d9b56a 82%, #7a5a22 100%);
+    box-shadow: 0 5px 10px rgb(0 0 0 / 0.6);
+  }
+  .kring svg {
+    inset: 9px;
+    width: calc(100% - 18px);
+    height: calc(100% - 18px);
+  }
+  .kring .track {
+    stroke: rgb(216 214 204 / 0.25);
+    stroke-dasharray: 1 3.2;
+  }
+  .kring .arc {
+    stroke: #ff5a4d;
+    filter: drop-shadow(0 0 3px #ff5a4d);
+  }
+  .kring > img.px {
+    width: 14px;
+    height: 14px;
+  }
+  /* a sliver of the strip runs down the left edge: the keys are projected off it */
+  .dock {
+    background: linear-gradient(90deg, #3a3d46, #1e2026) 0 0 / 8px 100% no-repeat;
+    padding-left: 18px;
+  }
+  /* where the site sheet is projected from */
+  .side:has(> .panel)::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -26px;
+    width: 150px;
+    height: 30px;
+    margin-left: -75px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, #eafffb, #5ff5e0 40%, rgb(95 245 224 / 0.25) 70%, transparent);
+    filter: drop-shadow(0 0 14px #5ff5e0);
+    pointer-events: none;
+  }
+}

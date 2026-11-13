@@ -2,3 +2,21 @@ Atkinson Hyperlegible Next — Copyright 2020 Braille Institute of America, Inc.
 
 Licensed under the SIL Open Font License, Version 1.1.
 https://openfontlicense.org
+
+Saira — Copyright 2020 The Saira Project Authors (https://github.com/Omnibus-Type/Saira)
+
+Licensed under the SIL Open Font License, Version 1.1.
+https://openfontlicense.org
+
+Caveat — Copyright 2014 The Caveat Project Authors (https://github.com/googlefonts/caveat)
+Playfair Display — Copyright 2017 The Playfair Project Authors (https://github.com/clauseggers/Playfair)
+Share Tech Mono — Copyright 2012 Carrois Type Design, Ralph du Carrois (www.carrois.com)
+
+Licensed under the SIL Open Font License, Version 1.1.
+https://openfontlicense.org
+
+Permanent Marker — Copyright 2010 Font Diner, Inc.
+Special Elite — Copyright 2010 Astigmatic (AOETI)
+
+Licensed under the Apache License, Version 2.0.
+https://www.apache.org/licenses/LICENSE-2.0

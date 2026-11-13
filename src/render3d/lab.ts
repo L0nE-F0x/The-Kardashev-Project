@@ -116,7 +116,7 @@ async function show(o: LabOpts = {}) {
     });
   }
   // a person for scale, at the plot's front-left corner
-  const p = person('worker');
+  const p = q.has('noperson') ? null : person('worker');
   if (p) {
     p.obj.position.set(-W / 2 + 1, o.sea || o.space ? -100 : 0, D / 2 + 1.5);
     p.walk.paused = true;

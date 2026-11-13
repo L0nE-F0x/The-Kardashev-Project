@@ -2,10 +2,12 @@
  * The 3D edition's interface: tokens and primitives (surfaces, type, buttons, inputs, bars).
  *
  * The system in one place:
- *  - Surfaces are dark glass: an ink gradient that is all but solid, a 1px light hairline, a soft shadow. No
+ *  - Surfaces are night-blue glass: a gradient that is all but solid, a sheen at the top, a 1px light hairline, a
+ *    dark keyline outside it, a soft shadow. No
  *    backdrop blur (it costs integrated GPUs real time over a WebGL canvas), and so no real see-through either:
  *    unblurred, what is under a pane (markers, beams, city lights) reads as clutter in the text.
- *  - Type is Atkinson Hyperlegible Next everywhere: 700–800 for titles and numbers, small capitals for labels.
+ *  - Type: Saira (the display face) for titles, labels, buttons and every figure; Atkinson Hyperlegible Next for
+ *    running text. Labels are small capitals at 88% width.
  *  - Colour: cyan = things you can press or have picked; gold = the story and the score (titles, goals, money, K);
  *    green / orange / red = good / careful / bad; violet = research under way.
  *  - Motion: 120–260 ms eases on opacity and transform only. Reduced motion (the setting or the system's) turns
@@ -17,47 +19,56 @@
  */
 
 html.edition-3d:not(.ui-classic) {
-  /* surfaces */
-  /* Nearly solid. Without a blur behind it, a see-through pane does not read as glass: the globe's markers,
-     beams and city lights show through as clutter under the text (84–93% was the first cut; at these values a
-     bright line under a pane adds less than it takes to notice). The glass is in the gradient, the hairline
-     and the shadow. */
-  --e-glass: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 98%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 99%, transparent));
-  --e-glass-hud: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 96%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 97.5%, transparent));
-  --e-glass-solid: linear-gradient(180deg, color-mix(in srgb, var(--c-ink2, #221e2e) 99.2%, transparent), color-mix(in srgb, var(--c-ink1, #16141f) 99.6%, transparent));
-  --e-raise: rgb(255 255 255 / 0.05);
-  --e-raise-hi: rgb(255 255 255 / 0.1);
-  --e-sunk: rgb(4 4 10 / 0.38);
-  --e-line: rgb(255 255 255 / 0.1);
-  --e-line-soft: rgb(255 255 255 / 0.06);
-  --e-line-strong: rgb(255 255 255 / 0.2);
-  --e-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 14px 36px -12px rgb(0 0 0 / 0.62), 0 2px 6px rgb(0 0 0 / 0.3);
-  --e-shadow-hud: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 6px 18px -8px rgb(0 0 0 / 0.6);
-  --e-shadow-pop: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 28px 80px -18px rgb(0 0 0 / 0.78), 0 4px 14px rgb(0 0 0 / 0.36);
+  /* surfaces: night-blue glass. Nearly solid: without a blur behind it a see-through pane does not read as
+     glass (the globe's markers, beams and city lights show through as clutter under the text). The glass is in
+     the gradient, the sheen at the top, the light hairline, the dark keyline outside it and the shadow. */
+  --e-ink-hi: 30 33 54;
+  --e-ink-mid: 20 22 37;
+  --e-ink-lo: 14 15 27;
+  --e-sheen: radial-gradient(130% 90px at 18% 0%, rgb(140 165 255 / 0.085), transparent 72%);
+  --e-glass: var(--e-sheen), linear-gradient(180deg, rgb(var(--e-ink-hi) / 0.985), rgb(var(--e-ink-mid) / 0.99) 44%, rgb(var(--e-ink-lo) / 0.992));
+  --e-glass-hud: var(--e-sheen), linear-gradient(180deg, rgb(var(--e-ink-hi) / 0.965), rgb(var(--e-ink-mid) / 0.975) 50%, rgb(var(--e-ink-lo) / 0.98));
+  --e-glass-solid: var(--e-sheen), linear-gradient(180deg, rgb(var(--e-ink-hi) / 0.995), rgb(var(--e-ink-mid) / 0.997) 44%, rgb(var(--e-ink-lo) / 0.998));
+  --e-raise: rgb(150 170 255 / 0.055);
+  --e-raise-hi: rgb(160 180 255 / 0.115);
+  --e-sunk: rgb(3 4 12 / 0.46);
+  --e-line: rgb(170 188 255 / 0.14);
+  --e-line-soft: rgb(170 188 255 / 0.075);
+  --e-line-strong: rgb(190 205 255 / 0.3);
+  --e-key: 0 0 0 1px rgb(2 3 9 / 0.62); /* the dark line outside a pane's light one: crisp over a bright sky */
+  --e-shadow: var(--e-key), inset 0 1px 0 rgb(255 255 255 / 0.085), 0 18px 44px -14px rgb(0 0 8 / 0.72), 0 3px 8px rgb(0 0 8 / 0.34);
+  --e-shadow-hud: var(--e-key), inset 0 1px 0 rgb(255 255 255 / 0.085), 0 10px 26px -10px rgb(0 0 8 / 0.7);
+  --e-shadow-pop: var(--e-key), inset 0 1px 0 rgb(255 255 255 / 0.1), 0 34px 90px -20px rgb(0 0 8 / 0.82), 0 6px 16px rgb(0 0 8 / 0.4);
   /* corners */
-  --e-r: 12px;
-  --e-r-md: 9px;
-  --e-r-sm: 6px;
-  --e-r-xs: 3px;
+  --e-r: 14px;
+  --e-r-md: 10px;
+  --e-r-sm: 7px;
+  --e-r-xs: 4px;
+  /* text */
+  --text: #eceaf4;
+  --muted: #a39db5;
+  --dim: #7d7790;
+  --e-bright: #fbf9ff;
   /* accents */
   --e-accent: var(--cyan);
-  --e-accent-fill: linear-gradient(180deg, color-mix(in srgb, var(--c-cyn4, #2fae9b) 62%, var(--c-cyn3, #1c8780)), color-mix(in srgb, var(--c-cyn2, #156466) 55%, var(--c-cyn3, #1c8780)));
-  --e-accent-soft: color-mix(in srgb, var(--cyan) 16%, transparent);
+  --e-accent-fill: linear-gradient(180deg, #3cc4ac, #1f9488 52%, #17766f);
+  --e-accent-soft: color-mix(in srgb, var(--cyan) 15%, transparent);
   --e-accent-line: color-mix(in srgb, var(--cyan) 58%, transparent);
-  --e-gold-soft: color-mix(in srgb, var(--gold) 14%, transparent);
+  --e-gold-soft: color-mix(in srgb, var(--gold) 13%, transparent);
   --e-gold-line: color-mix(in srgb, var(--gold) 55%, transparent);
   /* the logo's ramp: the K meter and the big moments wear it */
   --e-sun: linear-gradient(180deg, var(--c-yel2, #fff6d8), var(--c-yel0, #fbd46e) 45%, var(--c-org1, #f08a46));
+  --e-sun-across: linear-gradient(90deg, #f08a46, #fbd46e 55%, #fff6d8);
   --e-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --e-spring: cubic-bezier(0.3, 1.35, 0.5, 1);
   /* the shared frame (base.css reads these) */
   --frame-bg: var(--e-glass);
   --frame-edge: var(--e-line);
   --frame-shadow: var(--e-shadow);
-  /* titles drop the pixel face (the pixel-font text option keeps its own) */
-  --caps-track: 0.09em;
-}
-html.edition-3d:not(.ui-classic):not(.font-pixel) {
-  --font-pixel: var(--font);
+  --caps-track: 0.11em;
+  /* big titles and small labels are set in the display face (the names are from the pixel days) */
+  --font-pixel: var(--font-display);
+  --font-label: var(--font-display);
 }
 /* high contrast: solid surfaces, bright lines */
 html.edition-3d.contrast:not(.ui-classic) {
@@ -67,6 +78,7 @@ html.edition-3d.contrast:not(.ui-classic) {
   --e-line: rgb(255 255 255 / 0.55);
   --e-line-soft: rgb(255 255 255 / 0.3);
   --e-line-strong: #fff;
+  --muted: #c9c4d6;
 }
 
 /*
@@ -81,22 +93,28 @@ html.edition-3d.contrast:not(.ui-classic) {
     text-rendering: optimizeLegibility;
     font-feature-settings: 'kern';
   }
-  .label {
-    font-weight: 700;
+  /* small capitals: the display face a notch narrower, so a label says more in less room */
+  .label,
+  & h4 {
+    font-family: var(--font-display);
+    font-stretch: 88%;
+    font-weight: 600;
     letter-spacing: var(--caps-track);
   }
   & h2 {
-    font-weight: 750;
-    letter-spacing: 0.005em;
-    line-height: 1.15;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.012em;
+    line-height: 1.12;
+    color: var(--e-bright);
   }
   & h3 {
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.012em;
   }
   & h4 {
-    font-weight: 700;
-    color: color-mix(in srgb, var(--muted) 86%, var(--text));
+    color: color-mix(in srgb, var(--muted) 82%, var(--cyan));
   }
   .muted {
     color: var(--muted);
@@ -104,6 +122,16 @@ html.edition-3d.contrast:not(.ui-classic) {
   & b,
   & strong {
     font-weight: 700;
+  }
+  /* figures: the display face, every digit the same width so a column lines up and a counter does not jitter */
+  .num,
+  .bigv,
+  .kv > .v,
+  .stat .v,
+  .chart-vals,
+  .val {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
   }
   .link {
     color: var(--cyan);
@@ -129,27 +157,64 @@ html.edition-3d.contrast:not(.ui-classic) {
     background: var(--e-raise);
     border-color: var(--e-line-soft);
     border-radius: var(--e-r-md);
-    box-shadow: none;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
   }
   .panel,
   .modal {
     overflow: hidden;
   }
+  /* a pane's head: a lit band, the subject's icon on a plate, the title in the display face, and under it a
+     hairline that glows at the title's end */
   .panel > .head,
   .modal .head {
-    background: linear-gradient(180deg, rgb(255 255 255 / 0.055), rgb(255 255 255 / 0.015));
-    border-bottom: 1px solid var(--e-line-soft);
+    position: relative;
+    background: linear-gradient(180deg, rgb(160 180 255 / 0.085), rgb(160 180 255 / 0.02));
+    border-bottom: 1px solid var(--e-line);
   }
-  /* modern.css draws an accent rule under every head: a shorter, quieter one here */
   .panel > .head::after,
   .modal .head::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: auto;
+    width: min(46%, 300px);
     height: 1px;
     bottom: -1px;
-    background: linear-gradient(90deg, var(--e-accent-line), transparent 55%);
+    background: linear-gradient(90deg, var(--cyan), color-mix(in srgb, var(--cyan) 40%, transparent) 45%, transparent);
+    box-shadow: 0 0 12px 0 color-mix(in srgb, var(--cyan) 70%, transparent);
+    opacity: 0.9;
   }
   .modal.event .head::after,
   .modal.away .head::after {
-    background: linear-gradient(90deg, var(--e-gold-line), transparent 55%);
+    background: linear-gradient(90deg, var(--gold), color-mix(in srgb, var(--gold) 40%, transparent) 45%, transparent);
+    box-shadow: 0 0 12px 0 color-mix(in srgb, var(--gold) 70%, transparent);
+  }
+  .panel > .head > img.px:first-child {
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--cyan) 13%, rgb(160 180 255 / 0.07));
+    box-shadow:
+      0 0 0 7px color-mix(in srgb, var(--cyan) 13%, rgb(160 180 255 / 0.07)),
+      0 0 0 8px color-mix(in srgb, var(--cyan) 26%, transparent);
+    margin: 0 9px 0 7px;
+  }
+  /* the close button: a round one that turns as it lights */
+  :is(.panel > .head, .modal .head) > .btn.ghost.small:last-child {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+  }
+  :is(.panel > .head, .modal .head) > .btn.ghost.small:last-child:hover {
+    background: color-mix(in srgb, var(--warn) 22%, transparent);
+  }
+  :is(.panel > .head, .modal .head) > .btn.ghost.small:last-child img {
+    transition: rotate 0.2s var(--e-ease);
+  }
+  :is(.panel > .head, .modal .head) > .btn.ghost.small:last-child:hover img {
+    rotate: 90deg;
   }
   .panel > .body,
   .modal .body,
@@ -157,24 +222,45 @@ html.edition-3d.contrast:not(.ui-classic) {
   .ht-page,
   .tut-main {
     scrollbar-width: thin;
-    scrollbar-color: rgb(255 255 255 / 0.18) transparent;
+    scrollbar-color: rgb(170 188 255 / 0.22) transparent;
   }
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgb(255 255 255 / 0.16);
+    background: rgb(170 188 255 / 0.2);
     border: 3px solid transparent;
     border-radius: 6px;
     background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(255 255 255 / 0.3);
+    background-color: rgb(170 188 255 / 0.36);
   }
   .scrim {
-    background: radial-gradient(ellipse at 50% 45%, rgb(6 6 14 / 0.42), rgb(6 6 14 / 0.8));
+    background: radial-gradient(ellipse at 50% 45%, rgb(5 6 16 / 0.5), rgb(5 6 16 / 0.84));
     animation: eFade 0.22s ease-out;
+  }
+  /* a section's title: a lit tick, small capitals, a line that fades out */
+  .section > h4,
+  .panel h4.section,
+  .side h4 {
+    position: relative;
+    padding-left: 11px;
+  }
+  .section > h4::before,
+  .panel h4.section::before,
+  .side h4::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: 3px;
+    height: 0.95em;
+    translate: 0 -50%;
+    border-radius: 2px;
+    background: var(--cyan);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 70%, transparent);
   }
   .section > h4::after,
   .panel h4.section::after,
@@ -182,41 +268,63 @@ html.edition-3d.contrast:not(.ui-classic) {
   .side h4::after {
     background: linear-gradient(90deg, var(--e-line), transparent);
   }
+  /* label–value rows: a hairline under each pair, so the eye crosses a wide panel on a rail */
+  .kv > .k {
+    color: var(--muted);
+  }
+  .kv > .v {
+    font-weight: 600;
+    color: var(--e-bright);
+  }
+  .kv > .k,
+  .kv > .v {
+    padding: 4px 0 5px;
+    border-bottom: 1px solid var(--e-line-soft);
+  }
+  .kv > :nth-last-child(-n + 2) {
+    border-bottom-color: transparent;
+  }
 
-  /* ── pixel art, shown on purpose ─────────────────────────────────────────────── */
+  /* ── faces ───────────────────────────────────────────────────────────────────── */
   & img.portrait {
     border: 0;
-    border-radius: var(--e-r-xs);
+    border-radius: var(--e-r-sm);
     box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.16),
-      0 3px 10px -3px rgb(0 0 0 / 0.6);
-    background: var(--c-ink1, #16141f);
+      0 0 0 1px rgb(190 205 255 / 0.22),
+      0 4px 12px -3px rgb(0 0 8 / 0.65);
+    background: rgb(var(--e-ink-mid));
   }
 
   /* ── buttons ─────────────────────────────────────────────────────────────────── */
   .btn {
+    font-family: var(--font-display);
     font-weight: 600;
+    letter-spacing: 0.012em;
     color: var(--text);
     background: var(--e-raise);
-    background-image: none;
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent);
     border: 1px solid var(--e-line);
     border-radius: var(--e-r-sm);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.07),
+      0 1px 2px rgb(0 0 8 / 0.3);
     transition:
       background-color 0.14s,
       border-color 0.14s,
       color 0.14s,
       box-shadow 0.14s,
-      transform 0.08s;
+      filter 0.14s,
+      translate 0.12s var(--e-ease);
   }
   .btn:hover:not(:disabled) {
     background-color: var(--e-raise-hi);
     border-color: var(--e-line-strong);
+    color: var(--e-bright);
     filter: none;
   }
   .btn:active:not(:disabled) {
-    transform: translateY(1px);
-    box-shadow: inset 0 2px 5px rgb(0 0 0 / 0.35);
+    translate: 0 1px;
+    box-shadow: inset 0 2px 5px rgb(0 0 8 / 0.4);
   }
   .btn:disabled {
     opacity: 0.4;
@@ -230,37 +338,48 @@ html.edition-3d.contrast:not(.ui-classic) {
     outline-offset: 2px;
   }
   .btn.primary {
-    color: #f6fffc;
+    color: #f4fffc;
     background: var(--e-accent-fill);
-    border-color: color-mix(in srgb, var(--c-cyn5, #5fd3b5) 62%, transparent);
+    border-color: color-mix(in srgb, var(--c-cyn6, #a3f0d6) 55%, transparent);
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.24),
-      0 6px 16px -8px color-mix(in srgb, var(--c-cyn4, #2fae9b) 90%, transparent);
-    text-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+      inset 0 1px 0 rgb(255 255 255 / 0.32),
+      inset 0 -1px 0 rgb(0 30 30 / 0.3),
+      0 6px 18px -8px color-mix(in srgb, var(--c-cyn4, #2fae9b) 95%, transparent),
+      0 1px 2px rgb(0 0 8 / 0.4);
+    text-shadow: 0 1px 0 rgb(0 40 36 / 0.45);
   }
   .btn.primary:hover:not(:disabled) {
     background: var(--e-accent-fill);
     border-color: var(--c-cyn6, #a3f0d6);
-    filter: brightness(1.1);
+    filter: brightness(1.1) saturate(1.05);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.36),
+      inset 0 -1px 0 rgb(0 30 30 / 0.3),
+      0 8px 24px -8px var(--c-cyn4, #2fae9b),
+      0 0 0 3px color-mix(in srgb, var(--cyan) 14%, transparent);
   }
   .btn.gold {
-    color: var(--c-ink0, #0b0a12);
-    background: linear-gradient(180deg, var(--c-yel0, #fbd46e), var(--c-snd5, #bb8a4c));
-    border-color: color-mix(in srgb, var(--c-yel1, #fde9a4) 70%, transparent);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.45);
+    color: #1a1206;
+    background: linear-gradient(180deg, #ffe08a, var(--c-yel0, #fbd46e) 40%, #d69a4a);
+    border-color: color-mix(in srgb, var(--c-yel2, #fff6d8) 70%, transparent);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.55),
+      0 6px 18px -8px color-mix(in srgb, var(--gold) 90%, transparent);
+    text-shadow: 0 1px 0 rgb(255 255 255 / 0.3);
   }
   .btn.gold:hover:not(:disabled) {
-    background: linear-gradient(180deg, var(--c-yel0, #fbd46e), var(--c-snd5, #bb8a4c));
-    filter: brightness(1.08);
+    background: linear-gradient(180deg, #ffe08a, var(--c-yel0, #fbd46e) 40%, #d69a4a);
+    color: #1a1206;
+    filter: brightness(1.07);
   }
   .btn.danger {
     color: #fff4f2;
-    background: linear-gradient(180deg, var(--c-red3, #c23a3f), var(--c-red2, #93243a));
+    background: linear-gradient(180deg, #d9484b, var(--c-red3, #c23a3f) 45%, var(--c-red2, #93243a));
     border-color: color-mix(in srgb, var(--c-org0, #df5f3e) 60%, transparent);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.2);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.24);
   }
   .btn.danger:hover:not(:disabled) {
-    background: linear-gradient(180deg, var(--c-red3, #c23a3f), var(--c-red2, #93243a));
+    background: linear-gradient(180deg, #d9484b, var(--c-red3, #c23a3f) 45%, var(--c-red2, #93243a));
     filter: brightness(1.12);
   }
   .btn.ghost {
@@ -277,7 +396,9 @@ html.edition-3d.contrast:not(.ui-classic) {
     color: #effffa;
     background: var(--e-accent-soft);
     border-color: var(--e-accent-line);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 18%, transparent);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--cyan) 18%, transparent),
+      inset 0 0 14px -6px color-mix(in srgb, var(--cyan) 60%, transparent);
   }
   .btn.active:hover:not(:disabled) {
     background: color-mix(in srgb, var(--cyan) 24%, transparent);
@@ -285,6 +406,8 @@ html.edition-3d.contrast:not(.ui-classic) {
   }
   /* cards that are buttons: modern.css gives them a wide left edge; here the whole hairline answers */
   :is(.buildcard, .choice, .tech, .pickcard) {
+    font-family: var(--font);
+    letter-spacing: 0;
     border-left-width: 1px;
     border-radius: var(--e-r-md);
   }
@@ -297,30 +420,39 @@ html.edition-3d.contrast:not(.ui-classic) {
   /* segments join into one control (a wrapping row keeps its gaps) */
   .seg:not(.wrap) {
     gap: 0;
+    padding: 2px;
+    border-radius: calc(var(--e-r-sm) + 2px);
+    background: var(--e-sunk);
+    box-shadow: inset 0 0 0 1px var(--e-line-soft);
   }
   .seg:not(.wrap) > .btn {
-    border-radius: 0;
-    margin-left: -1px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+    color: var(--muted);
   }
-  .seg:not(.wrap) > .btn:first-child {
-    border-radius: var(--e-r-sm) 0 0 var(--e-r-sm);
-    margin-left: 0;
+  .seg:not(.wrap) > .btn:hover:not(:disabled) {
+    color: var(--text);
+    background: var(--e-raise);
+    border-color: transparent;
   }
-  .seg:not(.wrap) > .btn:last-child {
-    border-radius: 0 var(--e-r-sm) var(--e-r-sm) 0;
-  }
-  .seg:not(.wrap) > .btn:only-child {
-    border-radius: var(--e-r-sm);
+  .seg:not(.wrap) > .btn.active {
+    color: #effffa;
+    background: color-mix(in srgb, var(--cyan) 22%, rgb(160 180 255 / 0.06));
+    border-color: var(--e-accent-line);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.1),
+      0 1px 3px rgb(0 0 8 / 0.4);
   }
   .seg > .btn.active {
     position: relative;
     z-index: 1;
   }
-  /* tabs: quiet words, the open one underlined */
+  /* tabs: quiet words, the open one lit from below */
   .tabs {
     gap: 2px;
     border-bottom: 1px solid var(--e-line-soft);
-    margin-bottom: 12px;
+    margin-bottom: 14px;
   }
   .tabs > .btn {
     position: relative;
@@ -336,7 +468,7 @@ html.edition-3d.contrast:not(.ui-classic) {
     color: var(--text);
   }
   .tabs > .btn.active {
-    color: #effffa;
+    color: var(--e-bright);
     background: linear-gradient(180deg, transparent, var(--e-accent-soft));
   }
   .tabs > .btn.active::after {
@@ -348,6 +480,7 @@ html.edition-3d.contrast:not(.ui-classic) {
     height: 2px;
     border-radius: 2px 2px 0 0;
     background: var(--cyan);
+    box-shadow: 0 0 10px 0 var(--cyan);
   }
 
   /* ── inputs ──────────────────────────────────────────────────────────────────── */
@@ -358,6 +491,7 @@ html.edition-3d.contrast:not(.ui-classic) {
     background: var(--e-sunk);
     border: 1px solid var(--e-line);
     border-radius: var(--e-r-sm);
+    box-shadow: inset 0 2px 4px rgb(0 0 8 / 0.3);
     transition:
       border-color 0.14s,
       box-shadow 0.14s;
@@ -366,7 +500,9 @@ html.edition-3d.contrast:not(.ui-classic) {
   & textarea:focus,
   & select:focus {
     border-color: var(--e-accent-line);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyan) 16%, transparent);
+    box-shadow:
+      inset 0 2px 4px rgb(0 0 8 / 0.3),
+      0 0 0 3px color-mix(in srgb, var(--cyan) 16%, transparent);
   }
   & input[type='range']::-webkit-slider-runnable-track {
     height: 6px;
@@ -383,38 +519,51 @@ html.edition-3d.contrast:not(.ui-classic) {
   & input[type='range']::-moz-range-thumb {
     width: 13px;
     height: 13px;
-    border: 2px solid var(--c-ink1, #16141f);
+    border: 2px solid rgb(var(--e-ink-mid));
     border-radius: 50%;
     background: var(--c-cyn6, #a3f0d6);
   }
   .toggle .sw {
-    width: 36px;
-    height: 20px;
+    width: 40px;
+    height: 22px;
     border: 1px solid var(--e-line-strong);
-    border-radius: 10px;
+    border-radius: 11px;
     background: var(--e-sunk);
+    box-shadow: inset 0 2px 4px rgb(0 0 8 / 0.4);
+    transition:
+      background-color 0.18s,
+      border-color 0.18s;
   }
   .toggle .sw i {
     top: 2px;
     left: 2px;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: var(--muted);
+    box-shadow: 0 1px 3px rgb(0 0 8 / 0.5);
+    transition:
+      left 0.2s var(--e-spring),
+      background-color 0.18s;
   }
   .toggle.on .sw {
     border-color: var(--e-accent-line);
-    background: color-mix(in srgb, var(--cyan) 30%, transparent);
+    background: color-mix(in srgb, var(--cyan) 34%, transparent);
   }
   .toggle.on .sw i {
-    left: 18px;
-    background: var(--c-cyn6, #a3f0d6);
+    left: 20px;
+    background: #eafff8;
+    box-shadow:
+      0 1px 3px rgb(0 0 8 / 0.5),
+      0 0 10px color-mix(in srgb, var(--cyan) 80%, transparent);
   }
   & kbd {
+    font-family: var(--font-display);
+    font-weight: 600;
     border: 1px solid var(--e-line-strong);
-    border-radius: 4px;
+    border-radius: 5px;
     background: var(--e-raise);
-    box-shadow: 0 1px 0 rgb(0 0 0 / 0.5);
+    box-shadow: 0 2px 0 rgb(0 0 8 / 0.55);
   }
 
   /* ── bars ────────────────────────────────────────────────────────────────────── */
@@ -424,7 +573,9 @@ html.edition-3d.contrast:not(.ui-classic) {
     border: 0;
     border-radius: 4px;
     background: var(--e-sunk);
-    box-shadow: inset 0 0 0 1px var(--e-line-soft);
+    box-shadow:
+      inset 0 0 0 1px var(--e-line-soft),
+      inset 0 1px 3px rgb(0 0 8 / 0.5);
   }
   .powerbal {
     overflow: hidden;
@@ -432,17 +583,21 @@ html.edition-3d.contrast:not(.ui-classic) {
   .bar > i,
   .kbar i {
     border-radius: 4px;
-    box-shadow: none;
+    box-shadow: 0 0 10px -1px color-mix(in srgb, var(--cyan) 55%, transparent);
     background: linear-gradient(90deg, var(--c-cyn3, #1c8780), var(--cyan));
+    transition: width 0.5s var(--e-ease);
   }
   .bar.gold > i {
     background: linear-gradient(90deg, var(--c-org2, #f7b258), var(--gold));
+    box-shadow: 0 0 10px -1px color-mix(in srgb, var(--gold) 55%, transparent);
   }
   .bar.violet > i {
     background: linear-gradient(90deg, var(--c-vio3, #7e43a8), var(--violet));
+    box-shadow: 0 0 10px -1px color-mix(in srgb, var(--violet) 60%, transparent);
   }
   .bar.warn > i {
     background: repeating-linear-gradient(-45deg, var(--gold) 0 5px, var(--c-org1, #f08a46) 5px 10px);
+    box-shadow: none;
   }
 
   /* ── small parts shared by many panels ───────────────────────────────────────── */
@@ -497,10 +652,12 @@ html.edition-3d:not(.ui-classic) input[type='range']::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   margin-top: -6px;
-  border: 2px solid var(--c-ink1, #16141f);
+  border: 2px solid rgb(var(--e-ink-mid));
   border-radius: 50%;
-  background: var(--c-cyn6, #a3f0d6);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.5);
+  background: #eafff8;
+  box-shadow:
+    0 1px 4px rgb(0 0 8 / 0.5),
+    0 0 10px color-mix(in srgb, var(--cyan) 70%, transparent);
 }
 
 /* ── desktop sizes: a type scale a notch up from the pixel edition's (phones keep styles.css's) ─── */

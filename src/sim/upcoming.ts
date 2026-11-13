@@ -4,6 +4,8 @@ import { TECH_BY_ID } from '../content/techs';
 import { SITE_BY_ID } from '../content/sites';
 import { CONTRACT_KINDS, HVDC_ROUTES } from '../content/charter';
 import { REGIONS } from '../content/regions';
+import { PLANET, STAGE_NAMES } from '../content/planet';
+import { STAGE5_NAMES, SYSTEM } from '../content/system';
 
 /**
  * What the player is waiting for, soonest first: builds, upgrades, chips at sea, grid connections, the training run,
@@ -67,4 +69,33 @@ export function upcoming(s: GameState): UpcomingItem[] {
     if (ch.council.nextSession > s.day) out.push({ key: 'council', icon: 'council', text: 'Council session', day: ch.council.nextSession });
   }
   return out.sort((a, b) => a.day - b.day);
+}
+
+/**
+ * Acts IV–V, where time moves in plans and eras: what stands on the horizon, soonest first (the plan or era under
+ * way, Charter projects being built, the next Council session, the latest day the next stage can open). For the
+ * foot strip only: nothing here can be skipped to, and `upcoming` still lists nothing in these acts.
+ */
+export function horizon(s: GameState): UpcomingItem[] {
+  if ((s.act ?? 1) < 4) return [];
+  const out: UpcomingItem[] = [];
+  const pl = s.planet;
+  const sy = s.system;
+  const jump = sy?.jump ?? pl?.jump;
+  if (jump && jump.to > s.day) out.push({ key: 'jump', icon: 'plan', text: sy ? 'The era plan ends' : 'The five-year plan ends', day: jump.to });
+  if (sy) {
+    const max = SYSTEM.stageMaxDays[sy.stage];
+    if (max && sy.stage < 4) out.push({ key: 'stage', icon: 'goals', text: `${STAGE5_NAMES[sy.stage + 1]}, at the latest`, day: sy.stageDay + max });
+  } else if (pl) {
+    const max = PLANET.stageMaxDays[pl.stage];
+    if (max && pl.stage < 4) out.push({ key: 'stage', icon: 'goals', text: `${STAGE_NAMES[pl.stage + 1]}, at the latest`, day: pl.stageDay + max });
+  }
+  const ch = s.charter;
+  if (ch) {
+    const building = ch.projects.filter((p) => p.status === 'building').map((p) => ({ p, day: s.day + Math.max(1, Math.ceil(p.days - p.progress)) }));
+    building.sort((a, b) => a.day - b.day);
+    for (const { p, day } of building.slice(0, 3)) out.push({ key: `p:${p.id}`, icon: CONTRACT_KINDS[p.kind]?.icon ?? 'contract', text: CONTRACT_KINDS[p.kind]?.name ?? p.kind, day });
+    if (ch.council.nextSession > s.day) out.push({ key: 'council', icon: 'council', text: 'Council session', day: ch.council.nextSession });
+  }
+  return out.filter((it) => it.day > s.day).sort((a, b) => a.day - b.day);
 }

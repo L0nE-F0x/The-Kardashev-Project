@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { Choice, Icon, Slider, Toggle, fmtPlaytime, useGame } from '../components';
 import { ERA_NAMES, type Era } from '../../render/palette';
-import { defaultSettings, saveSettings } from '../../save/settings';
+import { defaultSettings, saveSettings, LOOK_NAMES, type Settings } from '../../save/settings';
 import { downloadSave, exportSave, importSave, loadSlot, wipeAllData } from '../../save/save';
 import { EVENT_RATES, type EventRate } from '../../content/difficulty';
 import { SITE_BY_ID } from '../../content/sites';
@@ -134,6 +134,13 @@ function Display() {
   const eraValue = game.eraOverride === null ? 'auto' : String(game.eraOverride);
   return (
     <>
+      <Choice
+        label="Interface look"
+        hint={`The interface is rebuilt as each act opens: plywood and paper in the garage, then metal, glass, and light. Stay on an earlier one here${(st.lookReached ?? 1) < 5 ? ' (more appear as you reach later acts)' : ''}.`}
+        value={st.interfaceLook ?? 'auto'}
+        options={[['auto', 'Grows with the acts'] as [Settings['interfaceLook'], string], ...Array.from({ length: Math.max(1, Math.min(5, st.lookReached ?? 1)) }, (_, i) => [(i + 1) as Settings['interfaceLook'], LOOK_NAMES[i + 1]] as [Settings['interfaceLook'], string])]}
+        onChange={(v) => game.updateSettings({ interfaceLook: v })}
+      />
       <Choice
         label="Interface size"
         value={st.uiScale}

@@ -26,7 +26,7 @@ export function EventModal() {
   const firstOk = choices.findIndex((c) => !c.disabled);
   return (
     <div class="scrim">
-      <div class={`modal frame event ${def.big ? 'bigdecision' : ''}`} role="dialog" aria-label={def.title(s, ctx)}>
+      <div class={`modal frame event ${def.big ? 'bigdecision' : ''}`} data-cat={def.category} role="dialog" aria-label={def.title(s, ctx)}>
         <div class="head">
           <Icon name={emojiIcon(def.icon) ?? CATEGORY_ICON[def.category]} size="lg" title={def.category} />
           <div class="grow">
@@ -154,7 +154,7 @@ export function ActCompleteModal() {
   const model = s.models[s.models.length - 1];
   return (
     <div class="scrim">
-      <div class="modal frame">
+      <div class="modal frame milestone">
         <div class="head">
           <Icon name="goals" size="lg" />
           <div class="grow">
@@ -287,7 +287,7 @@ function Act2CompleteModal() {
   const weakest = ipo?.parts?.length ? [...ipo.parts].sort((a, b) => a[1] - b[1])[0] : null;
   return (
     <div class="scrim">
-      <div class="modal frame">
+      <div class="modal frame milestone">
         <div class="head">
           <Icon name="ipo" size="lg" />
           <div class="grow">
@@ -377,7 +377,7 @@ function Act3CompleteModal() {
   const name = { planetary: 'The Planetary Charter', limited: 'Renewed, with limits', caretaker: 'A caretaker term' }[outcome];
   return (
     <div class="scrim">
-      <div class="modal frame">
+      <div class="modal frame milestone">
         <div class="head">
           <Icon name="launch" size="lg" />
           <div class="grow">

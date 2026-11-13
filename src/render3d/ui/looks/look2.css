@@ -1,0 +1,314 @@
+/*
+ * Look 2, The Scale-Up (SPEC §34): the money has arrived. Metal rails with amber readouts and lit keys; the
+ * paper is clipped to boards now. Everything on paper comes from paper.css.
+ */
+html.edition-3d:not(.ui-classic)[data-look='2'] {
+  --rail-bg: var(--m-metal);
+  --rail-shadow: inset 0 2px 0 rgb(255 255 255 / 0.22), inset 0 -3px 0 rgb(0 0 0 / 0.5), 0 10px 24px rgb(0 0 0 / 0.5);
+  --amber: #ffb648;
+  --well: linear-gradient(180deg, #0c0d10, #15171b);
+  --well-edge: inset 0 3px 8px #000, 0 1px 0 rgb(255 255 255 / 0.14);
+
+  /* ── the top rail: instruments ── */
+  .topbar > .frame {
+    color: #e8e6df;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .clock {
+    gap: 12px;
+    overflow: visible;
+  }
+  .clock::after {
+    content: none;
+  }
+  .speed {
+    order: 2;
+    gap: 6px;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+  .speed .btn,
+  .speed .btn:hover:not(:disabled) {
+    width: 46px;
+    height: 100%;
+    color: #9aa0ac;
+    background: linear-gradient(180deg, #3d4049, #24262c);
+    border-radius: 8px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 4px 0 #0e0f12,
+      0 6px 8px rgb(0 0 0 / 0.5);
+    text-shadow: none;
+    translate: none;
+  }
+  .speed .btn:hover:not(:disabled) {
+    color: #fff;
+  }
+  .speed .btn.active,
+  .speed .btn.active:hover:not(:disabled) {
+    color: #062b12;
+    background: linear-gradient(180deg, #9dffb6, #3fd46c);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.7),
+      0 2px 0 #0e3b1c,
+      0 0 26px rgb(99 240 138 / 0.75);
+    translate: 0 2px;
+  }
+  .speed .btn.active:first-child,
+  .speed .btn.active:first-child:hover:not(:disabled) {
+    color: #3a2400;
+    background: linear-gradient(180deg, #fff0c9, #ffb648);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 2px 0 #7a4f0c,
+      0 0 26px rgb(255 182 72 / 0.8);
+  }
+  .date,
+  .stat,
+  .kmeter .col,
+  .kmeter .knext {
+    background: var(--well);
+    box-shadow: var(--well-edge);
+    border-radius: 8px;
+  }
+  .date {
+    order: 1;
+    justify-content: center;
+    padding: 0 16px;
+    min-width: 190px;
+  }
+  .date .label,
+  .clock.paused .date .label {
+    font-family: var(--font-readout);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: rgb(255 182 72 / 0.8);
+  }
+  .date .d {
+    font-family: var(--font-readout);
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    color: var(--amber);
+    text-shadow: 0 0 12px rgb(255 182 72 / 0.7);
+  }
+  .clock.paused {
+    border: 0;
+    box-shadow: none;
+  }
+  .stats {
+    gap: 8px;
+    height: calc(var(--rail) - 24px);
+  }
+  .stat {
+    border-right: 0;
+    padding: 0 14px 0 6px;
+    --hue: var(--amber);
+  }
+  .stat.btnless:hover {
+    background: linear-gradient(180deg, #14161b, #1d2026);
+  }
+  .stat > img.px {
+    margin: 0 6px;
+    background: none;
+    box-shadow: none;
+  }
+  .stat .v,
+  .stat .v:not(.gold, .cyan, .good, .bad, .warn),
+  .stat .v:is(.gold, .cyan) {
+    font-family: var(--font-readout);
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    color: var(--amber);
+    text-shadow: 0 0 12px rgb(255 182 72 / 0.7);
+  }
+  .stat .v.bad {
+    color: #ff6b5c;
+    text-shadow: 0 0 12px rgb(255 90 77 / 0.8);
+  }
+  .stat .v.good {
+    color: #63f08a;
+    text-shadow: 0 0 12px rgb(99 240 138 / 0.7);
+  }
+  .stat .s {
+    font-family: var(--font-readout);
+    letter-spacing: 0.04em;
+    color: #9fd3e0;
+  }
+  .stat .s.good {
+    color: #63f08a;
+  }
+  .stat .s.bad {
+    color: #ff8a5c;
+  }
+  /* the Kardashev scale: a brass gauge and a readout */
+  .topbar > .kmeter {
+    gap: 10px;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+  .kring {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #0d0e11 0 60%, #7b7f8a 61% 66%, #6a4e1c 67%, #d9b56a 82%, #7a5a22 100%);
+    box-shadow: 0 5px 8px rgb(0 0 0 / 0.6);
+  }
+  .kring svg {
+    inset: 9px;
+    width: calc(100% - 18px);
+    height: calc(100% - 18px);
+  }
+  .kring .track {
+    stroke: rgb(216 214 204 / 0.25);
+    stroke-dasharray: 1 3.2;
+  }
+  .kring .arc {
+    stroke: #ff5a4d;
+    filter: drop-shadow(0 0 3px #ff5a4d);
+  }
+  .kring > img.px {
+    width: 14px;
+    height: 14px;
+    opacity: 0.85;
+  }
+  .kmeter .col {
+    flex: none;
+    height: 100%;
+    padding: 0 16px;
+    gap: 2px;
+  }
+  .klabel {
+    font-family: var(--font-readout);
+    font-stretch: 100%;
+    font-weight: 400;
+    letter-spacing: 0.16em;
+    color: rgb(255 182 72 / 0.8);
+  }
+  .kmeter .kv {
+    font-family: var(--font-readout);
+    font-weight: 400;
+    color: var(--amber);
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    text-shadow: 0 0 12px rgb(255 182 72 / 0.7);
+  }
+  .kmeter .knext {
+    height: 100%;
+    padding: 0 12px;
+    border-left: 0;
+    align-items: center;
+  }
+  .kmeter .kn {
+    font-family: var(--font-readout);
+    font-weight: 400;
+    color: var(--amber);
+  }
+
+  /* ── the left rail: keys ── */
+  .dock {
+    background: var(--m-metal);
+    border: 0;
+    box-shadow:
+      inset -3px 0 0 rgb(0 0 0 / 0.5),
+      inset 2px 0 0 rgb(255 255 255 / 0.12),
+      10px 0 24px rgb(0 0 0 / 0.45);
+  }
+  .dock .btn,
+  .dock .btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #3d4049, #24262c);
+    border-radius: 11px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.25),
+      0 4px 0 #0e0f12,
+      0 7px 9px rgb(0 0 0 / 0.5);
+    text-shadow: none;
+    translate: none;
+  }
+  .dock .btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #4a4e59, #2c2f37);
+  }
+  .dock .btn.active,
+  .dock .btn.active:hover:not(:disabled) {
+    background: linear-gradient(180deg, #fff0c9, #ffb648);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 2px 0 #7a4f0c,
+      0 0 30px rgb(255 182 72 / 0.8);
+    translate: 0 2px;
+  }
+  .dock .btn.active::before {
+    content: none;
+  }
+  .dk-l {
+    padding: 2px 6px 1px;
+    font-family: 'Saira', sans-serif;
+    font-stretch: 80%;
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #f5f5f2;
+    background: var(--dymo);
+    border-radius: 2px;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.28);
+    text-shadow: 0 1px 0 #000;
+  }
+  .dock .btn .badge {
+    background: #cf3a26;
+    box-shadow: 0 2px 3px rgb(0 0 0 / 0.45);
+    font-family: var(--font-marker);
+    font-weight: 400;
+  }
+  .dock .sep {
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.25), transparent);
+  }
+
+  /* ── paper is clipped to boards ── */
+  --e-top: calc(var(--rail) + 36px);
+  .side > .panel {
+    position: relative;
+  }
+  .side > .panel,
+  .panel.wide {
+    overflow: visible;
+    border: 12px solid transparent;
+    border-radius: 16px;
+    background:
+      var(--tx-paper) padding-box,
+      linear-gradient(#fbf7ee, #fbf7ee) padding-box,
+      var(--tx-board) border-box;
+    background-color: #8e5e38;
+    box-shadow:
+      inset 0 0 0 1px rgb(0 0 0 / 0.25),
+      0 22px 30px -12px rgb(30 18 6 / 0.65);
+  }
+  .side > .panel::before,
+  .panel.wide::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -34px;
+    z-index: 3;
+    width: 156px;
+    height: 54px;
+    margin-left: -78px;
+    border-radius: 10px 10px 6px 6px;
+    background:
+      radial-gradient(26px 9px at 50% 19px, #5b626c 98%, transparent 100%),
+      linear-gradient(180deg, #eef1f4, #aeb5be 45%, #7b838e);
+    box-shadow:
+      0 4px 6px rgb(0 0 0 / 0.4),
+      inset 0 2px 0 #fff;
+    pointer-events: none;
+  }
+  .side > .panel > .head,
+  .panel.wide > .head {
+    padding-top: 24px;
+  }
+}

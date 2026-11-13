@@ -92,6 +92,23 @@ interface Cam { x: number; z: number; dist: number; yaw: number; pitch: number }
 /** The models that are buildings with a base of their own (what `walkH` asks for a floor). */
 const DECK_MODELS = new Set(['garage', 'lab', 'gasplant', 'substation', 'watertower', 'office', 'bungalow']);
 
+/** A plot's place on screen: see `CampusScene.plotAnchors`. */
+export interface PlotAnchor {
+  /** `f:<facility id>` or `e:<empty plot's ordinal>`. */
+  key: string;
+  facilityId?: string;
+  emptyIndex?: number;
+  /** Above the middle of the roof. */
+  x: number;
+  y: number;
+  /** The box the building fills. */
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  on: boolean;
+}
+
 export class CampusScene implements Scene3D {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(30, 1, 1, 6000);
@@ -1297,6 +1314,33 @@ export class CampusScene implements Scene3D {
   private itemAt(x: number, y: number): PlotItem | null {
     const hit = this.rayAt(x, y).intersectObjects(this.hitboxes.children, false)[0];
     return (hit?.object.userData.item as PlotItem) ?? null;
+  }
+
+  /**
+   * Where each plot stands on screen, in CSS pixels of the canvas (SPEC §34, the notes on the world): the point
+   * above the middle of its roof and the box its building fills. `on` is false behind the camera or off the edge.
+   */
+  plotAnchors(): PlotAnchor[] {
+    const out: PlotAnchor[] = [];
+    const v = new THREE.Vector3();
+    for (const b of this.hitboxes.children as THREE.Mesh[]) {
+      const item = b.userData.item as PlotItem | undefined;
+      if (!item || item.kind === 'rival') continue;
+      const g = (b.geometry as THREE.BoxGeometry).parameters;
+      const hw = g.width / 2, hh = g.height / 2, hd = g.depth / 2;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, ahead = true;
+      for (let i = 0; i < 8; i++) {
+        v.set(b.position.x + (i & 1 ? hw : -hw), b.position.y + (i & 2 ? hh : -hh), b.position.z + (i & 4 ? hd : -hd)).project(this.camera);
+        if (v.z > 1) ahead = false;
+        const sx = ((v.x + 1) / 2) * this.w, sy = ((1 - v.y) / 2) * this.h;
+        x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+      }
+      v.set(b.position.x, b.position.y + hh, b.position.z).project(this.camera);
+      const x = ((v.x + 1) / 2) * this.w, y = ((1 - v.y) / 2) * this.h;
+      const on = ahead && v.z < 1 && x > 0 && x < this.w && y > 0 && y < this.h;
+      out.push({ key: item.facility ? `f:${item.facility.id}` : `e:${item.emptyIndex ?? 0}`, facilityId: item.facility?.id, emptyIndex: item.facility ? undefined : (item.emptyIndex ?? 0), x, y, x0, y0, x1, y1, on });
+    }
+    return out;
   }
 
   private setHoverRing(item: PlotItem | null) {

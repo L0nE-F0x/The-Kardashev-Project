@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.14.0 — Mission Control (2026-11-13)
+The interface now grows up with your company: plywood and paper in the garage, pure light by Type I.
+
+- **An interface that changes with every act.** Nothing moves (panels down the left, the clock and the figures across the top, the Kardashev scale at the right, the site you picked on the right, what is coming along the bottom), but what it is made of does.
+  - **Act I, the garage:** plank rails, figures on pinned paper tags, the date on an index card, label-maker keys, a tape measure for the Kardashev scale, sheets held up with masking tape, goals on a sticky note.
+  - **Act II, the scale-up:** metal rails, amber readouts, lit keys, a brass gauge, paper on clipboards.
+  - **Act III, the Charter:** slabs of black glass, touch keys, the site on a tablet, notes written with a stylus. The sticky notes are still stuck on the hardware.
+  - **Act IV, planetary:** one thin strip of metal left along the top; everything else is projected in teal light.
+  - **Act V, Type I:** only light. The Kardashev scale is an arc across the sky with the Sun where you stand. One thing is solid: Juno's sticky note from 2027, kept.
+- **Notes on the world.** On a campus, what the interface has to say about a building is pinned to the building: "nearly full!", "empty! order chips", "7 mo to go", "free plot". Point at a building and it is ringed, with its card beside it on a leader instead of chasing the pointer. Each act writes in its own hand: paper flags and a red pen, grease pencil on the glass, a stylus, then labels and brackets of light.
+- **Decisions follow suit:** a newspaper clipping in the garage, a typed signal in Act II, a message on glass in Act III, a transmission in light after that.
+- **The title screen and the loading screen wear the look of the company you would continue** (the garage's when you have none).
+- **Settings → Display → Interface look** keeps any look you have already reached, if you like one too much to leave it.
+- **Coming up moved to the bottom of the screen,** beside the latest news: a line of what you are waiting for, soonest first. Click one to skip the clock ahead to it. Acts IV and V show what is on the horizon there (the plan's end, the next stage, projects, the Council).
+- **The left rail's keys carry their names** when there is room for them.
+- **Every panel opens with its numbers.** Orders, Stats, Goals, Team, Deals, Blocs, the Charter, the Council, the Planet and the System now lead with a row of big figures, as Compute, Finance and Research do.
+- **Finishing an act** is a certificate with a gold seal in the paper acts.
+- **High contrast** has its own rules in every look.
+
+Under it, the first pass of the rebuild: a new typeface, panels that lead with their numbers, a build menu with pictures.
+
+- **A display typeface.** Titles, labels, buttons and every figure are set in Saira, a squared, technical face; running text stays in Atkinson Hyperlegible. Numbers look the same in a sentence as in a table, and the slashed zeros are gone.
+- **Night-blue glass.** Panes are deeper and bluer, with a sheen at the top, a crisp edge over a bright sky, brighter text, and clearer greens, ambers and reds.
+- **The top bar:** the speed buttons and the date are one clock, with a light that runs along its foot while time does and an amber edge when it stops ("Paused" replaces the company's name). Each figure sits on a plate in its own colour. The Kardashev meter has a ring that fills toward the next milestone, and says what that milestone is.
+- **The dock:** every button on its own plate, the panels in groups, and a label that stands beside the button you point at: its name, its shortcut key, and one line on what it is for.
+- **Panels that lead with their numbers.** Compute, Finance and Research open with a row of big figures (compute, best model, revenue and safety margin; cash with its curve, net a month, runway and valuation; research a day, how much is done, what is in the lab). Compute shows your split as one coloured bar over its sliders and the safety margin on a dial; Finance draws the month's costs as shares; halves of the later acts' panels sit on cards.
+- **Research** has a colour for each field and a count at the head of each column; finished projects fold down to their names, open ones show their cost on a tag, and the one in the lab glows.
+- **A build menu with pictures.** Every building in the site panel is shown as its own 3D model, in the build cards and in the list of what stands there.
+- **Event cards wear their kind's colour** (a disaster glows red-orange, politics and safety blue, the market green, the story gold), their picture stands on a lit plate, and each choice has an arrow that leans in when you point at it. Finishing an act gets a gold card.
+- **The title screen:** the menu is in capitals without its small icons, in three groups; Continue says whose company it opens, which act it is in, the date, the Kardashev figure and how long you have played.
+- **The loading screen** shows the planet's edge at sunrise under the logo, a line of progress with what is being done, and something to read: one of a dozen facts and tips.
+- **Small things:** tooltips have a title line and show shortcut keys as keys; switches, sliders, tabs, segmented choices and progress bars are redrawn; the close button turns as it lights.
+
 ## 0.13.3 — Steady Hand (2026-11-13)
 A fix for the stronger graphics card on Linux.
 

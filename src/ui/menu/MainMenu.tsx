@@ -25,6 +25,12 @@ function ago(ms: number): string {
   return `${Math.round(h / 24)} days ago`;
 }
 
+/** Where a save stands: the act it is in, or what it has finished. */
+function actLabel(sl: { act?: number; typeI?: number; sandbox?: boolean }): string {
+  if (sl.typeI) return 'Type I';
+  return `${sl.sandbox ? 'Sandbox · ' : ''}Act ${['I', 'II', 'III', 'IV', 'V'][Math.max(1, Math.min(5, sl.act ?? 1)) - 1]}`;
+}
+
 /** The tour's caption: the place in bold, the rest under it (a lower third); keyed by its text, so each shot's eases in. */
 function TourCaption({ text }: { text: string }) {
   const cut = text.indexOf(' · ');
@@ -74,11 +80,15 @@ export function MainMenu() {
         <div class="menu-tag">From a garage to a Type I civilisation</div>
         {latest && !latest.gameOver && (
           <button class="btn primary continue" onClick={() => game.continueSlot(latest.id)}>
-            <Icon name="play" />
+            <span class="go" aria-hidden="true" />
             <span class="grow">
               <span class="c1">Continue</span>
-              <span class="c2">
-                {latest.name} · {latest.dateLabel} · K {latest.K.toFixed(4)}
+              <span class="c2">{latest.name}</span>
+              <span class="c3">
+                <span>{actLabel(latest)}</span>
+                <span>{latest.dateLabel}</span>
+                <span>K {latest.K.toFixed(4)}</span>
+                <span>{fmtPlaytime(latest.playtime)}</span>
               </span>
             </span>
           </button>
@@ -87,14 +97,16 @@ export function MainMenu() {
           setTutorialNew(false);
           game.openMenuScreen('new');
         })}
-        {slots.length > 0 && item('orders', `Load company (${slots.length}/5)`, () => game.openMenuScreen('load'))}
+        {slots.length > 0 && item('orders', 'Load company', () => game.openMenuScreen('load'))}
         {item('play', 'Tutorial', () => {
           setTutorialNew(true);
           game.openMenuScreen('new');
         })}
+        <div class="menu-gap" />
         {item('help', 'How to play', () => game.openHowTo())}
         {item('guide', 'Field Guide', () => game.openMenuScreen('guide'), game.guideBadge() > 0)}
         {item('legit', 'Achievements', () => game.openMenuScreen('achievements'))}
+        <div class="menu-gap" />
         {item('settings', 'Settings', () => game.openMenuScreen('settings'))}
         {item('news', 'What’s new', () => {
           game.updateSettings({ lastSeenVersion: APP_VERSION });
@@ -103,10 +115,10 @@ export function MainMenu() {
         {item('people', 'Credits', () => game.openMenuScreen('credits'))}
         {isDesktopApp && item('close', 'Quit', () => void quitApp())}
         <div class="menu-foot small muted">
-          v{APP_VERSION} · Acts I–V: The Garage · The Scale-Up · The Charter · Planetary · Type I
-          <div class="menu-foot-links">
+          <span class="menu-ver">v{APP_VERSION}</span>
+          <span class="menu-foot-links">
             <BuiltBy />
-          </div>
+          </span>
         </div>
       </div>
       {game.tourCaption && <TourCaption text={game.tourCaption} key={game.tourCaption} />}

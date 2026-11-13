@@ -2,13 +2,47 @@
 
 html.edition-3d:not(.ui-classic) {
   .modal {
+    --cat: var(--cyan);
     background: var(--e-glass-solid);
     border-color: var(--e-line);
     box-shadow: var(--e-shadow-pop);
-    animation: ePop 0.26s var(--e-ease);
+    animation: ePop 0.3s var(--e-ease);
+  }
+  /* an event card wears its kind's colour: the glow behind its picture, its label, the line under its head */
+  .modal.event,
+  .modal.away {
+    --cat: var(--gold);
+  }
+  .modal.event[data-cat='disaster'] {
+    --cat: #ff7a52;
+  }
+  .modal.event[data-cat='climate'] {
+    --cat: var(--c-org2, #f7b258);
+  }
+  .modal.event[data-cat='politics'],
+  .modal.event[data-cat='safety'] {
+    --cat: #86b6ee;
+  }
+  .modal.event[data-cat='market'] {
+    --cat: #9fd45a;
+  }
+  .modal.event[data-cat='supply'] {
+    --cat: var(--cyan);
+  }
+  .modal .head {
+    background:
+      radial-gradient(70% 200% at 0% 0%, color-mix(in srgb, var(--cat) 20%, transparent), transparent 72%),
+      linear-gradient(180deg, rgb(160 180 255 / 0.085), rgb(160 180 255 / 0.02));
+  }
+  .modal .head::after {
+    background: linear-gradient(90deg, var(--cat), color-mix(in srgb, var(--cat) 40%, transparent) 45%, transparent);
+    box-shadow: 0 0 12px 0 color-mix(in srgb, var(--cat) 70%, transparent);
   }
   .modal .head h2 {
-    color: var(--gold);
+    color: var(--e-bright);
+  }
+  .modal .head .label {
+    color: color-mix(in srgb, var(--cat) 72%, var(--muted));
   }
   /* the card's emoji on a plate, like the pixel icons */
   .modal .head .ico {
@@ -20,11 +54,15 @@ html.edition-3d:not(.ui-classic) {
     background: var(--e-raise);
     line-height: 1;
   }
+  /* the card's picture on a plate in the card's colour */
   .modal .head > img.px.lg {
-    border-radius: 2px;
-    background: rgb(255 255 255 / 0.07);
-    box-shadow: 0 0 0 9px rgb(255 255 255 / 0.07);
-    margin: 9px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--cat) 15%, rgb(160 180 255 / 0.06));
+    box-shadow:
+      0 0 0 11px color-mix(in srgb, var(--cat) 15%, rgb(160 180 255 / 0.06)),
+      0 0 0 12px color-mix(in srgb, var(--cat) 34%, transparent),
+      0 0 26px 6px color-mix(in srgb, var(--cat) 22%, transparent);
+    margin: 11px;
     filter: none;
   }
   .modal .story {
@@ -34,29 +72,98 @@ html.edition-3d:not(.ui-classic) {
   .quote .bubble {
     position: relative;
     border: 1px solid var(--e-line-soft);
-    border-radius: 3px var(--e-r) var(--e-r) var(--e-r);
+    border-radius: 4px var(--e-r) var(--e-r) var(--e-r);
     background: var(--e-sunk);
+    box-shadow: inset 0 1px 3px rgb(0 0 8 / 0.3);
   }
   .quote .bubble b {
-    color: color-mix(in srgb, var(--cyan) 62%, var(--muted));
+    font-family: var(--font-display);
+    font-stretch: 88%;
+    font-weight: 600;
+    color: color-mix(in srgb, var(--cyan) 70%, var(--muted));
   }
-  .choice {
+  .quote img.portrait {
     border-radius: var(--e-r-md);
   }
+  /* a choice: a wide key with its consequence under its name, an arrow that leans in when you point at it */
+  .choice {
+    position: relative;
+    border-radius: var(--e-r-md);
+    padding-right: 44px;
+  }
+  .choice::after {
+    content: '';
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    width: 9px;
+    height: 9px;
+    margin-top: -5px;
+    border-top: 2px solid currentColor;
+    border-right: 2px solid currentColor;
+    border-radius: 1px;
+    rotate: 45deg;
+    opacity: 0.35;
+    transition:
+      opacity 0.14s,
+      translate 0.18s var(--e-ease);
+  }
+  .choice:hover:not(:disabled)::after {
+    opacity: 0.95;
+    translate: 4px 0;
+  }
+  .choice:disabled::after {
+    content: none;
+  }
   .choice .t {
-    font-weight: 700;
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.012em;
   }
   .choice .d {
     font-weight: 400;
     white-space: normal;
+    color: color-mix(in srgb, var(--muted) 70%, var(--text));
   }
   .choice.primary .d,
   .btn.primary .c2 {
-    color: rgb(240 255 251 / 0.84);
+    color: rgb(240 255 251 / 0.86);
   }
   .choice .why {
     color: var(--c-org1, #f08a46);
     font-weight: 500;
+  }
+  /* an act finished: the logo's sunrise along the card's top, a gold edge, a warm halo */
+  .modal.milestone {
+    --cat: var(--gold);
+    position: relative;
+    border-color: var(--e-gold-line);
+    box-shadow:
+      var(--e-shadow-pop),
+      0 0 0 1px color-mix(in srgb, var(--gold) 26%, transparent),
+      0 0 110px -24px color-mix(in srgb, var(--c-org1, #f08a46) 60%, transparent);
+  }
+  .modal.milestone::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 3px;
+    background: var(--e-sun-across);
+    box-shadow: 0 0 18px 0 color-mix(in srgb, var(--gold) 70%, transparent);
+    z-index: 1;
+  }
+  .modal.milestone .head h2 {
+    color: var(--gold);
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .modal.milestone .head h2 {
+      background: var(--e-sun);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
   }
   /* a big decision (Act V): a gold edge and a slow halo */
   .modal.bigdecision {
@@ -70,12 +177,13 @@ html.edition-3d:not(.ui-classic) {
     background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 12%, transparent), transparent);
   }
   .delta .v {
-    font-weight: 750;
+    font-family: var(--font-display);
+    font-weight: 650;
     font-variant-numeric: tabular-nums;
   }
   .away .big {
-    font-family: var(--font);
-    font-weight: 800;
+    font-family: var(--font-display);
+    font-weight: 700;
   }
   & details > summary {
     cursor: pointer;
@@ -141,8 +249,8 @@ html.edition-3d:not(.ui-classic) {
       padding: 20px;
     }
     .modal {
-      width: min(680px, 100%);
-      border-radius: 16px;
+      width: min(700px, 100%);
+      border-radius: 18px;
     }
     .modal .head {
       padding: 16px 20px 15px;
@@ -154,7 +262,7 @@ html.edition-3d:not(.ui-classic) {
       font-size: 28px;
     }
     .modal .head h2 {
-      font-size: 21px;
+      font-size: 23px;
     }
     .modal .head .label {
       margin-bottom: 4px;

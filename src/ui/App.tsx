@@ -3,6 +3,8 @@ import type { Game } from '../game/game';
 import { TopBar } from './TopBar';
 import { Dock } from './Dock';
 import { Objectives, SkipBar } from './Objectives';
+import { FootStrip, Keepsake } from './Foot';
+import { WorldNotes } from './WorldNotes';
 import { Inspector } from './Inspector';
 import { ComputePanel } from './panels/ComputePanel';
 import { OrdersPanel } from './panels/OrdersPanel';
@@ -15,7 +17,7 @@ import { CharterPanel, CouncilPanel, ThresholdTracker } from './panels/Act3Panel
 import { HeatWallTracker, JumpOverlay, JumpReportModal, PlanModal, PlanetPanel } from './panels/Act4Panels';
 import { EndingOverlay, EraOverlay, EraPlanModal, EraReportModal, SolarMaxTracker, SystemPanel } from './panels/Act5Panels';
 import { ActCompleteModal, AwayModal, EventModal, GameOverModal } from './Modals';
-import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, GpuNotice, LinkHint, MapTooltip, NoteModal, Ticker, TipLayer, Toasts, UpdateToast } from './Overlays';
+import { ConfirmModal, DecisionPill, DioramaBar, FpsCounter, GpuNotice, LinkHint, MapTooltip, NoteModal, TipLayer, Toasts, UpdateToast } from './Overlays';
 import { PhotoBar, PhotoButton } from './PhotoMode';
 import { MainMenu } from './menu/MainMenu';
 import { SettingsBody } from './menu/SettingsScreen';
@@ -39,6 +41,7 @@ function Hud() {
   const panel = game.panel;
   return (
     <>
+      <WorldNotes />
       <TopBar />
       <Dock />
       {game.mode === 'map' && <Objectives />}
@@ -88,7 +91,8 @@ function Hud() {
       <LinkHint />
       <DecisionPill />
       <SkipBar />
-      <Ticker />
+      <FootStrip />
+      <Keepsake />
       <Toasts />
       <AdvisorTip />
       <MapTooltip />

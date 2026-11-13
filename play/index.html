@@ -10,33 +10,43 @@
     <link rel="icon" href="../favicon.ico" sizes="48x48" />
     <link rel="icon" href="../icons/icon-32.png" type="image/png" sizes="32x32" />
     <link rel="preload" href="/src/assets/fonts/atkinson-hyperlegible-next-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/src/assets/fonts/saira-latin.woff2" as="font" type="font/woff2" crossorigin />
     <style>
-      /* The first second: the logo on black with a thin progress line, then a hand-off with no cut. main.ts writes
-         the status into #boot and removes it when the title screen is up; the script below then flies the logo to the
-         menu's own logo while the black lifts off the first shot. */
+      /* The loading screen: the logo over the planet's edge at sunrise, a line of progress with what is being
+         done, a tip to read meanwhile; then a hand-off with no cut. main.ts writes the status into #boot and
+         removes it when the title screen is up; the script below then flies the logo to the menu's own logo
+         while the night lifts off the first shot. */
       @font-face {
         font-family: 'Atkinson Hyperlegible Next';
         src: url('/src/assets/fonts/atkinson-hyperlegible-next-latin.woff2') format('woff2');
         font-weight: 200 800;
         font-display: block;
       }
+      @font-face {
+        font-family: 'Saira';
+        src: url('/src/assets/fonts/saira-latin.woff2') format('woff2');
+        font-weight: 400 800;
+        font-stretch: 75% 100%;
+        font-display: block;
+      }
       html,
       body {
         margin: 0;
-        background: #0b0a12;
+        background: #07070f;
       }
       #boot {
         position: fixed;
         left: 0;
         right: 0;
-        top: calc(50% + var(--boot-h, 164px) / 2 + 44px);
+        top: calc(50% + var(--boot-h, 164px) / 2 + 50px);
         z-index: 12;
         padding: 0 24px;
         text-align: center;
-        color: #8d8598;
-        font: 600 11.5px/1.5 'Atkinson Hyperlegible Next', system-ui, sans-serif;
-        letter-spacing: 0.34em;
-        text-indent: 0.34em;
+        color: #9a94ad;
+        font: 600 12px/1.5 'Saira', 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+        font-stretch: 88%;
+        letter-spacing: 0.3em;
+        text-indent: 0.3em;
         pointer-events: none;
       }
       #bootveil:not(.go) {
@@ -48,6 +58,7 @@
         position: fixed;
         inset: 0;
         z-index: 11;
+        overflow: hidden;
       }
       #bootveil.go {
         pointer-events: none;
@@ -55,8 +66,63 @@
       .bv-bg {
         position: absolute;
         inset: 0;
-        background: radial-gradient(58% 46% at 50% 47%, #1b1727 0%, #100e19 46%, #0b0a12 78%);
+        background:
+          radial-gradient(60% 46% at 50% 46%, #1a1d33 0%, #0f1020 46%, #07070f 80%);
         transition: opacity 0.9s ease-out;
+      }
+      /* a few stars (two tiled layers of dots), dimmer toward the middle where the logo stands */
+      .bv-bg::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+          radial-gradient(circle at 23px 41px, rgb(255 255 255 / 0.8) 0.7px, transparent 1.3px),
+          radial-gradient(circle at 201px 147px, rgb(200 215 255 / 0.55) 0.6px, transparent 1.2px),
+          radial-gradient(circle at 131px 87px, rgb(255 240 210 / 0.7) 0.8px, transparent 1.5px),
+          radial-gradient(circle at 67px 229px, rgb(255 255 255 / 0.5) 0.6px, transparent 1.2px),
+          radial-gradient(circle at 283px 31px, rgb(210 225 255 / 0.6) 0.7px, transparent 1.3px),
+          radial-gradient(circle at 171px 263px, rgb(255 255 255 / 0.45) 0.6px, transparent 1.2px);
+        background-size:
+          311px 293px,
+          257px 379px,
+          419px 331px,
+          367px 241px,
+          487px 409px,
+          229px 463px;
+        mask-image: radial-gradient(70% 60% at 50% 46%, rgb(0 0 0 / 0.25), #000 80%);
+        opacity: 0.8;
+      }
+      /* the planet's edge across the foot of the screen, the Sun about to come over it */
+      .bv-limb {
+        position: absolute;
+        left: 50%;
+        top: calc(100% - min(13vh, 150px));
+        width: 300vw;
+        height: 300vw;
+        margin-left: -150vw;
+        border-radius: 50%;
+        background: radial-gradient(closest-side, #05050c 97%, #0a0c1c 99.2%, #101630 100%);
+        box-shadow:
+          0 0 0 1px rgb(255 226 150 / 0.5),
+          0 -2px 6px 0 rgb(255 214 120 / 0.55),
+          0 -8px 34px 2px rgb(240 138 70 / 0.4),
+          0 -30px 120px 10px rgb(90 120 255 / 0.2);
+        transition:
+          opacity 0.9s ease-out,
+          translate 1.1s cubic-bezier(0.3, 0, 0.1, 1);
+        animation: bvRise 2.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+      }
+      .bv-limb::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: min(70vw, 900px);
+        height: 260px;
+        translate: -50% -50%;
+        background: radial-gradient(closest-side, rgb(255 236 180 / 0.5), rgb(240 138 70 / 0.16) 45%, transparent 75%);
+        animation: bvSun 3.6s ease-in-out infinite alternate;
+        pointer-events: none;
       }
       .bv-logo {
         position: absolute;
@@ -67,7 +133,7 @@
         margin: calc(var(--boot-h, 164px) / -2 - 12px) 0 0 calc(var(--boot-w, 484px) / -2);
         transform-origin: 0 0;
         filter: drop-shadow(0 10px 28px rgb(0 0 0 / 0.6));
-        animation: bvIn 0.5s ease-out both;
+        animation: bvIn 0.6s ease-out both;
         transition:
           transform 0.85s cubic-bezier(0.3, 0, 0.1, 1),
           opacity 0.5s;
@@ -75,65 +141,307 @@
       .bv-bar {
         position: absolute;
         left: 50%;
-        top: calc(50% + var(--boot-h, 164px) / 2 + 14px);
-        width: min(240px, 60%);
-        height: 2px;
-        margin-left: max(-120px, -30%);
-        border-radius: 1px;
-        background: rgb(255 255 255 / 0.09);
-        overflow: hidden;
+        top: calc(50% + var(--boot-h, 164px) / 2 + 22px);
+        width: min(320px, 64%);
+        height: 3px;
+        margin-left: max(-160px, -32%);
+        border-radius: 2px;
+        background: rgb(170 188 255 / 0.12);
         transition: opacity 0.25s;
       }
       .bv-bar i {
         display: block;
         height: 100%;
-        border-radius: 1px;
-        background: linear-gradient(90deg, #2fae9b, #fbd46e);
+        border-radius: 2px;
+        background: linear-gradient(90deg, #2fae9b, #fbd46e 70%, #fff6d8);
+        box-shadow: 0 0 12px 0 rgb(251 212 110 / 0.55);
         transform: scaleX(0.02);
         transform-origin: 0 50%;
         transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
       }
+      .bv-tip {
+        position: absolute;
+        left: 50%;
+        bottom: max(20vh, 190px);
+        width: min(560px, 84%);
+        translate: -50% 0;
+        text-align: center;
+        color: #b7b1c8;
+        font: 400 15px/1.5 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+        animation: bvIn 0.8s 0.25s ease-out both;
+        transition: opacity 0.3s;
+      }
+      .bv-tip b {
+        display: block;
+        margin-bottom: 5px;
+        color: #fbd46e;
+        font: 600 11.5px/1 'Saira', system-ui, sans-serif;
+        font-stretch: 88%;
+        letter-spacing: 0.3em;
+        text-indent: 0.3em;
+      }
       #bootveil.go .bv-bg,
-      #bootveil.go .bv-bar {
+      #bootveil.go .bv-bar,
+      #bootveil.go .bv-tip,
+      #bootveil.go .bv-limb {
         opacity: 0;
       }
-      #bootveil.failed .bv-bar {
+      #bootveil.go .bv-limb {
+        translate: 0 60px;
+      }
+      #bootveil.failed .bv-bar,
+      #bootveil.failed .bv-tip {
         opacity: 0;
+      }
+      @media (max-height: 620px) {
+        .bv-tip {
+          display: none;
+        }
       }
       @keyframes bvIn {
         from {
           opacity: 0;
         }
       }
+      @keyframes bvRise {
+        from {
+          opacity: 0;
+          translate: 0 46px;
+        }
+      }
+      @keyframes bvSun {
+        from {
+          opacity: 0.7;
+        }
+        to {
+          opacity: 1;
+        }
+      }
       @media (prefers-reduced-motion: reduce) {
         .bv-bg,
         .bv-logo,
         .bv-bar,
-        .bv-bar i {
+        .bv-bar i,
+        .bv-limb,
+        .bv-limb::before,
+        .bv-tip {
           transition: none;
           animation: none;
         }
+      }
+
+      /* ── the loading screen in each interface look (SPEC §34): the script below reads the look last worn from
+         the settings and writes it on <html data-look> before anything is drawn. Look 5 is the screen above. ── */
+      @font-face {
+        font-family: 'Caveat';
+        src: url('/src/assets/fonts/caveat-latin.woff2') format('woff2');
+        font-weight: 500 700;
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'Special Elite';
+        src: url('/src/assets/fonts/special-elite-latin.woff2') format('woff2');
+        font-display: block;
+      }
+      @font-face {
+        font-family: 'Share Tech Mono';
+        src: url('/src/assets/fonts/share-tech-mono-latin.woff2') format('woff2');
+        font-display: block;
+      }
+      /* looks 1 and 2: a bench, not the sky */
+      html:is([data-look='1'], [data-look='2']) .bv-bg::before,
+      html:is([data-look='1'], [data-look='2'], [data-look='3']) .bv-limb {
+        display: none;
+      }
+      html:is([data-look='1'], [data-look='2']) .bv-logo {
+        box-sizing: content-box;
+        padding: 26px 30px 24px 14px;
+        border: 11px solid #fdfdfb;
+        background: radial-gradient(120% 120% at 30% 20%, #26264a, #0d0d18 70%);
+        box-shadow:
+          0 1px 2px rgb(0 0 0 / 0.4),
+          0 26px 30px -14px rgb(20 10 0 / 0.75);
+        translate: -41px -37px;
+        rotate: -1.3deg;
+      }
+      html:is([data-look='1'], [data-look='2']) .bv-bar {
+        top: calc(50% + var(--boot-h, 164px) / 2 + 62px);
+      }
+      /* look 1: plywood, a sticky note, a bar filled in with a pen */
+      html[data-look='1'] .bv-bg {
+        background:
+          radial-gradient(90% 80% at 50% 45%, transparent 40%, rgb(40 22 6 / 0.7) 100%),
+          #c9a877 url('/src/assets/ui/ply.webp');
+      }
+      html[data-look='1'] .bv-bar {
+        height: 14px;
+        border-radius: 2px;
+        background: rgb(255 253 246 / 0.85);
+        box-shadow:
+          inset 0 0 0 2px #1f2a44,
+          0 4px 6px -3px rgb(20 10 0 / 0.6);
+      }
+      html[data-look='1'] .bv-bar i {
+        border-radius: 0;
+        background: repeating-linear-gradient(-45deg, #27478f 0 3px, transparent 3px 6px);
+        box-shadow: none;
+      }
+      html[data-look='1'] .bv-tip,
+      html[data-look='2'] .bv-tip {
+        width: min(400px, 80%);
+        padding: 20px 22px 24px;
+        color: #1f2a44;
+        font: 700 25px/1.1 'Caveat', cursive;
+        background: #ffe86e url('/src/assets/ui/sticky.webp');
+        box-shadow:
+          0 1px 2px rgb(0 0 0 / 0.3),
+          0 24px 20px -14px rgb(20 10 0 / 0.75);
+        rotate: -1.6deg;
+        bottom: max(7vh, 56px);
+      }
+      html[data-look='1'] .bv-tip b,
+      html[data-look='2'] .bv-tip b {
+        margin-bottom: 9px;
+        color: #7a6a1e;
+        font: 400 12px/1 'Special Elite', monospace;
+        letter-spacing: 0.2em;
+      }
+      html:is([data-look='1'], [data-look='2']) #boot {
+        top: calc(50% + var(--boot-h, 164px) / 2 + 92px);
+      }
+      html[data-look='1'] #boot {
+        color: #3a2610;
+        font-family: 'Special Elite', monospace;
+      }
+      /* look 2: a metal panel, an amber bar; the note is still paper */
+      html[data-look='2'] .bv-bg {
+        background:
+          radial-gradient(90% 80% at 50% 45%, transparent 40%, rgb(0 0 0 / 0.6) 100%),
+          repeating-linear-gradient(90deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px),
+          linear-gradient(180deg, #3b3f49, #24262d 60%, #17181d);
+      }
+      html[data-look='2'] .bv-bar {
+        height: 16px;
+        border-radius: 5px;
+        background: linear-gradient(180deg, #0c0d10, #15171b);
+        box-shadow:
+          inset 0 3px 8px #000,
+          0 1px 0 rgb(255 255 255 / 0.14);
+        overflow: hidden;
+      }
+      html[data-look='2'] .bv-bar i {
+        margin: 4px;
+        height: 8px;
+        border-radius: 0;
+        background: repeating-linear-gradient(90deg, #ffb648 0 7px, transparent 7px 10px);
+        box-shadow: 0 0 12px rgb(255 182 72 / 0.8);
+      }
+      html[data-look='2'] #boot {
+        color: #ffb648;
+        font-family: 'Share Tech Mono', monospace;
+        text-shadow: 0 0 12px rgb(255 182 72 / 0.7);
+      }
+      /* look 3: black glass, a message */
+      html[data-look='3'] .bv-bg {
+        background: radial-gradient(60% 46% at 50% 46%, #141722 0%, #0c0e14 60%, #07080c 90%);
+      }
+      html[data-look='3'] .bv-bar i {
+        background: linear-gradient(90deg, #3fa6ee, #8fdcff);
+        box-shadow: 0 0 12px rgb(92 192 255 / 0.7);
+      }
+      html[data-look='3'] .bv-tip {
+        padding: 16px 22px 18px;
+        color: #dfe3ee;
+        background: #171a24;
+        border-radius: 20px 20px 20px 6px;
+        box-shadow:
+          0 0 0 1px rgb(255 255 255 / 0.08),
+          0 20px 40px -14px #000;
+      }
+      html[data-look='3'] .bv-tip b {
+        color: #5cc0ff;
+      }
+      /* look 4: first light, off a strip of metal */
+      html[data-look='4'] #bootveil::before {
+        content: '';
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 1;
+        height: 30px;
+        background:
+          repeating-linear-gradient(90deg, rgb(255 255 255 / 0.018) 0 1px, transparent 1px 3px),
+          linear-gradient(180deg, #4a4e59, #2c2f37 16%, #23252c 70%, #191a1f);
+        box-shadow: 0 8px 20px rgb(0 0 0 / 0.5);
+      }
+      html[data-look='4'] .bv-bar {
+        height: 6px;
+        border-radius: 0;
+        background: rgb(95 245 224 / 0.14);
+      }
+      html:is([data-look='4'], [data-look='5']) .bv-bar i {
+        border-radius: 0;
+        background: repeating-linear-gradient(90deg, #5ff5e0 0 9px, transparent 9px 12px);
+        box-shadow: 0 0 12px rgb(95 245 224 / 0.8);
+      }
+      html[data-look='4'] .bv-tip {
+        padding: 16px 22px 18px;
+        color: #e6fbf8;
+        background: linear-gradient(180deg, rgb(9 38 52 / 0.86), rgb(6 22 34 / 0.9));
+        border: 1px solid rgb(95 245 224 / 0.5);
+        clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+      }
+      html:is([data-look='4'], [data-look='5']) .bv-tip b {
+        color: #5ff5e0;
+      }
+      html[data-look='5'] .bv-tip {
+        color: #d6fbf5;
+        text-shadow: 0 0 14px rgb(95 245 224 / 0.4);
       }
     </style>
   </head>
   <body>
     <div id="game"></div>
     <div id="ui"></div>
-    <div id="boot">BOOTING THE KARDASHEV PROJECT…</div>
+    <div id="boot">STARTING UP…</div>
     <div id="bootveil" aria-hidden="true">
       <div class="bv-bg"></div>
+      <div class="bv-limb"></div>
+      <div class="bv-tip"><b>DID YOU KNOW</b><span></span></div>
       <img class="bv-logo" src="../logo.png" width="484" height="164" alt="" draggable="false" />
       <div class="bv-bar"><i></i></div>
     </div>
     <script>
       (() => {
         const root = document.documentElement;
+        // the interface look last worn (SPEC §34), so this screen wears it too; the game sets it again when it starts
+        try {
+          const now = Number(JSON.parse(localStorage.getItem('kardashev.settings.v1') ?? '{}').lookNow);
+          root.dataset.look = String(now >= 1 && now <= 5 ? now : 1);
+        } catch {
+          root.dataset.look = '1';
+        }
         // while this is set the title screen holds its entrance (ui/menu.css): the menu slides in as the logo lands
         root.classList.add('booting');
         const boot = document.getElementById('boot');
         const veil = document.getElementById('bootveil');
         const logo = veil.querySelector('.bv-logo');
         const fill = veil.querySelector('.bv-bar i');
+        // something to read while the world is built
+        const TIPS = [
+          'The Kardashev scale ranks a civilisation by the power it uses. Humanity today sits near 0.73.',
+          'Type I means using all the power that reaches a planet from its star: about ten thousand times what we use now.',
+          'Space pauses the clock. Nothing in this game needs fast hands.',
+          'A data hall is only as fast as the power you can feed it. Megawatts first, chips second.',
+          'Chips cross oceans on real sea lanes. A closed strait is a late delivery.',
+          'Your safety margin is alignment minus capability. Keep it above zero and your models behave.',
+          'Solar is cheap by day and silent by night. Batteries, wind or a neighbour’s grid cover the gap.',
+          'Every advisor on a card is arguing for their own department. They are all a little right.',
+          'Click any campus on the globe to walk down to it and watch it being built.',
+          'The Field Guide explains the real science and industry behind everything you build.',
+          'The Photo button on a campus opens photo mode: pick the hour, the weather and the lens.',
+          'Stuck? The ? button opens How to Play, with a page for every act and every panel.',
+        ];
+        veil.querySelector('.bv-tip span').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
         // the logo (121:41) at the size the menu's will be: the HUD's automatic size on big screens (ui/tokens.css)
         // times the player's Interface size
         let ui = innerWidth >= 3600 && innerHeight >= 2000 ? 2 : innerWidth >= 3000 && innerHeight >= 1700 ? 1.6 : innerWidth >= 2200 && innerHeight >= 1300 ? 1.2 : 1;
@@ -182,7 +490,8 @@
             veil.classList.add('go');
             const a = logo.getBoundingClientRect();
             const b = to?.getBoundingClientRect();
-            if (b && b.width > 0) {
+            // looks 1 and 2 keep their logos on a print (a border, a tilt): there the loading one just lifts
+            if (b && b.width > 0 && !/^[12]$/.test(root.dataset.look ?? '')) {
               to.style.visibility = 'hidden';
               logo.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${b.width / a.width})`;
             } else logo.style.opacity = '0';

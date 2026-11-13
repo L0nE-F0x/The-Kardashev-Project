@@ -1,9 +1,11 @@
 /** Act III panels: the Charter (overview · contracts · missions · partners · world), the Council, the Charter desk and the Threshold tracker. */
 import { useEffect, useState } from 'preact/hooks';
 import { Bar, Choice, Icon, KV, Panel, Portrait, Slider, Toggle, useGame } from '../components';
+import { Card, Cols, Tile, Tiles, type Tone } from '../kit';
 import { ceoPortraitUrl } from '../../render3d/portraits/portraits';
 import {
   CAT_NAMES,
+  CHARTER,
   CHARTER_PHASES,
   CONTRACT_KINDS,
   CONTRACT_ORDER,
@@ -158,39 +160,67 @@ function OverviewTab() {
   const fcTip = fc
     ? `If the Council voted today (${fc.yes}–${fc.no}, ${Math.round(fc.share * 100)}%):\n${REGION_IDS.map((r) => `${fc.votes[r] === 'yes' ? '✓' : '✗'} ${REGIONS[r].short} (${VOTES[r]}) ${sign(fc.lean[r], 2)}`).join('\n')}\n\nEvery bloc weighs: ${renewalRecord(s).map(([l, v]) => `${l} ${sign(v, 2)}`).join(' · ')} — then its own access, relations, faction tension and stance.${c.threshold?.done ? '' : ' The Threshold counts once it has been faced.'}\n\n${RENEWAL_MEANS[fc.outcome]}`
     : '';
+  const building = c.projects.filter((p) => p.status === 'building');
+  const late = building.filter((p) => isLate(s, p)).length;
+  const legitTone: Tone = c.legitimacy >= 50 ? 'good' : c.legitimacy >= 35 ? 'warn' : 'bad';
   return (
     <>
-      <div class="row wrap" style={{ gap: '16px', alignItems: 'flex-start' }}>
-        <div class="grow" style={{ minWidth: '240px' }} data-tut="treasury">
-          <h4>
-            <Icon name="charter" size="sm" /> Treasury
-          </h4>
-          <div class="bigv gold">{fmtMoney(c.budget)}</div>
+      <Tiles>
+        <Tile label="Treasury" icon="charter" tone="gold" value={fmtMoney(c.budget)} sub={`+${fmtMoney(dues)} dues a month`} tip={'Treasury\nThe Kardashev Project’s own money, separate from your company’s cash: the blocs’ dues come in, progress payments on its projects go out.'} />
+        <Tile
+          label="Legitimacy"
+          icon="legit"
+          tone={legitTone}
+          value={
+            <>
+              {Math.round(c.legitimacy)}
+              <small>/ 100</small>
+            </>
+          }
+          sub={`${sign(legitDrift, 1)} a month`}
+          tip={`Legitimacy\n${legitTip}`}
+        />
+        <Tile
+          label="Political capital"
+          icon="council"
+          tone="cyan"
+          value={
+            <>
+              {Math.round(c.capital)}
+              <small>/ 100</small>
+            </>
+          }
+          sub={`Council sits in ${fmtDays(c.council.nextSession - s.day)}`}
+          tip={'Political capital\nThe Council currency: table resolutions, whip votes, emergency sessions. Earned monthly from your standing and Legitimacy.'}
+        />
+        <Tile
+          label="Projects"
+          icon="mega"
+          tone={late ? 'warn' : 'blue'}
+          value={building.length}
+          sub={late ? `${late} running late` : c.tenders.length ? `${c.tenders.length} tender${c.tenders.length === 1 ? '' : 's'} open` : building.length ? 'all on schedule' : 'nothing under way'}
+          tip={'Projects under way\nEverything the Charter has under construction, and how many are past the date their builder promised. Late projects cost Legitimacy.'}
+        />
+      </Tiles>
+      <Cols class="even">
+        <Card title="Treasury" icon="charter" tut="treasury">
           <KV
             rows={[
               ['Dues coming in', `${fmtMoney(dues)}/month`, `What the twelve blocs pay at today’s dues level (×${c.dues.toFixed(2)}), each scaled by its willingness: relations, your Legitimacy, walkouts.`],
               ['Committed to projects', <span class={committed > dues ? 'warn' : ''}>{fmtMoney(committed)}/month</span>, 'Progress payments on everything under construction. Commit more than comes in and, once the treasury runs dry, projects fall into arrears: they build at half speed and Legitimacy falls every month.'],
-              ['Political capital', `${Math.round(c.capital)} / 100`, 'The Council currency: table resolutions, whip votes, emergency sessions. Earned monthly from your standing and Legitimacy.'],
-              ['Next Council session', fmtDays(c.council.nextSession - s.day)],
               ['Charter standing', `${c.standing} / 3`, 'Fronts you held in the Crunch — your clout when the Charter was founded.'],
             ]}
           />
-        </div>
-        <div class="grow" style={{ minWidth: '240px' }} data-tut="legitimacy">
-          <h4>
-            <Icon name="legit" size="sm" /> Legitimacy
-          </h4>
+        </Card>
+        <Card title="Legitimacy" icon="legit" tut="legitimacy">
           <Bar value={c.legitimacy / 100} kind={c.legitimacy < 35 ? 'warn' : 'gold'} tall tip={legitTip} />
           <div class="small" style={{ margin: '4px 0' }} data-tip={legitTip}>
             {Math.round(c.legitimacy)} / 100 — {c.legitimacy >= 70 ? 'the Council trusts you' : c.legitimacy >= 50 ? 'steady' : c.legitimacy >= 35 ? 'questions are being asked' : 'the knives are out'} · <span class={legitDrift >= 0 ? 'good' : 'bad'}>{sign(legitDrift, 1)}/month</span>
           </div>
           <div class="small muted">Rises with delivered projects, fair awards, missions and the blind trust. Falls with self-dealing, arrears, late projects, scandals, walkouts — and a Charter that sits on its money and builds nothing.</div>
-        </div>
-      </div>
-      <div class="section" data-tut="mandate">
-        <h4>
-          <Icon name="goals" size="sm" /> The Charter Mandate
-        </h4>
+        </Card>
+      </Cols>
+      <Card title="The Charter Mandate" icon="goals" tut="mandate">
         <div class="small muted" style={{ marginBottom: '4px' }}>
           When it is met, The Threshold begins — or on {fmtDate(THRESHOLD_DEADLINE, true)} at the latest. A goal still unmet then leaves its front of the Threshold weaker.
         </div>
@@ -211,12 +241,9 @@ function OverviewTab() {
             <span class={fc.outcome === 'planetary' ? 'good' : fc.outcome === 'limited' ? 'warn' : 'bad'}>{RENEWAL_NAMES[fc.outcome]}</span>
           </div>
         )}
-      </div>
-      <div class="row wrap section" style={{ gap: '16px', alignItems: 'flex-start' }}>
-        <div class="grow" style={{ minWidth: '240px' }} data-tut="blind-trust">
-          <h4>
-            <Icon name="lock" size="sm" /> Two hats
-          </h4>
+      </Card>
+      <Cols class="even">
+        <Card title="Two hats" icon="lock" tut="blind-trust">
           <Toggle
             label={c.blindTrust ? `${s.company.name} is in a blind trust` : `You run ${s.company.name} yourself`}
             hint={c.blindTrust ? 'Your advisors run it on standing orders; its buttons are locked. Conflicts cost far less; Legitimacy drifts up. Leaving costs Legitimacy −12.' : `Put it in a blind trust: Legitimacy +8, conflicts cost 70% less, but you can’t touch it (re-entry cooldown ${Math.round(TRUST_COOLDOWN / 30.4)} months after leaving).`}
@@ -224,21 +251,17 @@ function OverviewTab() {
             onChange={(v) => game.setBlindTrust(v)}
           />
           {trustWhy && <div class="small warn">{trustWhy}</div>}
-        </div>
-        <div class="grow" style={{ minWidth: '240px' }}>
-          <h4>
-            <Icon name="cash" size="sm" /> Give to the Charter
-          </h4>
+        </Card>
+        <Card title="Give to the Charter" icon="cash">
           <Slider label="From company cash" value={Math.min(gift, Math.max(1e9, s.finance.cash))} min={1e9} max={Math.max(1e9, Math.min(50e9, s.finance.cash))} step={1e9} format={(v) => fmtMoney(v, 0)} onChange={setGift} />
           <button class="btn small" disabled={s.finance.cash < gift || c.blindTrust} onClick={() => game.donate(gift)} data-tip="Company cash → treasury. Legitimacy up a little (+1 per $2B, up to +6).">
             Donate {fmtMoney(gift, 0)}
           </button>
           {c.blindTrust && <div class="small muted">The trust manages the company’s cash.</div>}
-        </div>
-      </div>
+        </Card>
+      </Cols>
       {recent.length > 0 && (
-        <div class="section">
-          <h4>Recent months</h4>
+        <Card title="Recent months">
           <table class="ledger small">
             <thead>
               <tr>
@@ -261,7 +284,7 @@ function OverviewTab() {
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
     </>
   );
@@ -737,7 +760,8 @@ export function CouncilPanel() {
   const s = game.state!;
   if (!s.charter) return null;
   return (
-    <Panel title="The Council" icon="council" class="wide research" onClose={() => game.openPanel(null)} extra={<span class="small muted">Next session in {fmtDays(s.charter.council.nextSession - s.day)} · capital {Math.round(s.charter.capital)}</span>}>
+    <Panel title="The Council" icon="council" class="wide research" onClose={() => game.openPanel(null)}>
+      <CouncilTiles />
       <div class="tabs" role="tablist">
         {(
           [
@@ -752,6 +776,66 @@ export function CouncilPanel() {
       </div>
       <div class="tabbody">{tab === 'agenda' ? <AgendaTab /> : <BlocsTab />}</div>
     </Panel>
+  );
+}
+
+/** The Council at a glance, above both tabs: the next session, how today's agenda would fare, capital, what is in force. */
+function CouncilTiles() {
+  const s = useGame().state!;
+  const c = s.charter!;
+  const k = c.council;
+  // the same list the Agenda tab offers under "Table a resolution"
+  const left = RESOLUTIONS.filter((r) => !k.passed.includes(r.id) && !k.agenda.includes(r.id) && (r.act ?? 3) <= (s.act ?? 3)).length;
+  const passing = k.agenda.filter((id) => forecast(s, id).passes).length;
+  return (
+    <Tiles>
+      <Tile
+        label="Next session"
+        icon="clock"
+        tone="blue"
+        value={fmtDays(k.nextSession - s.day)}
+        sub={`${k.agenda.length} of 3 on the agenda`}
+        tip={`Next session\nThe Council sits every ${CHARTER.sessionDays} days and votes on everything tabled by then.`}
+      />
+      <Tile
+        label="Forecast"
+        icon="vote"
+        tone={!k.agenda.length ? 'plain' : passing === k.agenda.length ? 'good' : 'warn'}
+        value={
+          k.agenda.length ? (
+            <>
+              {passing}
+              <small>of {k.agenda.length}</small>
+            </>
+          ) : (
+            '—'
+          )
+        }
+        sub={k.agenda.length ? 'would pass today' : 'nothing tabled yet'}
+        tip={'Forecast\nHow many of the tabled resolutions would pass if the Council voted today. Whip the waverers with capital, or offer a favour from the treasury.'}
+      />
+      <Tile
+        label="Political capital"
+        icon="council"
+        tone="cyan"
+        value={
+          <>
+            {Math.round(c.capital)}
+            <small>/ 100</small>
+          </>
+        }
+        sub="spent on tabling and whips"
+        tip={'Political capital\nThe Council currency: table resolutions, whip votes, emergency sessions. Earned monthly from your standing and Legitimacy.'}
+      />
+      <Tile
+        label="In force"
+        icon="check"
+        tone="gold"
+        value={k.passed.length}
+        sub={left ? `${left} not yet tabled` : 'nothing left to table'}
+        tip={'In force\nResolutions the Council has passed. The Agenda tab lists them, and the ones still to table.'}
+      />
+    </Tiles>
   );
 }
 
@@ -776,10 +860,7 @@ function AgendaTab() {
   const available = RESOLUTIONS.filter((r) => !k.passed.includes(r.id) && !k.agenda.includes(r.id) && (r.act ?? 3) <= (s.act ?? 3));
   return (
     <>
-      <div class="section" data-tut="agenda">
-        <h4>
-          <Icon name="vote" size="sm" /> On the agenda ({k.agenda.length} / 3)
-        </h4>
+      <Card title={`On the agenda (${k.agenda.length} / 3)`} icon="vote" tut="agenda">
         {!k.agenda.length && <div class="small muted">Nothing tabled. Pick a resolution below.</div>}
         {k.agenda.map((id) => {
           const r = RESOLUTION_BY_ID[id];
@@ -818,9 +899,8 @@ function AgendaTab() {
             </div>
           );
         })}
-      </div>
-      <div class="section" data-tut="table-resolution">
-        <h4>Table a resolution</h4>
+      </Card>
+      <Card title="Table a resolution" tut="table-resolution">
         <div class="buildgrid">
           {available.map((r) => {
             const why = canTable(s, r.id);
@@ -837,10 +917,9 @@ function AgendaTab() {
             );
           })}
         </div>
-      </div>
+      </Card>
       {k.passed.length > 0 && (
-        <div class="section">
-          <h4>In force</h4>
+        <Card title="In force">
           <div class="small">
             {k.passed.map((id) => (
               <div key={id} data-tip={RESOLUTION_BY_ID[id]?.effect}>
@@ -848,7 +927,7 @@ function AgendaTab() {
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
       {k.history.length > 0 && (
         <div class="section small muted">

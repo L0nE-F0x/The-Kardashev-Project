@@ -1,0 +1,333 @@
+/*
+ * Notes on the world (SPEC §34, ui/WorldNotes.tsx): on a campus, remarks and the call-out for the building
+ * under the pointer are pinned to their buildings. Each `.wn` sits with its top-left corner on the point above
+ * the building's roof (a frame loop moves it there); what it shows hangs off that point. Each look has its hand:
+ * paper flags and a pen, grease pencil on the glass, a stylus, labels and brackets of light.
+ */
+.worldnotes {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.wn,
+.wn-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: translate;
+}
+/* the point itself */
+.wn::after {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wn-line, #fff);
+}
+/* the leader from the point to what is said */
+.wn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: var(--wn-len, 34px);
+  height: 2px;
+  transform-origin: 0 50%;
+  rotate: var(--wn-turn, -58deg);
+  background: var(--wn-line, #fff);
+}
+.wn-remark > span {
+  position: absolute;
+  left: 14px;
+  bottom: 26px;
+  white-space: nowrap;
+  zoom: var(--z, 1);
+  animation: wnIn 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.wn-call {
+  --wn-len: 70px;
+  --wn-turn: -39deg;
+}
+.wn-call.flip {
+  --wn-turn: -141deg;
+}
+.wn-card {
+  position: absolute;
+  left: 52px;
+  bottom: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
+  max-width: 300px;
+  padding: 10px 14px 11px;
+  zoom: var(--z, 1);
+  color: var(--text);
+  background: var(--e-glass-solid);
+  border: 1px solid var(--e-line);
+  border-radius: var(--e-r-md);
+  box-shadow: var(--e-shadow-hud);
+  animation: wnIn 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.wn-call.flip .wn-card {
+  left: auto;
+  right: 52px;
+}
+.wn-card .wn-l {
+  font: 600 10.5px / 1.2 var(--font-display);
+  font-stretch: 88%;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.wn-card b {
+  font: 600 18px / 1.15 var(--font-display);
+  color: var(--e-bright);
+}
+.wn-card .wn-s {
+  font-size: 13px;
+  color: var(--muted);
+}
+.wn-bar {
+  display: block;
+  height: 6px;
+  margin: 3px 0 2px;
+  border-radius: 3px;
+  background: var(--e-sunk);
+  overflow: hidden;
+}
+.wn-bar i {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+}
+@keyframes wnIn {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+html.reduce-motion .wn-remark > span,
+html.reduce-motion .wn-card {
+  animation: none;
+}
+
+/* ── look 1: flags of paper, a red pen ── */
+html[data-look='1'] {
+  .wn {
+    --wn-line: #1f2a44;
+  }
+  .wn-remark > span {
+    padding: 2px 12px 3px 9px;
+    font: 700 21px / 1.1 var(--font-hand);
+    color: #1f2a44;
+    background: #ffe86e var(--tx-sticky);
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.3),
+      0 8px 8px -5px rgb(20 10 0 / 0.7);
+    rotate: -3deg;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 50%, 100% 100%, 0 100%);
+  }
+  .wn-remark.warn > span {
+    background-color: #ff9fbd;
+  }
+  .wn-remark.good > span {
+    background-color: #b9ec8a;
+  }
+  .wn-remark.n1 > span {
+    rotate: 2deg;
+  }
+  .wn-ring {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M52 5 C 84 3, 98 24, 96 52 C 94 82, 70 97, 46 96 C 18 94, 3 76, 4 48 C 6 20, 26 6, 60 7' fill='none' stroke='%23cf3a26' stroke-width='3.5' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  }
+}
+/* ── looks 1 and 2: the card is a paper tag on a pin ── */
+html:is([data-look='1'], [data-look='2']) {
+  .wn-card {
+    padding: 14px 14px 10px;
+    color: #1f2a44;
+    background: #fffdf6 var(--tx-paper);
+    border: 0;
+    border-radius: 2px;
+    box-shadow:
+      0 1px 1px rgb(0 0 0 / 0.3),
+      0 14px 14px -8px rgb(20 10 0 / 0.7);
+    rotate: -1deg;
+  }
+  .wn-card::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -7px;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff9d92, #d6392a 50%, #8a1c14);
+    box-shadow: 2px 3px 3px rgb(0 0 0 / 0.35);
+  }
+  .wn-card .wn-l {
+    font: 400 11px / 1.2 var(--font-typed);
+    letter-spacing: 0.12em;
+    color: #c2311d;
+  }
+  .wn-card b {
+    font: 400 21px / 1.1 var(--font-marker);
+    color: #1f2a44;
+  }
+  .wn-card .wn-s {
+    font: 700 18px / 1.1 var(--font-hand);
+    color: #27478f;
+  }
+  .wn-bar {
+    height: 9px;
+    border-radius: 0;
+    background: rgb(255 255 255 / 0.5);
+    box-shadow: inset 0 0 0 1.5px #1f2a44;
+  }
+  .wn-bar i {
+    background: repeating-linear-gradient(-45deg, #27478f 0 2.5px, transparent 2.5px 5px);
+  }
+}
+/* ── look 2: grease pencil on the glass ── */
+html[data-look='2'] {
+  .wn {
+    --wn-line: #fff3c4;
+  }
+  .wn::before {
+    height: 3px;
+    border-radius: 2px;
+    opacity: 0.92;
+  }
+  .wn-remark > span {
+    padding: 0 2px 3px;
+    font: 400 21px / 1.05 var(--font-marker);
+    color: #fff3c4;
+    text-shadow:
+      0 1px 2px rgb(0 0 0 / 0.75),
+      0 0 12px rgb(0 0 0 / 0.5);
+    border-bottom: 3px solid #fff3c4;
+    border-radius: 0 0 40% 20% / 0 0 6px 4px;
+    rotate: -4deg;
+  }
+  .wn-remark.warn > span {
+    color: #ff8f7a;
+    border-color: #ff8f7a;
+  }
+  .wn-remark.n1 > span {
+    rotate: 2deg;
+  }
+  .wn-ring {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M52 5 C 84 3, 98 24, 96 52 C 94 82, 70 97, 46 96 C 18 94, 3 76, 4 48 C 6 20, 26 6, 60 7' fill='none' stroke='%23fff3c4' stroke-width='4' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+    opacity: 0.92;
+  }
+}
+/* ── look 3: a stylus, in light ── */
+html[data-look='3'] {
+  .wn {
+    --wn-line: rgb(255 255 255 / 0.85);
+  }
+  .wn::before {
+    height: 1.5px;
+  }
+  .wn-remark > span {
+    font: 700 26px / 1 var(--font-hand);
+    color: #9be2ff;
+    text-shadow:
+      0 0 12px rgb(92 192 255 / 0.9),
+      0 1px 3px rgb(0 0 0 / 0.7);
+    rotate: -4deg;
+  }
+  .wn-remark.warn > span {
+    color: #ffd08a;
+    text-shadow:
+      0 0 12px rgb(255 170 80 / 0.9),
+      0 1px 3px rgb(0 0 0 / 0.7);
+  }
+  .wn-ring {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M52 5 C 84 3, 98 24, 96 52 C 94 82, 70 97, 46 96 C 18 94, 3 76, 4 48 C 6 20, 26 6, 60 7' fill='none' stroke='%239be2ff' stroke-width='3' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    filter: drop-shadow(0 0 6px rgb(92 192 255 / 0.9));
+  }
+  .wn-card {
+    background: #12141c;
+    border: 0;
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.14),
+      0 18px 30px -12px #000;
+  }
+}
+/* ── looks 4 and 5: labels and brackets of light ── */
+html:is([data-look='4'], [data-look='5']) {
+  .wn {
+    --wn-line: #5ff5e0;
+  }
+  .wn::before {
+    height: 1.5px;
+    background: repeating-linear-gradient(90deg, #5ff5e0 0 5px, transparent 5px 8px);
+  }
+  .wn::after {
+    left: -3px;
+    top: -3px;
+    width: 6px;
+    height: 6px;
+    border-radius: 0;
+    rotate: 45deg;
+    box-shadow: 0 0 8px #5ff5e0;
+  }
+  .wn-remark > span {
+    font: 600 12.5px / 1 var(--font-display);
+    font-stretch: 88%;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #c9fff6;
+    text-shadow:
+      0 0 12px rgb(95 245 224 / 0.9),
+      0 1px 3px rgb(0 0 0 / 0.8);
+  }
+  .wn-remark.warn > span {
+    color: #ffd98a;
+    text-shadow:
+      0 0 12px rgb(255 182 72 / 0.9),
+      0 1px 3px rgb(0 0 0 / 0.8);
+  }
+  .wn-ring {
+    --c: #5ff5e0;
+    --l: 22px;
+    --b: 2px;
+    background:
+      linear-gradient(var(--c), var(--c)) 0 0 / var(--l) var(--b),
+      linear-gradient(var(--c), var(--c)) 0 0 / var(--b) var(--l),
+      linear-gradient(var(--c), var(--c)) 100% 0 / var(--l) var(--b),
+      linear-gradient(var(--c), var(--c)) 100% 0 / var(--b) var(--l),
+      linear-gradient(var(--c), var(--c)) 0 100% / var(--l) var(--b),
+      linear-gradient(var(--c), var(--c)) 0 100% / var(--b) var(--l),
+      linear-gradient(var(--c), var(--c)) 100% 100% / var(--l) var(--b),
+      linear-gradient(var(--c), var(--c)) 100% 100% / var(--b) var(--l);
+    background-repeat: no-repeat;
+    filter: drop-shadow(0 0 6px rgb(95 245 224 / 0.9));
+  }
+  .wn-card {
+    border: 1px solid rgb(95 245 224 / 0.55);
+    border-radius: 0;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+  }
+  .wn-card b {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .wn-bar {
+    border-radius: 0;
+    background: rgb(95 245 224 / 0.14);
+  }
+  .wn-bar i {
+    -webkit-mask: repeating-linear-gradient(90deg, #000 0 9px, transparent 9px 12px);
+    mask: repeating-linear-gradient(90deg, #000 0 9px, transparent 9px 12px);
+    box-shadow: 0 0 10px rgb(95 245 224 / 0.8);
+  }
+}

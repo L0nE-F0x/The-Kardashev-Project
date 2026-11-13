@@ -177,7 +177,7 @@ export const TUTORIAL: TutorialStep[] = [
     enter: (g) => {
       g.panel = null;
     },
-    text: () => 'Now the waiting part: the hall takes the best part of a year. That’s the rhythm of this game — set things in motion, then let time run. Try ▶▶▶ now — or, once I’m done talking, ⏭ Skip to next under the goal card jumps straight to the next thing we’re waiting for. I stop the clock myself whenever a card needs you.',
+    text: () => 'Now the waiting part: the hall takes the best part of a year. That’s the rhythm of this game — set things in motion, then let time run. Try ▶▶▶ now — or, once I’m done talking, clicking the first thing in Coming up, along the bottom, jumps straight to it. I stop the clock myself whenever a card needs you.',
     done: (g) => g.speed >= 4,
     next: 'Later',
   },

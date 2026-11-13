@@ -1,0 +1,55 @@
+/*
+ * High contrast in each look (Settings → Accessibility): the looks set their own surfaces and lines after
+ * tokens.css, so its contrast block does not reach them. Paper gets black ink and solid rules; glass and light
+ * get solid panes, bright edges and brighter small text. The world's notes get a dark plate behind their words.
+ */
+html.edition-3d.contrast:not(.ui-classic):is([data-look='1'], [data-look='2']) {
+  --ink: #000;
+  --text: #05070d;
+  --muted: #2b2924;
+  --dim: #47443c;
+  --e-bright: #000;
+  --pen: #12307a;
+  --gold: #6e3f00;
+  --good: #14602b;
+  --bad: #a01c0c;
+  --warn: #7a4600;
+  --e-line: rgb(0 0 0 / 0.75);
+  --e-line-soft: rgb(0 0 0 / 0.45);
+  --e-line-strong: #000;
+}
+html.edition-3d.contrast:not(.ui-classic)[data-look='2'] {
+  --amber: #ffd08a;
+}
+html.edition-3d.contrast:not(.ui-classic)[data-look='3'] {
+  --e-line: rgb(255 255 255 / 0.5);
+  --e-line-soft: rgb(255 255 255 / 0.3);
+  --e-line-strong: #fff;
+  --muted: #cfd3e0;
+  --dim: #aab0c2;
+  --screen: #000;
+}
+html.edition-3d.contrast:not(.ui-classic):is([data-look='4'], [data-look='5']) {
+  --e-glass: #03121a;
+  --e-glass-hud: #03121a;
+  --e-glass-solid: #03121a;
+  --e-line: rgb(var(--holo) / 0.8);
+  --e-line-soft: rgb(var(--holo) / 0.5);
+  --e-line-strong: #c9fff6;
+  --muted: #cdeeeb;
+  --dim: #a9d6d3;
+}
+html.edition-3d.contrast:not(.ui-classic)[data-look='5'] {
+  .stat,
+  .topbar > .kmeter,
+  .clock,
+  .foot-news,
+  .foot-line {
+    background: #03121a;
+  }
+}
+html.contrast:is([data-look='2'], [data-look='3'], [data-look='4'], [data-look='5']) .wn-remark > span {
+  padding: 3px 8px;
+  background: rgb(0 0 0 / 0.82);
+  border-radius: 3px;
+}
