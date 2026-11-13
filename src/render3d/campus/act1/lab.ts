@@ -133,16 +133,14 @@ export function lab(o: { seed: number; tier: number }): Piece {
     top = Math.max(top, wing(k, lit, lamps, g, fans, e, { storeys: 3, faces: { 'z+': 0, 'x+': 0, 'z-': 0, 'x-': 2 }, door: e.x0 + 3.2, seed: o.seed + 10 }));
     blockers.push({ x0: e.x0 - 0.2, z0: e.z0 - 0.2, x1: e.x1 + 0.2, z1: e.z1 + 0.2 }, { x0: rear.x0 - 0.2, z0: rear.z0 - 0.2, x1: rear.x1, z1: rear.z1 + 0.2 });
     doors.push({ x: e.x0 + 3.2, z: e.z1 + 0.75 });
-    // the court in front of the east wing: two trees in planters, a bench between them
-    for (const x of [6.9, 9.4]) {
+    // the court in front of the east wing: two trees in planters (the scene sets out the benches)
+    for (const x of [7.7, 9.8]) {
       const z = e.z1 + 3.1;
       k.box(1.5, 0.42, 1.5, '#b9b1a6', x, 0.1, z, { r: 0.06 });
       k.box(1.26, 0.06, 1.26, '#6b5a3a', x, 0.5, z, { r: 0, jitter: 0.03, shade: 0 });
       trees.push({ x, y: 0.5, z, s: 0.92 + r() * 0.12, ry: r() * 6.3 });
       blockers.push({ x0: x - 0.8, z0: z - 0.8, x1: x + 0.8, z1: z + 0.8 });
     }
-    k.box(1.5, 0.08, 0.45, '#8c6a48', 8.15, 0.55, e.z1 + 3.1, { r: 0.02 });
-    for (const dx of [-0.6, 0.6]) k.box(0.08, 0.45, 0.4, FRAME, 8.15 + dx, 0.12, e.z1 + 3.1, { r: 0, jitter: 0 });
   }
   // the car park in front: asphalt inside a kerb, bay lines, wheel stops, two lamps (a walk is left between it
   // and the building, so the doors can be reached)
