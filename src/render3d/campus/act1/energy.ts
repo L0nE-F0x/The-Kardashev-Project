@@ -88,7 +88,7 @@ export function solar(o: { seed: number; w: number; d: number; tier: number }): 
   // the inverter station and a lamp in the front strip, a weather mast with its pyranometer
   const sx0 = lane / 2 + 5.2, sz = o.d / 2 - 2.5;
   inverterStation(k, sx0, sz);
-  poleLamp(k, lamps, g, lane / 2 + 0.5, sz + 0.4, 4.4, 1, 0.1);
+  poleLamp(k, lamps, g, lane / 2 + 0.5, sz + 0.4, 4.5, 1, 0);
   const mx = -lane / 2 - 2.0;
   k.box(0.5, 0.1, 0.5, P.concrete2, mx, 0.08, sz, { r: 0.02, shade: 0 });
   k.cyl(0.04, 0.06, 4.2, P.galv, mx, 0.15, sz, 6);
@@ -219,7 +219,7 @@ export function battery(o: { seed: number; tier: number }): Piece {
   lamps.box(0.16, 0.16, 0.42, '#e9e1d2', ex - 1.22, 2.42, ez + 0.6, { r: 0, jitter: 0 });
   k.box(0.5, 1.3, 0.4, 'red3', ex - 1.0, 0.14, ez - 2.3, { r: 0.03 });
   // lamps on masts at the yard's corners and by the skids
-  for (const [x, z, dir] of [[-12.2, -11.3, 1], [12.2, -11.3, -1], [-12.2, 4.6, 1], [12.2, 4.6, -1]] as [number, number, number][]) poleLamp(k, lamps, g, x, z, 5.4, dir, 0.1);
+  for (const [x, z, dir] of [[-12.2, -11.3, 1], [12.2, -11.3, -1], [-12.2, 4.6, 1], [12.2, 4.6, -1]] as [number, number, number][]) poleLamp(k, lamps, g, x, z, 5.5, dir, 0);
   for (const x of skidX) wallLamp(lamps, g, x - 1.25, 2.46, sz + 0.75, 0, warmPool, 2.8);
   g.add(k.build(), lamps.build(lampHeadMat));
   const h = 3.4;
