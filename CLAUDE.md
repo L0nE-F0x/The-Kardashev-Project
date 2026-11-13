@@ -9,7 +9,8 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.13.2 "Solid Ground"** (the visual bug sweep: feet and cars on their surfaces, car parks, paths,
+Current build: **v0.13.3 "Steady Hand"** (the Linux app no longer crashes at the first click on the stronger
+graphics card: the system engine's GStreamer found no plugins) on top of v0.13.2 "Solid Ground" (the visual bug sweep: feet and cars on their surfaces, car parks, paths,
 skies, the globe, the menu film, no emoji in the interface: SPEC §32) on top of v0.13.1 "Strong Suit" (the stronger
 graphics card made fast in the Linux app: SPEC §31) on top of
 v0.13.0 "New Faces" on top of v0.12.0 "All In" on top of v0.11.0 "Golden Hour" (the grand polish pass on the 3D edition: sky, light and atmosphere on the
@@ -310,9 +311,13 @@ src-tauri/    Tauri 2 desktop shell (one window loading play/index.html from dis
               The game's side (`Game.watchGpu`): every start measures frames really drawn on the title screen
               (`measureFps`), the automatic card's figure is kept in localStorage (`kardashev.gpuBase`), the trial
               shows both and calls the stronger card slower under 12 frames/s or under 85% of the automatic one; a
-              kept choice that runs under 12 gets a "go back?" question. Test like the app does it: mount the real
-              AppImage (`--appimage-mount`), source its `apprun-hooks`, put its `usr/lib` first in LD_LIBRARY_PATH,
-              `cd` to its `usr` and run the debug binary with `APPDIR` set (the session's `as-appimage.sh`)
+              kept choice that runs under 12 gets a "go back?" question. `system_engine` strips every AppImage path
+              from every variable: v0.13.1 listed names and missed AppRun.wrapped's plain `GST_PLUGIN_SYSTEM_PATH`,
+              so the system's GStreamer found no plugins and WebKit aborted at the first click (audio start). Test
+              like the app does it: `--appimage-extract` the real AppImage into a scratch dir, drop the new binary
+              into `squashfs-root/usr/bin/`, run `squashfs-root/AppRun` with `APPDIR` set (the runtime's job) and
+              scratch XDG dirs, then press something (a `pointerdown` starts the audio); hooks alone miss
+              AppRun.wrapped's variables
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
 .github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + latest.json on a draft GitHub release

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.3 — Steady Hand (2026-11-13)
+A fix for the stronger graphics card on Linux.
+
+- **Fixed: the Linux app could crash at the first click after switching to the stronger graphics card** (often on "Keep it"), leaving a black window. The game's sound could not find what it needs to play on the system's web engine, which the app uses on that card. Sound now plays there and the game keeps running. If it happened to you, the game already went back to the automatic card by itself; update, then choose Stronger again in Settings → Display.
+
 ## 0.13.2 — Solid Ground (2026-11-11)
 A sweep for things that looked wrong: on the campuses, on the globe, in space and in the interface.
 

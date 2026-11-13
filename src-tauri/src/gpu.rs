@@ -125,35 +125,48 @@ fn system_engine() {
         return;
     }
     let Ok(exe) = std::env::current_exe() else { return };
-    let outside = |v: &str| -> String {
-        std::env::var(v)
-            .unwrap_or_default()
-            .split(':')
-            .filter(|p| !p.is_empty() && !std::path::Path::new(p).starts_with(&appdir) && !p.contains("/.mount_"))
-            .collect::<Vec<_>>()
-            .join(":")
-    };
-    // the system's folders first: they win over the program's own library path, which stays as the fallback
-    let mut libs: Vec<String> = places.iter().filter(|d| std::path::Path::new(d).is_dir()).map(|d| d.to_string()).collect();
-    let rest = outside("LD_LIBRARY_PATH");
-    if !rest.is_empty() {
-        libs.push(rest);
-    }
     let mut cmd = std::process::Command::new(exe);
     cmd.args(std::env::args_os().skip(1));
-    cmd.env("LD_LIBRARY_PATH", libs.join(":"));
-    cmd.env("XDG_DATA_DIRS", outside("XDG_DATA_DIRS"));
-    // what the AppImage's launcher points at its own GTK, GIO and GStreamer: the system's libraries need their own
-    for key in [
-        "GTK_DATA_PREFIX", "GTK_EXE_PREFIX", "GTK_PATH", "GTK_IM_MODULE_FILE", "GTK_THEME", "GDK_PIXBUF_MODULE_FILE",
-        "GSETTINGS_SCHEMA_DIR", "GI_TYPELIB_PATH", "GIO_MODULE_DIR", "GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0",
-        "GST_PLUGIN_SCANNER_1_0", "GST_PTP_HELPER_1_0", "GST_REGISTRY_REUSE_PLUGIN_SCANNER",
-    ] {
+    // Everything the AppImage's launcher points into the image (its GTK, GIO, GStreamer, Python, Qt...) has to go:
+    // the system's libraries need their own. Every variable, not a list: v0.13.1 listed GStreamer's `_1_0` names
+    // and missed the plain GST_PLUGIN_SYSTEM_PATH that AppRun.wrapped also sets, so the system's GStreamer looked
+    // for plugins only inside the image, found none, and WebKit aborted the page when the game's audio started.
+    for (key, value) in std::env::vars_os() {
+        if matches!(key.to_str(), Some("APPDIR" | "APPIMAGE" | "ARGV0" | "OWD" | "LD_LIBRARY_PATH")) {
+            continue;
+        }
+        let Some(value) = value.to_str() else { continue };
+        if !value.contains(&*appdir.to_string_lossy()) && !value.contains("/.mount_") {
+            continue;
+        }
+        match outside_image(value, &appdir) {
+            Some(kept) => cmd.env(&key, kept),
+            None => cmd.env_remove(&key),
+        };
+    }
+    // not paths, but the launcher's too
+    for key in ["GTK_THEME", "GST_REGISTRY_REUSE_PLUGIN_SCANNER"] {
         cmd.env_remove(key);
     }
+    // the system's folders first: they win over the program's own library path, which stays as the fallback
+    let mut libs: Vec<String> = places.iter().filter(|d| std::path::Path::new(d).is_dir()).map(|d| d.to_string()).collect();
+    if let Some(rest) = std::env::var("LD_LIBRARY_PATH").ok().and_then(|v| outside_image(&v, &appdir)) {
+        libs.push(rest);
+    }
+    cmd.env("LD_LIBRARY_PATH", libs.join(":"));
     // the same process id after exec: how the new image knows this start was already decided
     cmd.env(SYSTEM_ENGINE, std::process::id().to_string());
     let _failed = cmd.exec();
+}
+
+/// A path list without the entries inside the AppImage (its mount point or `appdir`); None when nothing is left.
+#[cfg(any(target_os = "linux", test))]
+fn outside_image(value: &str, appdir: &std::path::Path) -> Option<String> {
+    let kept: Vec<&str> = value
+        .split(':')
+        .filter(|p| !p.is_empty() && !std::path::Path::new(p).starts_with(appdir) && !p.contains("/.mount_"))
+        .collect();
+    if kept.is_empty() { None } else { Some(kept.join(":")) }
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -307,5 +320,18 @@ mod tests {
         let (apply, next) = step(&s("strong", "ok"));
         assert!(apply);
         assert!(next.is_none());
+    }
+
+    #[test]
+    fn the_system_engine_sees_nothing_of_the_image() {
+        let app = std::path::Path::new("/tmp/.mount_TheKarAbc");
+        // what AppRun.wrapped sets: GStreamer then found no plugins and WebKit aborted when the audio started
+        assert_eq!(outside_image("/tmp/.mount_TheKarAbc/usr/lib/gstreamer:", app), None);
+        assert_eq!(
+            outside_image("/tmp/.mount_TheKarAbc/usr/share:/usr/share::/usr/local/share", app).as_deref(),
+            Some("/usr/share:/usr/local/share")
+        );
+        // an extracted image (no mount point) is told apart by its folder
+        assert_eq!(outside_image("/opt/kp/usr/lib:/usr/lib", std::path::Path::new("/opt/kp")).as_deref(), Some("/usr/lib"));
     }
 }
