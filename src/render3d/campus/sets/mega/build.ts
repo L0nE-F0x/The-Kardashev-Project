@@ -16,6 +16,8 @@ import { containerUnit, postUnit, tableUnit } from './solar';
 import { bladeGeo, foundation, jackup } from './wind';
 import { ctK, geoPad } from './thermal';
 import { hydroScheme } from './hydro';
+import { ringWall } from '../fusion/common';
+import { At, pipeRun } from '../../plants2/parts';
 
 type Win = [number, number, number, number, number, number?][];
 
@@ -455,7 +457,7 @@ function fusionBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint, design: s
   const cx = -3, cz = -4, R = 10;
   const hue = FUSION_HUE[design] ?? FUSION_HUE.tokamak;
   const steel = '#b9c2c4';
-  const lit = new THREE.Mesh(new THREE.TorusGeometry(design === 'laser' ? 4.3 : design === 'dhe3' ? 2.75 : 5.6, 0.08, 4, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(hue), toneMapped: false }));
+  const lit = new THREE.Mesh(new THREE.TorusGeometry(design === 'laser' ? 3.95 : design === 'dhe3' ? 2.75 : 5.6, 0.08, 4, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(hue), toneMapped: false }));
   lit.visible = p >= 0.75;
   g.add(lit);
   if (design === 'dhe3') {
@@ -524,48 +526,86 @@ function fusionBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint, design: s
     }
     for (const sz of [-1, 1]) if (p >= 0.5) k.box(hw * 2, 0.24, 0.24, shade(acc, -0.12), cx, 0.6 + colH - 0.3, cz + sz * hd, { r: 0 });
     lit.position.set(cx, 4.4, cz);
+  } else if (design === 'laser') {
+    // the finished plant's own plan (fusion/laser.ts: the same centre, sizes and angles), part built: the target
+    // chamber in its low open bioshield ring, its shell closing from the bottom up on the pedestal inside a
+    // scaffold; the two laser bays that converge on it in a V going up as steel frames on their slabs, clad from
+    // the far end; the end frames and the first beam tubes last
+    const lx = -2.2, lz = -4.6, cy = 6.5, CR = 3.8;
+    k.cyl(6.7, 6.9, 0.45, P.concreteD, lx, 0, lz, 48);
+    k.geo(ringWall(6.4, 5.4, 0.45, 2.0 * Math.min(1, 0.3 + p * 1.4), 0.55, TAU - 0.55, 64).translate(lx, 0, lz), '#d6cfc4', 0.03, 0.14);
+    k.cyl(1.7, 2.1, CR * 0.62 + 0.4, '#aaa39a', lx, 0.45, lz, 20);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * TAU + 0.4;
+      k.beam(V(lx + Math.sin(a) * 3.6, 0.45, lz + Math.cos(a) * 3.6), V(lx + Math.sin(a) * 2.2, cy - 2.4, lz + Math.cos(a) * 2.2), 0.4, '#7a7186');
+    }
+    const f = Math.min(1, 0.35 + p * 0.85), top = cy + CR * Math.cos(Math.PI * (1 - f));
+    k.geo(new THREE.SphereGeometry(CR, 28, 18, 0, TAU, Math.PI * (1 - f), Math.PI * f).translate(lx, cy, lz), steel, 0.02);
+    if (f < 1) {
+      k.geo(new THREE.TorusGeometry(CR * Math.sin(Math.PI * f), 0.14, 6, 28).rotateX(Math.PI / 2).translate(lx, top, lz), '#8a8490', 0.02);
+      k.geo(new THREE.CircleGeometry(CR * Math.sin(Math.PI * f) - 0.1, 28).rotateX(-Math.PI / 2).translate(lx, top - 0.3, lz), '#3a3448', 0, 0);
+    }
+    // the scaffold round the shell: standards, a ledger and a deck at each lift, up to the working edge
+    const lifts = Math.max(1, Math.floor((top + 0.6 - 0.45) / 2.3));
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU + 0.26;
+      k.box(0.1, lifts * 2.3 + 1.1, 0.1, acc, lx + Math.sin(a) * 5.0, 0.45, lz + Math.cos(a) * 5.0, { r: 0 });
+    }
+    for (let j = 1; j <= lifts; j++) {
+      k.geo(new THREE.TorusGeometry(5.0, 0.05, 4, 36).rotateX(Math.PI / 2).translate(lx, 0.45 + j * 2.3 + 1.0, lz), acc, 0, 0);
+      k.geo(new THREE.RingGeometry(4.45, 5.05, 36).rotateX(-Math.PI / 2).translate(lx, 0.45 + j * 2.3, lz), '#aaa4b0', 0.03, 0);
+    }
+    const Lb = 12.4, Wb = 5.4, Hb = 4.4, inner = 7.0, bays = 6, bl = (Lb - 0.4) / bays;
+    const fh = (Hb - 0.15) * Math.min(1, 0.3 + p * 1.4);
+    const clad = Math.round((bays - 1) * clamp01((p - 0.45) * 2.2));
+    const tubes = p >= 0.75 ? 4 : 0;
+    const portAt = (az: number, el: number) => V(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+    [Math.PI + 0.45, Math.PI - 0.45].forEach((phi, bi) => {
+      const dx = Math.cos(phi), dz = Math.sin(phi), mid = inner + Lb / 2;
+      const a = new At(k, lx + dx * mid, 0, lz + dz * mid, Math.PI - phi);
+      a.box(Lb + 0.4, 0.4, Wb + 0.4, P.concrete, 0, 0, 0, { r: 0.06 });
+      for (let i = 0; i <= bays; i++) {
+        const x = -Lb / 2 + 0.2 + i * bl;
+        for (const sz of [-1, 1]) a.box(0.28, fh, 0.28, shade(acc, -0.05), x, 0.4, sz * (Wb / 2 - 0.16), { r: 0, jitter: 0 });
+        if (p >= 0.5) a.box(0.2, 0.24, Wb - 0.3, '#8a8490', x, 0.4 + fh - 0.24, 0, { r: 0, jitter: 0 });
+      }
+      if (p >= 0.5) for (const sz of [-1, 1]) a.box(Lb - 0.4, 0.24, 0.2, '#8a8490', 0, 0.4 + fh - 0.24, sz * (Wb / 2 - 0.16), { r: 0, jitter: 0 });
+      if (clad) {
+        // (the far end first: walls, the band, the roof deck)
+        const len = clad * bl + 0.2, x = -Lb / 2 + len / 2;
+        a.box(len, Hb, Wb, '#e3ddd3', x, 0.3, 0, { r: 0.1, shade: 0.14 });
+        a.box(len + 0.03, 0.42, Wb + 0.05, acc, x, Hb - 0.55, 0, { r: 0.04, shade: 0 });
+        a.box(len + 0.15, 0.3, Wb + 0.3, P.roof, x, Hb + 0.2, 0, { r: 0.06, shade: 0 });
+        a.box(0.1, 2.1, 1.2, '#5b5562', -Lb / 2 - 0.03, 0.35, 0, { r: 0, jitter: 0 });
+      }
+      if (p >= 0.5) {
+        // the end frame the beamlines will leave from, then the first of them
+        a.box(0.7, Hb + 1.2, Wb - 1.0, '#9aa0a8', Lb / 2 + 0.35, 0.3, 0, { r: 0.06 });
+        for (const y of [1.2, 2.8, 4.4]) a.box(0.74, 0.14, Wb - 0.9, '#5b5562', Lb / 2 + 0.35, y, 0, { r: 0, jitter: 0 });
+      }
+      const starts: [number, number][] = [[-1.4, 2.9], [1.4, 2.9], [-0.7, 4.3], [0.7, 4.3]];
+      starts.slice(0, tubes).forEach(([side, y], i) => {
+        const az = Math.atan2(dx, dz) + (side < 0 ? -0.36 : 0.36) * (bi === 0 ? -1 : 1);
+        const pd = portAt(az, i < 2 ? -0.25 : 0.25);
+        pipeRun(k, [a.pt(Lb / 2 + 0.75, y, side), V(lx, cy, lz).addScaledVector(pd, CR + 0.2)], 0.22, '#c3c8cc', { seg: 8 });
+      });
+    });
+    lit.position.set(lx, cy, lz);
   } else {
     // the bioshield: a thick round wall rising, the machine being assembled inside it (a tokamak's goes up to the
-    // hall's eaves; a pinch plant keeps a low ring; a laser plant has none: its target chamber stands in the open)
+    // hall's eaves; a pinch plant keeps a low ring)
     const wallH = design === 'pinch' ? Math.max(1.2, 2.6 * Math.min(1, p * 2)) : Math.max(1.5, 11 * Math.min(1, p * 1.2));
     k.cyl(R + 1.2, R + 1.4, 0.8, P.concreteD, cx, 0, cz, 40);
     // the wall is left open towards the road until the machine is in (the gap closes as it goes on)
     const gap = 0.75 - p * 0.45;
-    if (design !== 'laser') {
-      k.geo(new THREE.CylinderGeometry(R, R, wallH, 40, 1, true, gap, TAU - 2 * gap).translate(cx, 0.8 + wallH / 2, cz), '#d8d0c4', 0.02, 0.12);
-      k.geo(innerWall(R - 1.2, 0.8, 0.8 + wallH, 40, gap, TAU - 2 * gap).translate(cx, 0, cz), '#9d95a6', 0.02);
-      k.geo(new THREE.RingGeometry(R - 1.2, R, 40, 1, -Math.PI / 2 + gap, TAU - 2 * gap).rotateX(-Math.PI / 2).translate(cx, 0.8 + wallH, cz), '#cfc7bb', 0.02);
-      for (const sgn of [-1, 1]) {
-        const a = sgn * gap;
-        k.box(1.3, wallH, 0.3, '#cfc7bb', cx + Math.sin(a) * (R - 0.6), 0.8, cz + Math.cos(a) * (R - 0.6), { r: 0.04, ry: a + Math.PI / 2 });
-      }
+    k.geo(new THREE.CylinderGeometry(R, R, wallH, 40, 1, true, gap, TAU - 2 * gap).translate(cx, 0.8 + wallH / 2, cz), '#d8d0c4', 0.02, 0.12);
+    k.geo(innerWall(R - 1.2, 0.8, 0.8 + wallH, 40, gap, TAU - 2 * gap).translate(cx, 0, cz), '#9d95a6', 0.02);
+    k.geo(new THREE.RingGeometry(R - 1.2, R, 40, 1, -Math.PI / 2 + gap, TAU - 2 * gap).rotateX(-Math.PI / 2).translate(cx, 0.8 + wallH, cz), '#cfc7bb', 0.02);
+    for (const sgn of [-1, 1]) {
+      const a = sgn * gap;
+      k.box(1.3, wallH, 0.3, '#cfc7bb', cx + Math.sin(a) * (R - 0.6), 0.8, cz + Math.cos(a) * (R - 0.6), { r: 0.04, ry: a + Math.PI / 2 });
     }
-    if (design === 'laser') {
-      // the target chamber on its pedestal, its shell closed from the bottom up, the beam tubes going on, and the
-      // steel of the three laser bays rising toward it
-      const f = Math.min(1, 0.35 + p * 0.85);
-      k.cyl(2.6, 3.0, 2.0, '#cfc7bb', cx, 0.8, cz, 20);
-      k.geo(new THREE.SphereGeometry(4.2, 20, 14, 0, TAU, Math.PI * (1 - f), Math.PI * f).translate(cx, 6.6, cz), steel, 0.02);
-      if (f < 1) k.geo(new THREE.TorusGeometry(4.2 * Math.sin(Math.PI * f), 0.14, 6, 24).rotateX(Math.PI / 2).translate(cx, 6.6 - 4.2 * Math.cos(Math.PI * (1 - f)) * -1, cz), '#8a8490', 0.02);
-      const tubes = Math.round(12 * Math.min(1, p * 1.3));
-      for (let i = 0; i < tubes; i++) {
-        const a = (i / 12) * TAU;
-        hcyl(k, 0.3, 3, '#8a8490', cx + Math.cos(a) * 5.2, 6.6 + (i % 2 ? 0.9 : -1.6), cz + Math.sin(a) * 5.2, i % 2 ? 'x' : 'z', 8);
-      }
-      const fh = 6 * Math.min(1, p * 1.3);
-      for (const wa of [Math.PI, Math.PI * 0.72, Math.PI * 1.28]) {
-        const dx = Math.cos(wa), dz = Math.sin(wa);
-        for (let d = 7; d <= 17; d += 2.5) for (const sd of [-2.6, 2.6]) {
-          const x = cx + dx * d - dz * sd, z = cz + dz * d + dx * sd;
-          if (Math.abs(z) > D / 2 - 1.5 || Math.abs(x) > W / 2 - 1.5) continue;
-          k.box(0.3, fh, 0.3, shade(acc, -0.05), x, 0, z, { r: 0 });
-        }
-        if (p >= 0.5) for (const sd of [-2.6, 2.6]) {
-          const far = Math.min(17, (D / 2 - 1.5 - Math.abs(cz)) / Math.max(0.01, Math.abs(dz)) - 2.6);
-          k.beam(V(cx + dx * 7 - dz * sd, fh, cz + dz * 7 + dx * sd), V(cx + dx * far - dz * sd, fh, cz + dz * far + dx * sd), 0.24, '#8a8490');
-        }
-      }
-    } else if (design === 'pinch') {
+    if (design === 'pinch') {
       // the vessel going up on its plinth under the gantry that will serve it, the capacitor banks set round one by one
       const vh = 9 * Math.min(1, 0.3 + p);
       k.cyl(4.2, 4.4, 1.5, '#a9a197', cx, 0.8, cz, 16, { shade: 0.15 });
@@ -595,9 +635,9 @@ function fusionBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint, design: s
       }
       k.cyl(1.4, 1.4, 6.6, '#8a8490', cx, 0.8, cz, 16);
     }
-    lit.position.set(cx, design === 'laser' ? 6.6 : design === 'pinch' ? 4.4 : 4.2, cz);
+    lit.position.set(cx, design === 'pinch' ? 4.4 : 4.2, cz);
     // the hall's frame rising round it (the tokamak's hall: the others stand in the open), a tower crane
-    const hh = design === 'laser' || design === 'pinch' ? 0 : 18 * Math.min(1, p * 1.15);
+    const hh = design === 'pinch' ? 0 : 18 * Math.min(1, p * 1.15);
     if (hh) for (let i = 0; i < 10; i++) {
       const a = (i / 10) * TAU;
       k.box(0.5, hh, 0.5, '#8a8490', cx + Math.cos(a) * (R + 2), 0, cz + Math.sin(a) * (R + 2), { r: 0 });
@@ -613,7 +653,9 @@ function fusionBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint, design: s
   g.add(tc);
   anim.add((e) => workCrane(tc, e, 2.6, 1.0, 12));
   const c2 = towerCrane(24, 18, acc, hi, o.seed + 5);
-  c2.position.set(cx - R - 3.5, 0, cz - 5);
+  // (a laser plant's second crane stands between its two bays, where the capacitor hall will be)
+  if (design === 'laser') c2.position.set(-15.9, 0, -4.6);
+  else c2.position.set(cx - R - 3.5, 0, cz - 5);
   if ((o.n ?? 1) >= 2) {
     g.add(c2);
     anim.add((e) => workCrane(c2, e, 0.2, 1.1, 10));
