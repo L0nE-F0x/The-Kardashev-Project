@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.1 — Loose Ends (2026-11-14)
+What the realism pass saw and left, finished.
+
+- **Wheels turn.** Every car, van and truck rolls on wheels that go round, at the speed it is driving.
+- **The flatbed comes in colours** like the other vehicles. Only its cab takes the paint: the timber deck and the load's straps stay as they are.
+- **Buildings go up at the pace of the work.** A plant used to have its low buildings finished in the first quarter of the build and then nothing but one stack climbing for the rest. Now the foundations and the halls take most of the time and the tall parts follow.
+- **An expansion looks like one.** Upgrading a building used to show the finished bigger one from the first day. Now the old building stands in scaffolding while the new one rises through it from the ground; solar fields, battery yards and wind farms gain their new rows a few at a time.
+- **A reactor restart is an old plant put back to work:** it stands there whole from the first day, cold, with a crane over it, and steams when it comes online. It used to be "built" from the ground like a new one.
+- **Parked cars arrive when a building opens.** They used to grow out of the car park slice by slice with the walls.
+- **The concrete mixer no longer parks inside the entrance** of a building that fills its plot.
+- **People's feet:** nobody floats beside a porch or a step any more (the map of what can be stood on is twice as fine). Nobody walks into the garage's open bay, through the workbench, and vanishes: the front door is the way in.
+- **On the Moon, crews lope:** long, slow, low strides, leaning into them.
+- **Street lamps** are a tapered column with a swept arm and a lantern, not a square post with a square bar.
+- **The Steppe Cosmodrome is inland:** no sea behind its pad, and no surf to hear.
+
 ## 0.15.0 — True to Life (2026-11-14)
 A pass over the 3D world for everything that would not be so in real life.
 
