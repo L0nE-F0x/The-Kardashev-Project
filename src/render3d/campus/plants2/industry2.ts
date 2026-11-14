@@ -10,11 +10,10 @@ import { plantOn } from '../trees';
 import { Kit, rng, type Paint } from '../../kit';
 import type { Piece } from '../../pieces';
 import { model } from '../../models';
-import { sign } from '../../fx';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
-  Anim, bayLines, beacon, coolWinMat, extrudeX, fenceMeshAt, fencePosts, lampHeadMat, mechTower, P, paving, pipeRun, poleLamp, skyMat,
+  Anim, bayLines, beacon, coolWinMat, extrudeX, fenceMeshAt, fencePosts, lampHeadMat, litSign, mechTower, P, paving, pipeRun, poleLamp, skyMat,
   shed, sphereTank, tank, V, wallLamp, windowRow, winMat,
 } from './parts';
 
@@ -53,7 +52,8 @@ export function packaging(o: PieceOpts): Piece {
   const ACC: Paint = 'blu4', HI: Paint = 'blu5';
   const halls = tier === 1 ? [{ x: -2.0, z: -4.6, w: 18.0, d: 9.8, h: 5.0 }]
     : tier === 2 ? [{ x: -1.6, z: -4.4, w: 21.4, d: 10.4, h: 6.0 }]
-      : [{ x: -1.6, z: -2.2, w: 21.4, d: 7.8, h: 6.4 }, { x: -1.6, z: -10.2, w: 21.4, d: 5.4, h: 6.4 }];
+      // (set back so the trucks at the docks stay on the plot: their cabs stood on the grass)
+      : [{ x: -1.6, z: -2.9, w: 21.4, d: 7.8, h: 6.4 }, { x: -1.6, z: -10.3, w: 21.4, d: 5.0, h: 6.4 }];
   let top = 0;
   halls.forEach((hl, i) => {
     const roof = shed(k, hl.x, hl.z, hl.w, hl.d, hl.h, { wall: CLEAN, band: ACC, ribs: 1.4, parapet: 0.4 });
@@ -75,7 +75,7 @@ export function packaging(o: PieceOpts): Piece {
     }
   });
   // a covered bridge between the two halls (tier 3)
-  if (tier === 3) k.box(3.0, 2.4, 3.0, CLEAN, -8.0, 2.4, -6.4, { r: 0.1 });
+  if (tier === 3) k.box(3.0, 2.4, 3.0, CLEAN, -8.0, 2.4, -7.3, { r: 0.1 });
   const H0 = halls[0];
   const front = H0.z + H0.d / 2;
   // the office front at the left, with the logo panel and the entrance
@@ -102,7 +102,8 @@ export function packaging(o: PieceOpts): Piece {
     wallLamp(lamps, g, x, 4.2, front + 0.16);
   }
   k.box(docks * 3.0 + 0.6, 1.1, 1.6, '#a39a91', dx0 - (docks - 1) * 1.5, 0.1, front + 0.8, { r: 0.06 });
-  paving(k, dx0 - (docks - 1) * 1.5, front + 6.2, docks * 3.0 + 1.6, 10.4);
+  const courtZ1 = Math.min(12.9, front + 12.1);
+  paving(k, dx0 - (docks - 1) * 1.5, (front + 1.0 + courtZ1) / 2, docks * 3.0 + 1.6, courtZ1 - front - 1.0);
   const trucks = tier === 1 ? [0] : [0, 2];
   for (const i of trucks) {
     const t = model('semitruck', 10.4);
@@ -121,7 +122,9 @@ export function packaging(o: PieceOpts): Piece {
   paving(k, -6.2, 10.4, 12.8, 3.6);
   bayLines(k, -12.2, 10.4, 5, 2.3, 3.0);
   parkedCars(g, -11.05, 10.4, 5, 2.3, o.seed + 9, Math.PI / 2);
-  for (const x of [-12.8, 0.4]) poleLamp(k, lamps, g, x, 8.2, 4.4, x < 0 ? 1 : -1);
+  // (the second lamp stood in the truck court, at tier 2 inside a trailer: it lights the court from its edge)
+  poleLamp(k, lamps, g, -12.8, 8.2, 4.4, 1);
+  poleLamp(k, lamps, g, -4.7, front + 4.6, 4.4, 1);
   for (let x = -12.6; x < -0.4; x += 1.0) plantOn(k, 'shrub', { x, y: 0.12, z: 12.6, s: 0.85, ry: x * 2.3 }, false);
   g.add(k.build(), lit.build(winMat), cool.build(coolWinMat), sky.build(skyMat), lamps.build(lampHeadMat));
   return { obj: g, w: o.w, d: o.d, h: Math.max(top + 1.9, oTop, tier >= 2 ? 7.4 : 6.4) };
@@ -180,7 +183,7 @@ export function fab(o: PieceOpts): Piece {
   const oTop = shed(k, ox, oz, ow, od, oh, { wall: '#e9e1d2', band: ACC, ribs: 0 });
   for (let y = 1.0; y < oh - 1.0; y += 2.3) windowRow(k, lit, 'z+', oz + od / 2 + 0.02, ox - ow / 2 + 0.5, ox + ow / 2 - 0.5, y, 1.1, 1.5, 0.16, r, 0.7);
   for (let y = 1.0; y < oh - 1.0; y += 2.3) windowRow(k, lit, 'x-', ox - ow / 2 - 0.02, oz - od / 2 + 0.5, oz + od / 2 - 0.5, y, 1.1, 1.5, 0.2, r, 0.6);
-  const sg = sign('KESTREL', 7.6, '#fbf7f0', ACC);
+  const sg = litSign('KESTREL', 7.6, '#fbf7f0', ACC);
   sg.position.set(ox + 2.0, oTop + 0.62, oz + od / 2 - 0.3);
   g.add(sg);
   k.box(8.0, (sg.userData.signHeight as number) + 0.2, 0.3, ACC, ox + 2.0, oTop - 0.05, oz + od / 2 - 0.48, { r: 0.04 });
@@ -193,28 +196,35 @@ export function fab(o: PieceOpts): Piece {
   k.box(3.3, 0.35, linkZ1 - linkZ0 + 0.3, P.roof, -8.4, 6.8, (linkZ0 + linkZ1) / 2, { r: 0.05 });
   // car park, a gatehouse with a barrier, the monument sign at the gate
   paving(k, -5.8, D - 3.4, 14.6, 4.0);
-  bayLines(k, -12.6, D - 3.4, 6, 2.3, 3.2);
-  parkedCars(g, -11.45, D - 3.4, 6, 2.3, o.seed + 9, Math.PI / 2);
+  // (five bays: the sixth was under the entrance canopy, a car between its posts)
+  bayLines(k, -12.6, D - 3.4, 5, 2.3, 3.2);
+  parkedCars(g, -11.45, D - 3.4, 5, 2.3, o.seed + 9, Math.PI / 2);
   k.box(2.4, 2.6, 2.0, '#e9e1d2', 9.4, 0.1, D - 4.2, { r: 0.1 });
   k.box(2.8, 0.25, 2.4, ACC, 9.4, 2.7, D - 4.2, { r: 0.04 });
   lit.box(1.6, 0.8, 0.06, P.glass, 9.4, 1.3, D - 3.17, { r: 0, jitter: 0 });
-  k.box(3.6, 0.12, 0.12, 'red3', 6.6, 1.0, D - 3.0, { r: 0, jitter: 0 });
-  k.box(3.8, 1.2, 0.5, '#d9d1c4', 9.2, 0.1, D - 1.3, { r: 0.06 });
-  const sg2 = sign('KESTREL', 3.2, ACC, '#d9d1c4');
-  sg2.position.set(9.2, 0.75, D - 1.04);
+  k.box(0.8, 1.6, 0.06, '#4a5a66', 8.9, 0.12, D - 3.17, { r: 0, jitter: 0 });
+  // the barrier across the road: its housing by the gatehouse, the arm, a rest post on the far side
+  k.box(0.4, 1.1, 0.4, '#e9e1d2', 8.45, 0.1, D - 3.0, { r: 0.05 });
+  k.box(3.5, 0.1, 0.1, '#fbf7f0', 6.6, 1.0, D - 3.0, { r: 0, jitter: 0 });
+  for (let x = 5.2; x < 8.2; x += 0.9) k.box(0.45, 0.11, 0.11, 'red3', x, 0.995, D - 3.0, { r: 0, jitter: 0 });
+  k.box(0.12, 0.95, 0.12, P.steel, 4.95, 0.1, D - 3.0, { r: 0, jitter: 0 });
+  k.box(3.2, 1.2, 0.5, '#d9d1c4', 11.1, 0.1, D - 1.5, { r: 0.06 });
+  const sg2 = litSign('KESTREL', 2.8, ACC, '#d9d1c4', 0.5);
+  sg2.position.set(11.1, 0.75, D - 1.24);
   g.add(sg2);
-  paving(k, 6.8, -4.0, 2.6, o.d - 8.0, '#8c8478');
+  // the site road, from the gate to the utility yard (it stopped short of the fence)
+  paving(k, 7.0, 1.85, 2.2, o.d - 4.3, '#8c8478');
   // the chemical tank farm in its bund (right side)
   const cx0 = 8.6, cx1 = 13.3;
   for (const [a, b, c, d] of [[cx0, -4.0, cx1, -4.0], [cx0, 9.6, cx1, 9.6], [cx0, -4.0, cx0, 9.6], [cx1, -4.0, cx1, 9.6]] as number[][]) k.beam(V(a, 0.45, b), V(c, 0.45, d), 0.3, P.concrete2);
   const chem: Paint[] = ['#e6e0e3', '#cfe0e8', '#f0e2b0', '#e6e0e3', '#dcd0e4', '#cfe0e8', '#e6e0e3', '#f0e2b0'];
   for (let i = 0; i < 8; i++) tank(k, 9.8 + (i % 2) * 2.3, -2.4 + Math.floor(i / 2) * 3.3, 0.85, 3.0 + (i % 3) * 0.3, chem[i], { band: i % 2 ? HI : ACC, cap: 'cone', plinth: false });
   // a pipe rack from the farm (and the gas yard) into the fab
-  const rackX = fx + fw / 2 + 1.0;
+  // (it bridges the site road: its posts stood in the lane)
+  const rackX = 7.0;
   for (let z = -14; z <= 8; z += 3.0) {
-    for (const sx of [-0.6, 0.6]) k.box(0.2, 4.2, 0.2, P.steel, rackX + sx, 0.1, z, { r: 0, jitter: 0 });
-    k.box(1.6, 0.2, 0.3, P.steel, rackX, 4.2, z, { r: 0, jitter: 0 });
-    k.box(1.6, 0.16, 0.24, P.steel, rackX, 3.0, z, { r: 0, jitter: 0 });
+    for (const sx of [-1.3, 1.3]) k.box(0.2, 4.2, 0.2, P.steel, rackX + sx, 0.1, z, { r: 0, jitter: 0 });
+    k.box(2.9, 0.2, 0.3, P.steel, rackX, 4.2, z, { r: 0, jitter: 0 });
   }
   const pipeCols: Paint[] = [P.silver, '#cfe0e8', HI, '#9cc4ea'];
   pipeCols.forEach((c, i) => pipeRun(k, [V(rackX - 0.5 + i * 0.33, 4.5, -14.0), V(rackX - 0.5 + i * 0.33, 4.5, 8.0)], 0.13, c, { seg: 6 }));
@@ -237,11 +247,13 @@ export function fab(o: PieceOpts): Piece {
   shed(k, 7.8, -D + 4.6, 10.4, 5.4, 4.4, { wall: '#e6ebee', band: '#4a7cb6', ribs: 1.2 });
   for (const [i, x] of [3.6, 7.6, 11.6].entries()) tank(k, x, -D + 10.2, 1.55, 5.4, '#e3ebf0', { band: '#4a7cb6', ladder: i === 1 });
   // fence round the whole site, lamps on the roads
-  fencePosts(k, 0, 0, o.w - 1.2, o.d - 1.2, 7, P.steel, 1.4);
+  // (the gate is where the road is: it was in the middle, in front of the parked cars, and the road met the fence)
+  const gate: [number, number][] = [[5.1, 8.5]];
+  fencePosts(k, 0, 0, o.w - 1.2, o.d - 1.2, 0, P.steel, 1.4, gate);
   const fg2 = new THREE.Group();
-  fenceMeshAt(fg2, o.w - 1.2, o.d - 1.2, 7, 1.35);
+  fenceMeshAt(fg2, o.w - 1.2, o.d - 1.2, 0, 1.35, gate);
   g.add(fg2);
-  for (const z of [-18, -6, 6, 16]) poleLamp(k, lamps, g, 5.4, z, 5.0, 1);
+  for (const z of [-18, -6.5, 5.5, 16]) poleLamp(k, lamps, g, 5.72, z, 5.0, 1);
   g.add(k.build(), lit.build(winMat), cool.build(coolWinMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(stackTop, towerTop, oTop + 1.4) + 0.2,
