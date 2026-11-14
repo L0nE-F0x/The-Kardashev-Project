@@ -10,7 +10,7 @@ import { sign } from '../../../fx';
 import type { Env } from '../../../pieces';
 import { Crowd } from '../../life';
 import { KEYS, PALETTE } from '../../../../render/palette';
-import { BLOC_BANNERS, BLOC_ORDER, blocBannerAt } from '../../planKit';
+import { BLOC_BANNERS, BLOC_ORDER, markSize, type BannerMark } from '../../planKit';
 import type { PersonName } from '../../../models';
 
 export const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -20,7 +20,10 @@ const hexOf = (idx: number) => PALETTE[KEYS[idx - 1]] ?? '#ffffff';
 export const CH = { field: PALETTE.blu3, dark: PALETTE.blu2, ring: PALETTE.yel0, ringDark: PALETTE.org1, planet: PALETTE.white };
 
 // ── banners ──────────────────────────────────────────────────────────────────────────────────
-const BW = 64, BH = 40, COLS = 4, ROWS = 4;
+/** One banner in the atlas: an 8×5 design grid of `U` pixels a cell. */
+const U = 32, BW = 8 * U, BH = 5 * U, COLS = 4, ROWS = 4;
+/** The swallowtail: how far in from the fly the notch reaches, and the part of the height it opens over (both 0..1). */
+const TAIL = { in: 0.25, open: 0.6 };
 /** Atlas cell of the Charter's own flag (the blocs are 0..11 in BLOC_ORDER). */
 export const CHARTER_FLAG = 12;
 
@@ -44,50 +47,94 @@ function drawEmblem(g: CanvasRenderingContext2D, cx: number, cy: number, s: numb
   ring(true);
 }
 
+/**
+ * The blocs' emblems as heraldic devices, each drawn in its own box on the design grid (origin at the box's top
+ * left, one cell = 1): plain shapes with smooth edges that still read at a flag's size from across the plaza.
+ */
+const MARK_ART: Record<BannerMark, (g: CanvasRenderingContext2D, w: number, h: number) => void> = {
+  // a column: shaft, base and capital
+  pillar: (g, w, h) => {
+    g.fillRect(w / 2 - 0.3, 0.3, 0.6, h - 0.6);
+    for (const y of [0, h - 0.34]) { g.beginPath(); g.roundRect(w / 2 - 0.75, y, 1.5, 0.34, 0.1); g.fill(); }
+  },
+  ring: (g, w, h) => { g.lineWidth = 0.5; g.beginPath(); g.arc(w / 2, h / 2, Math.min(w, h) / 2 - 0.3, 0, Math.PI * 2); g.stroke(); },
+  // a white world over the arc of its path
+  orbit: (g, w, h) => {
+    g.lineWidth = 0.34; g.lineCap = 'round';
+    g.beginPath(); g.ellipse(w / 2, h * 0.42, w / 2 - 0.2, h * 0.5, 0, Math.PI * 0.12, Math.PI * 0.88); g.stroke();
+    g.fillStyle = PALETTE.white;
+    g.beginPath(); g.arc(w / 2, h * 0.34, 0.5, 0, Math.PI * 2); g.fill();
+  },
+  // three bars stepping down from the hoist
+  step: (g, _w, h) => { for (let i = 0; i < 3; i++) { g.beginPath(); g.roundRect(i * 1.08, i * (h / 3), 0.84, h - i * (h / 3), [0.26, 0.26, 0, 0]); g.fill(); } },
+  wave: (g, w, h) => {
+    g.lineWidth = 0.4; g.lineCap = 'round';
+    for (const y of [h * 0.28, h * 0.78]) {
+      g.beginPath();
+      for (let x = 0.2; x <= w - 0.19; x += 0.1) g.lineTo(x, y + Math.sin((x - 0.2) * ((Math.PI * 4) / (w - 0.4))) * 0.3);
+      g.stroke();
+    }
+  },
+  chevron: (g, w, h) => { g.lineWidth = 0.62; g.lineJoin = 'miter'; g.beginPath(); g.moveTo(0.35, 0.2); g.lineTo(w - 0.75, h / 2); g.lineTo(0.35, h - 0.2); g.stroke(); },
+  peak: (g, w, h) => { g.beginPath(); g.moveTo(0, h); g.lineTo(w / 2, 0.05); g.lineTo(w, h); g.closePath(); g.fill(); },
+  pair: (g, w, h) => { for (const x of [0.55, w - 0.55]) { g.beginPath(); g.arc(x, h / 2, 0.55, 0, Math.PI * 2); g.fill(); } },
+  diamond: (g, w, h) => { g.lineWidth = 0.44; g.lineJoin = 'miter'; g.beginPath(); g.moveTo(w / 2, 0.3); g.lineTo(w - 0.35, h / 2); g.lineTo(w / 2, h - 0.3); g.lineTo(0.35, h / 2); g.closePath(); g.stroke(); },
+  arch: (g, w, h) => { g.lineWidth = 0.56; g.lineCap = 'butt'; g.beginPath(); g.moveTo(0.4, h); g.lineTo(0.4, h * 0.62); g.arc(w / 2, h * 0.62, w / 2 - 0.4, Math.PI, 0); g.lineTo(w - 0.4, h); g.stroke(); },
+  // a leaf from the foot of the hoist up towards the fly
+  leaf: (g, w, h) => { g.beginPath(); g.moveTo(0.1, h - 0.1); g.quadraticCurveTo(0.2, 0.3, w - 0.1, 0.1); g.quadraticCurveTo(w - 0.3, h - 0.2, 0.1, h - 0.1); g.fill(); },
+  dot: (g, w, h) => { g.beginPath(); g.arc(w / 2, h / 2, Math.min(w, h) / 2 - 0.08, 0, Math.PI * 2); g.fill(); },
+};
+
 let atlas: THREE.CanvasTexture | null = null;
-/** The twelve bloc banners (BLOC_ORDER) and the Charter flag, 64×40 each, in one texture. */
+/**
+ * The twelve bloc banners (BLOC_ORDER) and the Charter flag in one texture, drawn as shapes (smooth at any
+ * distance: they were 8-pixel blocks). The cloth's swallowtail is cut in the mesh, not in the picture.
+ */
 function bannerAtlas() {
   if (atlas) return atlas;
   const c = document.createElement('canvas');
   c.width = BW * COLS;
   c.height = BH * ROWS;
   const g = c.getContext('2d')!;
-  const img = g.createImageData(c.width, c.height);
   BLOC_ORDER.forEach((id, n) => {
     const f = BLOC_BANNERS[id];
-    const ox = (n % COLS) * BW, oy = Math.floor(n / COLS) * BH;
-    for (let y = 0; y < BH; y++)
-      for (let x = 0; x < BW; x++) {
-        const i = (x + 0.5) / 8, j = (y + 0.5) / 8;
-        // the swallowtail cut out of the fly
-        if (i > 6 && Math.abs(j - 2.5) < (i - 6) * 0.75) continue;
-        let a: boolean;
-        switch (f.field) {
-          case 'h2': a = j < 3; break;
-          case 'v2': a = i < 4; break;
-          case 'd2': a = i + j * 1.6 < 7.4; break;
-          case 'wave': a = j < 2.5 + Math.sin(i * 1.3) * 0.55; break;
-          case 'band': a = !(j >= 2 && j < 3); break;
-          case 'chevron': a = !(i < 3 - Math.abs(j - 2.5)); break;
-          case 'hoist': a = !(i < 2); break;
-        }
-        let hex = hexOf(a ? f.a : f.b);
-        // the emblem: the pixel banner's own mark, cell by cell
-        const m = blocBannerAt(id, Math.floor(i), Math.floor(j));
-        if (m && m !== f.a && m !== f.b) hex = hexOf(m);
-        const k = ((oy + y) * c.width + ox + x) * 4;
-        img.data[k] = parseInt(hex.slice(1, 3), 16);
-        img.data[k + 1] = parseInt(hex.slice(3, 5), 16);
-        img.data[k + 2] = parseInt(hex.slice(5, 7), 16);
-        img.data[k + 3] = 255;
-      }
+    g.save();
+    g.translate((n % COLS) * BW, Math.floor(n / COLS) * BH);
+    g.beginPath();
+    g.rect(0, 0, BW, BH);
+    g.clip();
+    g.scale(U, U);
+    g.fillStyle = hexOf(f.a);
+    g.fillRect(0, 0, 8, 5);
+    // the second colour's share of the field
+    g.fillStyle = hexOf(f.b);
+    g.beginPath();
+    switch (f.field) {
+      case 'h2': g.rect(0, 3, 8, 2); break;
+      case 'v2': g.rect(4, 0, 4, 5); break;
+      case 'd2': g.moveTo(7.4, 0); g.lineTo(8, 0); g.lineTo(8, 5); g.lineTo(-0.6, 5); break;
+      case 'wave':
+        g.moveTo(0, 5);
+        for (let x = 0; x <= 8.01; x += 0.125) g.lineTo(x, 2.5 + Math.sin(x * 1.3) * 0.55);
+        g.lineTo(8, 5);
+        break;
+      case 'band': g.rect(0, 2, 8, 1); break;
+      case 'chevron': g.moveTo(0, 0); g.lineTo(0.5, 0); g.lineTo(3, 2.5); g.lineTo(0.5, 5); g.lineTo(0, 5); break;
+      case 'hoist': g.rect(0, 0, 2, 5); break;
+    }
+    g.fill();
+    // the emblem
+    const [mw, mh] = markSize(f.mark);
+    g.translate(f.at[0], f.at[1]);
+    g.fillStyle = g.strokeStyle = hexOf(f.m);
+    MARK_ART[f.mark](g, mw, mh);
+    g.restore();
   });
-  g.putImageData(img, 0, 0);
   // the Charter flag: blue, with the emblem
   const ox = (CHARTER_FLAG % COLS) * BW, oy = Math.floor(CHARTER_FLAG / COLS) * BH;
   g.fillStyle = CH.field;
   g.fillRect(ox, oy, BW, BH);
-  drawEmblem(g, ox + BW / 2, oy + BH / 2, 15);
+  drawEmblem(g, ox + BW / 2, oy + BH / 2, BH * 0.375);
   atlas = new THREE.CanvasTexture(c);
   atlas.colorSpace = THREE.SRGBColorSpace;
   atlas.anisotropy = 4;
@@ -123,12 +170,23 @@ export class Flags {
     const parts: THREE.BufferGeometry[] = [];
     const lx: number[] = [], ly: number[] = [], fi: number[] = [];
     this.specs.forEach((s, n) => {
-      const g = new THREE.PlaneGeometry(s.w, s.h, 10, 2);
+      const g = new THREE.PlaneGeometry(s.w, s.h, 10, 4);
       const uv = g.attributes.uv as THREE.BufferAttribute;
       const pos = g.attributes.position as THREE.BufferAttribute;
       const cx = s.banner % COLS, cy = Math.floor(s.banner / COLS);
+      const tailed = s.banner !== CHARTER_FLAG;
       for (let i = 0; i < uv.count; i++) {
-        uv.setXY(i, (cx + uv.getX(i)) / COLS, 1 - (cy + 1 - uv.getY(i)) / ROWS);
+        let u = uv.getX(i), v = uv.getY(i);
+        if (tailed) {
+          // a bloc's banner is swallow-tailed: the rows move to the notch's corners, and the middle of the fly is
+          // drawn in to its point
+          if (Math.abs(v - 0.25) < 0.01 || Math.abs(v - 0.75) < 0.01) v = 0.5 + Math.sign(v - 0.5) * (TAIL.open / 2);
+          if (u > 0.5 && Math.abs(v - 0.5) < 0.01) u = 0.5 + (u - 0.5) * (1 - 2 * TAIL.in);
+          pos.setXY(i, (u - 0.5) * s.w, (v - 0.5) * s.h);
+        }
+        // (a hair inside the cell, so a neighbour's colour never shows along an edge from far off)
+        u = 0.004 + u * 0.992; v = 0.006 + v * 0.988;
+        uv.setXY(i, (cx + u) / COLS, 1 - (cy + 1 - v) / ROWS);
         lx.push(pos.getX(i) + s.w / 2);
         ly.push(pos.getY(i) - s.h / 2);
         fi.push(n);
@@ -140,7 +198,7 @@ export class Flags {
     this.ly = new Float32Array(ly);
     this.fi = new Uint16Array(fi);
     const tex = bannerAtlas();
-    this.mat = withClouds(new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0, side: THREE.DoubleSide, roughness: 0.85, alphaTest: 0.5 }));
+    this.mat = withClouds(new THREE.MeshStandardMaterial({ map: tex, emissiveMap: tex, emissive: 0xffffff, emissiveIntensity: 0, side: THREE.DoubleSide, roughness: 0.85 }));
     this.mesh = new THREE.Mesh(merged, this.mat);
     this.mesh.castShadow = true;
     this.mesh.frustumCulled = false;
