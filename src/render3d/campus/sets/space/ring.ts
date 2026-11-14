@@ -296,7 +296,7 @@ export function ringRack(o: Act3SetOpts): Piece {
   const crack = crackles(g, fs, storm, o.seed + 7);
   // a technician on the walkway every other section
   const eva = n % 2 === 1 ? spacewalker(o.seed + 8, o.accent) : null;
-  if (eva) { eva.obj.position.set(-3 + (o.seed % 5), DECK.y1 + 0.12, z + DECK.hd - 0.9); eva.obj.rotation.y = 0.5; g.add(eva.obj); }
+  if (eva) { eva.obj.position.set(-3 + (o.seed % 5), DECK.y1 + 0.12, z + DECK.hd - 0.9); eva.obj.rotation.y = 0.5; g.add(eva.obj); eva.tie(g, V(-2.2 + (o.seed % 5), DECK.y1 + 0.05, z + DECK.hd - 1.4)); }
   const a1 = V(-11, DECK.y1 + th + 1.6, z + DECK.hd + 1.6), b1 = V(11, DECK.y1 + th * 0.55, z + DECK.hd + 1.8);
   const a2 = V(10, DECK.y0 - 2.4, z + DECK.hd + 1.2), b2 = V(-10, DECK.y0 - 3.2, z + DECK.hd + 2.2);
   anim.add((e) => {
@@ -747,6 +747,7 @@ export function ringHead(o: Act3SetOpts): Piece {
   eva.obj.position.set(6.4, y1 + 0.2, z + hd - 0.3);
   eva.obj.rotation.y = -0.4;
   g.add(eva.obj);
+  eva.tie(g, V(7.2, y1 + 0.05, z + hd - 0.8));
   const crack = crackles(g, [...fsDone, ...fsNew], storm, o.seed + 30);
   const tip = V(0, 0, 0), dir = V(0, 0, 0), tgt = V(0, 0, 0);
   const P = 32, ph = (o.seed % 9) * 1.7;

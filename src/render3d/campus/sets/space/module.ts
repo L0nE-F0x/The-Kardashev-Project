@@ -329,6 +329,7 @@ export function yardsModule(o: Act3SetOpts): Piece {
   eva.obj.position.copy(evaAt);
   eva.obj.rotation.set(0.25, -0.5, 0.15);
   g.add(eva.obj);
+  eva.tie(g, V(-7.5, MOD.hull.y0 + 1.5, zs + MOD.hull.z1 + 0.04));
   const tk = new Kit(rng(o.seed + 61));
   const hatch = V(-10.0, MOD.hull.y0 + 2.6, zs + MOD.hull.z1 + 0.15);
   let prev = hatch;

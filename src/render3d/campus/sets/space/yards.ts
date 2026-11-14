@@ -585,6 +585,7 @@ export function yardsBerth(o: Act3SetOpts): Piece {
   eva.obj.position.set(-4.6, yb - 3.6, zs + 2.4);
   eva.obj.rotation.set(-0.3, 0.4, 0.1);
   g.add(eva.obj);
+  eva.tie(g, V(-4.0, yb + 0.05, zs + 1.7));
   anim.add((e) => {
     eva.float(e.t);
     spaceTime.value = e.t;
