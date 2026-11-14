@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { col, glowMat, Kit, lightPool, poolMat, rng, type BoxOpts, type Paint } from '../../../kit';
 import { plumeUniforms, sign } from '../../../fx';
-import type { Env } from '../../../pieces';
+import { frontRuns, type Env } from '../../../pieces';
 import { person } from '../../../models';
 import type { Act3SetOpts } from '../../act3sets';
 import { parkedCars } from '../../life';
@@ -288,12 +288,14 @@ export class Ctx {
 
 // ── site furniture ───────────────────────────────────────────────────────────────────────────
 /** The plant's yard: a concrete pad on the land, the fence with a gate at gateX, corner lamps. */
-export function siteBase(c: Ctx, gateX = 0, gateW = 8, pave: Paint = '#cbc3b7') {
+export function siteBase(c: Ctx, gateX = 0, gateW = 8, pave: Paint = '#cbc3b7', walkGate?: number) {
   const { k, W, D } = c;
   k.box(W - 0.8, 0.12, D - 0.8, pave, 0, -0.06, 0, { r: 0.08, jitter: 0.015, shade: 0 });
   // joints in the slab
   for (let x = -W / 2 + 4; x < W / 2 - 2; x += 4) k.box(0.05, 0.02, D - 1.4, mixHex(pave, '#7a7186', 0.18), x, 0.06, 0, { r: 0, jitter: 0, shade: 0 });
-  fenceRect(c, W - 1.6, D - 1.6, gateX, gateW);
+  // (and a pedestrian gate at the control block's door, which stands a step behind the fence: on the building's side
+  // of the door, the car park beginning on the other)
+  fenceRect(c, W - 1.6, D - 1.6, gateX, gateW, 1.6, walkGate === undefined ? [] : [[walkGate - 2.0, walkGate + 0.6]]);
   // the gate: two posts with lamps and a road stub out to the edge
   for (const sx of [-1, 1]) {
     k.box(0.34, 2.0, 0.34, P.steelDark, gateX + (sx * gateW) / 2, 0, D / 2 - 0.8, { r: 0.04 });
@@ -302,10 +304,10 @@ export function siteBase(c: Ctx, gateX = 0, gateW = 8, pave: Paint = '#cbc3b7') 
   for (const [x, z, dir] of [[-W / 2 + 1.6, -D / 2 + 1.6, 1], [W / 2 - 1.6, -D / 2 + 1.6, -1]] as [number, number, number][]) poleLamp(k, c.lamps, c.g, x, z, 5.6, dir);
 }
 /** Fence posts, rails and see-through panels round a w × d rectangle, a gate gap at gateX in the front. */
-export function fenceRect(c: Ctx, w: number, d: number, gateX = 0, gate = 8, h = 1.6) {
+export function fenceRect(c: Ctx, w: number, d: number, gateX = 0, gate = 8, h = 1.6, gaps: [number, number][] = []) {
   const { k } = c;
-  const g0 = gateX - gate / 2, g1 = gateX + gate / 2;
-  const runs: [number, number, number, number][] = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [-w / 2, -d / 2, -w / 2, d / 2], [-w / 2, d / 2, g0, d / 2], [g1, d / 2, w / 2, d / 2]];
+  const front = frontRuns(w, gate, gaps, gateX);
+  const runs: [number, number, number, number][] = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [-w / 2, -d / 2, -w / 2, d / 2], ...front.map(([a, b]): [number, number, number, number] => [a, d / 2, b, d / 2])];
   for (const [x0, z0, x1, z1] of runs) {
     const len = Math.hypot(x1 - x0, z1 - z0);
     if (len < 0.2) continue;
@@ -324,8 +326,7 @@ export function fenceRect(c: Ctx, w: number, d: number, gateX = 0, gate = 8, h =
   add(w, 0, -d / 2, 0);
   add(d, w / 2, 0, Math.PI / 2);
   add(d, -w / 2, 0, Math.PI / 2);
-  add(g0 + w / 2, (-w / 2 + g0) / 2, d / 2, 0);
-  add(w / 2 - g1, (g1 + w / 2) / 2, d / 2, 0);
+  for (const [a, b] of front) add(b - a, (a + b) / 2, d / 2, 0);
 }
 const fenceMat = new THREE.MeshStandardMaterial({ color: col('#9a94a0'), transparent: true, opacity: 0.26, roughness: 1, side: THREE.DoubleSide, depthWrite: false });
 
@@ -365,7 +366,8 @@ export function stepUp(c: Ctx, xs: number[], z: number, to: THREE.Vector3[][], s
   });
   sagWires(c.k, wires, 0.5, '#4a4452', 0.03);
 }
-/** An office/control block with windows, a door canopy and the builder's name on the roof. Returns the roof. */
+/** An office/control block with windows, a door canopy and the builder's name on the roof. Returns the roof and the
+ * spot a step out from its door. */
 export function controlBlock(c: Ctx, x: number, z: number, w: number, d: number, h: number, name = c.L.name) {
   const { k, lit, lamps, g, r, L } = c;
   const top = shed(k, x, z, w, d, h, { wall: P.cream, band: L.acc, ribs: 0 });
@@ -380,7 +382,7 @@ export function controlBlock(c: Ctx, x: number, z: number, w: number, d: number,
   k.box(sw + 0.3, 1.2, 0.2, P.roof, x - 0.3, top - 0.05, f - 0.5, { r: 0.02 });
   for (const sx of [-1, 1]) k.box(0.14, 0.8, 0.8, P.steelDark, x - 0.3 + (sx * sw) / 2.4, top - 0.05, f - 0.8, { r: 0 });
   const s = placard(g, name, sw, x - 0.3, top + 0.62, f - 0.38, L.ink, L.acc, 0, true);
-  return { top, signTop: top + 0.62 + (s.userData.signHeight as number) / 2 };
+  return { top, signTop: top + 0.62 + (s.userData.signHeight as number) / 2, door: { x: x + w / 2 - 1.4, z: f + 0.75 } };
 }
 /** A car park: asphalt, bay lines and cars facing the building behind (−z). */
 export function carPark(c: Ctx, x: number, z: number, n: number) {

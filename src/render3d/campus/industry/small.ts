@@ -69,6 +69,8 @@ const admin: SetPieceFactory = (o) => {
   wallLights(g, [[bx - 1.4, 3.9, bz + D / 2 + 3.3]], 2.6, 3.6);
   return {
     obj: g, w: 18, d: 16, h: H + 1.4,
+    // the lobby's doors, under the canopy
+    doors: [{ x: bx - 1.4, z: bz + D / 2 + 3.35 + 0.65 }],
     update(e) { fans.update(e); for (const f of flags) f.update(e); },
   };
 };
@@ -117,8 +119,8 @@ const gasYard: SetPieceFactory = (o) => {
   k.box(2.8, 0.18, 2.3, P.roof, 1.4, 2.42, 2.9, { r: 0.05 });
   k.box(0.8, 1.7, 0.06, '#5b5562', 1.0, 0.2, 3.97, { r: 0, jitter: 0 });
   k.box(2.6, 0.12, 0.08, b.accent, 1.4, 2.0, 3.98, { r: 0, jitter: 0, shade: 0 });
-  // tube trailer along x
-  const tx = -2.4, tz = 5.6;
+  // tube trailer along x (west of the gate: at -2.4 it filled the gateway, and nobody could walk in)
+  const tx = -3.4, tz = 5.6;
   k.box(6.8, 0.25, 1.6, '#5b5562', tx, 0.9, tz, { r: 0.04 });
   for (let i = 0; i < 2; i++) for (let j = 0; j < 3; j++) {
     const gg = new THREE.CapsuleGeometry(0.27, 5.8, 4, 10).rotateZ(Math.PI / 2).translate(tx, 1.45 + i * 0.56, tz - 0.56 + j * 0.56);
@@ -132,8 +134,9 @@ const gasYard: SetPieceFactory = (o) => {
   fence(k, 15.6, 13.6, 4.4, '#8a8490');
   g.add(k.build());
   fenceMesh(g, 15.6, 13.6, 4.4);
-  wallLights(g, [[1.4, 2.1, 3.97]], 2, 2.8);
-  return { obj: g, w: 16, d: 14, h: 10.8 };
+  wallLights(g, [[1.0, 2.1, 3.97]], 2, 2.8);
+  // (the control shed's door)
+  return { obj: g, w: 16, d: 14, h: 10.8, doors: [{ x: 1.0, z: 3.97 + 0.7 }] };
 };
 
 // ── warehouse: logistics with docks and a truck ──────────────────────────────────────────────
@@ -174,7 +177,8 @@ const warehouse: SetPieceFactory = (o) => {
   parkVehicle(g, 'van', 5.2, docks[0], z0 + D / 2 + 3.5, Math.PI / 2, 0.55);
   parkVehicle(g, 'semitruck', 10.5, 5.6, 6.2, Math.PI);
   wallLights(g, docks.map((x) => [x, 4.1, z0 + D / 2 + 0.1] as [number, number, number]), 2.6, 3);
-  return { obj: g, w: 24, d: 16, h: H + 0.7 };
+  // (the office corner's glass front is the way in)
+  return { obj: g, w: 24, d: 16, h: H + 0.7, doors: [{ x: -8.0, z: z0 + D / 2 + 2.72 + 0.7 }] };
 };
 
 // ── crateYard: Veldt's machines in crates, waiting to ship ───────────────────────────────────
@@ -250,6 +254,7 @@ const crateYard: SetPieceFactory = (o) => {
   const flight = { a: new THREE.Vector3(2.4, 0, -1.8), b: new THREE.Vector3(2.4, 0, 2.2) };
   return {
     obj: g, w: 18, d: 14, h: 4.8,
+    // (no door, so no staff: the flatbed being loaded fills the yard's one gateway; the forklift is its life)
     update(e) {
       const T = 14, t = (e.t % T) / T;
       // drive forward carrying, set it down, reverse empty, pick up again
@@ -318,7 +323,8 @@ const cableHut: SetPieceFactory = (o) => {
   g.add(k.build());
   fenceMesh(g, 13.6, 11.6, 3.6);
   wallLights(g, [[x0 - 1.6, 2.7, z0 + D / 2], [x0 + 2.6, 3.0, z0 + D / 2]], 2.2, 3);
-  return { obj: g, w: 14, d: 12, h: mh + 0.5, update(e) { fans.update(e); } };
+  // (the steel door under its hood)
+  return { obj: g, w: 14, d: 12, h: mh + 0.5, doors: [{ x: x0 - 1.6, z: z0 + D / 2 + 0.7 }], update(e) { fans.update(e); } };
 };
 
 // ── manhole: where the cable comes ashore ────────────────────────────────────────────────────

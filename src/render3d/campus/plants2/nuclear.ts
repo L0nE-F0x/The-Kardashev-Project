@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { Kit, rng, type Paint } from '../../kit';
-import { scaffold, walkBlockers, walkFloor, type Piece } from '../../pieces';
+import { scaffold, walkMap, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
@@ -190,8 +190,7 @@ export function restart(o: PieceOpts): Piece {
     obj: g, w: o.w, d: o.d, h: Math.max(22, cTop, hallTop) + 0.4,
     // the admin block's door, on the street side (staff went in through the plot's edge, where nothing stood)
     doors: [{ x: -9.2 + 3.5 - 1.3, z: 11.1 + 1.0 + 0.7 }],
-    blockers: walkBlockers(g, o.w, o.d),
-    floor: walkFloor(g, o.w, o.d),
+    ...walkMap(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };
@@ -291,8 +290,7 @@ export function smr(o: PieceOpts): Piece {
     obj: g, w: o.w, d: o.d, h: Math.max(modTop, towerTop, cTop + 1.4, tTop) + 0.3,
     // the lobby's glass doors
     doors: [{ x: cbx + 2.9, z: cf + 2.0 }],
-    blockers: walkBlockers(g, o.w, o.d),
-    floor: walkFloor(g, o.w, o.d),
+    ...walkMap(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };
@@ -378,8 +376,7 @@ export function reactor(o: PieceOpts): Piece {
     obj: g, w: o.w, d: o.d, h: Math.max(TH, cTop) + 0.4,
     // the admin block's door, in the gap in the fence
     doors: [{ x: -7.4 + 10.6 / 2 - 1.3, z: D - 2.3 + 2.6 / 2 + 0.7 }],
-    blockers: walkBlockers(g, o.w, o.d),
-    floor: walkFloor(g, o.w, o.d),
+    ...walkMap(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };

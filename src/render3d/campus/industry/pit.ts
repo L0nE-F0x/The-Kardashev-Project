@@ -604,6 +604,13 @@ export const openPit: SetPieceFactory = (o) => {
   const truckYaw = Math.atan2(loadSpot.x - shx, loadSpot.z - shz);
   return {
     obj: g, w: 70, d: 50, h: 11,
+    // the site office's door; nobody walks the pit (its benches would read as level ground): only the office's yard
+    // in the front-right corner is open
+    doors: [{ x: 29.4, z: 21.82 + 0.7 }],
+    blockers: [
+      { x0: -35, z0: -25, x1: 23, z1: 25 }, { x0: 23, z0: -25, x1: 35, z1: 14.9 },
+      { x0: 26.8, z0: 19.4, x1: 32.0, z1: 21.82 }, { x0: 28.0, z0: 15.6, x1: 31.2, z1: 17.2 },
+    ],
     ground(x, z) {
       if (Math.abs(x) > 35.5 || Math.abs(z) > 25.5) return null;
       const r = sOf(x, z);

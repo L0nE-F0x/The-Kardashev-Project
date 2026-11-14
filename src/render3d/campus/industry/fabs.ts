@@ -127,6 +127,8 @@ const logicFab: SetPieceFactory = (o) => {
   wallLights(g, [[ox + ow / 2 - 3.4, 3.3, oz + od / 2 + 0.1], [FX + 14, 3.6, FZ + FD / 2], [FX - 18, 3.6, FZ + FD / 2]], 2.4, 3.6);
   return {
     obj: g, w: 60, d: 40, h: FH + 11.5,
+    // the office's doors under the canopy
+    doors: [{ x: ox + ow / 2 - 3.4, z: oz + od / 2 + 0.75 }],
     update(e) { fans.update(e); for (const p of plumes) p.update(e); },
   };
 };
@@ -208,6 +210,8 @@ const memFab: SetPieceFactory = (o) => {
   wallLights(g, [[lx + 4.6, 3.0, lz + 2.65], [B.x - 7, 3.2, B.z + B.d / 2], [B.x + 7, 3.2, B.z + B.d / 2]], 2.4, 3.6);
   return {
     obj: g, w: 54, d: 38, h: B.h + 10.5,
+    // the lobby's doors under the canopy
+    doors: [{ x: lx + 4.6, z: lz + 2.62 + 0.7 }],
     update(e) { fans.update(e); for (const p of plumes) p.update(e); },
   };
 };
@@ -345,6 +349,8 @@ const euvHall: SetPieceFactory = (o) => {
   let flash = 0;
   return {
     obj: g, w: 44, d: 30, h: H + 2.4,
+    // the glazed entrance under the canopy
+    doors: [{ x: 8.6, z: Z + D / 2 + 0.31 + 0.7 }],
     update(e: Env) {
       fans.update(e);
       room.emissiveIntensity = 0.38 + e.night * 0.7;
@@ -423,7 +429,8 @@ const pkgLines: SetPieceFactory = (o) => {
   g.add(k.build());
   lit.build(g);
   wallLights(g, docks.map((x) => [x, 3.9, Z + D / 2 + 0.1] as [number, number, number]), 2.6, 3);
-  return { obj: g, w: 48, d: 28, h: H + 2.6, update(e) { fans.update(e); } };
+  // (the office strip's glass front is the way in)
+  return { obj: g, w: 48, d: 28, h: H + 2.6, doors: [{ x: ox, z: oz + 1.7 + 0.7 }], update(e) { fans.update(e); } };
 };
 
 // ── Cumulus Cloud's rental halls ─────────────────────────────────────────────────────────────
@@ -511,6 +518,8 @@ const cloudHall: SetPieceFactory = (o) => {
   for (let i = 0; i < 6; i++) lightPool(g, X - W / 2 + 2.8 + i * ((W - 5.6) / 5), 0, Z - D / 2 - 3.8, 2.6, genPool);
   return {
     obj: g, w: 36, d: 28, h: H + 2.4,
+    // the entrance block's glass doors, under the canopy
+    doors: [{ x: ex, z: Z + D / 2 + 2.12 + 0.7 }],
     update(e) {
       fans.update(e);
       band.emissiveIntensity = 0.5 + e.night * 1.2;

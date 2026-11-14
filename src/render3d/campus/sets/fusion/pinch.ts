@@ -20,7 +20,7 @@ const PERIOD = 3.4;
 export function pinchPlant(o: Act3SetOpts): Piece {
   const c = new Ctx(o);
   const { k, g, L, W, D } = c;
-  siteBase(c, 3.5, 7.4);
+  siteBase(c, 3.5, 7.4, undefined, -15.4 + 9.0 / 2 - 1.4);
   k.box(3.4, 0.06, D - 6, P.asphalt, 3.5, 0.02, 1.2, { r: 0.03, shade: 0, jitter: 0.02 });
   const vx = -8.4, vz = -4.4, vr = 3.0, vy0 = 1.9, vh = 8.6;
   const steel = '#b6bbc1';
@@ -113,7 +113,7 @@ export function pinchPlant(o: Act3SetOpts): Piece {
   // a control room by the ring, the rest of the plant
   shed(k, -1.8, 4.8, 5.2, 3.0, 3.2, { wall: '#efebe5', band: L.acc, ribs: 0 });
   const bop = balanceOfPlant(c);
-  controlBlock(c, -15.4, 12.8, 9.0, 4.4, 4.8);
+  const cb = controlBlock(c, -15.4, 12.8, 9.0, 4.4, 4.8);
   carPark(c, -4.8, 14.2, 5);
   lampsAt(c, [[-1.6, 9.6, -1], [6.4, -3.6, 1], [-20.8, 0, 1]]);
   // ── the bang ──
@@ -143,5 +143,5 @@ export function pinchPlant(o: Act3SetOpts): Piece {
     hl.set(f * 1.0 + after * 0.25 + e.night * 0.1);
   });
   c.finish();
-  return { obj: g, w: W, d: D, h: Math.max(gyB + 1.8, gy + gh + 1.2, bop), update: c.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: Math.max(gyB + 1.8, gy + gh + 1.2, bop), doors: [cb.door], update: c.update, ground: () => null };
 }

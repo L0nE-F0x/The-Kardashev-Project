@@ -42,10 +42,9 @@ export interface Piece {
   setAlert?(on: boolean): void;
   /**
    * Where people go in and out (piece-local: the spot a step outside each door, and the way out, default +z). Without
-   * it, the middle of the front face. `gate`: a gate in the yard's fence where there is no door to use (the gas
-   * plant's), so no doorway is looked for. `tools/qa/doorcheck.mjs` checks that every door has a wall and a way in.
+   * it, the middle of the front face. `tools/qa/doorcheck.mjs` checks that every door has a wall and a way in.
    */
-  doors?: { x: number; z: number; nx?: number; nz?: number; gate?: boolean }[];
+  doors?: { x: number; z: number; nx?: number; nz?: number }[];
   /**
    * What people walk round (piece-local boxes: walls, plant, yards, clutter). Without it, the whole w × d. Cars
    * placed with `parkedCars` count by themselves.
@@ -82,11 +81,25 @@ export function blinkBeacons(root: THREE.Object3D, e: Env) {
   });
 }
 
-export function fence(kit: Kit, w: number, d: number, gate = 6, post: Paint = '#8a8490') {
+/** The front side's runs of a fence w wide: the gate in the middle and any other `gaps` ([x0, x1]: a pedestrian gate
+ * at a door that stands close behind the fence) left open. */
+export function frontRuns(w: number, gate: number, gaps: [number, number][] = [], gateX = 0): [number, number][] {
+  const cuts = [[gateX - gate / 2, gateX + gate / 2], ...gaps].filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
+  const runs: [number, number][] = [];
+  let x = -w / 2;
+  for (const [a, b] of cuts) {
+    if (a - x > 0.3) runs.push([x, a]);
+    x = Math.max(x, b);
+  }
+  if (w / 2 - x > 0.3) runs.push([x, w / 2]);
+  return runs;
+}
+
+export function fence(kit: Kit, w: number, d: number, gate = 6, post: Paint = '#8a8490', gaps: [number, number][] = []) {
   const h = 1.3;
   const sides: [number, number, number, number][] = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [-w / 2, -d / 2, -w / 2, d / 2]];
-  // front side with a gate gap in the middle
-  sides.push([-w / 2, d / 2, -gate / 2, d / 2], [gate / 2, d / 2, w / 2, d / 2]);
+  // front side with a gate gap in the middle (and any others)
+  for (const [a, b] of frontRuns(w, gate, gaps)) sides.push([a, d / 2, b, d / 2]);
   for (const [x0, z0, x1, z1] of sides) {
     const len = Math.hypot(x1 - x0, z1 - z0);
     const n = Math.max(1, Math.round(len / 2.5));
@@ -97,7 +110,7 @@ export function fence(kit: Kit, w: number, d: number, gate = 6, post: Paint = '#
 
 /** A chain-link mesh panel that reads as see-through. */
 const meshMat = new THREE.MeshStandardMaterial({ color: col('#9a94a0'), transparent: true, opacity: 0.28, roughness: 1, side: THREE.DoubleSide, depthWrite: false });
-export function fenceMesh(group: THREE.Group, w: number, d: number, gate = 6) {
+export function fenceMesh(group: THREE.Group, w: number, d: number, gate = 6, gaps: [number, number][] = []) {
   const h = 1.25;
   const add = (len: number, x: number, z: number, ry: number) => {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(len, h), meshMat);
@@ -108,9 +121,7 @@ export function fenceMesh(group: THREE.Group, w: number, d: number, gate = 6) {
   add(w, 0, -d / 2, 0);
   add(d, w / 2, 0, Math.PI / 2);
   add(d, -w / 2, 0, Math.PI / 2);
-  const seg = (w - gate) / 2;
-  add(seg, -w / 2 + seg / 2, d / 2, 0);
-  add(seg, w / 2 - seg / 2, d / 2, 0);
+  for (const [a, b] of frontRuns(w, gate, gaps)) add(b - a, (a + b) / 2, d / 2, 0);
 }
 
 /** A gravel pad the size of the plot. */
@@ -292,47 +303,78 @@ export function clipAbove(obj: THREE.Object3D, y: number | null, below = false) 
   walk(obj);
 }
 
+/** The highest floor a piece lays that people walk on (a doorstep, a road on its embankment, a podium up its steps). */
+export const WALK_STEP = 1.2;
+
+type WalkRect = { x0: number; z0: number; x1: number; z1: number };
+
 /**
  * What people walk round on a piece's plot (`Piece.blockers`), read off what the piece is built of: every surface in
- * a body's way, between knee and head height (0.3–1.9 m over the ground), marked on a grid of `cell` metres, the
- * marked cells joined into boxes, the biggest first (construction crews work round the first one). Slabs and paving
- * underfoot, canopies, crowns and wires overhead don't count; parked cars count by themselves (`userData.bay`). For
- * pieces too busy to list their blockers by hand: the Act II plants, with buildings, yards, tanks and fences all
- * over their plots. Call it on the finished piece's group (its own frame, the plot's ground at y 0).
+ * a body's way, between knee and head height (0.3–1.9 m over the floor where they would stand: `floor`, else the
+ * land), marked on a grid of `cell` metres, the marked cells joined into boxes, the biggest first (construction
+ * crews work round the first one). Measured from the floor, a flight of steps is a way up (each riser is low beside
+ * the tread above it) and a podium's edge is a wall to whoever stands below it. Canopies, crowns and wires overhead
+ * don't count; parked cars count by themselves (`userData.bay`). Use `walkMap` for both at once.
  */
-export function walkBlockers(obj: THREE.Object3D, w: number, d: number, cell = 0.25, groundAt?: (x: number, z: number) => number): { x0: number; z0: number; x1: number; z1: number }[] {
+export function walkBlockers(obj: THREE.Object3D, w: number, d: number, cell = 0.25, groundAt?: (x: number, z: number) => number, floor?: (x: number, z: number) => number | null): WalkRect[] {
   const LO = 0.3, HI = 1.9;
   const nx = Math.ceil(w / cell), nz = Math.ceil(d / cell);
   const grid = new Uint8Array(nx * nz);
+  // the floor under each cell's middle (the land where the piece lays none)
+  const base = new Float32Array(nx * nz);
+  let bMin = Infinity, bMax = -Infinity;
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const x = -w / 2 + (i + 0.5) * cell, z = -d / 2 + (j + 0.5) * cell;
+    const g = groundAt ? groundAt(x, z) : 0, f = floor?.(x, z);
+    const b = f !== null && f !== undefined && f > g ? f : g;
+    base[j * nx + i] = b;
+    bMin = Math.min(bMin, b); bMax = Math.max(bMax, b);
+  }
   obj.updateMatrixWorld(true);
   const inv = obj.matrixWorld.clone().invert();
   const mw = new THREE.Matrix4(), mi = new THREE.Matrix4(), mm = new THREE.Matrix4();
   const p = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  // a triangle's part inside the height band: its corners and where its edges cross the band's floor and ceiling
+  // a triangle's part between two heights, seen from above: its corners and where its edges cross them
   const box = { x0: 0, z0: 0, x1: 0, z1: 0, any: false };
   const take = (x: number, z: number) => {
     if (!box.any) { box.x0 = box.x1 = x; box.z0 = box.z1 = z; box.any = true; return; }
     box.x0 = Math.min(box.x0, x); box.x1 = Math.max(box.x1, x); box.z0 = Math.min(box.z0, z); box.z1 = Math.max(box.z1, z);
   };
-  const mark = () => {
+  const part = (lo: number, hi: number): WalkRect | null => {
     box.any = false;
     for (let i = 0; i < 3; i++) {
       const a = p[i], b = p[(i + 1) % 3];
-      if (a.y >= LO && a.y <= HI) take(a.x, a.z);
-      for (const y of [LO, HI]) {
+      if (a.y >= lo && a.y <= hi) take(a.x, a.z);
+      for (const y of [lo, hi]) {
         if ((a.y - y) * (b.y - y) < 0) {
           const t = (y - a.y) / (b.y - a.y);
           take(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t);
         }
       }
     }
-    if (!box.any) return;
-    const i0 = Math.max(0, Math.floor((box.x0 + w / 2) / cell + 0.02)), i1 = Math.min(nx - 1, Math.floor((box.x1 + w / 2) / cell - 0.02));
-    const j0 = Math.max(0, Math.floor((box.z0 + d / 2) / cell + 0.02)), j1 = Math.min(nz - 1, Math.floor((box.z1 + d / 2) / cell - 0.02));
-    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) grid[j * nx + i] = 1;
+    return box.any ? { x0: box.x0, z0: box.z0, x1: box.x1, z1: box.z1 } : null;
+  };
+  const parts = new Map<number, WalkRect | null>();
+  const tri = () => {
+    const y0 = Math.min(p[0].y, p[1].y, p[2].y), y1 = Math.max(p[0].y, p[1].y, p[2].y);
+    if (y1 < bMin + LO || y0 > bMax + HI) return;
+    const i0 = Math.max(0, Math.floor((Math.min(p[0].x, p[1].x, p[2].x) + w / 2) / cell)), i1 = Math.min(nx - 1, Math.floor((Math.max(p[0].x, p[1].x, p[2].x) + w / 2) / cell));
+    const j0 = Math.max(0, Math.floor((Math.min(p[0].z, p[1].z, p[2].z) + d / 2) / cell)), j1 = Math.min(nz - 1, Math.floor((Math.max(p[0].z, p[1].z, p[2].z) + d / 2) / cell));
+    parts.clear();
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const k = j * nx + i, b = base[k];
+      if (grid[k] || y1 < b + LO || y0 > b + HI) continue;
+      const key = Math.round(b * 1000);
+      let r = parts.get(key);
+      if (r === undefined) { r = part(b + LO, b + HI); parts.set(key, r); }
+      if (!r) continue;
+      const cx0 = -w / 2 + i * cell, cz0 = -d / 2 + j * cell, e = cell * 0.02;
+      if (r.x1 > cx0 + e && r.x0 < cx0 + cell - e && r.z1 > cz0 + e && r.z0 < cz0 + cell - e) grid[k] = 1;
+    }
   };
   const walk = (o: THREE.Object3D) => {
-    if (o.userData.bay || o.userData.lot || !o.layers.isEnabled(0)) return;
+    // (not parked cars, a lamp's light pool, a disc on the lamp field's layer out past the plot, or a model's stand-in)
+    if (o.userData.bay || o.userData.lot || o.userData.placeholder || !o.layers.isEnabled(0)) return;
     const m = o as THREE.Mesh;
     if (m.isMesh && m.geometry && !(m as THREE.SkinnedMesh).isSkinnedMesh) {
       const pos = m.geometry.getAttribute('position'), idx = m.geometry.getIndex();
@@ -342,23 +384,38 @@ export function walkBlockers(obj: THREE.Object3D, w: number, d: number, cell = 0
       for (let k = 0; k < (inst ? inst.count : 1); k++) {
         if (inst) { inst.getMatrixAt(k, mi); mm.multiplyMatrices(mw, mi); } else mm.copy(mw);
         for (let t = 0; t < tris; t++) {
-          for (let c = 0; c < 3; c++) {
-            p[c].fromBufferAttribute(pos, idx ? idx.getX(t * 3 + c) : t * 3 + c).applyMatrix4(mm);
-            if (groundAt) p[c].y -= groundAt(p[c].x, p[c].z);
-          }
-          if (Math.max(p[0].y, p[1].y, p[2].y) < LO || Math.min(p[0].y, p[1].y, p[2].y) > HI) continue;
-          mark();
+          for (let c = 0; c < 3; c++) p[c].fromBufferAttribute(pos, idx ? idx.getX(t * 3 + c) : t * 3 + c).applyMatrix4(mm);
+          tri();
         }
       }
     }
     for (const ch of o.children) walk(ch);
   };
   walk(obj);
+  // a floor nobody can step up to (a pipe's top, a box's lid) is no floor: open cells not reached from the plot's
+  // edge by steps of a stair's riser at most are blocked too
+  const seen = new Uint8Array(nx * nz), queue: number[] = [];
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i;
+    if ((i === 0 || j === 0 || i === nx - 1 || j === nz - 1) && !grid[k]) { seen[k] = 1; queue.push(k); }
+  }
+  for (let q = 0; q < queue.length; q++) {
+    const k = queue[q], i = k % nx, j = (k - i) / nx;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const ii = i + di, jj = j + dj;
+      if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
+      const n = jj * nx + ii;
+      if (seen[n] || grid[n] || Math.abs(base[n] - base[k]) > 0.35) continue;
+      seen[n] = 1;
+      queue.push(n);
+    }
+  }
+  for (let k = 0; k < nx * nz; k++) if (!seen[k]) grid[k] = 1;
   // join the marked cells: runs along x, a run carried on down the rows while the next row has the same run
-  const out: { x0: number; z0: number; x1: number; z1: number }[] = [];
-  let open = new Map<string, { x0: number; z0: number; x1: number; z1: number }>();
+  const out: WalkRect[] = [];
+  let open = new Map<string, WalkRect>();
   for (let j = 0; j <= nz; j++) {
-    const next = new Map<string, { x0: number; z0: number; x1: number; z1: number }>();
+    const next = new Map<string, WalkRect>();
     for (let i = 0; j < nz && i < nx; i++) {
       if (!grid[j * nx + i]) continue;
       const i0 = i;
@@ -374,14 +431,20 @@ export function walkBlockers(obj: THREE.Object3D, w: number, d: number, cell = 0
   return out.sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0));
 }
 
+/** A piece's floor and what its people walk round, read off what it is built of (`walkFloor`, then `walkBlockers`). */
+export function walkMap(obj: THREE.Object3D, w: number, d: number, groundAt?: (x: number, z: number) => number) {
+  const floor = walkFloor(obj, w, d, 0.5, groundAt);
+  return { floor, blockers: walkBlockers(obj, w, d, 0.25, groundAt, floor) };
+}
+
 /**
- * A piece's own floor (`Piece.floor`), read off what it is built of: the highest surface that faces up within a
- * step of the ground (0.6 m: paving, slabs, a road on its embankment, a doorstep, a building's plinth), exactly as
+ * A piece's own floor (`Piece.floor`), read off what it is built of: the highest surface that faces up within
+ * `WALK_STEP` of the land (paving, slabs, a road on its embankment, a doorstep, a plinth, a podium), exactly as
  * it lies (a grid of `cell` metres only says which surfaces to try at a point). `groundAt`: the land under a piece
  * that reshapes it.
  */
 export function walkFloor(obj: THREE.Object3D, w: number, d: number, cell = 0.5, groundAt?: (x: number, z: number) => number): (x: number, z: number) => number | null {
-  const STEP = 0.6;
+  const STEP = WALK_STEP;
   const nx = Math.ceil(w / cell), nz = Math.ceil(d / cell);
   const cells: number[][] = Array.from({ length: nx * nz }, () => []);
   const tris: number[] = [];
@@ -390,10 +453,10 @@ export function walkFloor(obj: THREE.Object3D, w: number, d: number, cell = 0.5,
   const mw = new THREE.Matrix4(), mi = new THREE.Matrix4(), mm = new THREE.Matrix4();
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
   const tri = () => {
-    // facing up (a box's top, a ramp), within a step of the land under it
+    // facing up (a box's top, its bevelled edge, a ramp, a stair's stringer), within a step of the land under it
     const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
     const ny = uz * vx - ux * vz, nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
-    if (nl < 1e-9 || ny / nl < 0.7) return;
+    if (nl < 1e-9 || ny / nl < 0.5) return;
     const g = (p: THREE.Vector3) => p.y - (groundAt ? groundAt(p.x, p.z) : 0);
     const top = Math.max(g(a), g(b), g(c));
     if (top > STEP || top < -0.05) return;
@@ -404,8 +467,8 @@ export function walkFloor(obj: THREE.Object3D, w: number, d: number, cell = 0.5,
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) cells[j * nx + i].push(t);
   };
   const walk = (o: THREE.Object3D) => {
-    // (not parked cars, planting, or a lamp's light pool: a disc on the lamp field's layer, out past the plot)
-    if (o.userData.bay || o.userData.lot || o.userData.plant || !o.layers.isEnabled(0)) return;
+    // (not parked cars, planting, a lamp's light pool or a model's stand-in)
+    if (o.userData.bay || o.userData.lot || o.userData.plant || o.userData.placeholder || !o.layers.isEnabled(0)) return;
     const m = o as THREE.Mesh;
     if (m.isMesh && m.geometry && !(m as THREE.SkinnedMesh).isSkinnedMesh) {
       const pos = m.geometry.getAttribute('position'), idx = m.geometry.getIndex();

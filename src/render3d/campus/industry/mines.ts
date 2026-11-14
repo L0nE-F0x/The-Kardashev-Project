@@ -281,6 +281,8 @@ const saltPlant: SetPieceFactory = (o) => {
   wallLights(g, [[-1.8, 4.3, -3.2 + 4.6]], 2.4, 3.2);
   return {
     obj: g, w: 26, d: 20, h: 12.6,
+    // the door under the wall light on the plant's front
+    doors: [{ x: -1.8, z: -3.2 + 4.5 + 0.7 }],
     update(e) { fans.update(e); plume.update(e); conv.update(e); },
   };
 };
@@ -515,6 +517,8 @@ const gasWorks: SetPieceFactory = (o) => {
   wallLights(g, [[cbx + 3.6, 3.4, cbz + 3.05], [14.5, 4.5, 10.55]], 2.4, 3.4);
   return {
     obj: g, w: 50, d: 36, h: neon ? 20 : 24,
+    // the control building's door, under its canopy
+    doors: [{ x: cbx + 3.6, z: cbz + 3.02 + 0.7 }],
     update(e) {
       fans.update(e);
       if (flame) {

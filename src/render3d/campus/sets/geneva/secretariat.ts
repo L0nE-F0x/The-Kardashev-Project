@@ -270,6 +270,8 @@ export function secretariat(o: Act3SetOpts): Piece {
   g.add(ppl.group);
   return {
     obj: g, w: 52, d: 30, h: ROOF + 7,
+    // into the glazed lobby behind the pilotis, under the canopy, up the entrance steps onto the plinth
+    doors: [{ x: -5.45, z: -2.2 + 0.7 }],
     ground: () => null,
     update(e) {
       fl.update(e);

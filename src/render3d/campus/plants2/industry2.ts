@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { plantOn } from '../trees';
 import { Kit, rng, type Paint } from '../../kit';
-import { walkBlockers, walkFloor, type Piece } from '../../pieces';
+import { walkMap, type Piece } from '../../pieces';
 import { parkVehicle } from '../industry/common';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
@@ -127,7 +127,7 @@ export function packaging(o: PieceOpts): Piece {
   for (let x = -12.6; x < -0.4; x += 1.0) plantOn(k, 'shrub', { x, y: 0.12, z: 12.6, s: 0.85, ry: x * 2.3 }, false);
   g.add(k.build(), lit.build(winMat), cool.build(coolWinMat), sky.build(skyMat), lamps.build(lampHeadMat));
   // (the office's entrance; people walk round what the plant is built of)
-  return { obj: g, w: o.w, d: o.d, h: Math.max(top + 1.9, oTop, tier >= 2 ? 7.4 : 6.4), doors: [{ x: ox + 1.4, z: oz + od / 2 + 0.7 }], blockers: walkBlockers(g, o.w, o.d), floor: walkFloor(g, o.w, o.d) };
+  return { obj: g, w: o.w, d: o.d, h: Math.max(top + 1.9, oTop, tier >= 2 ? 7.4 : 6.4), doors: [{ x: ox + 1.4, z: oz + od / 2 + 0.7 }], ...walkMap(g, o.w, o.d) };
 }
 
 // ── the Kestrel joint-venture fab (two plots) ───────────────────────────────────────────────
@@ -259,8 +259,7 @@ export function fab(o: PieceOpts): Piece {
     obj: g, w: o.w, d: o.d, h: Math.max(stackTop, towerTop, oTop + 1.4) + 0.2,
     // the office's entrance under the canopy, from the gate past the gatehouse
     doors: [{ x: ox + ow / 2 - 3.0, z: oz + od / 2 + 0.7 }],
-    blockers: walkBlockers(g, o.w, o.d),
-    floor: walkFloor(g, o.w, o.d),
+    ...walkMap(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };

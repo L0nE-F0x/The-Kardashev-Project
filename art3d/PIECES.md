@@ -33,7 +33,10 @@ forms, matte hand-painted colour, the game's palette, soft light). Its rules are
   each door), what they walk round, and the floor underfoot. Without `doors` they go in at the middle of the
   footprint's front edge: a piece whose entrance is anywhere else must name it, or its staff vanish on open ground. A
   busy piece reads the other two off its own geometry at the end of its builder: `blockers: walkBlockers(g, o.w, o.d),
-  floor: walkFloor(g, o.w, o.d)` (the Act II plants do). Keep a walkway clear in front of a door (no parked car in it).
+  floor: walkFloor(g, o.w, o.d)` (the Act II plants do: `...walkMap(g, o.w, o.d)`). A view-only set piece only names
+  its `doors` (the scene reads the rest); one that names none has no staff. Keep a walkway clear in front of a door
+  (no parked car, no standing figure in it), and a door within reach: a fence a step in front of it needs a pedestrian
+  gate (`fence`, `fenceMesh` and the fusion plants' `fenceRect` take gaps).
   Check with `tools/qa/doorcheck.mjs`, then `feetcheck` and `bumpcheck` (CLAUDE.md: "Automatic visual checks").
 - Colours: the game palette (`src/render/palette.ts`) or muted hex in its spirit; matte (roughness 0.8–1); bevelled
   boxes (Kit's default), never sharp raw primitives; `rng(seed)` for variety.

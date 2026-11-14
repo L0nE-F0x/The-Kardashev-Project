@@ -132,6 +132,8 @@ export function reactorUnit(o: Act3SetOpts): Piece {
   k.box(3.2, 0.25, 2.4, CHARTER.field, -7.6, 2.5, D / 2 - 2.4, { r: 0.04, shade: 0 });
   k.box(1.6, 0.9, 0.06, P.glassD, -7.6, 1.2, D / 2 - 1.28, { r: 0.02, shade: 0 });
   glow.push([-7.6, 1.65, D / 2 - 1.22, 1.5, 0.8]);
+  // its door on the side towards the gate (the front is its window): the staff go in this way
+  k.box(0.06, 2.0, 0.9, '#4a5a66', -6.1 + 0.03, 0.1, D / 2 - 2.4, { r: 0.02, jitter: 0 });
   ground.box(10.5, 0.08, 5, P.asphalt, -W / 2 + 6.8, 0.04, D / 2 - 4.8, { r: 0.03, shade: 0 });
   parkedCars(g, -W / 2 + 2.6, D / 2 - 4.8, 5, 2.3, o.seed + 4, Math.PI / 2);
   floodMast(g, k, -W / 2 + 1.2, -D / 2 + 1.2, 12, Math.PI * 0.25);
@@ -145,7 +147,7 @@ export function reactorUnit(o: Act3SetOpts): Piece {
   gm.castShadow = false;
   g.add(gm);
   windows(g, glow);
-  return { obj: g, w: W, d: D, h: th + 2, update: anim.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: th + 2, doors: [{ x: -6.1 + 0.7, z: D / 2 - 2.4, nx: 1, nz: 0 }], update: anim.update, ground: () => null };
 }
 
 // ── geothermal ───────────────────────────────────────────────────────────────────────────────
@@ -228,6 +230,7 @@ export function geoPad(o: Act3SetOpts): Piece {
   k.box(4.5, 0.25, 2.5, P.orange, -W / 2 + 3.6, 2.4, D / 2 - 3.6, { r: 0.04, shade: 0 });
   k.box(1.2, 0.8, 0.06, P.glassD, -W / 2 + 3, 1.3, D / 2 - 2.38, { r: 0.02, shade: 0 });
   glow.push([-W / 2 + 3, 1.7, D / 2 - 2.33, 1.1, 0.7]);
+  k.box(0.9, 2.0, 0.06, '#4a5a66', -W / 2 + 4.9, 0.05, D / 2 - 2.38, { r: 0.02, jitter: 0 });
   vehicle(g, 'pickup', W / 2 - 6, D / 2 - 3.2, Math.PI / 2 + 0.1);
   standing(g, 0, 5.6, 0.3, o.seed + 3);
   // fumaroles: the ground itself steams
@@ -283,7 +286,7 @@ export function geoPad(o: Act3SetOpts): Piece {
   g.add(gm);
   windows(g, glow);
   anim.add((e) => { for (const p of plumes) p.update(e); });
-  return { obj: g, w: W, d: D, h: rig ? 31 : 8, update: anim.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: rig ? 31 : 8, doors: [{ x: -W / 2 + 4.9, z: D / 2 - 2.4 + 0.7 }], update: anim.update, ground: () => null };
 }
 
 /** Binary-cycle plant: an air-cooled condenser deck of spinning fans on A-frames, the turbine building, working-fluid tanks, steaming cells. */
@@ -342,6 +345,7 @@ export function binaryPlant(o: Act3SetOpts): Piece {
   }
   placard(g, 'GEO', 2.6, bx - 2.2, 1.6, bz + 3.76, P.orange, '#2f2a3d');
   k.box(2.6, 3.0, 0.08, '#8a8490', bx + 2.4, 0.1, bz + 3.72, { r: 0.02, shade: 0 });
+  k.box(0.9, 2.1, 0.06, '#4a5a66', bx + 0.1, 0.1, bz + 3.72, { r: 0.02, jitter: 0 }); // the staff's door
   // working-fluid tanks, the vaporizer, pipes to the deck
   for (let i = 0; i < 2; i++) {
     const z = 3.6 + i * 2.8;
@@ -379,5 +383,5 @@ export function binaryPlant(o: Act3SetOpts): Piece {
     for (const [i, f] of fans.entries()) f.rotation.y += e.dt * (5 + (i % 3));
     for (const p of plumes) p.update(e);
   });
-  return { obj: g, w: W, d: D, h: 10, update: anim.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: 10, doors: [{ x: bx + 0.1, z: bz + 3.7 + 0.7 }], update: anim.update, ground: () => null };
 }

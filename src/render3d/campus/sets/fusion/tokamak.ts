@@ -105,7 +105,7 @@ export function tokamakMachine(k: Kit, x: number, y0: number, z: number, o: { R0
 export function tokamakPlant(o: Act3SetOpts): Piece {
   const c = new Ctx(o);
   const { k, g, L, W, D } = c;
-  siteBase(c, 3.5, 7.4);
+  siteBase(c, 3.5, 7.4, undefined, -15.2 + 9.4 / 2 - 1.4);
   // the inside road past the reactor hall
   k.box(3.4, 0.06, D - 6, P.asphalt, 3.5, 0.02, 1.2, { r: 0.03, shade: 0, jitter: 0.02 });
   // ── the reactor hall ──
@@ -162,7 +162,7 @@ export function tokamakPlant(o: Act3SetOpts): Piece {
   ventStack(c, 1.4, -14.6, 19);
   // ── balance of plant, control block, car park, lamps ──
   const bop = balanceOfPlant(c);
-  controlBlock(c, -15.2, 12.6, 9.4, 4.4, 4.8);
+  const cb = controlBlock(c, -15.2, 12.6, 9.4, 4.4, 4.8);
   carPark(c, -5.4, 14.0, 5);
   lampsAt(c, [[-1.6, 9.6, -1], [6.4, -3.6, 1], [-20.4, -4, 1]]);
   c.anim.extra.push((e) => {
@@ -171,5 +171,5 @@ export function tokamakPlant(o: Act3SetOpts): Piece {
     hl.set((0.35 + e.night * 0.45) * flick);
   });
   c.finish();
-  return { obj: g, w: W, d: D, h: Math.max(yTop + rise + 1.1, bop, 19.8), update: c.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: Math.max(yTop + rise + 1.1, bop, 19.8), doors: [cb.door], update: c.update, ground: () => null };
 }

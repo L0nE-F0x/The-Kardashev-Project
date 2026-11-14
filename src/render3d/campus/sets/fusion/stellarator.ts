@@ -92,7 +92,7 @@ export function stellaratorMachine(k: Kit, x: number, y0: number, z: number, o: 
 export function stellaratorPlant(o: Act3SetOpts): Piece {
   const c = new Ctx(o);
   const { k, g, L, W, D } = c;
-  siteBase(c, 3.5, 7.4);
+  siteBase(c, 3.5, 7.4, undefined, -12.6 + 9.0 / 2 - 1.4);
   k.box(3.4, 0.06, D - 6, P.asphalt, 3.5, 0.02, 1.2, { r: 0.03, shade: 0, jitter: 0.02 });
   // ── the glass hall ──
   const hx = -9.8, hz = -5.4, hw = 21.6, hd = 17.6, wallH = 7.4, base = 2.0;
@@ -167,7 +167,7 @@ export function stellaratorPlant(o: Act3SetOpts): Piece {
   cryoplant(c, -19.8, 7.4);
   ventStack(c, 1.6, -15.2, 17);
   const bop = balanceOfPlant(c);
-  controlBlock(c, -12.6, 12.8, 9.0, 4.4, 4.8);
+  const cb = controlBlock(c, -12.6, 12.8, 9.0, 4.4, 4.8);
   carPark(c, -3.0, 14.0, 4);
   lampsAt(c, [[-1.0, 8.6, -1], [6.4, -3.6, 1], [-21.0, -6, 1]]);
   c.anim.extra.push((e) => {
@@ -176,5 +176,5 @@ export function stellaratorPlant(o: Act3SetOpts): Piece {
     hl.set((0.18 + e.night * 0.4) * flick);
   });
   c.finish();
-  return { obj: g, w: W, d: D, h: Math.max(wallH + rise + 0.4, bop, 17.8), update: c.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: Math.max(wallH + rise + 0.4, bop, 17.8), doors: [cb.door], update: c.update, ground: () => null };
 }

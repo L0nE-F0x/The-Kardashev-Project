@@ -21,7 +21,7 @@ import { closeScope, disposeObject, fbm, Kit, mix, openScope, rng, noise, smooth
 import { deckHeight, hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
   blinkBeacons, builtHeight, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
-  scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
+  scaffold, siteClutter, stockPond, streetLamp, utilityPole, walkMap, WALK_STEP, windpump, wires, type Env, type Piece,
 } from '../pieces';
 import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
 import { plumeUniforms } from '../fx';
@@ -70,6 +70,8 @@ interface Entry {
   rectKey: string;
   /** An expansion under way: the building as it was, cut away from the ground up as the new one rises through it. */
   old?: THREE.Object3D;
+  /** How high the building has risen while it goes up (its floors above that aren't there yet: `walkH`). */
+  clipY?: number;
   /** The building site while it's built (plot-local): the site office's door, the stacks, what stands about. */
   siteInfo?: { door: { x: number; z: number }; stack: { x: number; z: number }; solids: WRect[] };
 }
@@ -145,7 +147,8 @@ export class CampusScene implements Scene3D {
   private layoutKey = '';
   /** Suppliers, the cloud, mines, landing stations: set pieces, no plots. */
   private viewOnly: boolean;
-  private setPieces: { item: SetItem; piece: Piece; root: THREE.Group }[] = [];
+  /** The view-only place's pieces (`pad`: it stands on a plot's pad, as a facility does: `walkH`). */
+  private setPieces: { item: SetItem; piece: Piece; root: THREE.Group; pad: boolean }[] = [];
   /** Rival labs' campuses on plots here (Act II). */
   private rivals = new Map<string, { root: THREE.Group; piece: Piece; crane: THREE.Group | null; key: string }>();
   private time = 0;
@@ -286,11 +289,12 @@ export class CampusScene implements Scene3D {
         if (this.scenery === 'habitat') { root.position.y = habFloor(c.z); root.rotation.x = -Math.asin(Math.max(-1, Math.min(1, c.z / HAB_R))); }
         const onWater = this.scenery === 'offshore' || sp.kind === 'jetty';
         const bare = this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid' || this.scenery === 'habitat';
-        if (!piece.ground && sp.kind !== 'manhole' && !onWater && !bare) root.add(pad(w - 0.6, d - 0.6, '#c4b8a6', hashStr(sp.kind)));
+        const padded = !piece.ground && sp.kind !== 'manhole' && !onWater && !bare;
+        if (padded) root.add(pad(w - 0.6, d - 0.6, '#c4b8a6', hashStr(sp.kind)));
         root.add(piece.obj);
         settleCars(root);
         piece.progress?.(1);
-        this.setPieces.push({ item, piece, root });
+        this.setPieces.push({ item, piece, root, pad: padded });
         if (piece.ground) carvers.push((x, z) => piece.ground!(x - c.x, z - c.z));
       }
       if (carvers.length) carve = (x, z) => { for (const f of carvers) { const v = f(x, z); if (v !== null) return v; } return null; };
@@ -420,7 +424,17 @@ export class CampusScene implements Scene3D {
     for (const item of this.layout.items) if (item.kind === 'empty') extra.push({ x0: item.rect.x0 + 0.8, z0: item.rect.z0 + 0.8, x1: item.rect.x1 - 0.8, z1: item.rect.z1 - 0.8 });
     for (const [i, sp] of this.setPieces.entries()) {
       if (sp.item.spec.kind === 'manhole') { extra.push(sp.item.rect); continue; }
-      add(`set:${i}:${sp.item.spec.kind}`, 'set', sp.item.rect, sp.piece, sp.root);
+      // a piece that names its door is staffed: what its people walk round and stand on is read off it (once)
+      const piece = sp.piece;
+      if (piece.doors?.length) {
+        const land = piece.ground ? (x: number, z: number) => piece.ground!(x, z) ?? 0 : undefined;
+        if (!piece.blockers || !piece.floor) {
+          const m = walkMap(piece.obj, piece.w, piece.d, land);
+          piece.floor ??= m.floor;
+          piece.blockers ??= m.blockers;
+        }
+      }
+      add(`set:${i}:${sp.item.spec.kind}`, 'set', sp.item.rect, piece, sp.root);
     }
     // the substation where the grid comes in (and its yard)
     const s = this.layout.substation;
@@ -459,7 +473,8 @@ export class CampusScene implements Scene3D {
       root.updateMatrixWorld(true);
       const targets: THREE.Object3D[] = [];
       root.traverse((o) => {
-        if (!(o as THREE.Mesh).isMesh || (o as THREE.InstancedMesh).isInstancedMesh) return;
+        // (not a figure: a piece's own people, one of whom may be standing on the step when the doors are hung)
+        if (!(o as THREE.Mesh).isMesh || (o as THREE.InstancedMesh).isInstancedMesh || (o as THREE.SkinnedMesh).isSkinnedMesh) return;
         // (not the cars in its car park, nor anything hidden)
         for (let q: THREE.Object3D | null = o; q && q !== root; q = q.parent) if (q.userData.bay || !q.visible) return;
         targets.push(o);
@@ -942,8 +957,9 @@ export class CampusScene implements Scene3D {
       // an expansion under way: the crane and crew come back round the (target-size) building
       if (e.online && f.upgrade && !e.site) this.construction(e);
       else if (e.online && !f.upgrade && e.site) this.open(e);
+      e.clipY = undefined;
       if (!e.online) {
-        if (e.clip) clipAbove(e.piece.obj, builtHeight(e.piece, p));
+        if (e.clip) clipAbove(e.piece.obj, (e.clipY = builtHeight(e.piece, p)));
         e.piece.progress?.(Math.max(0.02, p));
       } else if (f.upgrade && e.site) {
         const up = Math.min(1, f.upgrade.progress / Math.max(1, f.upgrade.buildDays));
@@ -952,6 +968,7 @@ export class CampusScene implements Scene3D {
           const y = builtHeight(e.piece, up);
           clipAbove(e.piece.obj, y);
           clipAbove(e.old, y, true);
+          e.clipY = y;
           e.piece.progress?.(Math.max(0.02, up));
         } else {
           // rows of panels, cabinets or turbines: about half were there already, the rest go in
@@ -1206,11 +1223,10 @@ export class CampusScene implements Scene3D {
 
   /** On a plot's pad (pieces.ts `pad`: 0.3 in from the plot's edge; pieces that shape their own ground have none). */
   private onPad(x: number, z: number) {
-    for (const e of this.entries.values()) {
-      if (e.piece.ground) continue;
-      const r = e.item.rect;
-      if (x >= r.x0 + 0.3 && x <= r.x1 - 0.3 && z >= r.z0 + 0.3 && z <= r.z1 - 0.3) return true;
-    }
+    const on = (r: Rect) => x >= r.x0 + 0.3 && x <= r.x1 - 0.3 && z >= r.z0 + 0.3 && z <= r.z1 - 0.3;
+    for (const e of this.entries.values()) if (!e.piece.ground && on(e.item.rect)) return true;
+    // (a view-only place's pieces stand on pads too: their people walk on them since v0.15.2)
+    for (const sp of this.setPieces) if (sp.pad && on(sp.item.rect)) return true;
     return false;
   }
 
@@ -1230,13 +1246,15 @@ export class CampusScene implements Scene3D {
       // a floor, not a ledge: nothing more than a tall step above the ground counts
       if (v !== null && v > y && v - g < 1.4) y = v;
     }
-    // a piece's own paving, slabs and roads (the Act II plants: pieces.ts `walkFloor`), unless it is still going up
-    for (const e of this.entries.values()) {
-      const r = e.item.rect;
-      if (!e.piece.floor || e.site || x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
-      const v = e.piece.floor(x - e.root.position.x, z - e.root.position.z);
-      if (v !== null && e.root.position.y + v > y && e.root.position.y + v - g < 0.6) y = e.root.position.y + v;
-    }
+    // a piece's own paving, slabs, platforms and roads (the Act II plants, the gas plant, the staffed set pieces:
+    // pieces.ts `walkFloor`); while it goes up, as far as it has risen (its crews walk its platform once it's there)
+    const onFloor = (piece: Piece, root: THREE.Object3D, r: Rect, top = Infinity) => {
+      if (!piece.floor || x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) return;
+      const v = piece.floor(x - root.position.x, z - root.position.z);
+      if (v !== null && v <= top && root.position.y + v > y && root.position.y + v - g < WALK_STEP) y = root.position.y + v;
+    };
+    for (const e of this.entries.values()) onFloor(e.piece, e.root, e.item.rect, e.site ? e.clipY ?? Infinity : Infinity);
+    for (const sp of this.setPieces) onFloor(sp.piece, sp.root, sp.item.rect);
     return y;
   };
 

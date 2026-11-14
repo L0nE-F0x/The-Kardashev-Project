@@ -819,5 +819,7 @@ function placeholder(size: number) {
   const o = new THREE.Group();
   o.add(g);
   o.userData.size = new THREE.Vector3(size, size * 0.4, size * 0.7);
+  // (a stand-in, not the building: what people walk round and on is not read off it: pieces.ts `walkMap`)
+  o.userData.placeholder = true;
   return o;
 }

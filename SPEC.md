@@ -2732,10 +2732,10 @@ above); Aurora's broadleaf trees are 470k of its 1.12M triangles (fine on the In
 measurement, but the habitat uses no far level of detail); the reactor and the fab were only seen in the lab,
 never on a real campus plot; the gas plant's control house keeps the model's hut inside the new building. All four done in v0.15.2 (§37).
 
-## 37. v0.15.2 "Way In": §36's last four, and the plants' doors (built 2026-11-14)
+## 37. v0.15.2 "Way In": §36's last four, and everyone's doors (built 2026-11-14)
 
-**The ask (the user, 2026-11-14):** "time to finish SPEC §36", its "Still open after it". Built and committed;
-shipping was not mentioned.
+**The ask (the user, 2026-11-14):** "time to finish SPEC §36", its "Still open after it"; then, shown what that
+left open (the view-only places' doors, the gas plant's gate): "Keep going, we only push when everything is done!".
 
 **What each became:**
 - **Cut walls had no thickness** → a cut is drawn as one (`cutShader` in pieces.ts replaces three's clipping chunk
@@ -2774,21 +2774,64 @@ bays now, the rest its forecourt) and the geothermal plant's third stood at its 
 west of it, one east). At tiers 2–3 the packaging plant's hall stands further forward and its entrance canopy's
 posts came within 1.2 m of the parked cars' noses, too narrow a way in: the office stands back against the hall
 under a shallower canopy. The gas plant's door stays its yard's gate (v0.13.2: no room to walk between its deck and the
-fence), now said so (`gate: true`).
+fence); that was the second round's last item (below).
 A new check, `tools/qa/doorcheck.mjs <sites>`: every door people use has a wall behind it (a doorway that opens) and
 a way in from its gate. The menu's world has none of these plants, so the door, feet and bump checks take
 `SETUP=<file.js>`, a company set up in the page first (`game.startNew({ act2: true, … })`, facilities pushed onto
 sites). Also learnt: a script that only disconnects from the headless Chrome leaves its game running there (thirty
 of them and it stopped answering); the tools close their page.
 
-**Checked:** `npm test` (88 passed), both builds, `floorcheck` 0; on three campuses with every Act II plant (the
-Columbia Gorge: reactor, fab, hydro; West Texas: SMR, restart, packaging, geothermal; the Mojave: the gigawatt campus,
-the gas plant) at tiers 1, 2 and 3: `doorcheck` every door, `bumpcheck` 0 at 08:12 and 12:36, `feetcheck` 0 but one
-sample (a pad's bevelled edge at the restart's street-side step, 8 cm, one in about 1,300). In WebKit (the debug
-app on the dev server, in a headless Hyprland): 48 poses of eight buildings going up on two campuses, day and night,
-no non-finite pixel, no shader error. The build-menu pictures of the SMR, geothermal and packaging plants re-shot.
+**The second round: everyone else's doors.** The view-only places' staff vanished the same way: no set piece but
+Geneva's council named a door. Now:
+- A set piece that names its door is staffed, and the scene reads what its people walk round and stand on off it
+  (`walkMap`, once, when the place is laid out); a set piece that names none has no staff (people.ts `staffs`): a
+  yard, a field, a tank farm under construction, a build site (its crew are standing figures), the brine ponds, the
+  crusher (its control room is up on the tipping platform), the crate yard (the flatbed being loaded fills its one
+  gateway), the storage yard (a van stands along its control house's front inside the fence).
+- Named: the suppliers' offices, fabs, EUV hall, packaging lines, cloud halls, warehouses, gas yards and the cable
+  hut; the salt plant, the gas works and the pit office; Geneva's secretariat (into the lobby between two pilotis, up
+  the entrance steps) and council (the glazed doors on the podium, up its steps); the VAB's annex (glass doors under
+  its canopy, in place of a window) and the stage factory's office; the tank farm's control hut; the megaproject
+  office (the control centre's doors and the site office's), the survey camp's cabin, the substation's relay house and
+  the converter's control building (doors painted between their windows), the reactor unit's gatehouse (its side
+  door), the geothermal pad's cabin, the binary plant's staff door, the survey trailer (from its top step) and all five
+  fusion designs' control blocks. `cabin()` and `controlBlock()` return their doors.
+- Three buildings stood with their door a metre behind the plot's fence, out of reach: the fusion plants' control
+  block, the converter's control building, the tank farm's hut. Each fence has a pedestrian gate at the door now
+  (`frontRuns`: fences take gaps besides their gate). The gas yard's tube trailer stood in its gateway (moved a metre).
+- The blockers are measured from the floor where a person would stand, not the land: a flight of steps is a way up
+  (each riser low beside its tread), a podium's edge a wall to whoever stands below; a floor nobody can step up to (a
+  pipe's top, a box's lid) is blocked. The floor reader takes surfaces up to 1.2 m (`WALK_STEP`: Geneva's podium).
+- A doorway is hung only on a wall: a piece's own walking figure on the step when the doors were hung made the
+  megaproject office's door look wall-less (figures no longer count).
+- The gas plant's operators come in at the gate and go in at a door: along the platform's west walkway to the west
+  hall (its own porch stands too close to the platform's edge to reach), and in the combined-cycle plant (tiers 2–3,
+  its platform crowded with the boilers' ducts) at the east hall's front corner, each under a bulkhead light; what
+  they walk round and on is read off the plant, the hand-made blockers kept for the ground round it. Reading the walk
+  map costs 3–50 ms a staffed set piece (the logic fab the most), about 170 ms more when a megaproject with seven
+  fusion plants is laid out.
+- The sweep over every place with a working day found what walking there newly showed: a view-only piece's pad is a
+  pad (`walkH` knew only the company's: feet 12 cm in it); a cabin's door spot is on its step (a step out, half a foot
+  on the step); a piece's floors count while it goes up, as far as it has risen (the menu world's gas plant was a
+  building site with its crew on the platform, 76 cm in it); the floor reader takes bevelled edges (up to 60° from
+  level: the council's kerb); the VAB's standing figure moved off its annex's doorstep; the research lab's door spot
+  moved to its notch's mouth (the glass is 1.39 behind the old spot, past the 1.2 a doorway is hung within, so it never
+  had one: a v0.15.0 leftover) and its shrub bed is walked round; a placeholder model (one not loaded, as in the
+  tests) is not read as the building.
 
-**Still open after it:** the view-only places' staff vanish the same way: no set piece but Geneva's council names a
-door (`KINDS=set node tools/qa/doorcheck.mjs lumen-hsinchu,…`: all 17 pieces on six suppliers' sites, and the
-Act III–V places are built the same way). The fix is the plants' recipe, piece by piece (`doors`, then
-`walkBlockers`/`walkFloor`). The gas plant's operators still go in at its yard's gate.
+**Checked:** `npm test` (88 passed), both builds, `floorcheck` 0. The working-day sweep (`doorcheck`, `feetcheck` at
+08:12 and 12:36, `bumpcheck` at 12:36) over every place with a working day: the menu world's six campuses and Act II's
+sixteen view-only places, three campuses with every Act II plant at tiers 1, 2 and 3 (and the home campus), and
+Geneva, the five launch sites and the eleven megaprojects on land in the tour's Act IV and Act V worlds (`SETUP=`
+`game.tour.world(4|5)` as `game.showcase`). Every door has a doorway and a way in; no bumps but the launch pad's
+(below); feet within 4 cm but for single samples at edges: a person exactly in a doorway's plane as they go in, on a
+paving's or pavement's very edge, at a pad's bevel, at the bay-area HQ garage's apron edge (the model deck rule: one
+standing at a deck's edge stands on it). In WebKit (the debug app on the dev server, in a headless Hyprland): 48 poses
+of eight buildings going up on two campuses, day and night, and six places of Acts II–V with their people, no
+non-finite pixel, no shader or script error. The build-menu pictures of the SMR, geothermal, packaging and gas plants
+and the lab re-shot.
+
+**Still open after it (small):** the launch pad's transporter fades in on the frontage road and drives up the ramp
+through whoever is on the pavement (its own animation, a few seconds a cycle); a few staff at the megaprojects stand on
+the pavement's edge where `walkH` and the mesh disagree by a few centimetres. Not checked: the habitat, the Moon,
+space and offshore places (their own crowds, not the working day).

@@ -70,10 +70,15 @@ export function vab(o: Act3SetOpts): Piece {
     k.box(AX1 - AX0 + 0.3, 0.45, AZ1 - AZ0 + 0.3, '#5b5562', (AX0 + AX1) / 2, AH + 0.4, (AZ0 + AZ1) / 2, { r: 0.06, shade: 0 });
     k.box(AX1 - AX0 + 0.04, 0.4, AZ1 - AZ0 + 0.04, accent, (AX0 + AX1) / 2, AH - 0.5, (AZ0 + AZ1) / 2, { r: 0.03, shade: 0 });
     for (const y of [1.6, 4.9]) {
-      for (let x = AX0 + 1.4; x < AX1 - 1; x += 2.1) (building ? dark : warm).box(1.5, 1.7, 0.1, '#3c5f86', x, y, AZ1 + 0.06, { r: 0, jitter: 0.04 });
+      for (let x = AX0 + 1.4; x < AX1 - 1; x += 2.1) {
+        // (under the canopy, the ground floor's glass doors instead of a window)
+        if (y < 2 && Math.abs(x - (AX0 + 3.5)) < 0.1) continue;
+        (building ? dark : warm).box(1.5, 1.7, 0.1, '#3c5f86', x, y, AZ1 + 0.06, { r: 0, jitter: 0.04 });
+      }
       for (let z = AZ0 + 1.4; z < AZ1 - 1; z += 2.1) (building ? dark : warm).box(0.1, 1.7, 1.5, '#3c5f86', AX1 + 0.06, y, z, { r: 0, jitter: 0.04 });
     }
     k.box(3.4, 0.25, 2.2, accent, AX0 + 3.2, 3.3, AZ1 + 1.1, { r: 0.05 });
+    k.box(1.6, 2.5, 0.1, '#2f3f4a', AX0 + 3.5, 0.45, AZ1 + 0.06, { r: 0, jitter: 0 });
     if (!building) {
       k.box(2.2, 1.2, 1.6, '#b9c2c4', AX1 - 2.5, AH + 0.85, AZ0 + 2.5, { r: 0.1 });
       k.box(1.6, 1.0, 1.4, '#b9c2c4', AX1 - 5.2, AH + 0.85, AZ0 + 2.5, { r: 0.1 });
@@ -194,7 +199,8 @@ export function vab(o: Act3SetOpts): Piece {
   if (!building) {
     ppl.walk([[AX0 + 1.5, AZ1 + 3.6], [AX0 + 4.6, AZ1 + 4.0], [AX0 + 4.9, 16.6], [2.6, 16.9]], 'engineer');
     ppl.stand(-9.6, 10.6, 0.6, 'worker');
-    ppl.stand(AX0 + 3.6, AZ1 + 2.0, 2.6, 'office');
+    // (beside the annex's doors, not in front of them: the staff go in there)
+    ppl.stand(AX0 + 6.4, AZ1 + 2.0, 2.6, 'office');
   } else {
     ppl.walk([[-14, 12.5], [4, 12.5], [4, 15.5]], 'worker');
     ppl.stand(10.5, 12.2, -1.6, 'worker');
@@ -203,6 +209,8 @@ export function vab(o: Act3SetOpts): Piece {
   g.add(ppl.group);
   return {
     obj: g, w: 40, d: 36, h: building ? Math.max(20, H * clamp01(p / 0.8) + 14) : H + 2,
+    // the annex's glass doors under the canopy, once it stands
+    doors: annex && !building ? [{ x: AX0 + 3.5, z: AZ1 + 0.75 }] : undefined,
     update(e: Env) {
       if (craneTop) craneTop.rotation.y = Math.sin(e.t * 0.2 + o.seed) * 1.1;
       ppl.update(e);
@@ -264,7 +272,12 @@ function factory(o: Act3SetOpts): Piece {
   // the office at the end
   k.box(6, 6.4, 11, '#f1ece4', X1 + 3, 0.35, -5, { r: 0.12 });
   for (const y of [1.4, 4]) for (let z = -9.4; z < -0.8; z += 2.1) warm.box(0.1, 1.5, 1.5, '#3c5f86', X1 + 6.05, y, z, { r: 0, jitter: 0.04 });
-  for (const y of [1.4, 4]) for (let x = X1 + 1; x < X1 + 5.6; x += 2.1) warm.box(1.5, 1.5, 0.1, '#3c5f86', x, y, 0.55, { r: 0, jitter: 0.04 });
+  for (const y of [1.4, 4]) for (let x = X1 + 1; x < X1 + 5.6; x += 2.1) {
+    // (the ground floor's middle window is its door)
+    if (y < 2 && Math.abs(x - (X1 + 3.1)) < 0.1) continue;
+    warm.box(1.5, 1.5, 0.1, '#3c5f86', x, y, 0.55, { r: 0, jitter: 0.04 });
+  }
+  k.box(1.0, 2.1, 0.08, '#4a5a66', X1 + 3.1, 0.35, 0.56, { r: 0, jitter: 0 });
   // the stage yard: stages on cradles, a gantry crane on rails
   stage(k, -5, 2.9, 8.2, 17, accent, hi);
   stage(k, -3, 2.9, 13.6, 14, accent, hi);
@@ -310,6 +323,7 @@ function factory(o: Act3SetOpts): Piece {
   g.add(ppl.group);
   return {
     obj: g, w: 40, d: 36, h: H + TH + 1,
+    doors: [{ x: X1 + 3.1, z: 0.5 + 0.75 }],
     update(e: Env) {
       gantry.position.x = -2 + Math.sin(e.t * 0.09 + o.seed) * 7;
       ppl.update(e);

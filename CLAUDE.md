@@ -10,8 +10,9 @@ the end card and the site previews are 3D renders or vector drawings (`art3d/INT
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
 Current build: **v0.15.2 "Way In"** (SPEC §36's last four done: cut walls with a top, Aurora's far trees, the
-reactor and the fab seen on a real plot, the gas plant's hut gone; and found there: the Act II plants' staff vanished
-at the edge of the plot, so every plant names its door and people walk round and on what it is built of: SPEC §37)
+reactor and the fab seen on a real plot, the gas plant's hut gone; and found there: staff vanished at the edge of
+every Act II plant's plot, every view-only place's and at the gas plant's gate, so every building people work in names
+its door and they walk round and on what it is built of: SPEC §37)
 on top of **v0.15.1 "Loose Ends"** (what the realism pass saw and left, finished: wheels that turn, buildings that go up at the pace of the work, expansions that rise through the old building, the Act II plants, the suppliers' sites and the later places gone over at close range: SPEC §36) on top of **v0.15.0 "True to Life"** (the realism pass on the 3D world: glass and paint on the cars, a real turning circle, trees rebuilt, doors that open, the facility pieces and the later places gone over one by one: SPEC §35) on top of **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
 plywood and paper in the garage to nothing but light at Type I, the title and loading screens included: SPEC §34;
 on the first pass of the overhaul: a display typeface, panels that lead with tiles, a build menu with pictures:
@@ -91,7 +92,8 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   (`Piece.doors`; without it, the middle of its footprint's front edge, where staff vanished on open ground at every
   Act II plant); a busy piece reads what people walk round and the floor underfoot off its own geometry
   (`walkBlockers`, `walkFloor` in pieces.ts: the Act II plants, whose paving tops out at 0.18–0.22, so `walkH`
-  stands people on it). A door with no wall to hang a doorway in is a `gate` (the gas plant's yard).
+  stands people on it). View-only places' set pieces do the same, read by the scene, and a set piece that names no
+  door has no staff (a yard, a field, a build site): v0.15.2, SPEC §37.
 - **Plants (v0.15):** every tree, bush, cactus and tuft is built in code in `campus/trees.ts`, as a model-maker
   builds them: a trunk and limbs (`tube`), a dark heart of foliage (`blob`), a shell of leaf sprays (`card`: quads
   cut out by one painted leaf sheet's alpha, drawn in `leafTexture`, lit by the whole crown's roundness, not the
@@ -162,7 +164,8 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   as for gen:assets, `CDP=` / `BASE=` to point elsewhere): `feetcheck.mjs <sites> [hour]` (feet and wheels on the
   surface), `bumpcheck.mjs <sites>` (nobody inside something solid), `floorcheck.mjs [filter]` (no floor buried
   under a pad, no car off its surface, across every facility tier and set piece), `doorcheck.mjs <sites>` (v0.15.2:
-  every door people use has a wall behind it and a way in from the gate). All read zero: run them after touching
+  every door people use has a wall behind it and a way in from the gate; set pieces too, those that name no door are
+  listed as unstaffed). All read zero: run them after touching
   people, paths, pads, doors or a piece's ground-level parts. The menu's world has few of the buildings: `SETUP=<file.js>`
   (feet, bump and door checks) runs an async function body in the page first, say `game.startNew({ act2: true, … })`
   and facilities pushed onto sites with `status: 'online'` and a `tier`, and the campuses are then that company's.
@@ -596,10 +599,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36"): built and committed
-locally, not pushed or tagged; shipping is the user's call. Its "Still open after it" is the next thing to offer: the
-view-only places' pieces (suppliers, megaprojects, Acts III–V) don't name their doors either (`KINDS=set` in
-doorcheck). Before it, v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, in three rounds on 2026-11-14 ("finish up everything that was left", then "finish those up first before we ship everything in one go"). v0.15.0's draft was never published, so v0.15.1 is the one release carrying both; publishing its draft is the user's step. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Still open after it" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
+**Next:** v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36", then "Keep going, we only
+push when everything is done!"): pushed and tagged when done; publishing the draft is the user's step. Then ask how it
+looks in their app. Before it, v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, in three rounds on 2026-11-14 ("finish up everything that was left", then "finish those up first before we ship everything in one go"). v0.15.0's draft was never published, so v0.15.1 is the one release carrying both; publishing its draft is the user's step. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Still open after it" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
 rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
 clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and

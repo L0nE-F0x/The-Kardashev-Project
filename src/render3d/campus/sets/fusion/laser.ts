@@ -20,7 +20,7 @@ export function laserPlant(o: Act3SetOpts): Piece {
   const c = new Ctx(o);
   const { k, g, L, W, D } = c;
   const roadX = 6.9;
-  siteBase(c, roadX, 6.4);
+  siteBase(c, roadX, 6.4, undefined, -16.2 + 8.6 / 2 - 1.4);
   k.box(3.0, 0.06, D - 8, P.asphalt, roadX, 0.02, 2.2, { r: 0.03, shade: 0, jitter: 0.02 });
   // ── the target chamber ──
   const cx = -2.2, cz = -4.6, cy = 6.5, R = 3.8;
@@ -128,7 +128,7 @@ export function laserPlant(o: Act3SetOpts): Piece {
   ventStack(c, -0.6, -15.0, 16);
   // ── the rest ──
   const bop = balanceOfPlant(c);
-  controlBlock(c, -16.2, 12.9, 8.6, 4.4, 4.8);
+  const cb = controlBlock(c, -16.2, 12.9, 8.6, 4.4, 4.8);
   carPark(c, -6.4, 14.2, 5);
   lampsAt(c, [[-2.0, 4.0, 1], [5.2, -6.0, -1], [-20.6, -10, 1]]);
   // ── the shot ──
@@ -146,5 +146,5 @@ export function laserPlant(o: Act3SetOpts): Piece {
     hp.set(0.15 * e.night + f * 1.2 + after * 0.3);
   });
   c.finish();
-  return { obj: g, w: W, d: D, h: Math.max(cy + R + 3.2, bop, 16.8), update: c.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: Math.max(cy + R + 3.2, bop, 16.8), doors: [cb.door], update: c.update, ground: () => null };
 }

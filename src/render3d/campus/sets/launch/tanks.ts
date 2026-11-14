@@ -112,8 +112,9 @@ export function tankFarm(o: Act3SetOpts): Piece {
   g.add(hs);
   g.add(win.build(litGlass('yel1', 1.1)));
   // the fence, lamps at the corners
-  fence(k, 29.2, 23.2, 6);
-  fenceMesh(g, 29.2, 23.2, 6);
+  // (a pedestrian gate at the control hut's door, which stands a step behind the fence)
+  fence(k, 29.2, 23.2, 6, '#8a8490', [[8.3, 9.9]]);
+  fenceMesh(g, 29.2, 23.2, 6, [[8.3, 9.9]]);
   const lamp = lampMat('yel1', 2.6);
   const pool = poolMat('#ffe2b0', 0.5);
   for (const [x, z] of [[-13.6, 10.6], [13.6, -10.6], [-1.6, 10.6]] as const) {
@@ -160,6 +161,8 @@ export function tankFarm(o: Act3SetOpts): Piece {
   g.add(ppl.group);
   return {
     obj: g, w: 30, d: 24, h: building ? 21 : LOX.cy + LOX.r + 2,
+    // the control hut's door (none while the farm is being built)
+    doors: building ? undefined : [{ x: 9.1, z: 10.72 + 0.7 }],
     update(e: Env) {
       for (const [i, v] of vents.entries()) {
         v.strength = 0.6 + 0.4 * Math.sin(e.t * 0.3 + i * 2);

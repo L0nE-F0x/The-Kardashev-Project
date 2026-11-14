@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { Kit, mix, paintMat, rng } from '../../../kit';
-import { fenceMesh, type Piece } from '../../../pieces';
+import { fenceMesh, frontRuns, type Piece } from '../../../pieces';
 import { parkedCars } from '../../life';
 import { plantOn } from '../../trees';
 import type { Act3SetOpts } from '../../act3sets';
@@ -84,6 +84,7 @@ export function survey(o: Act3SetOpts): Piece {
   track(k, -W / 2, D / 2 - 3.2, W / 2, D / 2 - 2.6, 0.45, rut, 0);
   track(k, -W / 2, D / 2 - 4.6, W / 2, D / 2 - 4.0, 0.45, rut, 0);
   const glow: Win = [];
+  let door: { x: number; z: number } | undefined;
   if (board) {
     // the Charter's board on its posts, the site cabin and the survey pickup
     const bx = -W / 2 + 9, bz = D / 2 - 4.5;
@@ -94,14 +95,14 @@ export function survey(o: Act3SetOpts): Piece {
     bd.position.set(bx, 1.15 + 1.65, bz + 0.02);
     g.add(bd);
     lamp(g, k, bx - 4.6, bz + 0.6, 4.6, 1, warmPool, 0, 4);
-    cabin(k, glow, bx + 12, bz - 0.4, 6.2, 2.6);
+    door = cabin(k, glow, bx + 12, bz - 0.4, 6.2, 2.6);
     k.box(1.4, 1.4, 1.4, '#2f7a8c', bx + 16.6, 0, bz - 0.4, { r: 0.12 });
     vehicle(g, 'pickup', bx + 20.5, bz + 0.8, Math.PI / 2 + 0.15);
     standing(g, bx + 3.8, bz + 1.4, 0.3, o.seed + 5, 'engineer');
   }
   g.add(k.build());
   if (glow.length) windows(g, glow);
-  return { obj: g, w: W, d: D, h: board ? 5 : 2, update: anim.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: board ? 5 : 2, doors: door ? [door] : undefined, update: anim.update, ground: () => null };
 }
 
 // ── stage 0 at sea ───────────────────────────────────────────────────────────────────────────
@@ -252,10 +253,11 @@ export function megaOffice(o: Act3SetOpts): Piece {
   g.add(cm);
   // an entrance canopy and a door
   k.box(3.6, 0.22, 2.2, '#e9e1d2', bx - 2.5, 2.7, bz + bd / 2 + 1.1, { r: 0.05 });
+  k.box(1.6, 2.2, 0.06, '#3b4652', bx - 2.5, 0.35, bz + bd / 2 + 0.07, { r: 0, jitter: 0 });
   for (const sx of [-1.6, 1.6]) k.box(0.12, 2.6, 0.12, P.steel, bx - 2.5 + sx, 0.1, bz + bd / 2 + 2.0, { r: 0 });
   // prefab site offices stacked two high, with a stair
   const px = W / 2 - 3.6, pz = -D / 2 + 3.2;
-  cabin(k, glow, px, pz, 6, 2.6);
+  const cabinDoor = cabin(k, glow, px, pz, 6, 2.6);
   cabin(k, glow, px, pz, 6, 2.6, P.cream, CHARTER.field, 2.95);
   const sz = pz + 1.3 + 0.55; // the stair's centre line, in front of the cabins
   for (let i = 0; i < 9; i++) k.box(0.4, 0.1, 1.0, P.steel, px - 1.5 + i * 0.4, 0.3 + i * 0.32, sz, { r: 0 });
@@ -286,12 +288,13 @@ export function megaOffice(o: Act3SetOpts): Piece {
   // (everyone keeps north of the parked cars' noses at z = D / 2 - 6.1, and clear of the board's posts)
   strollers(g, anim, [[[bx - 2.5, bz + bd / 2 + 0.7], [bx - 2.5, bz + bd / 2 + 1.25], [bx + 2.2, bz + bd / 2 + 1.25]], [[px - 2.3, sz + 0.1], [px - 2.4, sz + 1.5], [W / 2 - 3.1, D / 2 - 8.6], [W / 2 - 3.1, D / 2 - 6.75], [4.4, D / 2 - 6.7]]], o.seed + 11);
   standing(g, 2.2, D / 2 - 6.65, 2.9, o.seed + 12, 'engineer');
-  return { obj: g, w: W, d: D, h: ry + 3.4, update: anim.update, ground: () => null };
+  // (the control centre's door under the canopy; the ground-floor site office's)
+  return { obj: g, w: W, d: D, h: ry + 3.4, doors: [{ x: bx - 2.5, z: bz + bd / 2 + 0.75 }, cabinDoor], update: anim.update, ground: () => null };
 }
 
 // ── the substation ───────────────────────────────────────────────────────────────────────────
-function fencePosts(k: Kit, W: number, D: number, gate = 6) {
-  const sides: [number, number, number, number][] = [[-W / 2, -D / 2, W / 2, -D / 2], [-W / 2, -D / 2, -W / 2, D / 2], [W / 2, -D / 2, W / 2, D / 2], [-W / 2, D / 2, -gate / 2, D / 2], [gate / 2, D / 2, W / 2, D / 2]];
+function fencePosts(k: Kit, W: number, D: number, gate = 6, gaps: [number, number][] = []) {
+  const sides: [number, number, number, number][] = [[-W / 2, -D / 2, W / 2, -D / 2], [-W / 2, -D / 2, -W / 2, D / 2], [W / 2, -D / 2, W / 2, D / 2], ...frontRuns(W, gate, gaps).map(([a, b]): [number, number, number, number] => [a, D / 2, b, D / 2])];
   for (const [x0, z0, x1, z1] of sides) {
     const len = Math.hypot(x1 - x0, z1 - z0), m = Math.max(1, Math.round(len / 2.5));
     for (let i = 0; i <= m; i++) k.box(0.1, 1.3, 0.1, '#8a8490', x0 + ((x1 - x0) * i) / m, 0, z0 + ((z1 - z0) * i) / m, { r: 0, jitter: 0 });
@@ -342,6 +345,8 @@ export function megaSub(o: Act3SetOpts): Piece {
     k.box(1.0, 0.8, 0.06, P.glassD, hx - 2 + i * 2, 1.4, hz + 2.01, { r: 0.02, shade: 0 });
     glow.push([hx - 2 + i * 2, 1.8, hz + 2.06, 0.9, 0.7]);
   }
+  // its door, between two windows
+  k.box(0.9, 2.0, 0.06, '#4a5a66', hx + 1.0, 0.1, hz + 2.01, { r: 0.02, jitter: 0 });
   // the line tower at the back, wires to the gantry and away
   const tw = latticeTower(k, W / 2 - 4, -D / 2 + 3, 18, 3.6);
   for (const [y, a] of tw.arms) for (const s of [-1, 1]) {
@@ -355,7 +360,7 @@ export function megaSub(o: Act3SetOpts): Piece {
   standing(g, -3, D / 2 - 2.6, 0.5, o.seed + 2, 'engineer');
   g.add(k.build());
   windows(g, glow);
-  return { obj: g, w: W, d: D, h: 19, ground: () => null };
+  return { obj: g, w: W, d: D, h: 19, doors: [{ x: hx + 1.0, z: hz + 2.75 }], ground: () => null };
 }
 
 // ── the HVDC converter station ───────────────────────────────────────────────────────────────
@@ -475,7 +480,10 @@ export function converter(o: Act3SetOpts): Piece {
       k.box(1.2, 0.9, 0.06, P.glassD, cx - 2.3 + i * 2.3, 1.5, cz + 2.01, { r: 0.02, shade: 0 });
       if (!building) glow.push([cx - 2.3 + i * 2.3, 1.95, cz + 2.06, 1.1, 0.8]);
     }
+    // its door, between two windows
+    k.box(0.9, 2.1, 0.06, '#4a5a66', cx + 1.15, 0.1, cz + 2.01, { r: 0.02, jitter: 0 });
   }
+  const doors: { x: number; z: number }[] = building ? [] : [{ x: cx + 1.15, z: cz + 2.75 }];
   if (building) {
     // the builder's site: hoarding, a tower crane, cabins, flags, laydown, a crew
     hoarding(k, -W / 2 + 0.4, W / 2 - 0.4, D / 2 - 0.3, acc, hi, [[-4, 4]]);
@@ -484,6 +492,7 @@ export function converter(o: Act3SetOpts): Piece {
     g.add(crane);
     const ph2 = o.seed % 6;
     anim.add((e) => workCrane(crane, e, ph2, 1.0, 12));
+    // (a building site has no staff: its crew stands about the works, and the cabins are a step from the hoarding)
     cabin(k, glow, -W / 2 + 4.4, D / 2 - 2.6, 6, 2.4, P.cream, acc);
     cabin(k, glow, -W / 2 + 4.4, D / 2 - 2.6, 6, 2.4, P.cream, acc, 2.85);
     // (laydown, trucks and crew keep to ground that stays clear to the end: the filter yard, the transformers and
@@ -499,8 +508,10 @@ export function converter(o: Act3SetOpts): Piece {
     standing(g, 6.9, D / 2 - 5.6, -1.2, o.seed + 7);
     standing(g, -W / 2 + 8.6, D / 2 - 2.2, 2.2, o.seed + 8);
   } else {
-    fencePosts(k, W - 0.8, D - 0.8, 6);
-    fenceMesh(g, W - 0.8, D - 0.8, 6);
+    // (a pedestrian gate at the control building's door, a step behind the fence)
+    const walk: [number, number][] = [[W / 2 - 5.25, W / 2 - 3.65]];
+    fencePosts(k, W - 0.8, D - 0.8, 6, walk);
+    fenceMesh(g, W - 0.8, D - 0.8, 6, walk);
     floodMast(g, k, -W / 2 + 1.2, D / 2 - 1.2, 11, Math.PI * 0.75);
     floodMast(g, k, 1, -D / 2 + 12, 11, Math.PI);
     vehicle(g, 'pickup', cx - 6.5, cz + 0.5, 0);
@@ -508,5 +519,5 @@ export function converter(o: Act3SetOpts): Piece {
   }
   g.add(k.build());
   if (glow.length) windows(g, glow);
-  return { obj: g, w: W, d: D, h: building ? 29 : 21, update: anim.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: building ? 29 : 21, doors, update: anim.update, ground: () => null };
 }

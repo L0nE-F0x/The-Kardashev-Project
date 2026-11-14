@@ -47,7 +47,7 @@ export function dhe3Plant(o: Act3SetOpts): Piece {
   const c = new Ctx(o);
   const { k, g, W, D, r } = c;
   const roadX = 8.6;
-  siteBase(c, roadX, 6.0, '#d6cfc5');
+  siteBase(c, roadX, 6.0, '#d6cfc5', -14.6 + 10.2 / 2 - 1.4);
   k.box(3.0, 0.06, D - 8, P.asphalt, roadX, 0.02, 2.2, { r: 0.03, shade: 0, jitter: 0.02 });
   // ── the capsule ──
   const cx = -9.6, cy = 4.0, cz = -5.6, R = 2.3, len = 20;
@@ -143,7 +143,7 @@ export function dhe3Plant(o: Act3SetOpts): Piece {
   const kind = TREE_BY[o.backdrop ?? ''] ?? 'broadleaf';
   const trees = [[-19.6, 6.8], [-16.4, 5.8], [-11.0, 6.9], [-7.6, 5.9], [-20.0, -15.2], [-1.2, 6.4], [6.4, 13.4]].map(([x, z], i) => ({ x, y: 0, z, s: 0.95 + ((i * 37) % 10) / 25, ry: i * 1.7 }));
   g.add(plants(kind, trees));
-  controlBlock(c, -14.6, 12.8, 10.2, 4.4, 4.8);
+  const cb = controlBlock(c, -14.6, 12.8, 10.2, 4.4, 4.8);
   carPark(c, -3.4, 14.2, 5);
   lampsAt(c, [[-0.8, 9.4, -1], [7.0, -3.6, -1], [-20.8, -6, 1], [10.8, 4.6, 1]]);
   // ── the pulse ──
@@ -167,5 +167,5 @@ export function dhe3Plant(o: Act3SetOpts): Piece {
     hl.set(f * 0.9 + after * 0.15 + e.night * 0.08);
   });
   c.finish();
-  return { obj: g, w: W, d: D, h: Math.max(cy + R + 1.6, 9.0), update: c.update, ground: () => null };
+  return { obj: g, w: W, d: D, h: Math.max(cy + R + 1.6, 9.0), doors: [cb.door], update: c.update, ground: () => null };
 }

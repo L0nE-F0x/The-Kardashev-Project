@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { col, glowMat, Kit, lightPool, rng } from '../../kit';
 import { cutOutOfModel, model } from '../../models';
-import type { Piece } from '../../pieces';
+import { walkMap, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import {
   Anim, At, beacon, extrudeX, lampHeadMat, mechTower, P, pipe, pipeRun, pipeStands, poleLamp, rollDoor, shed, tank, transformer, V, wallLamp, warmPool, windowRow,
@@ -255,7 +255,9 @@ export function gas(o: { seed: number; tier: number }): Piece {
   const lit = new Kit(rng(o.seed + 1));
   const lamps = new Kit(rng(o.seed + 2));
   const anim = new Anim();
-  const blockers = [{ x0: X(-10.06) - 0.15, z0: Z(-11.98) - 0.15, x1: X(10.01) + 0.15, z1: Z(11.96) + 0.15 }];
+  // (what people walk round on the ground beside the platform; the platform itself, its steps and what stands on it
+  // are read off the plant at the end: `walkMap`)
+  const blockers: { x0: number; z0: number; x1: number; z1: number }[] = [];
 
   // the turbines' own stacks: a light on each rim, heat haze over them (bypass stacks once the boilers take the exhaust)
   const stacks: [number, number, number][] = [[-5.5, 5.5, 0.75], [5.25, 5.75, 0.85]];
@@ -270,7 +272,6 @@ export function gas(o: { seed: number; tier: number }): Piece {
   // steps up the deck's east side
   const sz = big ? Z(5.2) : 8.9;
   const sx1 = deckSteps(k, X(10.01), sz, deck, 1.5);
-  blockers.push({ x0: X(10.01), z0: sz - 0.85, x1: sx1 + 0.05, z1: sz + 0.85 });
   // lamps at the deck's corners
   for (const [x, z, dir] of [[-9.5, 11.3, 1], [-9.5, -11.3, 1], [9.4, -11.3, -1], [9.4, 11.5, -1]] as [number, number, number][]) poleLamp(k, lamps, g, X(x), Z(z), 4.4, dir, deck - 0.02);
   // the generator step-up transformers down the west side (long side along the deck)
@@ -307,6 +308,8 @@ export function gas(o: { seed: number; tier: number }): Piece {
     lightPool(g, X(px), deck + 0.03, Z(pz), r, warmPool);
   };
   bulk(-9.22, 2.72, -4.5, -9.6, -4.5, 2.3);
+  if (big) bulk(7.7, 3.0, 4.2, 7.7, 5.0, 2.3, false); // the operators' door, the east hall's front corner
+  else bulk(-8.15, 2.72, 0.5, -8.9, 0.5, 2.3); // the operators' door, further along the west walkway
   for (const z of [-3.6, 1.4]) bulk(8.1, 2.9, z, 9.0, z, 2.8);
   bulk(2.82, 3.0, 0.4, 1.7, 0.4, 2.8);
   bulk(-2.86, 3.0, -1.6, -1.7, -1.6, 2.8);
@@ -391,12 +394,18 @@ export function gas(o: { seed: number; tier: number }): Piece {
   if (!lit.empty) g.add(lit.build(hallWin));
   if (!dim.empty) g.add(dim.build(hallWinDim));
   g.add(ctrl.build(ctrlWin));
+  const plan = walkMap(g, 26, 24);
   return {
     obj: g, w: 26, d: 24, h: top + 0.5,
-    // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
-    // gate (the middle of the fence's front, 12.4 from the plot's centre: a step in ends between its posts)
-    doors: [{ x: 0, z: 12.85, gate: true }],
-    blockers,
+    // the operators come in at the gate, onto the platform and along its west walkway to a door in the west hall,
+    // under a bulkhead light (they used to vanish between the gate's posts: the platform nearly meets the fence at the
+    // front, so the east walkway and its steps can't be reached from the gate, and the hall's porch stands too close
+    // to the platform's edge to walk round)
+    // (the combined-cycle plant's platform is crowded with its boilers' ducts: there the way in from the gate ends at
+    // the east hall's front corner, so the door is in its front wall)
+    doors: [big ? { x: X(8.0) - 0.1, z: Z(4.1) + 0.7 } : { x: X(-8.05) - 0.7, z: Z(0.5), nx: -1, nz: 0 }],
+    floor: plan.floor,
+    blockers: [...plan.blockers, ...blockers],
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };

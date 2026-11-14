@@ -1,11 +1,14 @@
 # Changelog
 
 ## 0.15.2 — Way In (2026-11-14)
-The last of the realism pass's leftovers, and the people who work at your power plants and fabs finally go in at the door.
+The last of the realism pass's leftovers, and everyone who works on a campus now goes in at a door.
 
 - **People go in at the door** of every power plant and factory of the scale-up: the SMR plant, the reactor restart, the nuclear plant, hydro, geothermal, the packaging plant, the fab and the gigawatt campus. Their staff used to walk to the edge of the plot and vanish on the open ground in front of it. Now each plant's entrance opens for them, a paved way leads to it from the street, and they walk round the buildings, tanks and fences on the plot instead of through them.
-- **Nobody sinks into a plant's paving** or floats beside it: people walk on the plants' forecourts, steps and the hydro road at their real height.
-- **A car no longer parks across a door:** the SMR plant's last bay ran through its lobby, and the geothermal plant's stood in front of its control building's door.
+- **And everywhere else:** the suppliers' fabs, offices, warehouses and gas yards, the mines, the cable landing, the Charter's buildings in Geneva (up their steps), the launch sites and the megaprojects (their offices, control buildings, substations, gatehouses and every fusion plant's control block). Yards, fields and building sites, where nobody would go indoors, no longer have staff vanishing at their edge.
+- **Pedestrian gates** in the fences of the fusion plants, the converter station and the tank farm, where the office door stood a step behind the fence.
+- **The gas plant's operators** walk onto the platform and in at a door instead of vanishing at the yard gate. The research lab's front door opens for its staff (it never did).
+- **Nobody sinks into the paving** or floats beside it: people walk on forecourts, steps, podiums, platforms and the hydro road at their real height, and round shrub beds instead of through them.
+- **A car no longer parks across a door:** the SMR plant's last bay ran through its lobby, and the geothermal plant's stood in front of its control building's door. The gas yard's tube trailer no longer fills its gateway.
 - **A half-built wall has a top:** while a building goes up, its walls show their thickness at the line they have reached, with the bare inside beyond, instead of a paper-thin shell. The data hall's cladding ribs no longer show through on the inside.
 - **The gas plant's control house** no longer has the old hut standing inside it (it showed through the walls while they went up).
 - **Aurora is lighter to draw:** its far trees are the simpler kind, as on every campus's horizon, a patch at a time as you move about (a quarter fewer triangles in the habitat, the same picture).

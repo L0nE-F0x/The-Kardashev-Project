@@ -186,6 +186,8 @@ export function council(o: Act3SetOpts): Piece {
   g.add(ppl.group);
   return {
     obj: g, w: 36, d: 32, h: FY + 6,
+    // the glazed entrance in the portico, up the steps on the podium
+    doors: [{ x: 0, z: CZ + RD + 0.25 + 0.7 }],
     ground: () => null,
     update(e) {
       fl.update(e);

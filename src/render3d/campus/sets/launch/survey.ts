@@ -180,6 +180,8 @@ export function launchSurvey(o: Act3SetOpts): Piece {
   g.add(ppl.group);
   return {
     obj: g, w: 60, d: 40, h: 15,
+    // the trailer's door, from its top step
+    doors: [{ x: TX - 1.3, z: TZ + 1.9 }],
     ground: () => null,
     update(e: Env) {
       cups.rotation.y -= e.dt * (4 + Math.sin(e.t * 0.5) * 1.5);

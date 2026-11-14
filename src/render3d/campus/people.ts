@@ -97,6 +97,9 @@ const STAFF: Partial<Record<Place['kind'], [PersonName, Role][]>> = {
 };
 /** Everyone on a campus's payroll (a big Act II campus doesn't get a crowd: the first ones of each place stay). */
 const MAX_STAFF = 34;
+/** Whether anyone works at a place: a view-only place's piece only if it names its door (a yard, a field or a tank
+ * farm has none, and its staff used to walk to the edge of its footprint and vanish there). */
+const staffs = (p: Place) => !!STAFF[p.kind] && (p.kind !== 'set' || p.ownDoors);
 
 /** What each advisor tends to do standing about. */
 const PERSONA: Record<string, Act[]> = {
@@ -191,7 +194,7 @@ export class CampusPeople {
     // who should be here
     const want: { key: string; kind: PersonName; role: Role; home: string }[] = [];
     let n = 0;
-    const staffed = places.filter((p) => STAFF[p.kind] && !p.building);
+    const staffed = places.filter((p) => staffs(p) && !p.building);
     for (let round = 0; round < 5; round++) for (const p of staffed) {
       const list = STAFF[p.kind]!;
       if (round >= list.length || n >= MAX_STAFF) continue;
@@ -336,7 +339,7 @@ export class CampusPeople {
 
   private firstPlace() {
     for (const p of this.places.values()) if (p.kind === 'hq') return p.id;
-    for (const p of this.places.values()) if (STAFF[p.kind]) return p.id;
+    for (const p of this.places.values()) if (staffs(p)) return p.id;
     return '';
   }
 
@@ -411,7 +414,7 @@ export class CampusPeople {
     }
     const techy = a.kind === 'engineer' || a.kind === 'worker' || night;
     const loopAt = techy ? this.loopFor(a, here) : null;
-    const others = [...this.places.values()].filter((p) => p.id !== here.id && STAFF[p.kind] && !p.building);
+    const others = [...this.places.values()].filter((p) => p.id !== here.id && staffs(p) && !p.building);
     const w = {
       break: night ? 3 : h >= 9.8 && h < 11.4 ? 6 : h >= 14.5 && h < 16.2 ? 6 : 3,
       phone: night ? 0 : a.kind === 'office' || a.kind === 'researcher' ? 2 : 1,
@@ -559,7 +562,7 @@ export class CampusPeople {
       if (n) return n;
     }
     const pref = a.advisor === 'iris' || a.advisor === 'lena' ? 'lab' : a.advisor === 'mira' ? 'hall' : a.advisor === 'penny' ? 'hq' : null;
-    const staffed = [...this.places.values()].filter((p) => STAFF[p.kind] && !p.building);
+    const staffed = [...this.places.values()].filter((p) => staffs(p) && !p.building);
     const mine = staffed.filter((p) => p.kind === pref);
     const pool = mine.length && a.r() < 0.55 ? mine : staffed;
     const p = pool[Math.floor(a.r() * pool.length)];
@@ -661,7 +664,7 @@ export class CampusPeople {
     this.work.clear();
     this.stacks.clear();
     for (const p of places) {
-      if (!STAFF[p.kind] || !p.doors.length || p.building) continue;
+      if (!staffs(p) || !p.doors.length || p.building) continue;
       const best = this.breakSpot(p, places);
       if (!best) continue;
       const old = keep.get(p.id);
@@ -749,7 +752,7 @@ export class CampusPeople {
     const out: { x: number; z: number; ry: number; rect: Rect }[] = [];
     const solid = (r: Rect) => places.some((p) => p.solids.some((s) => overlap(grow(s, 0.9), r)) || p.bays.some((b) => overlap(grow(bayRect(b), 0.8), r)) || (p.fence && overlap(r, p.fence.rect) && !insideRect(r, grow(p.fence.rect, -0.8)))) || extra.some((s) => overlap(grow(s, 0.9), r));
     const hosts = places.filter((p) => (p.kind === 'hq' || p.kind === 'lab') && !p.building);
-    if (!hosts.length) { const h = places.find((p) => STAFF[p.kind] && !p.building); if (h) hosts.push(h); }
+    if (!hosts.length) { const h = places.find((p) => staffs(p) && !p.building); if (h) hosts.push(h); }
     for (const p of hosts.slice(0, 3)) {
       let n = 0;
       const pz = frontPavementZ(roads);
@@ -803,7 +806,7 @@ export class CampusPeople {
       any = true;
     };
     for (const p of places) {
-      if (!STAFF[p.kind] || p.kind === 'hq' || p.building) continue;
+      if (!staffs(p) || p.kind === 'hq' || p.building) continue;
       const g = placeGate(p, this.roads);
       if (p.walks?.length) {
         // the piece's own paved ways, carried on to the gate: straight out where the way already faces the

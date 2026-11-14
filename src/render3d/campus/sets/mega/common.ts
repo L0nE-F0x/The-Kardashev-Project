@@ -335,7 +335,10 @@ export function windows(parent: THREE.Object3D, rects: [number, number, number, 
   parent.add(m);
 }
 
-/** A prefab site cabin (w along x), optional second storey; window glow goes to `glow`. */
+/**
+ * A prefab site cabin (w along x), optional second storey; window glow goes to `glow`. Returns the spot on its door
+ * step (`Piece.doors`: a ground-floor cabin's people go in there; a step off it, a foot was half on the step).
+ */
 export function cabin(k: Kit, glow: [number, number, number, number, number, number?][], x: number, z: number, w = 6, d = 2.6, wall: Paint = P.cream, band: Paint = CHARTER.field, y = 0) {
   const h = 2.6;
   k.box(w, 0.25, d, P.dark, x, y, z, { r: 0.04 });
@@ -351,6 +354,7 @@ export function cabin(k: Kit, glow: [number, number, number, number, number, num
   }
   k.box(0.8, 1.9, 0.06, '#8a8490', x + w / 2 - 0.7, y + 0.25, z + d / 2 + 0.01, { r: 0.02, shade: 0 });
   k.box(0.9, 0.3, 0.7, P.concreteD, x + w / 2 - 0.7, y, z + d / 2 + 0.4, { r: 0.04 });
+  return { x: x + w / 2 - 0.7, z: z + d / 2 + 0.5 };
 }
 
 /** A lamp post with a head that glows at night and a light pool under it. */

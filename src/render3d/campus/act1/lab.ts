@@ -235,7 +235,11 @@ export function lab(o: { seed: number; tier: number }): Piece {
   // the walk from the car park to the entrance
   k.box(15.2, 0.06, 1.5, '#cfc6bd', 0, 0.09, pz - 3.85, { r: 0.02, shade: 0, jitter: 0.02 });
   // tier 1: a bed down the east wall
-  if (o.tier <= 1) for (let i = 0; i < 5; i++) bushes.push({ x: bx1 + 0.75 + (i % 2) * 0.15, y: 0.12, z: bz1 - 1.2 - i * 1.5, s: 0.9 + r() * 0.35, ry: r() * 6.3 });
+  if (o.tier <= 1) {
+    for (let i = 0; i < 5; i++) bushes.push({ x: bx1 + 0.75 + (i % 2) * 0.15, y: 0.12, z: bz1 - 1.2 - i * 1.5, s: 0.9 + r() * 0.35, ry: r() * 6.3 });
+    // (people walked through it)
+    blockers.push({ x0: bx1 + 0.1, z0: bz1 - 1.2 - 4 * 1.5 - 0.7, x1: bx1 + 1.5, z1: bz1 - 0.5 });
+  }
   // the model's own windows at night (the east wall is built against from tier 2, the rear from tier 3)
   const night = modelWindows(g, lamps, mx, mz, s, o.seed + 40, { east: o.tier <= 1, back: o.tier <= 2 });
   g.add(k.build(), lamps.build(lampHeadMat));
@@ -248,7 +252,9 @@ export function lab(o: { seed: number; tier: number }): Piece {
   const hx = (0.834 * L) / 2, front = mz + L / 2, wall = front - 1.0;
   return {
     obj: g, w: o.tier >= 2 ? 22 : 20, d: o.tier >= 3 ? 25 : 22, h: top + 0.3,
-    doors: [{ x: mx + hx * 0.38, z: wall + 0.65 }, ...doors],
+    // (the step in the notch's mouth: the model's glass is 0.74 behind the walk's edge, and a doorway is hung only on a
+    // wall within 1.2 of the step)
+    doors: [{ x: mx + hx * 0.38, z: wall + 0.3 }, ...doors],
     blockers: [
       { x0: mx - hx, z0: mz - L / 2, x1: mx + hx, z1: wall },
       { x0: mx - hx, z0: wall, x1: mx, z1: front },

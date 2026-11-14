@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { Kit, rng } from '../../kit';
-import { dataHall, walkBlockers, walkFloor, type Piece } from '../../pieces';
+import { dataHall, walkMap, type Piece } from '../../pieces';
 import type { PieceOpts } from '../registry';
 import {
   Anim, beacon, coolWinMat, glassMat, lampHeadMat, mechTower, P, paving, pipeRun, plants, poleLamp, shed, switchyard, V, wallLamp, windowRow, winMat,
@@ -103,8 +103,7 @@ export function campus(o: PieceOpts): Piece & { setLoad(f: number): void } {
     obj: g, w: o.w, d: o.d, h: Math.max(crown + 3.6, tA, tB),
     // the tower's glass doors under the canopy
     doors: [{ x: tx, z: tz + 4.34 + 0.7 }],
-    blockers: walkBlockers(g, o.w, o.d),
-    floor: walkFloor(g, o.w, o.d),
+    ...walkMap(g, o.w, o.d),
     setLoad(f) { for (const h of halls) h.setLoad(f); anim.load = f; },
     progress(p) { anim.done = p; },
     update(e) { for (const h of halls) h.update?.(e); anim.update(e); flag.update(e); },

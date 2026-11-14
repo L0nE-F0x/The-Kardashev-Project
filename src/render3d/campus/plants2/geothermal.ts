@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { Kit, rng, type Paint } from '../../kit';
-import { walkBlockers, walkFloor, type Piece } from '../../pieces';
+import { walkMap, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
@@ -203,8 +203,7 @@ export function geothermal(o: PieceOpts): Piece {
     obj: g, w: o.w, d: o.d, h,
     // the control building's door
     doors: [{ x: cbx + 1.6, z: cbz + 1.72 + 0.65 }],
-    blockers: walkBlockers(g, o.w, o.d),
-    floor: walkFloor(g, o.w, o.d),
+    ...walkMap(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };
