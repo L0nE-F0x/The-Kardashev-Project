@@ -101,10 +101,10 @@ export class Hab {
   /** A random pick. */
   pick<T>(a: readonly T[]): T { return a[Math.floor(this.r() * a.length)]; }
   /** A tree (instanced), base at y above the floor. */
-  tree(kind: TreeKind | 'cypress' | 'fruit' | 'blossom', x: number, z: number, s: number, y = 0) {
+  tree(kind: TreeKind | 'cypress' | 'fruit' | 'blossom', x: number, z: number, s: number, y = 0, tint = 1) {
     let l = this.trees.get(kind);
     if (!l) this.trees.set(kind, (l = []));
-    l.push({ x, z, s, ry: this.r() * TAU, y, tint: 0.9 + this.r() * 0.2 });
+    l.push({ x, z, s, ry: this.r() * TAU, y, tint: (0.9 + this.r() * 0.2) * tint });
     if (kind === 'fruit') for (let i = 0; i < 7; i++) {
       const a = this.r() * TAU, rr = (0.55 + this.r() * 0.5) * s, hy = (1.4 + this.r() * 0.9) * s;
       this.dots.push({ x: x + Math.cos(a) * rr, y: y + hy, z: z + Math.sin(a) * rr, s: 0.12 * Math.max(0.8, s), c: this.r() < 0.7 ? '#c23a3f' : '#f08a46' });
@@ -451,7 +451,12 @@ export function greenRoof(h: Hab, a: At, w: number, d: number, y: number, x = 0,
   const k = h.k;
   a.box(k, w + 0.2, 0.3, d + 0.2, H.slate, x, y - 0.05, z, 0.05, 0.02, 0);
   a.box(k, w - 0.3, 0.12, d - 0.3, H.sedum, x, y + 0.2, z, 0.03, 0.1, 0);
-  for (let i = 0; i < 6; i++) a.geo(h.leaf, blob(0.35 + h.r() * 0.3, h.r).scale(1, 0.5, 1).translate(x + (h.r() - 0.5) * (w - 1.2), y + 0.32, z + (h.r() - 0.5) * (d - 1.2)), h.r() < 0.5 ? H.sedumL : H.moss, 0.2);
+  // low growth on the sedum: grass in tufts, a shrub or two (the shared plants)
+  for (let i = 0; i < 9; i++) {
+    const p = a.pt(x + (h.r() - 0.5) * (w - 1.2), y + 0.3, z + (h.r() - 0.5) * (d - 1.2));
+    if (i < 3) h.tree('shrub', p.x, p.z, 0.3 + h.r() * 0.18, p.y);
+    else h.tree('tuft', p.x, p.z, 0.6 + h.r() * 0.4, p.y);
+  }
   a.box(h.glass, 1.0, 0.1, 0.8, '#6f97a3', x - w / 4, y + 0.3, z - d / 6, 0.02, 0.02, 0);
   a.box(k, 1.2, 0.12, 1.0, H.white, x - w / 4, y + 0.2, z - d / 6, 0.03, 0.02, 0);
   if (w * d > 24) {
@@ -495,15 +500,21 @@ export function paving(h: Hab, x: number, z: number, w: number, d: number, a: Pa
   for (let i = 0; i < nx; i++)
     for (let j = 0; j < nz; j++) h.k.box(sw - 0.12, 0.06, sd - 0.12, h.r() < 0.25 ? mix(a, b, 0.4) : a, x - w / 2 + sw * (i + 0.5), 0.04, z - d / 2 + sd * (j + 0.5), { r: 0, jitter: 0.03, shade: 0 });
 }
-/** A hedge from (x0, z0) to (x1, z1), lumpy on top. */
+/**
+ * A clipped hedge from (x0, z0) to (x1, z1): a dark heart (what shows between the leaves) under a close row of
+ * the shared shrubs (trees.ts), no two the same size.
+ */
 export function hedge(h: Hab, x0: number, z0: number, x1: number, z1: number, ht = 0.9, t = 0.7) {
   const len = Math.hypot(x1 - x0, z1 - z0);
   const ry = -Math.atan2(z1 - z0, x1 - x0);
-  h.leaf.box(len, ht, t, H.hedge, (x0 + x1) / 2, 0, (z0 + z1) / 2, { r: 0.22, ry, jitter: 0.08, shade: 0.25 });
-  const n = Math.max(1, Math.round(len / 0.9));
+  h.leaf.box(len - 0.5, ht * 0.5, t * 0.4, '#1f3a1e', (x0 + x1) / 2, 0, (z0 + z1) / 2, { r: 0.1, ry, jitter: 0.04, shade: 0.3 });
+  // a shrub is about 1.15 tall and 1.5 across at scale 1: stood shoulder to shoulder
+  const s = ht / 1.15;
+  const n = Math.max(2, Math.round(len / (0.6 * s)));
+  const px = -(z1 - z0) / len, pz = (x1 - x0) / len;
   for (let i = 0; i < n; i++) {
-    const t2 = (i + 0.5) / n;
-    h.leaf.geo(blob(0.4 + h.r() * 0.12, h.r).translate(x0 + (x1 - x0) * t2, ht - 0.05, z0 + (z1 - z0) * t2), h.r() < 0.5 ? H.hedge : H.ivyL, 0.16);
+    const u = (i + 0.5) / n, side = (h.r() - 0.5) * t * 0.16;
+    h.tree('shrub', x0 + (x1 - x0) * u + px * side, z0 + (z1 - z0) * u + pz * side, s * (0.9 + h.r() * 0.2), -0.04, 0.84);
   }
 }
 /** A low picket fence along a line. */
@@ -534,8 +545,11 @@ export function vegBed(h: Hab, x: number, z: number, w: number, d: number, ry = 
 export function flowerBed(h: Hab, x: number, z: number, w: number, d: number, n = 0) {
   h.k.box(w, 0.25, d, H.stone, x, 0, z, { r: 0.08, jitter: 0.03, shade: 0.1 });
   h.k.box(w - 0.24, 0.05, d - 0.24, H.soil, x, 0.23, z, { r: 0, jitter: 0.03, shade: 0 });
-  for (let i = 0; i < Math.max(2, Math.round(w * d * 0.6)); i++) h.leaf.geo(blob(0.18 + h.r() * 0.1, h.r).translate(x + (h.r() - 0.5) * (w - 0.5), 0.32, z + (h.r() - 0.5) * (d - 0.5)), h.r() < 0.5 ? H.ivyL : H.moss, 0.18);
-  h.flowers(x, z, w - 0.4, d - 0.4, n || Math.round(w * d * 3), 0.45);
+  // leafy mounds (the shared shrubs, small) filling the bed, the blooms standing on them
+  const nx = Math.max(1, Math.round((w - 0.3) / 0.55)), nz = Math.max(1, Math.round((d - 0.3) / 0.55));
+  for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++)
+    h.tree('shrub', x - (w - 0.3) / 2 + ((i + 0.3 + h.r() * 0.4) / nx) * (w - 0.3), z - (d - 0.3) / 2 + ((j + 0.3 + h.r() * 0.4) / nz) * (d - 0.3), 0.3 + h.r() * 0.12, 0.24);
+  h.flowers(x, z, w - 0.4, d - 0.4, n || Math.round(w * d * 4), 0.5);
 }
 
 // ── street furniture ─────────────────────────────────────────────────────────────────────────

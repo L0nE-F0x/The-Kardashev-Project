@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Kit, mix, paintMat, rng } from '../../../kit';
 import { fenceMesh, type Piece } from '../../../pieces';
 import { parkedCars } from '../../life';
+import { plantOn } from '../../trees';
 import type { Act3SetOpts } from '../../act3sets';
 import {
   Anim, beacon, buoyLight, buoyUnit, cabin, CHARTER, charterBoard, cyanMat, drone, fieldOf, flag, floodMast, gantry, hcyl, hoarding, instances,
@@ -227,9 +228,20 @@ export function megaOffice(o: Act3SetOpts): Piece {
   // the meadow roof and the solar pergola over it
   const ry = 0.35 + fl * 2;
   k.box(bw + 0.5, 0.35, bd + 0.5, '#5b5562', bx, ry, bz, { r: 0.06 });
-  k.box(bw, 0.25, bd, '#6f9446', bx, ry + 0.3, bz, { r: 0.08, jitter: 0.06 });
+  // (a gravel margin inside the kerb, a bed of substrate, then the meadow itself: grass in tufts, low shrubs,
+  // a scatter of flowers: the shared plants, trees.ts)
+  k.box(bw, 0.2, bd, '#a39a8c', bx, ry + 0.3, bz, { r: 0.05, jitter: 0.03 });
+  k.box(bw - 0.7, 0.06, bd - 0.7, '#75803f', bx, ry + 0.48, bz, { r: 0.02, jitter: 0.05, shade: 0 });
   const rr = rng(o.seed + 7);
-  for (let i = 0; i < 26; i++) k.geo(new THREE.IcosahedronGeometry(0.28 + rr() * 0.2, 0).scale(1, 0.6, 1).translate(bx + (rr() - 0.5) * (bw - 1), ry + 0.6, bz + (rr() - 0.5) * (bd - 1)), rr() < 0.15 ? '#fbd46e' : rr() < 0.5 ? '#7fa84a' : '#5a8a3a', 0.1);
+  const my = ry + 0.53, mw = bw - 1.1, md = bd - 1.1;
+  for (let ix = 0; ix < 22; ix++) for (let iz = 0; iz < 11; iz++) {
+    if (rr() < 0.1) continue;
+    const x = bx - mw / 2 + ((ix + 0.1 + rr() * 0.8) / 22) * mw, z = bz - md / 2 + ((iz + 0.1 + rr() * 0.8) / 11) * md;
+    plantOn(k, 'tuft', { x, y: my, z, s: 0.6 + rr() * 0.55, ry: rr() * 6.3, tint: 0.8 + rr() * 0.3 }, false);
+    // flowers standing in the grass
+    if (rr() < 0.16) k.geo(new THREE.IcosahedronGeometry(0.055 + rr() * 0.03, 0).translate(x + (rr() - 0.5) * 0.3, my + 0.3 + rr() * 0.14, z + (rr() - 0.5) * 0.3), rr() < 0.45 ? '#fbd46e' : rr() < 0.6 ? '#fbf7f0' : '#d08fdc', 0.06);
+  }
+  for (let i = 0; i < 6; i++) plantOn(k, 'shrub', { x: bx + (rr() - 0.5) * (mw - 1), y: my - 0.02, z: bz + (rr() - 0.5) * (md - 1), s: 0.34 + rr() * 0.2, ry: rr() * 6.3, tint: 0.9 + rr() * 0.2 }, false);
   for (const x of [bx - bw / 2 + 1, bx, bx + bw / 2 - 1]) for (const z of [bz - bd / 2 + 0.8, bz + bd / 2 - 0.8]) k.box(0.14, 1.9, 0.14, P.steel, x, ry + 0.5, z, { r: 0 });
   const canopy = new Kit(rng(o.seed + 8));
   for (let i = 0; i < 6; i++) canopy.box(bw / 6 - 0.08, 0.08, bd - 0.6, P.panel, bx - bw / 2 + bw / 12 + (i * bw) / 6, 0, 0, { r: 0, jitter: 0.08, shade: 0 });
