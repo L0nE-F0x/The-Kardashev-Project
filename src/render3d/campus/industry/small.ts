@@ -8,7 +8,7 @@ import { fence, fenceMesh } from '../../pieces';
 import { parkedCars } from '../life';
 import type { SetPieceFactory } from '../registry';
 import {
-  airHandler, beacon, block, brandOf, curtain, G, Fans, Flag, forklift, hTank, lamps, Lit, P, parkVehicle, pipeRun, putSign, shrubs, tree, V, vTank, wallLights, wheel,
+  airHandler, beacon, block, brandOf, curtain, G, Fans, Flag, forklift, hTank, lamps, Lit, P, parkVehicle, pipeRun, putSign, shrubs, signPanel, tree, V, vTank, wallLights, wheel,
 } from './common';
 
 // ── admin: a corporate office block ──────────────────────────────────────────────────────────
@@ -162,7 +162,8 @@ const warehouse: SetPieceFactory = (o) => {
   k.box(5.2, 6.2, 3.0, '#ece6dc', -8.0, 0.4, z0 + D / 2 + 1.2, { r: 0.15 });
   curtain(k, lit, -8.0, 0.8, z0 + D / 2 + 2.72, 4.6, 5.0, { bay: 1.15, floor: 2.5, seed: o.seed });
   k.box(5.4, 0.3, 3.2, b.accent, -8.0, 6.6, z0 + D / 2 + 1.2, { r: 0.06, shade: 0 });
-  putSign(g, b.name, Math.min(9, b.name.length * 0.85 + 1), 3.2, H - 1.0, z0 + D / 2 + 0.09, '#fbf7f0', null, 0, true, 1.1);
+  // (on its own panel under the band: white letters half on the band, half on the cream wall could not be read)
+  signPanel(g, k, b.name, Math.min(9, b.name.length * 0.85 + 1), 1.0, 3.2, H - 2.0, z0 + D / 2 + 0.04, b.accent);
   // yard: concrete apron with lane paint
   k.box(W, 0.07, 5.8, '#c8bfb2', 0, G, 5.0, { r: 0.03, shade: 0, jitter: 0.02 });
   for (const x of docks) k.box(0.12, 0.02, 5.2, '#fbd46e', x - 1.6, G + 0.07, 5.4, { r: 0, jitter: 0 });
