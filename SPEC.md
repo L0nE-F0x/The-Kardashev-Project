@@ -2649,3 +2649,66 @@ shader error. Not on Windows, not on macOS, not in a packaged AppImage.
   suppliers' fabs and yards at close range; megaprojects in a real stage-2 world; the fusion designs' build
   states; Ring One and the yards under construction; the Moon's build piece.
 
+## 36. v0.15.1 "Loose Ends": §35's "Seen and left", finished (built 2026-11-14)
+
+**The ask (the user, 2026-11-14, the morning after):** "now that the usage has reset can you finish up everything
+that was left in the known leftovers". Nothing was said about shipping: built and committed, not pushed.
+
+**How it was run:** as §35: I took what is shared (vehicles, construction, people, lamps, the launch coast), one
+helper the Act II plants and the suppliers' sites (`act1/`, `plants2/`, `industry/`), one the Act III–V places
+(`sets/`, `plan*.ts`). The second was cut off by the usage limit once and resumed with "converge and report".
+
+**What each leftover became:**
+- **Wheels do not turn** → they turn. The models are one mesh, so the wheels are found from the shape when a
+  model loads (`findWheels` in models.ts): the clumps of vertices on the ground are the tyres' contact patches; a
+  circle is fitted to the underside of each (along the triangles' edges, not only their corners: the mixer's
+  wheels have eight sides and a corner every 45°); the vertices inside it, from the tyre's inner face outwards,
+  are the wheel's, less any that share a triangle with the body (those would be wrung like a cloth). They carry
+  `aAxle`; the shader turns them by `uCarSpin`. Parked cars share materials; a driving one has its own.
+- **The flatbed is always orange** → `CAR_GLASS.flatbed.cab`: only the front third of its length takes paint.
+- **One clip height for a whole piece** → `builtHeight`: the clip follows how much wall there is at each height
+  (a curve from the piece's own triangles, floors and roofs a quarter weight, 28% of the even climb kept).
+- **An upgrade shows the finished tier from day one** → the old tier's piece stays (`Entry.old`), cut away from
+  the ground up (`clipAbove(…, below)`) as the new one rises through it. Rows (solar, battery, wind) fill from
+  0.55 through their own `progress`.
+- **A restart "builds" its old tower** → never clipped; it gets a crane and no steam until it opens.
+- **Feet at a deck's edge, the garage step** → the deck grid is 192 cells a side (9 cm on the garage); the
+  garage's open bay is no longer a door (whoever went in walked through the bench in full view).
+- **Astronauts' Earth gait** → the Moon: `Crowd.add(…, { lope })`, a parabola a stride, the legs at half pace;
+  asteroids: nobody walks, crews glide along guide lines on a tether (`bound()`), standers are restrained.
+- **Road lamps a square L** → a tapered column, a swept arm, a lantern with its lens underneath.
+- **Every launch site has a sea coast** → `CampusScene.inland()`: none on plains or desert (the cosmodrome).
+- **Asteroid conveyors, untethered panels, the flat pool, megaOffice's roof, the habitat's hedges, the
+  playground** → the second helper's list, all fixed (see the changelog).
+- **Few lit windows on the lab and the gas plant** → lit pane by pane on the model's own windows (`modelWindows`
+  in act1/lab.ts); the gas plant's halls got a real clerestory.
+- **Not looked at closely** → looked at: see the changelog's lists for what was found.
+
+**Also found on the way:** parked cars grew out of the car park with the walls (`userData.late`: they arrive when
+the building opens); the mixer parked inside the entrance of a hall that fills its plot (now left out when no
+spot is clear); a door leaf swinging out swept through whoever was arriving (doors open inwards); traffic took a
+missing time step for a number and went NaN (guarded; only QA could trigger it).
+
+**Checked:** `npm test` (88 passed; the people test's door count follows the garage's one door), both builds,
+`floorcheck` 0, `feetcheck` and `bumpcheck` clean on eight campuses. The real v0.15.0 AppImage (the draft
+release's) ran in a headless Hyprland on a clean environment: alive after 50 s, no crash record, title screen
+drawn. The new code on that AppImage's own engine (the debug binary swapped into the extracted AppImage, `AppRun`
+with `APPDIR`): 112 poses in 14 places, day and night, High, no non-finite pixel, no shader error. Not on Windows,
+not on macOS; v0.15.1's own AppImage does not exist until its tag is pushed.
+
+**Seen and left this time (the helpers' lists and mine):**
+- Plants: `lakeMat` throws a hard white glint across the hydro reservoir at a low angle (a roughness call that
+  touches every Act II water); the reactor's towers and containment are unlit masses at night; the gas plant's
+  control house has a 1.1 m door on the model; the tailrace ends at the plot edge; the pit's haul truck tips with
+  its tail over the stockpile; suppliers' lit panes run a little brighter than the plants'.
+- Places: the dry hydro basin's rim is ragged where the land's coarse grid meets the piece (needs a finer ground
+  grid under a piece); Aurora's blossom and cypress trees are still the old faceted shapes (`trees.ts` has no
+  pink or columnar kind) and flower heads are faceted dots; the cost of Aurora's hedges on the Intel card was not
+  measured; the laser plant's build bays do not match the finished plant's angles; the bloc banners on Geneva's
+  flags are blocky squares close up.
+- Not reached: megaprojects at night in a stage-2 world, `converter` and `seaWindBuild` while building, Ring
+  One's hub and racks close up, the reactor and the fab in a real campus, the gas works, salt plant, cable hut
+  and manhole at night.
+- Mine: vehicles do not steer their front wheels; a moving vehicle's shadow shows its wheels still (the depth
+  pass does not turn them: nobody can see it); an HQ upgrade shows no change of building (its tiers share the
+  garage); cut walls during construction are hollow shells (as before).

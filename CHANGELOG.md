@@ -14,6 +14,24 @@ What the realism pass saw and left, finished.
 - **On the Moon, crews lope:** long, slow, low strides, leaning into them.
 - **Street lamps** are a tapered column with a swept arm and a lantern, not a square post with a square bar.
 - **The Steppe Cosmodrome is inland:** no sea behind its pad, and no surf to hear.
+- **Doors open inwards.** A door swinging out could sweep through whoever was arriving at the step.
+- **Lit at night:** the research lab's own windows, pane by pane, with lights under its canopy; the gas plant gets a row of windows under each hall's eaves, lights over its doors and along its walkways, and a lit control house. Signs on the SMR plant and the fab are lit after dark.
+- **The plants of the scale-up, looked at closely:**
+  - Hydro: foam at the outlets that fades at its edges instead of hard white discs; the service truck parks beside the road, not across it.
+  - Geothermal, reactor, gigawatt campus, packaging, fab: lamps that stood inside buildings, cooling towers, trailers or a row of generators stand where a lamp would.
+  - Restart and reactor: the office stands in the fence line with its door on the street (the fence ran through it); the restart's skip is an open skip of rubble and its site cabin is tall enough to stand in.
+  - Fab: the gate is where the road is, with a real barrier; the pipe bridge spans the lane instead of standing in it.
+  - Gigawatt campus: cooling water runs in pipes overhead, not in boxes across the street; a flag that waves.
+  - Packaging: the lorries' cabs no longer stand on the grass past the plot.
+- **Suppliers' sites:** real transformers in place of olive boxes; lorries and vans stand on their docks, not in them, and are away at night; a proper wheel loader at the brine ponds; the warehouse's name is readable; the pit office has a door.
+- **Megaprojects under construction:**
+  - Each fusion design goes up as itself (a capsule on cradles, a stellarator inside rising portal frames, a laser chamber closing on its pedestal, a pinch vessel under its gantry). All five used to be a torus in a tokamak's drum.
+  - Pumped hydro is built at its real size, its lower basin a dry excavation until the works are done.
+  - The project office's roof is a planted meadow.
+- **Asteroids:** ore rides in lidded tubs on a hauled cable between closed houses (it lay loose on an open belt, in next to no gravity); the hauler's load is netted down; crews glide along guide lines, clipped on, instead of walking; whoever stands still is tethered.
+- **The yards in orbit:** every finished piece leaves under tow, none drifts off loose. Spacewalkers are tethered.
+- **Geneva:** the secretariat's pool and the plaza's fountain hold real water over a tiled floor, under a stone coping.
+- **Aurora:** hedges, flower beds and green roofs are real planting; ponds, pools and the fountain hold water; children play beside the swings and the slide, not inside them; people walk round the beds, pools and café tables instead of through them.
 
 ## 0.15.0 — True to Life (2026-11-14)
 A pass over the 3D world for everything that would not be so in real life.

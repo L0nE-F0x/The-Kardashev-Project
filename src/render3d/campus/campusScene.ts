@@ -514,7 +514,8 @@ export class CampusScene implements Scene3D {
       if (!want && d.open === 0) continue;
       d.open += (want - d.open) * Math.min(1, dt * (want ? 9 : 4.5));
       if (!want && d.open < 0.01) d.open = 0;
-      d.pivot.rotation.y = -d.open * 1.85;
+      // (inwards, into the dark: a leaf swinging out swept through whoever was arriving at the step)
+      d.pivot.rotation.y = d.open * 1.85;
       d.hole.visible = d.open > 0;
     }
   }

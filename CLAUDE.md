@@ -122,6 +122,16 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   where a ray from the step meets it) over a dark doorway at every door people use, `people.doorBusy` swings it,
   and `Door.in` is how far in they walk to be out of sight. The grid substation has a fenced gravel yard
   (`dressStatic`). Lamp posts, poles and street trees are on the walk map (`placesNow` extra).
+  Since v0.15.1 doors open inwards (out, a leaf swept through whoever was arriving), a launch site on plains or
+  desert has no sea (`inland()`), `streetLamp` is a tapered column with a swept arm, the deck grid under
+  people's feet (`DECK_CELLS`) is 192 a side, and `Crowd.add(…, { lope })` is the Moon's low-gravity stride.
+- **Helpers' parts worth knowing (v0.15.1):** `litSign()` (plants2/parts.ts: a painted sign lit at night),
+  `xfmr()` and `parkVehicle()` (industry/common.ts: the Act II transformer; a lorry or van at a dock that
+  `settleCars` stands and that is away at night), `modelWindows()` (act1/lab.ts: lit panes laid on a Meshy
+  model's own windows; `ortho.mjs` in that session's scratchpad measured them), `basinWater()` (Geneva and
+  Aurora: the scene's `waterMaterial` in a built basin), `Hab.walk` goes there and back unless `loop: true`,
+  `spacewalker().tie()`, and the megaprojects' build pieces take the design (`sets/mega/build.ts`; pumped hydro
+  builds as `pumpedHydro` with `variant: 'build'`).
 - **Shaders must stay defined (the globe's "strobing square", fixed in v0.14.2):** WebKitGTK's GL path turns
   undefined GLSL into NaN where Chrome's happens not to, and the bloom spreads one NaN pixel into a large flashing
   square (one injected NaN blacked out a whole frame). So: never `pow()` a base that can be negative, including
@@ -568,7 +578,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.15.0 "True to Life" (SPEC §35) is the realism pass the user asked for on 2026-11-14 and told me to ship while they slept: ask how it looks in their app (the cars, the trees, the doors), and pick from §35's "Seen and left" when they ask for more. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
+**Next:** v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, at the user's word the morning after ("finish up everything that was left in the known leftovers"). It is built and committed but was not pushed or tagged (they did not say ship; v0.15.0's draft release was still unpublished at the time): ask. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Seen and left" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
 rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
 clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and
