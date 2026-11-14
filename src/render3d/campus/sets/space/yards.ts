@@ -1,7 +1,7 @@
 /**
  * The yards' ends and their empty berth: the outbound cradle (the left end: finished products in
- * stacks, a release arm setting them loose one by one to drift off toward the swarm with a tug
- * nudging them on), the feed dock (the right end: a net cone catching capsules from the Moon's
+ * stacks, a release arm handing them one by one to a tow pack that hauls each off toward the swarm
+ * on a bridle), the feed dock (the right end: a net cone catching capsules from the Moon's
  * mass driver, the feed silo, an ore hauler docking with pods of asteroid rock) and the berth
  * (a bare truss before any foundry is seeded: an empty frame with its clamps open, a survey
  * beacon, a tug waiting, solar wings).
@@ -29,8 +29,39 @@ interface Lane {
   P: number;
   off: number;
   held: THREE.Group;
-  fly: { g: THREE.Group; mats: THREE.Material[] }[];
-  spin: THREE.Vector3;
+  fly: { g: THREE.Group; mats: THREE.Material[]; jets: { set(k: number): void } }[];
+  /** The attitude a towed piece settles into: its tow pack leading, straight down the lane. */
+  turn: THREE.Quaternion;
+  /** The tow pack for the next release: out of its dispenser, across to where the arm will let go. */
+  pack: THREE.Group;
+  packJets: { set(k: number): void };
+  from: THREE.Vector3;
+}
+
+/** How far ahead of a product's middle its tow pack flies (x, toward the lane), and where its bridle makes fast. */
+const TOW: Record<Product, { x: number; pts: [number, number, number][] }> = {
+  c: { x: -(PRODUCT.w / 2 + 3.6), pts: [[-PRODUCT.w / 2 - 0.07, PRODUCT.h / 2 - 0.1, 0], [-PRODUCT.w / 2 - 0.07, -PRODUCT.h / 2 - 0.1, 0]] },
+  r: { x: -(PRODUCT.ringR + 3.4), pts: [[-PRODUCT.ringR * 0.64, PRODUCT.ringR * 0.72, 0], [-PRODUCT.ringR * 0.64, -PRODUCT.ringR * 0.72, 0], [-PRODUCT.ringR + 0.3, 0, 0]] },
+  h: { x: -(2.6 + 3.6), pts: [[-2.5, PRODUCT.h / 2 - 0.2, -0.5], [-2.5, -PRODUCT.h / 2 + 0.2, -0.5]] },
+};
+
+/**
+ * A tow pack, its nose toward −x, centred on (x, 0, 0): a white body in the owner's band, a thruster
+ * pod out on each side (so the exhaust passes either side of what it tows), a tow eye at the back.
+ */
+function towPack(k: Kit, x: number, accent: string, hi: string) {
+  k.box(1.3, 0.8, 0.8, S.white, x, -0.4, 0, { r: 0.16, shade: 0.2 });
+  k.box(1.34, 0.18, 0.84, accent, x, 0.02, 0, { r: 0.04, shade: 0 });
+  k.box(0.2, 0.4, 0.5, S.black, x - 0.7, -0.2, 0, { r: 0.06, shade: 0 });
+  k.box(0.5, 0.06, 0.6, S.solar, x - 0.1, 0.42, 0, { r: 0.01, shade: 0 });
+  for (const sz of [-1, 1]) {
+    k.box(0.3, 0.14, 0.6, S.mid, x + 0.1, -0.07, sz * 0.6, { r: 0.03, shade: 0 });
+    k.cyl(0.2, 0.2, 0.8, S.grey, x - 0.3, 0, sz * 0.95, 10, { rz: -Math.PI / 2, shade: 0 });
+    k.cyl(0.26, 0.16, 0.3, S.dark, x + 0.5, 0, sz * 0.95, 10, { rz: -Math.PI / 2, shade: 0 });
+    k.box(0.14, 0.14, 0.14, hi, x - 0.3, 0.2, sz * 0.95, { r: 0.02, shade: 0 });
+  }
+  k.geo(new THREE.TorusGeometry(0.16, 0.05, 5, 10).translate(x + 0.75, 0, 0), S.dark, 0.02, 0);
+  return [V(x + 0.95, 0, -0.95), V(x + 0.95, 0, 0.95)];
 }
 
 export function yardsOutbound(o: Act3SetOpts): Piece {
@@ -98,6 +129,20 @@ export function yardsOutbound(o: Act3SetOpts): Piece {
     if (transparent) { pm.transparent = true; }
     return { g: finishedProduct(kind, s, pm, fm), mats: [pm, fm] };
   };
+  // a piece let go leaves under tow: a pack ahead of it, a bridle back to its frame (nothing just drifts off)
+  const towed = (kind: Product, s: number) => {
+    const f = mk(kind, s, true);
+    const tk = new Kit(rng(s + 3));
+    const T = TOW[kind];
+    const noz = towPack(tk, T.x, o.accent, o.hi);
+    for (const [bx, by, bz] of T.pts) tk.beam(V(T.x + 0.85, 0, 0), V(bx, by, bz), 0.05, S.pale);
+    const tm = tk.build(f.mats[0]);
+    tm.castShadow = false;
+    f.g.add(tm);
+    const jets = halo(noz, [1.5, 1.5], '#7fe8ff', 0.9);
+    f.g.add(jets.obj);
+    return { ...f, jets };
+  };
   const stack = (kind: Product, cy: number) => {
     const proto = finishedProduct(kind, o.seed + (kind === 'c' ? 1 : kind === 'r' ? 2 : 3));
     const n = kind === 'h' ? 6 : 8;
@@ -117,27 +162,42 @@ export function yardsOutbound(o: Act3SetOpts): Piece {
   const laneOf = (kind: Product, arm: RobotArm, cy: number, front: number, rel: THREE.Vector3, drift: THREE.Vector3, P: number, off: number): Lane => {
     const held = mk(kind, o.seed + 60 + lanes.length, false).g;
     g.add(held);
-    const fly = [0, 1, 2].map((i) => { const f = mk(kind, o.seed + 70 + i + lanes.length * 5, true); g.add(f.g); return f; });
-    return { kind, arm, pick: V(SX, cy, front + 0.4), rel, drift, P, off, held, fly, spin: V(0.35, 1, 0.25).normalize() };
+    // (two on the lane at a time: a third would have its pack in the wake of the piece ahead)
+    const fly = [0, 1].map((i) => { const f = towed(kind, o.seed + 70 + i + lanes.length * 5); g.add(f.g); return f; });
+    // the next pack, and the dispenser on the spine it comes out of (above for the first lane, below for the second)
+    const up = lanes.length === 0 ? 1 : -1;
+    const dy = up > 0 ? ys + 1.0 : yb - 2.5;
+    dk.box(2.8, 1.5, 1.7, S.pale, -2.9, dy, zs, { r: 0.16, shade: 0.15 });
+    dk.box(2.84, 0.22, 1.74, o.accent, -2.9, dy + 1.05, zs, { r: 0.04, shade: 0 });
+    dk.box(0.08, 1.1, 1.3, S.ink, -4.32, dy + 0.2, zs, { r: 0, jitter: 0, shade: 0 });
+    for (const dx of [-3.8, -2.0]) dk.box(0.3, 1.0, 1.2, S.grey, dx, up > 0 ? ys : yb - 1.0, zs, { r: 0.04 });
+    const pk = new Kit(rng(o.seed + 90 + lanes.length));
+    const noz = towPack(pk, 0, o.accent, o.hi);
+    const pack = new THREE.Group();
+    pack.add(pk.build(paint()));
+    const packJets = halo(noz, [1.2, 1.2], '#7fe8ff', 0.9);
+    pack.add(packJets.obj);
+    g.add(pack);
+    const turn = new THREE.Quaternion().setFromUnitVectors(V(-1, 0, 0), drift.clone().normalize());
+    return { kind, arm, pick: V(SX, cy, front + 0.4), rel, drift, P, off, held, fly, turn, pack, packJets, from: V(-3.0, dy + 0.75, zs) };
   };
-  lanes.push(laneOf(main, armM, mainY, mainFront, V(-6.5, mainY + 1.6, zs + 3.4), V(-27, 7, -12), 8, o.seed % 5));
+  const dk = new Kit(rng(o.seed + 95));
+  lanes.push(laneOf(main, armM, mainY, mainFront, V(-6.5, mainY + 1.6, zs + 3.4), V(-31, 8, -13.5), 8, o.seed % 5));
   if (second) {
     const sy = yb - 0.6 - ph / 2 - 0.3;
     const front = stack(second, sy);
     const armS = new RobotArm(5.2, 5.0, 1.2, yb, zs + 0.9, { tool: 'grip', hang: true, seed: o.seed + 40, base: 1.2 });
     g.add(armS.root);
-    lanes.push(laneOf(second, armS, sy, front, V(-6.5, sy - 1.2, zs + 3.6), V(-25, -6, -10), 9.5, 3.3));
+    lanes.push(laneOf(second, armS, sy, front, V(-6.5, sy - 1.2, zs + 3.6), V(-29, -7, -11.5), 9.5, 3.3));
   }
-  // the escort tug nudging the newest release on its way
-  const tg = tug(o.accent, o.hi, o.seed + 80, 1.1);
-  g.add(tg.obj);
-  // and one parked at the control pod
+  g.add(dk.build());
+  // a tug parked at the control pod
   const parked = tug(o.accent, o.hi, o.seed + 81, 1.0);
   parked.obj.position.set(14.6, cy0 - 1.6, zs + 5.2);
   parked.obj.rotation.y = Math.PI;
   parked.engine.set(0);
   g.add(parked.obj);
-  const q = new THREE.Quaternion(), tmp = V(0, 0, 0), tip = V(0, 0, 0);
+  const q0 = new THREE.Quaternion(), tmp = V(0, 0, 0), tip = V(0, 0, 0), out = V(0, 0, 0), tow = V(0, 0, 0);
   anim.add((e) => {
     spaceTime.value = e.t;
     feed.update(e, live ? 1 : 0);
@@ -157,39 +217,28 @@ export function yardsOutbound(o: Act3SetOpts): Piece {
         L.held.position.copy(tip).add(V(0, 0, -0.5));
       } else L.held.position.copy(L.pick).add(V(0, 0, -0.1));
       L.held.visible = !(ph2 >= 0.5 && ph2 < 0.58) || !live;
-      // the ones already let go drift off, tumbling slowly, fading with distance
+      // the ones already let go are towed off down the lane, swinging round behind their pack, fading with distance
       const sr = s - 0.5, frac = sr - Math.floor(sr);
       L.fly.forEach((f, j) => {
         const age = frac + j;
         const u = age / L.fly.length;
         const d = Math.pow(u, 1.25);
         f.g.position.copy(L.rel).addScaledVector(L.drift, d);
-        q.setFromAxisAngle(L.spin, u * 2.6 + j * 0.3);
-        f.g.quaternion.copy(q);
+        f.g.quaternion.copy(q0).slerp(L.turn, ease(u * 5));
         const a = 1 - span(0.45, 1, u);
         for (const m of f.mats) { (m as THREE.MeshStandardMaterial).opacity = a; m.transparent = a < 0.999; }
+        f.jets.set(a * (0.85 + Math.sin(e.t * 31 + j) * 0.15));
         f.g.visible = live && a > 0.01;
       });
+      // the next pack: out of the dispenser (0.06–0.18), across to its place ahead of the release point
+      // (0.18–0.46), holding there until the arm lets go; from then on it is the towed piece's own
+      tow.copy(L.rel).x += TOW[L.kind].x;
+      out.copy(L.from).x -= 3.4;
+      if (ph2 < 0.18) L.pack.position.copy(L.from).lerp(out, ease((ph2 - 0.06) / 0.12));
+      else L.pack.position.copy(out).lerp(tow, ease((ph2 - 0.18) / 0.28));
+      L.pack.visible = live && ph2 < 0.5;
+      L.packJets.set(ph2 > 0.18 && ph2 < 0.42 ? 0.6 : 0.12);
     }
-    // the tug: pushes the newest one for a while, then swings back
-    const L = lanes[0];
-    const s = (e.t + L.off) / L.P - 0.5, fr = s - Math.floor(s);
-    const pushing = fr < 0.55;
-    if (pushing) {
-      const u = fr / L.fly.length;
-      tmp.copy(L.rel).addScaledVector(L.drift, Math.pow(u, 1.25)).add(V(4.2, -1.2, 1.6));
-      tg.obj.position.copy(tmp);
-      tg.obj.rotation.set(0, Math.PI, 0);
-      tg.engine.set(0.9 + Math.sin(e.t * 30) * 0.1);
-    } else {
-      const u = ease((fr - 0.55) / 0.45);
-      const from = V(L.rel.x + L.drift.x * Math.pow(0.55 / L.fly.length, 1.25) + 4.2, L.rel.y + L.drift.y * Math.pow(0.55 / L.fly.length, 1.25) - 1.2, L.rel.z + L.drift.z * Math.pow(0.55 / L.fly.length, 1.25) + 1.6);
-      const to = V(L.rel.x + 4.2, L.rel.y - 1.2, L.rel.z + 1.6);
-      tg.obj.position.copy(from).lerp(to, u).add(V(0, Math.sin(u * Math.PI) * 2.2, Math.sin(u * Math.PI) * 2.5));
-      tg.obj.rotation.set(0, 0, 0);
-      tg.engine.set(u < 0.8 ? 0.8 : 0.2);
-    }
-    tg.obj.visible = live;
     for (const m of [podWin]) m.emissiveIntensity = flicker(e.t, 3, flags.storm) ? 0.15 : live ? 1.5 : 0.8;
     warn(flags.halted ? 1 : Math.sin(e.t * 3) > 0.2 ? 1 : 0.1);
   });
