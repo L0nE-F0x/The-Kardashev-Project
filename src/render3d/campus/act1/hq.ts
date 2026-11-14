@@ -116,9 +116,10 @@ export function hq(o: { seed: number }): Piece {
       panes.visible = e.night > 0.05;
       fan.rotation.y += e.dt * 9;
     },
-    // the front door up the path, and the open garage bay off the driveway (where the lab began); the model stands
-    // on its own concrete apron, so the walls are 3.5 m behind its front edge (the gabled wing a little less)
-    doors: [{ x: 2.9, z: 0.8 }, { x: -5.0, z: 0.3 }],
+    // the front door up the path; the model stands on its own concrete apron, so the walls are 3.5 m behind its
+    // front edge (the gabled wing a little less). The open garage bay is not a way in: its inside is in plain
+    // view, workbench and all, and whoever walked in went through the bench and vanished in the light.
+    doors: [{ x: 2.9, z: 0.8 }],
     blockers: [
       { x0: -8.6, z0: -7.1, x1: 8.6, z1: -0.4 },
       // the front wall proper (measured on the model: the pier beside the garage door, the wall with the window

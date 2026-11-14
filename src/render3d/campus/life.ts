@@ -24,6 +24,9 @@ export interface Walker {
   /** Standing: what they're doing and until when (s) before they shift to something else. */
   pose?: Act;
   poseFor: number;
+  /** Low gravity: how high each loping stride carries them (m), and where in the stride they are. */
+  lope?: number;
+  hop: number;
 }
 
 export const hitGeo = new THREE.BoxGeometry(1.4, 2.2, 1.4).translate(0, 1.1, 0);
@@ -38,7 +41,7 @@ export class Crowd {
   private r = rng(5);
 
   /** A person walking a loop of points (y from `h`); one point = standing there. */
-  add(kind: PersonName | null, pts: [number, number][], h: (x: number, z: number) => number, opts: { advisor?: string; pause?: [number, number]; speed?: number; height?: number } = {}) {
+  add(kind: PersonName | null, pts: [number, number][], h: (x: number, z: number) => number, opts: { advisor?: string; pause?: [number, number]; speed?: number; height?: number; lope?: number } = {}) {
     const k = kind ?? PEOPLE[Math.floor(this.r() * PEOPLE.length)];
     const p = person(k, opts.height ?? 1.75 * (0.94 + this.r() * 0.12));
     const obj = p?.obj ?? boxPerson(Math.floor(this.r() * 1e6), k === 'worker');
@@ -47,8 +50,9 @@ export class Crowd {
     this.group.add(obj);
     const w: Walker = {
       obj, fig: p, mixer: p?.mixer ?? null, walk: p?.walk ?? null, path, i: Math.floor(this.r() * path.length), t: this.r(),
-      speed: opts.speed ?? 1.15 + this.r() * 0.35, wait: this.r() * 2, pause: opts.pause ?? [0.5, 4], advisor: opts.advisor, poseFor: 0,
+      speed: opts.speed ?? 1.15 + this.r() * 0.35, wait: this.r() * 2, pause: opts.pause ?? [0.5, 4], advisor: opts.advisor, poseFor: 0, lope: opts.lope, hop: 0,
     };
+    if (opts.lope) obj.rotation.order = 'YXZ';
     if (p?.walk) p.walk.time = this.r() * p.walk.getClip().duration;
     if (opts.advisor) {
       const hit = new THREE.Mesh(hitGeo, hitMat);
@@ -91,12 +95,20 @@ export class Crowd {
     for (const w of this.walkers) {
       if (w.path.length < 2 || w.wait > 0) {
         if (w.path.length >= 2) w.wait -= e.dt;
+        // (a loper comes down from its last stride and straightens up)
+        if (w.lope) {
+          const p = w.path[w.i % w.path.length];
+          w.obj.position.y += (p.y - w.obj.position.y) * Math.min(1, e.dt * 5);
+          w.obj.rotation.x *= 1 - Math.min(1, e.dt * 4);
+          w.hop = 0;
+        }
         this.stand(w, e.dt);
         w.fig?.update(e.dt);
         continue;
       }
       if (w.pose) { w.pose = undefined; w.fig?.play('walk', 0.25); }
-      w.fig?.pace(w.speed);
+      // (one sixth of the weight: each push-off carries a long way, so the legs swing at half the pace)
+      w.fig?.pace(w.lope ? 0.58 : w.speed);
       const a = w.path[w.i], b = w.path[(w.i + 1) % w.path.length];
       const len = a.distanceTo(b) || 1;
       w.t += (e.dt * w.speed) / len;
@@ -107,6 +119,12 @@ export class Crowd {
         continue;
       }
       w.obj.position.lerpVectors(a, b, w.t);
+      if (w.lope) {
+        // a stride is a throw: up and down on a parabola, a little over a second in the air, leaning into it
+        w.hop = (w.hop + e.dt / 1.05) % 1;
+        w.obj.position.y += w.lope * 4 * w.hop * (1 - w.hop);
+        w.obj.rotation.x += (0.16 - w.obj.rotation.x) * Math.min(1, e.dt * 4);
+      }
       if (!w.fig) w.obj.position.y += Math.abs(Math.sin(e.t * 9 * w.speed)) * 0.08;
       const target = Math.atan2(b.x - a.x, b.z - a.z);
       let d = target - w.obj.rotation.y;

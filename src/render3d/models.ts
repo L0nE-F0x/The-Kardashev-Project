@@ -511,7 +511,7 @@ const decks = new Map<string, Deck | null>();
  * garage, enough for its apron (0.3 m) and door step (0.5 m), not for the workbenches in its open bay (0.9 m).
  */
 const DECK_BAND = 0.035;
-const DECK_CELLS = 96;
+const DECK_CELLS = 192;
 
 export function deckOf(n: string): Deck | null {
   if (decks.has(n)) return decks.get(n)!;

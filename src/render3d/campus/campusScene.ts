@@ -242,7 +242,8 @@ export class CampusScene implements Scene3D {
         // a station in space is one continuous structure: a single row, no gaps
         sl = this.scenery === 'space' ? planLayout(plan.specs, 1e9, 0) : planLayout(plan.specs);
         if (this.scenery === 'offshore') seaZ = 900;
-        if (this.scenery === 'launch') seaZ = sl.bounds.z0 - 50;
+        // (a spaceport on the steppe launches over empty land: no sea behind its pad)
+        if (this.scenery === 'launch' && !this.inland()) seaZ = sl.bounds.z0 - 50;
         if (this.scenery === 'moon' || this.scenery === 'asteroid') backdrop = 'lunar';
         this.sceneExtra = plan.extra ?? {};
         if (this.scenery === 'geneva' && plan.lakeAt !== undefined) {
@@ -606,6 +607,9 @@ export class CampusScene implements Scene3D {
     this.pitch = l(sh.from.pitch, sh.to.pitch);
   }
 
+  /** A place far from any shore (its backdrop is open country: the cosmodrome on the steppe). */
+  private inland() { return this.site.backdrop === 'plains' || this.site.backdrop === 'desert'; }
+
   /** QA: the people's walk map and plans drawn over the ground. */
   debugPeople(on = true) { this.people?.debug(on); return this.people; }
 
@@ -617,7 +621,7 @@ export class CampusScene implements Scene3D {
       for (const [i, sp] of this.setPieces.entries()) {
         if (i % 2) continue;
         const r = sp.item.rect;
-        crowd.add('astronaut', [[r.x0 + 2, r.z1 + 2], [r.x1 - 2, r.z1 + 3], [r.x1 - 4, r.z1 + 6]], this.ground.h, { pause: [2, 6], speed: 0.7 });
+        crowd.add('astronaut', [[r.x0 + 2, r.z1 + 2], [r.x1 - 2, r.z1 + 3], [r.x1 - 4, r.z1 + 6]], this.ground.h, { pause: [2, 6], speed: 1.25, lope: 0.3 });
       }
     };
     if (hasModel('astronaut')) go();
@@ -1288,7 +1292,7 @@ export class CampusScene implements Scene3D {
     if (p === 'space' || p === 'asteroid') return 'space';
     if (p === 'habitat') return 'habitat';
     if (wet === 'rain' || wet === 'snow') return 'rain';
-    if (p === 'offshore' || p === 'launch' || this.site.backdrop === 'coast') return 'coast';
+    if (p === 'offshore' || (p === 'launch' && !this.inland()) || this.site.backdrop === 'coast') return 'coast';
     if (p === 'geneva') return 'lake';
     return this.sky.night > 0.55 ? 'night' : 'campus';
   }

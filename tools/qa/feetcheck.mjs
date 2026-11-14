@@ -16,7 +16,7 @@ for (const site of sites) {
     const sc = game.stage.getScene();
     const ray = sc.ray;
     const V = ray.ray.origin.constructor;
-    const targets = []; sc.scene.traverse((o) => { if (!o.isMesh) return; const m = o.material; if (!m || m.visible === false || m.colorWrite === false || (m.transparent && m.opacity === 0)) return; let p = o, ok = true; while (p) { if (p === sc.people.group || !p.visible) ok = false; p = p.parent; } if (ok) targets.push(o); });
+    const targets = []; sc.scene.traverse((o) => { if (!o.isMesh) return; const m = o.material; if (!m || m.visible === false || m.colorWrite === false || (m.transparent && m.opacity === 0)) return; let p = o, ok = true; while (p) { if (p === sc.people.group || !p.visible) ok = false; p = p.parent; } if (ok && o.name !== 'grass-patch') targets.push(o); });
     const diffs = {}; const worst = [];
     const facAt = (x, z) => { for (const e of sc.entries.values()) { const r = e.item.rect; if (x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1) return e.f.type; } return 'open'; };
     for (let round = 0; round < 14; round++) {

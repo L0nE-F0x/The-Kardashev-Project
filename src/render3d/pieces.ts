@@ -577,12 +577,27 @@ export function utilityPole(k: Kit, x: number, y: number, z: number, H = 6.5, ry
   k.beam(V(x - ax * 1.1, y + H - 0.5, z - az * 1.1), V(x + ax * 1.1, y + H - 0.5, z + az * 1.1), 0.13, '#6b4a2c');
 }
 
-/** A street lamp; the head glows at night. */
+/** A street lamp: a tapered column on a base, an arm swept over the road, a lantern whose lens glows at night. */
+let lampLens: THREE.BufferGeometry | null = null;
 export function streetLamp(group: THREE.Object3D, kit: Kit, x: number, y: number, z: number, dir = 1) {
-  kit.box(0.14, 4.6, 0.14, '#5b5562', x, y, z, { r: 0, jitter: 0 });
-  kit.box(1.2, 0.12, 0.14, '#5b5562', x + dir * 0.55, y + 4.5, z, { r: 0, jitter: 0 });
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.14, 0.3), lampMat);
-  head.position.set(x + dir * 1.05, y + 4.45, z);
+  const C = '#5b5562';
+  kit.cyl(0.12, 0.15, 0.22, C, x, y, z, 8, { jitter: 0 });
+  kit.cyl(0.048, 0.085, 4.1, C, x, y + 0.2, z, 8, { jitter: 0 });
+  // the arm: up out of the column and over in a quarter turn, then out to the lantern
+  const top = y + 4.28, R = 0.5;
+  let prev = V(x, top, z);
+  for (let i = 1; i <= 5; i++) {
+    const a = (i / 5) * Math.PI / 2;
+    const p = V(x + dir * R * (1 - Math.cos(a)), top + R * Math.sin(a), z);
+    kit.beam(prev, p, 0.075, C);
+    prev = p;
+  }
+  kit.beam(prev, V(x + dir * 0.86, top + R + 0.02, z), 0.07, C);
+  // the lantern: a shallow housing, its lens underneath
+  kit.box(0.62, 0.1, 0.27, '#4a4552', x + dir * 1.05, top + R - 0.03, z, { r: 0.035, jitter: 0 });
+  lampLens ??= new THREE.BoxGeometry(0.46, 0.045, 0.19);
+  const head = new THREE.Mesh(lampLens, lampMat);
+  head.position.set(x + dir * 1.07, top + R - 0.045, z);
   group.add(head);
   lightPool(group, x + dir * 1.05, y, z, 4.2, lampPool);
 }
