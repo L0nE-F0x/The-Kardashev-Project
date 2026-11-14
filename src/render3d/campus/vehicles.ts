@@ -288,7 +288,7 @@ export class Traffic {
 
   update(e: Env) {
     const dt = Math.min(0.1, e.dt);
-    if (dt <= 0) return;
+    if (!(dt > 0)) return;
     for (const c of this.cars) {
       const r = c.route;
       // the speed the road ahead allows (bends coming up, braking at ~2.5 m/s²)

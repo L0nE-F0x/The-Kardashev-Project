@@ -109,7 +109,8 @@ describe('3D campus people', () => {
       refreshStats(s);
       const { L, places, extra, roads } = await campus(s, s.company.homeSite);
       const map = campusWalkMap(L.bounds, roads, places, extra);
-      expect(checkWays(map, places, roads)).toBeGreaterThan(2);
+      // (at least two doors to walk between: the garage has one way in since v0.15.1, its open bay is not a door)
+      expect(checkWays(map, places, roads)).toBeGreaterThan(1);
       // the hall's own car park and transformers stay inside its fence
       for (const p of places) if (p.fence) for (const sld of [...p.solids, ...p.bays.map((b) => ({ x0: b.x - 0.5, z0: b.z - 0.5, x1: b.x + 0.5, z1: b.z + 0.5 }))]) {
         expect(sld.z1 <= p.fence.rect.z1 + 0.05 && sld.z0 >= p.fence.rect.z0 - 0.05, `${p.id}: ${JSON.stringify(sld)} inside the fence`).toBe(true);
