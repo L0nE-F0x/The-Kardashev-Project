@@ -11,7 +11,7 @@ import { model } from '../../models';
 import type { Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import {
-  Anim, At, beacon, lampHeadMat, mechTower, P, pipe, pipeRun, pipeStands, poleLamp, rollDoor, shed, tank, transformer, V, wallLamp, warmPool, windowRow,
+  Anim, At, beacon, extrudeX, lampHeadMat, mechTower, P, pipe, pipeRun, pipeStands, poleLamp, rollDoor, shed, tank, transformer, V, wallLamp, warmPool, windowRow,
 } from '../plants2/parts';
 
 /** The plant's glazing: dark glass by day; at night the halls' lights at two strengths (the garage's panes set the level: nothing burns out). */
@@ -22,6 +22,12 @@ const [hallWin, hallWinDim] = [['#ffdca8', 0.66], ['#ffd09a', 0.36]].map(([c, kk
   m.userData.scope = 0;
   return m;
 });
+
+/** The control room's windows: the plant's one room that is always manned. */
+const ctrlWin = glowMat('yel1', 0);
+ctrlWin.color.copy(col(P.glass));
+ctrlWin.userData.nightOnly = 0.75;
+ctrlWin.userData.scope = 0;
 
 const GAS_YELLOW = '#e3b341';
 const RUST = '#c8623c';
@@ -50,6 +56,79 @@ function gasSkid(k: Kit, x: number, z0: number, z1: number, outX: number, outY: 
     k.cyl(0.09, 0.09, 0.9, 'yel0', x + sx * 0.85, 0.15, zz, 8, { shade: 0 });
     k.cyl(0.095, 0.095, 0.12, '#3a3442', x + sx * 0.85, 0.75, zz, 8, { shade: 0, jitter: 0 });
   }
+}
+
+/**
+ * The control house, built in code round the model's own (a hut whose door stood 1.1 m tall and whose windows
+ * faced the back fence): the switchgear floor on the deck, its door on the west side, and the control room above
+ * it, looking south over the pipe yard through a ribbon window, with a door out onto a railed balcony: the
+ * storey that shows over the pipes from the front of the plot. Everything at a person's size (doors 2.1 m, rails
+ * 1.1 m, sills 0.95 m) whatever the model's scale. `cover` = how high the ground floor must reach to take the
+ * model's roof inside it. Returns its ridge height.
+ */
+function controlHouse(k: Kit, win: Kit, lamps: Kit, g: THREE.Group, x0: number, x1: number, z0: number, z1: number, deck: number, cover: number) {
+  const W = x1 - x0, D = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  const gy = Math.max(deck + 2.9, cover), uy = gy + 2.75;
+  const WALL = '#e7dfd2', TRIM = '#d8d2c8', DOOR = '#4a5a66', TILE = '#c8623c';
+  k.box(W, uy - deck + 0.05, D, WALL, cx, deck - 0.05, cz, { r: 0.08, shade: 0.12, jitter: 0.03 });
+  k.box(W + 0.1, 0.3, D + 0.1, '#a39a91', cx, deck - 0.05, cz, { r: 0.03, shade: 0 });
+  k.box(W + 0.07, 0.2, D + 0.07, RUST, cx, gy - 0.1, cz, { r: 0.03, shade: 0 });
+  // the roof: two tiled slopes off a ridge along the house, the gables in the wall's colour, a ridge cap
+  extrudeX(k, x0 + 0.02, x1 - 0.02, [[z0 + 0.02, uy - 0.02], [cz, uy + 0.74], [z1 - 0.02, uy - 0.02]], WALL, 0, 0);
+  for (const sg of [-1, 1]) {
+    const ze = cz + sg * (D / 2 + 0.4);
+    extrudeX(k, x0 - 0.3, x1 + 0.3, sg < 0 ? [[ze, uy + 0.0], [ze, uy + 0.12], [cz, uy + 0.92], [cz, uy + 0.8]] : [[cz, uy + 0.8], [cz, uy + 0.92], [ze, uy + 0.12], [ze, uy + 0.0]], TILE, 0, 0.02);
+    k.box(W + 0.6, 0.12, 0.1, TRIM, cx, uy - 0.04, ze - sg * 0.04, { r: 0.02, jitter: 0, shade: 0 }); // the gutter
+  }
+  k.box(W + 0.7, 0.1, 0.24, '#b4562e', cx, uy + 0.87, cz, { r: 0.03, jitter: 0.02, shade: 0 });
+  // the control room's south face: the door onto the balcony, the ribbon window beside it
+  const sill = gy + 0.95, wh = 1.15;
+  const dx = x0 + 0.85;
+  k.box(1.11, 2.18, 0.05, TRIM, dx, gy, z1 + 0.01, { r: 0, jitter: 0, shade: 0 });
+  k.box(0.95, 2.1, 0.07, DOOR, dx, gy, z1 + 0.03, { r: 0.01, jitter: 0, shade: 0 });
+  win.box(0.42, 0.55, 0.03, P.glass, dx, gy + 1.3, z1 + 0.06, { r: 0, jitter: 0, shade: 0 });
+  k.box(0.05, 0.14, 0.06, P.steel2, dx + 0.34, gy + 1.0, z1 + 0.08, { r: 0, jitter: 0, shade: 0 });
+  const wx0 = dx + 0.85, wx1 = x1 - 0.32;
+  const n = Math.max(1, Math.round((wx1 - wx0) / 0.85)), pw = (wx1 - wx0) / n;
+  k.box(wx1 - wx0 + 0.14, wh + 0.14, 0.05, '#3a3442', (wx0 + wx1) / 2, sill - 0.07, z1 + 0.01, { r: 0, jitter: 0, shade: 0 });
+  for (let i = 0; i < n; i++) win.box(pw - 0.07, wh, 0.06, P.glass, wx0 + (i + 0.5) * pw, sill, z1 + 0.025, { r: 0, jitter: 0.04, shade: 0 });
+  k.box(wx1 - wx0 + 0.3, 0.07, 0.16, '#b9a58a', (wx0 + wx1) / 2, sill - 0.15, z1 + 0.06, { r: 0.02, jitter: 0, shade: 0 });
+  // the balcony: a steel deck on brackets, a rail round it
+  const bz = z1 + 1.0;
+  k.box(W - 0.1, 0.1, 1.05, P.steel2, cx, gy - 0.1, z1 + 0.525, { r: 0, jitter: 0.02, shade: 0 });
+  for (const bx of [x0 + 0.3, cx, x1 - 0.3]) k.beam(V(bx, gy - 1.0, z1 + 0.03), V(bx, gy - 0.12, z1 + 0.95), 0.09, P.steel);
+  const posts = Math.max(2, Math.round((W - 0.2) / 1.05));
+  for (let i = 0; i <= posts; i++) k.box(0.05, 1.1, 0.05, P.safety, x0 + 0.1 + ((W - 0.2) * i) / posts, gy, bz, { r: 0, jitter: 0 });
+  for (const [yy, t] of [[1.1, 0.05], [0.55, 0.04]] as [number, number][]) {
+    k.beam(V(x0 + 0.1, gy + yy, bz), V(x1 - 0.1, gy + yy, bz), t, P.safety);
+    for (const ex of [x0 + 0.1, x1 - 0.1]) k.beam(V(ex, gy + yy, z1 + 0.03), V(ex, gy + yy, bz), t, P.safety);
+  }
+  k.box(W - 0.2, 0.12, 0.03, P.steel, cx, gy, bz, { r: 0, jitter: 0, shade: 0 }); // the kick plate
+  lamps.box(0.36, 0.14, 0.16, '#e9e1d2', dx, gy + 2.34, z1 + 0.1, { r: 0, jitter: 0 });
+  lightPool(g, dx + 0.6, deck + 0.03, z1 + 0.6, 2.6, warmPool);
+  // the switchgear floor's door on the west side, a bulkhead light over it; a window above
+  const wz = z0 + D * 0.34;
+  k.box(0.05, 2.18, 1.11, TRIM, x0 - 0.01, deck, wz, { r: 0, jitter: 0, shade: 0 });
+  k.box(0.07, 2.1, 0.95, DOOR, x0 - 0.03, deck, wz, { r: 0.01, jitter: 0, shade: 0 });
+  k.box(0.06, 0.14, 0.05, P.steel2, x0 - 0.08, deck + 1.0, wz + 0.34, { r: 0, jitter: 0, shade: 0 });
+  lamps.box(0.16, 0.14, 0.36, '#e9e1d2', x0 - 0.1, deck + 2.36, wz, { r: 0, jitter: 0 });
+  lightPool(g, x0 - 0.9, deck + 0.03, wz, 2.3, warmPool);
+  for (const [fx, sg, into] of [[x0, -1, win], [x1, 1, k]] as [number, number, Kit][]) {
+    k.box(0.05, 1.14, 1.14, '#3a3442', fx + sg * 0.01, sill - 0.02, cz + 0.5, { r: 0, jitter: 0, shade: 0 });
+    into.box(0.06, 1.0, 1.0, P.glass, fx + sg * 0.025, sill + 0.05, cz + 0.5, { r: 0, jitter: 0.04, shade: 0 });
+  }
+  // the east wall's switchgear vent, the back wall's windows (the back of the control room, one blind down)
+  k.box(0.05, 0.8, 1.3, '#4a4452', x1 + 0.02, deck + 1.5, cz + 0.9, { r: 0, jitter: 0, shade: 0 });
+  for (let yy = 0.1; yy < 0.8; yy += 0.2) k.box(0.1, 0.05, 1.26, '#cfc9c0', x1 + 0.05, deck + 1.5 + yy, cz + 0.9, { r: 0, jitter: 0.02, shade: 0 });
+  for (let i = 0; i < 3; i++) {
+    const bx = x0 + W * (0.22 + 0.28 * i);
+    k.box(1.04, 1.14, 0.05, '#3a3442', bx, sill - 0.02, z0 - 0.01, { r: 0, jitter: 0, shade: 0 });
+    (i === 1 ? k : win).box(0.9, 1.0, 0.06, P.glass, bx, sill + 0.05, z0 - 0.025, { r: 0, jitter: 0.04, shade: 0 });
+  }
+  // the radio mast on the ridge
+  k.box(0.07, 1.9, 0.07, P.steel, x1 - 0.7, uy + 0.85, cz, { r: 0, jitter: 0 });
+  k.box(0.6, 0.05, 0.05, P.steel, x1 - 0.7, uy + 2.3, cz, { r: 0, jitter: 0 });
+  return uy + 0.95;
 }
 
 /** Louvres on a blank wall facing +z: a dark recess, slats, a frame. */
@@ -228,7 +307,6 @@ export function gas(o: { seed: number; tier: number }): Piece {
     lightPool(g, X(px), deck + 0.03, Z(pz), r, warmPool);
   };
   bulk(-9.22, 2.72, -4.5, -9.6, -4.5, 2.3);
-  bulk(-2.9, 2.42, -9.82, -3.9, -9.8, 2.3);
   for (const z of [-3.6, 1.4]) bulk(8.1, 2.9, z, 9.0, z, 2.8);
   bulk(2.82, 3.0, 0.4, 1.7, 0.4, 2.8);
   bulk(-2.86, 3.0, -1.6, -1.7, -1.6, 2.8);
@@ -236,24 +314,11 @@ export function gas(o: { seed: number; tier: number }): Piece {
   k.box(0.08, 2.5, 0.08, P.steelDark, X(10.01) - 0.2, deck, sz + 0.95, { r: 0, jitter: 0 });
   lamps.box(0.34, 0.14, 0.2, '#e9e1d2', X(10.01) - 0.05, deck + 2.42, sz + 0.95, { r: 0, jitter: 0 });
   lightPool(g, sx1 + 0.3, 0, sz, 2.4, warmPool);
-  // the control house's three windows (at the back), lit at night with their glazing bars
-  const ctrlMat = glowMat('yel1', 0);
-  ctrlMat.color.set('#1c2226');
-  ctrlMat.userData.nightOnly = 0.75;
-  const ctrl = new Kit(rng(o.seed + 9)), ctrlBars = new Kit(rng(o.seed + 10));
-  for (const cx of [0.36, -0.77, -1.88]) {
-    ctrl.box(0.5 * s, 0.62 * s, 0.02, '#ffffff', X(cx), 1.66 * s, Z(-11.09), { r: 0, jitter: 0, shade: 0 });
-    ctrlBars.box(0.04, 0.62 * s, 0.02, '#e9e1d2', X(cx), 1.66 * s, Z(-11.09) - 0.012, { r: 0, jitter: 0, shade: 0 });
-    ctrlBars.box(0.5 * s, 0.035, 0.02, '#e9e1d2', X(cx), 1.95 * s, Z(-11.09) - 0.012, { r: 0, jitter: 0, shade: 0 });
-  }
-  const night = new THREE.Group();
-  const cm = ctrl.build(ctrlMat), cb = ctrlBars.build();
-  cm.castShadow = cb.castShadow = false;
-  night.add(cm, cb);
-  night.visible = false;
-  g.add(night);
+  // the control house, at the back between the halls (it takes the model's hut inside it)
+  const ctrl = new Kit(rng(o.seed + 9));
+  const ctrlTop = controlHouse(k, ctrl, lamps, g, X(-3.02), X(1.27), Z(-11.45), Z(-6.55), deck, 4.2 * s + 0.1);
 
-  let top = 12.4 * s;
+  let top = Math.max(12.4 * s, ctrlTop);
   if (!big) {
     // the peaker: the gas main comes in on the east side, behind the operators' pickup
     gasSkid(k, 11.9, -10.2, -5.6, X(10.01) - 0.35, deck + 0.02);
@@ -323,6 +388,7 @@ export function gas(o: { seed: number; tier: number }): Piece {
   g.add(k.build(), lamps.build(lampHeadMat));
   if (!lit.empty) g.add(lit.build(hallWin));
   if (!dim.empty) g.add(dim.build(hallWinDim));
+  g.add(ctrl.build(ctrlWin));
   return {
     obj: g, w: 26, d: 24, h: top + 0.5,
     // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
@@ -330,6 +396,6 @@ export function gas(o: { seed: number; tier: number }): Piece {
     doors: [{ x: 0, z: 12.85 }],
     blockers,
     progress(p) { anim.done = p; },
-    update(e) { anim.update(e); night.visible = e.night > 0.05; },
+    update(e) { anim.update(e); },
   };
 }
