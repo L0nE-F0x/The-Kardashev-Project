@@ -36,9 +36,9 @@ function nightGlow(day: Paint, glow: Paint, k: number) {
   return m;
 }
 /** Office and control-room windows: blue-grey glass by day, warm at night. */
-export const winMat = nightGlow(P.glass, 'yel1', 1.15);
+export const winMat = nightGlow(P.glass, 'yel1', 0.9);
 /** Cleanroom and gowning windows: a cool white at night. */
-export const coolWinMat = nightGlow('#6f97a3', '#d9f2ee', 1.0);
+export const coolWinMat = nightGlow('#6f97a3', '#d9f2ee', 0.82);
 /** Roof glazing (north lights, skylights): a soft glow, much dimmer than windows. */
 export const skyMat = nightGlow('#86a9b5', '#e6efe0', 0.38);
 /** Lamp heads and wall packs. */
