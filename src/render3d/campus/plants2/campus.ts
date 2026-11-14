@@ -9,8 +9,9 @@ import { Kit, rng } from '../../kit';
 import { dataHall, type Piece } from '../../pieces';
 import type { PieceOpts } from '../registry';
 import {
-  Anim, beacon, coolWinMat, glassMat, lampHeadMat, mechTower, P, paving, plants, poleLamp, shed, switchyard, wallLamp, windowRow, winMat,
+  Anim, beacon, coolWinMat, glassMat, lampHeadMat, mechTower, P, paving, pipeRun, plants, poleLamp, shed, switchyard, V, wallLamp, windowRow, winMat,
 } from './parts';
+import { Flag } from '../industry/common';
 import type { Placement } from '../trees';
 
 export function campus(o: PieceOpts): Piece & { setLoad(f: number): void } {
@@ -34,15 +35,24 @@ export function campus(o: PieceOpts): Piece & { setLoad(f: number): void } {
   paving(k, 0, -1.5, o.w - 2, 3.6);
   paving(k, 0, D - 2.4, o.w - 2, 2.8);
   for (let x = -W + 3; x < W - 2; x += 3.2) k.box(1.4, 0.02, 0.14, '#e6e0e3', x, 0.18, -1.5, { r: 0, jitter: 0, shade: 0 });
-  for (const x of [-27, -18, -8.4, 8.4, 18, 27]) poleLamp(k, lamps, g, x, 0.6, 5.2, x < 0 ? 1 : -1);
+  // (on the street's north side: at z = 0.6 they stood in the front halls' generator row)
+  for (const x of [-27, -18, -8.4, 8.4, 18, 27]) poleLamp(k, lamps, g, x, -3.55, 5.2, x < 0 ? 1 : -1);
 
   // the spine: the substation (back), two cooling banks, the operations tower (front)
   switchyard(k, g, 0, -D + 7.6, 11.2, 12.0, { bays: 3, xfmrs: 3, gantryH: 6.2 });
   const tA = mechTower(k, g, anim, -0.4, -8.8, { cells: 2, cell: 4.6, h: 7.4, ry: Math.PI / 2, plume: { size1: 11, life: 7, count: 16 } }, o.seed + 30);
   const tB = mechTower(k, g, anim, -0.4, 5.8, { cells: 2, cell: 4.6, h: 7.4, ry: Math.PI / 2, plume: { size1: 11, life: 7, count: 16 } }, o.seed + 40);
   // cooling water to the halls along the cross street
-  for (const sx of [-1, 1]) {
-    k.box(0.9, 0.9, 3.2, '#6f7f88', sx * 3.4, 0.1, -1.5, { r: 0.1 });
+  // cooling water from each bank to the halls either side: supply and return, overhead on a stand (two boxes
+  // lay across the cross street instead, in the way of every truck)
+  for (const z0 of [-11.9, 5.8]) for (const sx of [-1, 1]) {
+    const x0 = -0.4 + sx * 2.5, x1 = sx * 6.6;
+    for (const [dz, c] of [[-0.55, '#6f7f88'], [0.55, '#5f8f9c']] as [number, string][]) {
+      pipeRun(k, [V(x0, 1.2, z0 + dz), V(x0 + sx * 0.9, 1.2, z0 + dz), V(x0 + sx * 0.9, 4.4, z0 + dz), V(x1, 4.4, z0 + dz)], 0.34, c, { seg: 10, band: 1.2 });
+    }
+    const mx = (x0 + sx * 0.9 + x1) / 2 + sx * 0.4;
+    for (const dz of [-1.1, 1.1]) k.box(0.18, 4.0, 0.18, P.steel, mx, 0.1, z0 + dz, { r: 0, jitter: 0 });
+    k.box(0.24, 0.2, 2.5, P.steel, mx, 3.86, z0, { r: 0, jitter: 0 });
   }
 
   // the operations tower: a podium, a glass tower with floor bands, a crown with the company's teal
@@ -81,8 +91,9 @@ export function campus(o: PieceOpts): Piece & { setLoad(f: number): void } {
     trees.push({ x: tx + x, y: 0.6, z: D - 4.6, s: 0.55 + r() * 0.15, ry: r() * 6.3, tint: 1 });
   }
   g.add(plants('broadleaf', trees));
-  k.box(0.14, 7, 0.14, '#e6e0e3', tx + 8.6, 0.1, D - 5.0, { r: 0, jitter: 0 });
-  k.box(1.6, 1.0, 0.04, 'cyn3', tx + 9.4, 5.8, D - 5.0, { r: 0, jitter: 0 });
+  // the company flag (it waves: it was a board on a square post)
+  const flag = new Flag(k, tx + 8.6, D - 5.0, 7.4, ['cyn3', 'cyn3', '#e6e0e3', 'cyn3'], { w: 2.0, fh: 1.2, rows: true });
+  g.add(flag.obj);
   for (const x of [-7.6, 7.6]) wallLamp(lamps, g, tx + x * 0.6, 3.0, tz + 4.5);
   g.add(k.build(), glass.build(glassMat), lit.build(winMat), cool.build(coolWinMat), lamps.build(lampHeadMat));
   const band = cyan.build(coolWinMat);
@@ -92,6 +103,6 @@ export function campus(o: PieceOpts): Piece & { setLoad(f: number): void } {
     obj: g, w: o.w, d: o.d, h: Math.max(crown + 3.6, tA, tB),
     setLoad(f) { for (const h of halls) h.setLoad(f); anim.load = f; },
     progress(p) { anim.done = p; },
-    update(e) { for (const h of halls) h.update?.(e); anim.update(e); },
+    update(e) { for (const h of halls) h.update?.(e); anim.update(e); flag.update(e); },
   };
 }
