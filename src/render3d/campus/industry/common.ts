@@ -249,7 +249,9 @@ export class Lit {
     this.mat = glowMat(c, 0);
     this.mat.color.copy(col(day));
     this.mat.roughness = 0.45;
-    this.mat.userData.nightOnly = k;
+    // (brought to the plants' level: `winMat` 0.9, the garage's panes 0.75; at the old strength a supplier's site
+    // outshone everything round it at night)
+    this.mat.userData.nightOnly = k * 0.8;
   }
   /** A pane facing +z (or rotated by ry). */
   pane(w: number, h: number, x: number, y: number, z: number, ry = 0) {

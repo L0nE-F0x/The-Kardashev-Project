@@ -99,8 +99,10 @@ export class Hab {
   readonly leaf: Kit;
   readonly r: () => number;
   readonly crowd = new Crowd();
-  private trees = new Map<TreeKind | 'cypress' | 'fruit' | 'blossom', { x: number; z: number; s: number; ry: number; y: number; tint: number }[]>();
+  private trees = new Map<TreeKind | 'fruit', { x: number; z: number; s: number; ry: number; y: number; tint: number }[]>();
   private dots: { x: number; y: number; z: number; s: number; c: Paint }[] = [];
+  /** Flower heads in the beds (the shared `flower` kind, each in its own colour). */
+  private heads: { x: number; y: number; z: number; s: number; c: Paint }[] = [];
   private extra: { m: THREE.Mesh; bend: boolean }[] = [];
   constructor(seed: number, readonly W: number, readonly D: number) {
     this.r = rng(seed * 7 + 3);
@@ -113,7 +115,7 @@ export class Hab {
   /** A random pick. */
   pick<T>(a: readonly T[]): T { return a[Math.floor(this.r() * a.length)]; }
   /** A tree (instanced), base at y above the floor. */
-  tree(kind: TreeKind | 'cypress' | 'fruit' | 'blossom', x: number, z: number, s: number, y = 0, tint = 1) {
+  tree(kind: TreeKind | 'fruit', x: number, z: number, s: number, y = 0, tint = 1) {
     let l = this.trees.get(kind);
     if (!l) this.trees.set(kind, (l = []));
     l.push({ x, z, s, ry: this.r() * TAU, y, tint: (0.9 + this.r() * 0.2) * tint });
@@ -122,9 +124,9 @@ export class Hab {
       this.dots.push({ x: x + Math.cos(a) * rr, y: y + hy, z: z + Math.sin(a) * rr, s: 0.12 * Math.max(0.8, s), c: this.r() < 0.7 ? '#c23a3f' : '#f08a46' });
     }
   }
-  /** Flowers (instanced dots) scattered in a rectangle, y = their height. */
+  /** Flowers scattered in a rectangle, y = their height (flower heads: petals round a heart, in the palette's colours). */
   flowers(x: number, z: number, w: number, d: number, n: number, y = 0.25, palette: readonly Paint[] = FLOWERS) {
-    for (let i = 0; i < n; i++) this.dots.push({ x: x + (this.r() - 0.5) * w, y: y + this.r() * 0.12, z: z + (this.r() - 0.5) * d, s: 0.09 + this.r() * 0.06, c: palette[Math.floor(this.r() * palette.length)] });
+    for (let i = 0; i < n; i++) this.heads.push({ x: x + (this.r() - 0.5) * w, y: y + this.r() * 0.12, z: z + (this.r() - 0.5) * d, s: 0.09 + this.r() * 0.06, c: palette[Math.floor(this.r() * palette.length)] });
   }
   dot(x: number, y: number, z: number, s: number, c: Paint) { this.dots.push({ x, y, z, s, c }); }
   /** A mesh to add as is (bent onto the floor unless `flat`). */
@@ -191,24 +193,9 @@ export class Hab {
     add(this.glass, glassMat);
     add(this.lit, litMat, false);
     add(this.leaf, plantMat);
-    for (const [kind, at] of this.trees) {
-      // the town's own two shapes are built here; every other kind is one of the shared plants (trees.ts), a mix of
-      // its variants, standing on the curved floor
-      if (kind === 'cypress' || kind === 'blossom') {
-        const im = new THREE.InstancedMesh(kind === 'cypress' ? cypressGeo() : blossomGeo(), plantMat, at.length);
-        const m = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color();
-        at.forEach((p, i) => {
-          q.setFromAxisAngle(UP, p.ry);
-          m.compose(V(p.x, p.y + floorY(p.z), p.z), q, V(p.s, p.s, p.s));
-          im.setMatrixAt(i, m);
-          im.setColorAt(i, c.setScalar(p.tint));
-        });
-        im.castShadow = true;
-        im.receiveShadow = true;
-        im.computeBoundingSphere();
-        this.g.add(im);
-      } else this.g.add(plantField(kind === 'fruit' ? 'blob' : kind, at.map((p) => ({ x: p.x, y: p.y + floorY(p.z), z: p.z, s: p.s, ry: p.ry, tint: p.tint }))));
-    }
+    // every tree is one of the shared plants (trees.ts), a mix of its variants, standing on the curved floor
+    for (const [kind, at] of this.trees) this.g.add(plantField(kind === 'fruit' ? 'blob' : kind, at.map((p) => ({ x: p.x, y: p.y + floorY(p.z), z: p.z, s: p.s, ry: p.ry, tint: p.tint }))));
+    if (this.heads.length) this.g.add(plantField('flower', this.heads.map((d) => ({ x: d.x, y: d.y + floorY(d.z), z: d.z, s: d.s * 1.15, ry: d.x * 3.7 + d.z * 1.3, c: col(d.c).getStyle() })), { shadow: false }));
     if (this.dots.length) {
       const im = new THREE.InstancedMesh(dotGeo, plantMat, this.dots.length);
       const m = new THREE.Matrix4(), q = new THREE.Quaternion();
@@ -232,51 +219,12 @@ export class Hab {
     return { obj: this.g, w: this.W, d: this.D, h, update: this.anim.update, ...extra };
   }
 }
-const UP = new THREE.Vector3(0, 1, 0);
 const dotGeo = (() => {
   const g = new THREE.IcosahedronGeometry(1, 0);
   const c = new Float32Array(g.attributes.position.count * 3).fill(1);
   g.setAttribute('color', new THREE.BufferAttribute(c, 3));
   return g;
 })();
-let cypress: THREE.BufferGeometry | null = null;
-/** A tall slim cypress (the villas' trees), about 1 unit tall per unit of scale. */
-function cypressGeo() {
-  if (cypress) return cypress;
-  const k = new Kit(rng(5));
-  k.cyl(0.08, 0.1, 0.5, '#5c3a26', 0, 0, 0, 5);
-  const g = new THREE.IcosahedronGeometry(0.5, 1);
-  const p = g.attributes.position;
-  const r = rng(9);
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i);
-    const k2 = 0.85 + r() * 0.25;
-    p.setXYZ(i, p.getX(i) * k2 * (1 - Math.max(0, y) * 0.9), y * 4.2 + 2.4, p.getZ(i) * k2 * (1 - Math.max(0, y) * 0.9));
-  }
-  k.geo(g, '#2f5a3e', 0.12);
-  k.geo(new THREE.IcosahedronGeometry(0.34, 0).scale(1, 3, 1).translate(0.12, 2.2, 0.1), '#356848', 0.12);
-  cypress = k.build().geometry;
-  return cypress;
-}
-
-let blossom: THREE.BufferGeometry | null = null;
-/** A flowering tree: a crooked trunk under clouds of pink and white blossom. */
-function blossomGeo() {
-  if (blossom) return blossom;
-  const k = new Kit(rng(8));
-  k.cyl(0.12, 0.2, 1.4, '#5c3a26', 0, 0, 0, 6);
-  k.beam(V(0, 1.2, 0), V(0.5, 2.0, 0.2), 0.14, '#5c3a26');
-  k.beam(V(0, 1.2, 0), V(-0.45, 1.9, -0.25), 0.12, '#5c3a26');
-  const r = rng(4);
-  const tints = ['#f7a6c4', '#f2b8cf', '#fbe3ec', '#e88fb2'];
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * TAU, rr = i ? 0.75 : 0;
-    k.geo(blob(0.62 + r() * 0.25, r, 1).translate(Math.cos(a) * rr, 2.25 + r() * 0.5 + (i ? 0 : 0.4), Math.sin(a) * rr), tints[i % 4], 0.1);
-  }
-  blossom = k.build().geometry;
-  return blossom;
-}
-
 export const RESIDENTS: PersonName[] = ['resident_a', 'resident_b', 'office', 'resident_a', 'engineer', 'resident_b', 'researcher', 'scientist'];
 export const CREW: PersonName[] = ['worker', 'worker', 'engineer'];
 
