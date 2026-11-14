@@ -11,7 +11,7 @@ import { streetLamp, type Env, type Piece } from '../../../pieces';
 import { hasModel } from '../../../models';
 import type { Act3SetOpts } from '../../act3sets';
 import { bench, CHARTER_FLAG, flagPole, Flags, greenery, lampMat, litGlass, litSign, paving, People, plantedTree, sitter, V } from './common';
-import { fit, waterMat } from './secretariat';
+import { basinWater, fit } from './secretariat';
 
 const STONE: Paint = '#ece6dc';
 const STONE2: Paint = '#d6cdbf';
@@ -71,9 +71,8 @@ export function plaza(o: Act3SetOpts): Piece {
   k.geo(new THREE.LatheGeometry(wall, 48).translate(FX, B, FZ), STONE, 0.02);
   k.cyl(FR - 0.5, FR - 0.5, 0.1, '#2f5f74', FX, B, FZ, 40);
   k.cyl(0.7, 0.9, 0.55, STONE2, FX, B, FZ, 16);
-  const water = new THREE.Mesh(new THREE.CircleGeometry(FR - 0.52, 40).rotateX(-Math.PI / 2), waterMat);
+  const water = basinWater(FR - 0.52);
   water.position.set(FX, B + 0.42, FZ);
-  water.receiveShadow = true;
   g.add(water);
   const jetMat = glowMat('#e8f6fb', 0.05);
   jetMat.transparent = true;

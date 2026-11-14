@@ -311,48 +311,118 @@ export class Ast {
     m.castShadow = true;
     this.g.add(m);
   }
-  /** A suited figure standing (loads the astronaut the first time). */
+  /**
+   * A suited figure standing (loads the astronaut the first time). Nobody just stands on a rock this small (a
+   * careless step is a launch): boots on a restraint plate bolted to the ground, a short tether from the hip to
+   * an anchor beside it.
+   */
   suit(x: number, z: number, ry: number) {
+    const y = gy(x, z);
+    this.k.box(0.78, 0.05, 0.6, '#5b536a', x, y - 0.01, z, { r: 0.02, ry });
+    for (const s of [-1, 1]) this.k.box(0.07, 0.04, 0.6, '#f0a448', x + Math.cos(ry) * s * 0.36, y + 0.03, z - Math.sin(ry) * s * 0.36, { r: 0, jitter: 0, ry });
+    const ax = x + Math.cos(ry) * 0.85 - Math.sin(ry) * 0.25, az = z - Math.sin(ry) * 0.85 - Math.cos(ry) * 0.25;
+    const eye = this.anchor(ax, az);
+    const hip = V(x, y + 0.98, z);
+    hip.add(V(ax - x, 0, az - z).normalize().multiplyScalar(0.24));
+    this.k.beam(hip, eye, 0.03, '#f0a448');
     const put = () => {
       const p = person('astronaut', 1.8);
       if (!p) return;
       p.walk.time = 0;
       p.mixer.update(0);
       p.walk.paused = true;
-      p.obj.position.set(x, gy(x, z), z);
+      p.obj.position.set(x, y + 0.04, z);
       p.obj.rotation.y = ry;
       this.g.add(p.obj);
     };
     if (hasModel('astronaut')) put();
     else loadModels(['astronaut']).then(put).catch(() => {});
   }
-  /** A suited figure bounding between points (long, slow, low-gravity strides). */
+  /**
+   * A suited figure going round between points. Gravity here is a few thousandths of a g, so nobody walks: a
+   * guide line is strung between stanchions along the route, the figure is clipped to it by a short tether and
+   * glides from one stanchion to the next just clear of the ground, legs still, leaning into the way it goes
+   * (a push off, a slow drift, a catch), then turns for the next leg.
+   */
   bound(pts: [number, number][], seed: number) {
+    const n = pts.length, LH = 1.32, OFF = 0.6;
+    // the stanchions stand off the outside of the route
+    let area = 0;
+    for (let i = 0; i < n; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[(i + 1) % n]; area += x0 * z1 - x1 * z0; }
+    const sg = area >= 0 ? 1 : -1;
+    const normal = (i: number) => { const [x0, z0] = pts[(i + n) % n], [x1, z1] = pts[(i + 1) % n]; const l = Math.hypot(x1 - x0, z1 - z0) || 1; return [(sg * (z1 - z0)) / l, (-sg * (x1 - x0)) / l]; };
+    const tops = pts.map(([x, z], i) => {
+      const [ax, az] = normal(i - 1), [bx, bz] = normal(i);
+      let nx = ax + bx, nz = az + bz;
+      const l = Math.hypot(nx, nz);
+      if (n < 3 || l < 0.2) { [nx, nz] = normal(0); } else { nx /= l; nz /= l; }
+      const reach = n < 3 ? OFF : OFF / Math.max(0.55, nx * bx + nz * bz);
+      const px = x + nx * reach, pz = z + nz * reach, py = gy(px, pz);
+      this.k.cyl(0.2, 0.24, 0.08, '#5b536a', px, py - 0.02, pz, 8, { shade: 0 });
+      this.k.cyl(0.045, 0.055, LH, '#9d95a6', px, py, pz, 6);
+      this.k.cyl(0.07, 0.07, 0.16, '#f0a448', px, py + LH - 0.34, pz, 6, { shade: 0 });
+      this.k.geo(new THREE.TorusGeometry(0.09, 0.03, 4, 8).translate(px, py + LH + 0.06, pz), '#c3bcc7', 0);
+      return V(px, py + LH, pz);
+    });
+    const legs = n < 3 ? 1 : n;
+    for (let i = 0; i < legs; i++) this.k.beam(tops[i], tops[(i + 1) % n], 0.03, '#f0a448');
     const put = () => {
       const p = person('astronaut', 1.8);
       if (!p) return;
       this.g.add(p.obj);
-      const path = pts.map(([x, z]) => V(x, gy(x, z), z));
-      let i = 0, t = 0, wait = 1 + (seed % 3);
+      p.walk.time = 0;
+      p.mixer.update(0);
+      p.walk.paused = true;
+      p.obj.rotation.order = 'YXZ';
+      const tether = new THREE.Mesh(tetherGeo, tetherMat);
+      tether.castShadow = false;
+      this.g.add(tether);
+      const HOVER = 0.12;
+      const path = pts.map(([x, z]) => V(x, gy(x, z) + HOVER, z));
+      const yawOf = (i: number) => { const a = path[i], b = path[(i + 1) % n]; return Math.atan2(b.x - a.x, b.z - a.z); };
+      let i = 0, t = 0, wait = 1 + (seed % 3), yaw = yawOf(0);
       p.obj.position.copy(path[0]);
+      p.obj.rotation.y = yaw;
+      const hip = V(0, 0, 0), on = V(0, 0, 0), seg = V(0, 0, 0), up = V(0, 1, 0);
+      const clip = () => {
+        // the tether: from the hip to the nearest point of this leg's line
+        hip.copy(p.obj.position);
+        hip.y += 1.0;
+        const A = tops[n < 3 ? 0 : i], B = tops[n < 3 ? 1 : (i + 1) % n];
+        seg.copy(B).sub(A);
+        const u = Math.min(1, Math.max(0, on.copy(hip).sub(A).dot(seg) / seg.lengthSq()));
+        on.copy(A).addScaledVector(seg, u);
+        seg.copy(on).sub(hip);
+        const len = seg.length() || 1;
+        tether.position.copy(hip).addScaledVector(seg, 0.5);
+        tether.scale.set(1, len, 1);
+        tether.quaternion.setFromUnitVectors(up, seg.divideScalar(len));
+      };
+      clip();
       this.anim.add((e) => {
         if (wait > 0) {
+          // holding the stanchion: turn slowly to face the next leg
           wait -= e.dt;
-          p.walk.paused = true;
-          p.walk.time = 0;
-          p.mixer.update(0);
-          p.obj.position.y = path[i].y;
+          const want = yawOf(i);
+          let d = want - yaw;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          yaw += d * Math.min(1, e.dt * 1.6);
+          p.obj.rotation.set(0, yaw, 0);
+          p.obj.position.copy(path[i]);
+          clip();
           return;
         }
-        p.walk.paused = false;
-        const a = path[i], b = path[(i + 1) % path.length];
+        const a = path[i], b = path[(i + 1) % n];
         const len = a.distanceTo(b) || 1;
-        t += (e.dt * 0.75) / len;
-        if (t >= 1) { t = 0; i = (i + 1) % path.length; wait = 2 + ((seed + i) % 4); return; }
-        p.obj.position.lerpVectors(a, b, t);
-        p.obj.position.y += Math.abs(Math.sin(t * len * 1.4)) * 0.45;
-        p.obj.rotation.y = Math.atan2(b.x - a.x, b.z - a.z);
-        p.mixer.update(e.dt * 0.5);
+        t += (e.dt * 0.55) / len;
+        if (t >= 1) { t = 0; i = (i + 1) % n; wait = 3 + ((seed + i) % 4); p.obj.position.copy(path[i]); p.obj.rotation.x = 0; clip(); return; }
+        // the push, the drift, the catch: fastest in the middle, a shallow arc, leaning into it
+        const s = t * t * (3 - 2 * t), mid = Math.sin(t * Math.PI);
+        p.obj.position.lerpVectors(a, b, s);
+        p.obj.position.y += mid * Math.min(0.3, len * 0.04);
+        yaw = yawOf(i);
+        p.obj.rotation.set(mid * 0.4, yaw, 0);
+        clip();
       });
     };
     if (hasModel('astronaut')) put();
@@ -393,6 +463,10 @@ export class Ast {
     return { obj: this.g, w: this.W, d: this.D, h, update: this.anim.update, ...extra };
   }
 }
+const tetherGeo = new THREE.BoxGeometry(0.03, 1, 0.03);
+tetherGeo.userData.shared = true;
+const tetherMat = new THREE.MeshStandardMaterial({ color: col('#f0a448'), roughness: 0.8 });
+tetherMat.userData.shared = true;
 const beaconGeo = new THREE.SphereGeometry(0.22, 8, 6);
 beaconGeo.userData.shared = true;
 const lampGeo = new THREE.SphereGeometry(1, 8, 6);

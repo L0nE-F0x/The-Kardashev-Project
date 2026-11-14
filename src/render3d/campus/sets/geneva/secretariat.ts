@@ -6,7 +6,8 @@
  */
 import * as THREE from 'three';
 import { plantField } from '../../trees';
-import { glowMat, Kit, lightPool, poolMat, rng, withClouds, type Paint } from '../../../kit';
+import { glowMat, Kit, lightPool, poolMat, rng, type Paint } from '../../../kit';
+import { waterMaterial } from '../../water';
 import { streetLamp, type Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
 import { bench, CH, CHARTER_FLAG, emblemDisc, flagPole, Flags, glassMat, greenery, litGlass, litSign, lampMat, paving, People, plantedTree, type FlagSpec } from './common';
@@ -16,7 +17,35 @@ const STONE2: Paint = '#d6cdbf';
 const TIMBER: Paint = '#c39d68';
 const GLASS: Paint[] = ['#3c5f86', '#365a80', '#42688f', '#2f5178'];
 
-export const waterMat = withClouds(new THREE.MeshStandardMaterial({ color: '#3f7fa8', roughness: 0.14, metalness: 0.1 }));
+/**
+ * Still water in a stone basin: the scene's own water (ripples, the sky's mirror, the glints), a little clear so the
+ * tiled floor shows through. Its geometry carries `aDepth` (see `basinWater`).
+ */
+export const waterMat = waterMaterial('#63b4c2', '#1c4a72');
+waterMat.transparent = true;
+waterMat.opacity = 0.8;
+waterMat.userData.shared = true;
+
+/**
+ * A basin's water sheet with the depth the water look reads: clear and pale at the walls, bluer toward the middle
+ * (always past the depth where that look draws surf: this is a pool, not a beach). A rectangle w × d, or a disc of
+ * radius w when d is 0; flat at y = 0, centred.
+ */
+export function basinWater(w: number, d = 0) {
+  const g = d ? new THREE.PlaneGeometry(w, d, Math.max(2, Math.round(w / 0.7)), Math.max(2, Math.round(d / 0.7))) : new THREE.CircleGeometry(w, 40);
+  g.rotateX(-Math.PI / 2);
+  const p = g.attributes.position;
+  const depth = new Float32Array(p.count);
+  for (let i = 0; i < p.count; i++) {
+    const edge = d ? Math.min(w / 2 - Math.abs(p.getX(i)), d / 2 - Math.abs(p.getZ(i))) : w - Math.hypot(p.getX(i), p.getZ(i));
+    const t = Math.min(1, Math.max(0, edge / 1.1));
+    depth[i] = 2.4 + t * t * (3 - 2 * t) * 2.8;
+  }
+  g.setAttribute('aDepth', new THREE.BufferAttribute(depth, 1));
+  const m = new THREE.Mesh(g, waterMat);
+  m.receiveShadow = true;
+  return m;
+}
 
 /** Fit a sign into a box (keeps its aspect). */
 export function fit(s: THREE.Mesh, maxW: number, maxH: number) {
@@ -170,13 +199,37 @@ export function secretariat(o: Act3SetOpts): Piece {
   g.add(ent);
   // ── the forecourt: a reflecting pool, the flag alley, benches, trees, lamps ──
   const PX0 = -17, PX1 = 5, PZ0 = 5.4, PZ1 = 8.2;
-  k.box(PX1 - PX0, 0.1, PZ1 - PZ0, '#2f3f52', (PX0 + PX1) / 2, B, (PZ0 + PZ1) / 2, { r: 0, jitter: 0, shade: 0 });
-  for (const [w, d, x, z] of [[PX1 - PX0 + 0.8, 0.4, (PX0 + PX1) / 2, PZ0 - 0.2], [PX1 - PX0 + 0.8, 0.4, (PX0 + PX1) / 2, PZ1 + 0.2], [0.4, PZ1 - PZ0, PX0 - 0.2, (PZ0 + PZ1) / 2], [0.4, PZ1 - PZ0, PX1 + 0.2, (PZ0 + PZ1) / 2]] as const)
-    k.box(w, 0.42, d, STONE, x, B, z, { r: 0.05, jitter: 0.01, shade: 0.1 });
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(PX1 - PX0, PZ1 - PZ0).rotateX(-Math.PI / 2), waterMat);
-  water.position.set((PX0 + PX1) / 2, B + 0.3, (PZ0 + PZ1) / 2);
-  water.receiveShadow = true;
-  g.add(water);
+  {
+    // the basin: a tiled floor, low stone walls under a coping of cut slabs that oversails them, the water a hand
+    // below the coping's lip
+    const pw = PX1 - PX0, pd = PZ1 - PZ0, cx = (PX0 + PX1) / 2, cz = (PZ0 + PZ1) / 2;
+    const tr = rng(seed + 61);
+    k.box(pw, 0.05, pd, '#33586b', cx, B, cz, { r: 0, jitter: 0, shade: 0 });
+    const TILE: Paint[] = ['#5f9fb4', '#5593a9', '#69a9bc', '#4f8aa1'];
+    const tn = Math.round(pw / 0.7), tm = Math.round(pd / 0.7), tw = pw / tn, td = pd / tm;
+    for (let i = 0; i < tn; i++) for (let j = 0; j < tm; j++)
+      k.box(tw - 0.04, 0.02, td - 0.04, TILE[Math.floor(tr() * TILE.length)], PX0 + (i + 0.5) * tw, B + 0.05, PZ0 + (j + 0.5) * td, { r: 0, jitter: 0.03, shade: 0 });
+    const sides: [number, number, number, number][] = [[pw + 0.8, 0.4, cx, PZ0 - 0.2], [pw + 0.8, 0.4, cx, PZ1 + 0.2], [0.4, pd, PX0 - 0.2, cz], [0.4, pd, PX1 + 0.2, cz]];
+    for (const [w, d, x, z] of sides) {
+      k.box(w, 0.36, d, STONE2, x, B, z, { r: 0.02, jitter: 0.01, shade: 0.18 });
+      // the coping, slab by slab
+      const along = w > d, len = along ? w : d, n = Math.max(1, Math.round(len / 2.4)), step = len / n;
+      for (let i = 0; i < n; i++) {
+        const u = -len / 2 + (i + 0.5) * step;
+        k.box(along ? step - 0.03 : 0.54, 0.09, along ? 0.54 : step - 0.03, STONE, along ? x + u : x, B + 0.36, along ? z : z + u, { r: 0.025, jitter: 0.025, shade: 0 });
+      }
+    }
+    const water = basinWater(pw, pd);
+    water.position.set(cx, B + 0.33, cz);
+    g.add(water);
+    // lamps under the water along the building's side: the pool glows at night
+    const wl = lampMat('ice2', 1.6);
+    for (let x = PX0 + 1.8; x < PX1 - 1; x += 3.68) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.1, 0.05), wl);
+      m.position.set(x, B + 0.18, PZ0 + 0.03);
+      g.add(m);
+    }
+  }
   for (const x of [-12, -5, 1.5]) bench(k, x, B, 9.3, Math.PI);
   k.box(50, 0.03, 1.6, '#bfb5a6', 0, B, 11.6, { r: 0, jitter: 0, shade: 0 });
   const flags: FlagSpec[] = [];

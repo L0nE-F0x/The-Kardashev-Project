@@ -640,8 +640,14 @@ export function stripMat(c: Paint, base = 0.6, amp = 2.4) {
 
 /**
  * A spacewalker (1.8 tall, for scale): white suit, gold visor, a life-support pack, limbs in a
- * floating pose, a helmet lamp. Faces +z; `float(t)` drifts the limbs a little.
+ * floating pose, a helmet lamp. Faces +z; `float(t)` drifts the limbs a little. `tie(parent, at)` clips a safety
+ * tether from the suit's hip ring to a point on the structure (in the parent's coordinates): nobody works outside
+ * without one, and `float` keeps it taut as the walker moves.
  */
+const UP_Y = new THREE.Vector3(0, 1, 0);
+const tetherGeo = new THREE.BoxGeometry(0.035, 1, 0.035);
+const clipGeo = new THREE.BoxGeometry(0.16, 0.1, 0.16);
+const tetherMat = new THREE.MeshStandardMaterial({ color: col('#f0a448'), roughness: 0.8 });
 export function spacewalker(seed: number, stripe: Paint = '#c23a3f') {
   const g = new THREE.Group();
   const k = new Kit(rng(seed));
@@ -671,9 +677,29 @@ export function spacewalker(seed: number, stripe: Paint = '#c23a3f') {
   const lamp = halo([V(0.18, 2.02, 0.22)], [0.9], '#fff6d8', 0.9);
   g.add(lamp.obj);
   const ph = seed * 1.3;
+  let line: THREE.Mesh | null = null;
+  const made = V(0, 0, 0), hip = V(0, 0, 0), span = V(0, 0, 0);
+  const taut = () => {
+    if (!line) return;
+    hip.set(0.3, 0.86, -0.2).applyQuaternion(g.quaternion).add(g.position);
+    span.copy(made).sub(hip);
+    const len = span.length() || 1;
+    line.position.copy(hip).addScaledVector(span, 0.5);
+    line.scale.set(1, len, 1);
+    line.quaternion.setFromUnitVectors(UP_Y, span.divideScalar(len));
+  };
   return {
     obj: g,
+    tie(parent: THREE.Object3D, at: THREE.Vector3) {
+      made.copy(at);
+      line = new THREE.Mesh(tetherGeo, tetherMat);
+      const clip = new THREE.Mesh(clipGeo, tetherMat);
+      clip.position.copy(at);
+      parent.add(line, clip);
+      taut();
+    },
     float(t: number) {
+      taut();
       arms[0].rotation.set(-0.5 + Math.sin(t * 0.7 + ph) * 0.15, 0, -0.35);
       arms[1].rotation.set(-1.1 + Math.sin(t * 0.6 + ph + 1) * 0.2, 0, 0.3);
       legs[0].rotation.set(0.25 + Math.sin(t * 0.5 + ph) * 0.1, 0, -0.08);

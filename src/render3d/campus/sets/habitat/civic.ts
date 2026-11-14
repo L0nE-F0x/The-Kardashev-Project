@@ -168,7 +168,8 @@ export function habSchool(o: Act3SetOpts): Piece {
   flag(h, 0.8, 0.4, 7.0, AURORA, 1.8);
   // children everywhere, a teacher keeping an eye
   const kids = 2 + n * 2;
-  const spots: [number, number, number][] = [[-8, 6.2, 2.4], [-3, 7.4, 2.2], [8.4, -3.2, 1.6], [10.4, 3.0, 1.4], [6.0, 1.4, 1.4], [-6, 5.2, 1.6], [9.0, -0.8, 1.2], [-1.5, 6.4, 1.8]];
+  // (play spots keep clear of the kit: the swings' frame and arc, the slide, the dome, the sandpit's kerb)
+  const spots: [number, number, number][] = [[-8, 6.2, 2.4], [-3, 7.4, 2.2], [9.6, -3.9, 0.85], [9.4, 2.9, 0.9], [10.9, -0.9, 1.2], [-6, 5.2, 1.6], [11.9, -4.0, 0.8], [-1.5, 6.4, 1.8]];
   for (let i = 0; i < kids; i++) h.kid(spots[i % spots.length][0], spots[i % spots.length][1], spots[i % spots.length][2]);
   h.stand(4.6, -2.4, -0.6, 'office');
   if (n >= 2) h.stand(-7.0, 2.8, 0.4, 'researcher');
@@ -195,13 +196,15 @@ export function habPark(o: Act3SetOpts): Piece {
   strip(h.k, -3.6, 7.6, -3.6, 11.4, 1.4, H.path);
   // the pond: water, a stone edge, reeds, lily pads, a little jetty
   const pond = blobOutline(-3.8, 0.4, 6.0, 3.6, r);
-  patch(h.k, -3.8, 0.4, 11.0, 6.4, '#4c7a8a', -0.02, 0.04);
+  // (the bed is the pond's own outline: a rectangle under it showed its corners past the stones)
+  h.k.geo(new THREE.ShapeGeometry(new THREE.Shape(pond.map(([x, z]) => new THREE.Vector2(x, -z))), 4).rotateX(-Math.PI / 2).translate(0, 0.03, 0), '#3d6a70', 0.02, 0);
   water(h, pond, 0.16, pondMat);
   stoneEdge(h, pond, 0.55);
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 16; i++) {
+    // reeds in clumps along the far bank (the shared grass tufts, grown tall)
     const [px, pz] = pond[Math.floor(r() * 9) + 9];
-    const x = px + (r() - 0.5) * 0.6, z = pz + (r() - 0.5) * 0.6;
-    h.leaf.geo(new THREE.ConeGeometry(0.05, 1.1 + r() * 0.6, 3).translate(x, 0.6, z).rotateZ((r() - 0.5) * 0.02), r() < 0.5 ? '#7d8a45' : H.ivyL, 0.1);
+    const x = px + (r() - 0.5) * 0.7, z = pz + (r() - 0.5) * 0.7;
+    h.tree('tuft', x, z, 1.5 + r() * 0.9, 0.08, 0.82);
   }
   for (let i = 0; i < 6; i++) h.leaf.cyl(0.32, 0.32, 0.03, '#5a9537', -6 + r() * 6, 0.17, -0.6 + r() * 2.4, 9, { shade: 0 });
   h.k.box(1.6, 0.2, 2.4, H.deck, -3.8, 0.12, 4.6, { r: 0.03 });
@@ -248,15 +251,15 @@ export function habPark(o: Act3SetOpts): Piece {
     h.k.box(1.8, 0.8, 0.1, H.ink, bx, 4.0, bz + 3.2, { r: 0.03 });
     h.sign('CLUB', 1.4, bx, 4.15, bz + 3.27, H.gold, null, 0, 0.6);
   } else {
-    h.stand(bx - 0.8, bz + 0.6, 0.3, 'office');
-    h.stand(bx + 0.9, bz + 0.2, -0.3, 'engineer');
+    h.stand(bx - 0.8, bz + 0.6, 0.3, 'office', 1.75, 0.6);
+    h.stand(bx + 0.9, bz + 0.2, -0.3, 'engineer', 1.75, 0.6);
   }
   // big trees round the edge, benches facing the water, beds along the front
   const trees: [string, number, number, number][] = [['broadleaf', -12.6, -8.6, 2.0], ['blossom', -6.4, -9.6, 1.3], ['birch', 1.4, -9.8, 1.5], ['pine', -13.2, 2.0, 1.2], ['broadleaf', 12.8, 6.8, 1.9], ['blossom', 4.8, 8.8, 1.1], ['broadleaf', -12.0, 8.8, 1.5]];
   for (const [k, x, z, s] of trees) h.tree(k as 'broadleaf', x, z, s * (0.85 + n * 0.06));
-  for (const [x, z, ry] of [[-9.8, 7.2, Math.PI * 0.85], [2.6, 7.0, Math.PI * 1.1], [4.6, -4.6, -0.6], [-11.8, -3.6, Math.PI * 0.55]] as [number, number, number][]) bench(h, x, z, ry);
+  for (const [x, z, ry] of [[-9.8, 7.2, Math.PI * 0.85], [2.6, 7.0, Math.PI * 1.1], [4.6, -4.6, -0.6], [-12.7, -4.5, Math.PI * 0.55]] as [number, number, number][]) bench(h, x, z, ry);
   flowerBed(h, 8.6, 9.6, 6.0, 1.2);
-  flowerBed(h, -12.0, 4.6, 1.4, 2.4);
+  flowerBed(h, -13.7, 5.6, 1.4, 2.4);
   hedge(h, 6.2, -10.6, 13.8, -10.6, 1.0, 0.8);
   lampPost(h, 6.0, 1.0);
   lampPost(h, -13.0, -1.2);
@@ -272,9 +275,9 @@ export function habPark(o: Act3SetOpts): Piece {
   for (let i = 0; i < strolls; i++) {
     const off = Math.floor((i / strolls) * 28);
     const path = [...loop.slice(off), ...loop.slice(0, off)].filter((_, j) => j % 3 === 0);
-    h.walk(i % 2 ? path.reverse() : path, null, { pause: [1, 4], speed: 0.9 });
+    h.walk(i % 2 ? path.reverse() : path, null, { pause: [1, 4], speed: 0.9, loop: true });
   }
-  if (n >= 2) { h.kid(-9.2, 3.8, 1.2); h.kid(1.8, 4.8, 1.0); }
+  if (n >= 2) { h.kid(-9.6, 4.4, 1.0); h.kid(1.8, 4.8, 1.0); }
   if (n >= 3) {
     h.kid(-0.4, -4.8, 1.2);
     // a dog
@@ -376,7 +379,7 @@ export function habSquare(o: Act3SetOpts): Piece {
     if (i < 2) h.stand(sx + (r() - 0.5), sz + 1.6, Math.PI, 'office');
   }
   // trees in round planters with benches round them, lamps
-  for (const [tx, tz, kind] of [[-11.2, 1.2, 'broadleaf'], [-11.2, 8.8, 'blossom'], [2.6, 9.2, 'broadleaf']] as [number, number, 'broadleaf'][]) {
+  for (const [tx, tz, kind] of [[-11.2, 1.2, 'broadleaf'], [-11.2, 8.8, 'blossom'], [2.6, 8.3, 'broadleaf']] as [number, number, 'broadleaf'][]) {
     h.k.cyl(1.2, 1.3, 0.55, H.stone, tx, 0, tz, 12, { shade: 0.1 });
     h.k.cyl(1.0, 1.0, 0.06, H.soil, tx, 0.52, tz, 12, { shade: 0 });
     h.tree(kind, tx, tz, (kind === 'broadleaf' ? 1.0 : 0.9) + n * 0.14, 0.5);
@@ -388,10 +391,11 @@ export function habSquare(o: Act3SetOpts): Piece {
   for (let i = 0; i < n + 1; i++) bike(h, -0.4 + i * 0.75, -3.8, Math.PI / 2);
   // people about
   const walkers = 1 + n;
-  const paths: [number, number][][] = [[[-12, 10.5], [11, 10.2]], [[-4, -3.4], [-4, 1.0], [2, 6.4], [9, 4]], [[11.6, 1], [-10, 2.4]], [[-9.6, 6], [-0.6, 7.8]], [[5, -1.0], [5.6, 9.4]], [[-6.4, 0.4], [4, 0.2]], [[-12, 4], [0, 4.6]], [[2, 10.6], [-7, 10.4]]];
+  // (routes go round the fountain, the planters, the stalls and the café's tables)
+  const paths: [number, number][][] = [[[-12, 10.6], [11, 10.6]], [[-4, -2.2], [-4, 0.4], [0.4, 1.2], [1.6, 6.2], [9, 4]], [[11.6, 0.6], [-9, 0.8]], [[-9.6, 6.6], [-0.6, 7.8]], [[6.3, 0.2], [6.6, 6.4]], [[-6.4, -0.7], [2.8, -0.8]], [[-12.4, 4.4], [-6.8, 4.2]], [[2, 10.7], [-7, 10.6]]];
   for (let i = 0; i < walkers; i++) h.walk(paths[i % paths.length], null, { pause: [1, 5] });
-  h.chat(-0.4, 4.6, 2);
+  h.chat(0.7, 4.6, 2);
   if (n >= 2) h.chat(4.6, 1.2, 2);
-  if (n >= 3) h.kid(-3.6, 6.8, 1.4);
+  if (n >= 3) h.kid(-3.6, 8.6, 0.9);
   return h.finish(17.6);
 }

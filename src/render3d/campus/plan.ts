@@ -327,7 +327,10 @@ function megaPlan(s: GameState | null, site: SiteDef): Act3Plan {
     const r = builderRamp(b.builder);
     const sign = b.builder === 'you' ? you : builderSign(b.builder);
     const variant = b.kind === 'ffleet' ? `ffleet:${b.opt ?? 'tokamak'}` : b.kind;
-    pieces.push(spec('megaBuild', { variant, n: b.size, p: step4(b.progress), builder: b.builder, label: sign, accent: r.base, accentHi: r.lit, offshore: off && b.kind === 'wind', gap: 12 }));
+    // a pumped-hydro scheme is built at its own size (its mountain, dam and powerhouse at a build site's footprint
+    // came out half scale beside full-size trucks and crews)
+    if (b.kind === 'hydro') pieces.push(spec('pumpedHydro', { variant: 'build', n: b.size, p: step4(b.progress), builder: b.builder, label: sign, accent: r.base, accentHi: r.lit, gap: 12 }));
+    else pieces.push(spec('megaBuild', { variant, n: b.size, p: step4(b.progress), builder: b.builder, label: sign, accent: r.base, accentHi: r.lit, offshore: off && b.kind === 'wind', gap: 12 }));
   });
   // out at sea an installation vessel is always at work on the next turbine
   if (off && stage > 0 && !v.building.some((b) => b.kind === 'wind')) pieces.push(spec('jackup', { label: 'TIDEWATER', builder: 'tidewater', gap: 14 }));

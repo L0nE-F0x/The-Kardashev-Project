@@ -3,7 +3,7 @@
  * blinking in the claimant's colours, a hopping rover), a staked claim (the owner's stiff flag and
  * board, a crew pod strapped to the rock, a lander, survey kit, stake lights), a mining rig working
  * an outcrop (anchored legs and tethers, a cutter wheel or a laser, dust flying in slow arcs, a
- * conveyor to a hauler) and the mass catapult (a coil rail tilted up, flinging ore capsules off
+ * line of lidded ore tubs to a hauler) and the mass catapult (a coil rail tilted up, flinging ore capsules off
  * toward the yards). `variant` = `${type}|${flags}` (h halted, q quarantine level).
  */
 import * as THREE from 'three';
@@ -472,45 +472,29 @@ export function astRig(o: Act3SetOpts): Piece {
   k.box(0.8, 0.5, 0.4, DARK, bx - bw / 2 + 0.3, deckY + bh + 2.3, bz + 1.6, { r: 0.05 });
   if (live) a.lamp(bx - bw / 2 - 0.1, deckY + bh + 2.55, bz + 1.6, floodMat, 0.2);
   a.beacon(bx + 0.4, deckY + bh + 0.7, bz + 1.3, live ? '#f7b258' : '#c23a3f', seed * 0.3, 1.2);
-  // the conveyor: from a hopper under the face, along the front, up to the hauler
+  // the ore line: from a hopper under the face, along the front, up to the hauler. Nothing rides loose
+  // (a lump on an open belt would drift off this rock): lidded tubs on a hauled cable, filled and
+  // emptied inside closed houses
   const cz = 3.8;
   const hop = V(-6.2, gy(-6.2, 2.4), 2.4);
   k.box(2.4, 1.0, 1.8, '#5b5562', hop.x, hop.y, hop.z, { r: 0.08 });
   k.geo(new THREE.CylinderGeometry(1.5, 0.8, 0.9, 4, 1, true).rotateY(Math.PI / 4).translate(hop.x, hop.y + 1.45, hop.z), acc, 0.03, 0);
-  const c0 = V(-5.4, gy(-5.4, cz) + 1.1, cz), c1 = V(11.2, gy(11.2, cz) + 2.9, cz);
-  const dir = c1.clone().sub(c0);
-  const clen = dir.length();
-  dir.normalize();
-  const belt = new THREE.BoxGeometry(clen, 0.16, 1.0).rotateZ(Math.atan2(dir.y, dir.x)).translate((c0.x + c1.x) / 2, (c0.y + c1.y) / 2, cz);
-  k.geo(belt, '#2f2a3d', 0.02, 0);
-  for (const sd of [-0.55, 0.55]) k.beam(c0.clone().add(V(0, 0.12, sd)), c1.clone().add(V(0, 0.12, sd)), 0.1, STEEL);
-  for (let i = 1; i < 7; i++) {
-    const q = c0.clone().lerp(c1, i / 7);
-    for (const sd of [-0.5, 0.5]) k.beam(q.clone().add(V(0, -0.05, sd)), V(q.x, gy(q.x, cz + sd) - 0.1, cz + sd * 1.4), 0.08, '#7a7186');
-  }
-  const lumps = new THREE.InstancedMesh(boulderUnit(t), rockMat, 18);
-  lumps.castShadow = true;
-  a.g.add(lumps);
-  const lm = new THREE.Matrix4(), lq = new THREE.Quaternion();
   const hx = 12.8, hz = cz + 0.4;
-  const binY = gy(hx, hz) + 2.1;
-  const placeLumps = (time: number) => {
-    for (let i = 0; i < 18; i++) {
-      const u = ((time * 0.05 + i / 18) % 1);
-      let p: THREE.Vector3;
-      if (u < 0.9) p = c0.clone().lerp(c1, u / 0.9).add(V(0, 0.3, ((i % 3) - 1) * 0.25));
-      else {
-        const fall = (u - 0.9) / 0.1;
-        p = c1.clone().add(V(fall * 1.2, 0.3 - fall * fall * (c1.y + 0.3 - binY), 0));
-      }
-      lq.setFromAxisAngle(V(0, 1, 0), i * 1.3);
-      lm.compose(p, lq, V(0.28, 0.24, 0.28).multiplyScalar(0.8 + (i % 4) * 0.12));
-      lumps.setMatrixAt(i, lm);
-    }
-    lumps.instanceMatrix.needsUpdate = true;
-  };
-  placeLumps(0);
-  if (live) a.anim.add((e) => placeLumps(e.t));
+  const c0 = V(-5.4, gy(-5.4, cz) + 1.25, cz), c1 = V(11.9, gy(11.9, cz) + 4.3, cz);
+  tubLine(a, c0, c1, acc, hi, live, seed);
+  // the gantry the hauler stands under, and the sleeve from the head house down into its bin
+  const houseY = c1.y - 1.2;
+  for (const gx of [10.5, 13.5]) {
+    for (const gz of [2.3, 6.1]) k.box(0.22, houseY - gy(gx, gz) + 0.1, 0.22, '#7a7186', gx, gy(gx, gz) - 0.1, gz, { r: 0.02 });
+    k.beam(V(gx, houseY - 0.12, 2.3), V(gx, houseY - 0.12, 6.1), 0.2, '#7a7186');
+    k.beam(V(gx, houseY - 1.3, 2.3), V(gx, houseY - 0.2, 3.0), 0.1, '#7a7186');
+    k.beam(V(gx, houseY - 1.3, 6.1), V(gx, houseY - 0.2, 5.4), 0.1, '#7a7186');
+  }
+  for (const gz of [2.3, 6.1]) k.beam(V(10.5, houseY - 0.12, gz), V(13.5, houseY - 0.12, gz), 0.16, '#7a7186');
+  const binTop = gy(hx, hz) + 2.6;
+  const sleeveX = hx + 0.3, sleeveH = houseY - binTop + 0.25;
+  k.cyl(0.5, 0.42, sleeveH, '#433c52', sleeveX, binTop - 0.2, cz + 0.3, 10, { shade: 0 });
+  for (let i = 0; i < 3; i++) k.cyl(0.54, 0.54, 0.07, STEEL, sleeveX, binTop - 0.1 + ((i + 0.5) * sleeveH) / 3.4, cz + 0.3, 10, { shade: 0 });
   // the hauler under the conveyor's end: six wheels, an open bin heaped with ore
   hauler(a, hx, hz, acc, hi);
   // quarantine: a net of cables round the rig, pink lights on its poles
@@ -528,15 +512,90 @@ export function astRig(o: Act3SetOpts): Piece {
 }
 const floodMat = new THREE.MeshStandardMaterial({ color: col('#fff6d8'), emissive: col('#fff6d8'), emissiveIntensity: 2.2 });
 const quarantineMat = new THREE.MeshStandardMaterial({ color: col('#f7a6c4'), emissive: col('#e86aa0'), emissiveIntensity: 1.6 });
-const unitCache = new Map<string, THREE.BufferGeometry>();
-function boulderUnit(t: string) {
-  let g = unitCache.get(t);
-  if (!g) {
-    const k = new Kit(rng(3));
-    k.geo(new THREE.DodecahedronGeometry(1, 0), ROCK[t as 'C'].lit, 0.15, 0);
-    unitCache.set(t, (g = k.build().geometry));
+
+/**
+ * The ore line: lidded tubs clipped to a cable loop, up one side of a trestle and back down the
+ * other, round a wheel in a closed house at each end (filled in the first, tipped in the second).
+ */
+function tubLine(a: Ast, c0: THREE.Vector3, c1: THREE.Vector3, acc: Paint, hi: Paint, live: boolean, seed: number) {
+  const k = a.k, z = c0.z;
+  const dir = c1.clone().sub(c0);
+  const len = dir.length();
+  dir.normalize();
+  const ang = Math.atan2(dir.y, dir.x);
+  const up = V(-dir.y, dir.x, 0), RD = 0.16;
+  // the trestle: two stringers, cross ties, splayed legs down to the rock; the cable above and below
+  for (const sd of [-0.52, 0.52]) k.beam(c0.clone().add(V(0, 0, sd)), c1.clone().add(V(0, 0, sd)), 0.12, STEEL);
+  for (const s of [1, -1]) k.beam(c0.clone().addScaledVector(up, s * RD), c1.clone().addScaledVector(up, s * RD), 0.045, '#2f2a3d');
+  const bays = 7;
+  for (let i = 1; i < bays; i++) {
+    const q = c0.clone().lerp(c1, i / bays);
+    k.beam(q.clone().add(V(0, 0, -0.52)), q.clone().add(V(0, 0, 0.52)), 0.09, '#7a7186');
+    for (const sd of [-1, 1]) {
+      const foot = V(q.x, gy(q.x, z + sd * 1.25) - 0.05, z + sd * 1.25);
+      k.beam(q.clone().add(V(0, -0.04, sd * 0.52)), foot, 0.09, '#7a7186');
+      k.cyl(0.2, 0.24, 0.1, '#5b536a', foot.x, foot.y, foot.z, 8, { shade: 0 });
+    }
+    // a guide hoop the tubs pass through, so a tub that slips its grip goes nowhere
+    if (i % 2 === 0) k.geo(new THREE.TorusGeometry(1.02, 0.045, 5, 16).rotateY(Math.PI / 2).rotateZ(ang).translate(q.x, q.y, z), hi, 0.02, 0);
   }
-  return g;
+  // the two houses: the loader by the hopper, the head house over the hauler
+  // (each holds the wheel and both runs: 1.2 below the axle, 1.35 above)
+  const house = (c: THREE.Vector3, w: number, label: string, mouth: number) => {
+    const y0 = c.y - 1.2, h = 2.55;
+    k.box(w, h, 1.9, '#d8d2cc', c.x, y0, z, { r: 0.12, jitter: 0.03, shade: 0.1 });
+    k.box(w + 0.05, 0.22, 1.95, acc, c.x, y0 + h - 0.5, z, { r: 0.03, shade: 0 });
+    k.box(w + 0.1, 0.14, 2.0, '#7a7186', c.x, y0 + h - 0.06, z, { r: 0.03 });
+    // the mouth the line runs through, the wheel's axle caps on both cheeks, a hatch on the front
+    k.box(0.08, 2.0, 1.2, '#2f2a3d', c.x + mouth * (w / 2 + 0.005), c.y - 0.95, z, { r: 0, jitter: 0, shade: 0 });
+    for (const sd of [-1, 1]) k.geo(new THREE.CylinderGeometry(0.3, 0.3, 0.1, 10).rotateX(Math.PI / 2).translate(c.x, c.y, z + sd * 0.97), '#5b5562', 0.02, 0);
+    k.box(0.7, 0.8, 0.05, '#9d95a6', c.x + w / 2 - 0.6, y0 + 0.2, z + 0.96, { r: 0.03 });
+    a.plate(label, 0.9, c.x - w / 2 + 0.75, c.y + 0.25, z + 0.97, '#fbf7f0', mix(acc, '#2f2a3d', 0.4));
+  };
+  house(c0.clone().add(V(-0.3, 0, 0)), 2.6, 'LOAD', 1);
+  house(c1.clone().add(V(0.3, 0, 0)), 3.0, 'TIP', -1);
+  // a closed duct from the hopper into the loader
+  k.box(1.0, 0.7, 0.9, '#5b5562', c0.x - 0.6, c0.y - 0.9, z - 0.9, { r: 0.06 });
+  // the tubs
+  const tk = new Kit(rng(seed + 31));
+  tk.box(0.84, 0.46, 0.7, acc, 0, 0.1, 0, { r: 0.07, jitter: 0.03 });
+  tk.box(0.92, 0.1, 0.78, hi, 0, 0.54, 0, { r: 0.03, shade: 0 });
+  tk.box(0.3, 0.06, 0.12, STEEL, 0, 0.64, 0, { r: 0.02 });
+  for (const sx of [-0.3, 0.3]) tk.box(0.08, 0.16, 0.05, STEEL, sx, 0.42, 0.36, { r: 0 });
+  tk.box(0.22, 0.14, 0.2, '#433c52', 0, -0.03, 0, { r: 0.02 });
+  const unit = tk.build();
+  const N = 15;
+  const tubs = new THREE.InstancedMesh(unit.geometry, unit.material, N);
+  tubs.castShadow = true;
+  tubs.receiveShadow = true;
+  tubs.frustumCulled = false;
+  a.g.add(tubs);
+  const loop = 2 * len + 2 * Math.PI * RD;
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), one = V(1, 1, 1), zAxis = V(0, 0, 1);
+  const place = (time: number) => {
+    for (let i = 0; i < N; i++) {
+      let s = (time * 0.9 + (i / N) * loop) % loop, rot = ang;
+      if (s < len) p.copy(c0).addScaledVector(dir, s).addScaledVector(up, RD);
+      else if ((s -= len) < Math.PI * RD) {
+        const th = s / RD;
+        p.copy(c1).addScaledVector(up, Math.cos(th) * RD).addScaledVector(dir, Math.sin(th) * RD);
+        rot = ang - th;
+      } else if ((s -= Math.PI * RD) < len) {
+        p.copy(c1).addScaledVector(dir, -s).addScaledVector(up, -RD);
+        rot = ang - Math.PI;
+      } else {
+        const th = (s - len) / RD;
+        p.copy(c0).addScaledVector(up, -Math.cos(th) * RD).addScaledVector(dir, -Math.sin(th) * RD);
+        rot = ang - Math.PI - th;
+      }
+      q.setFromAxisAngle(zAxis, rot);
+      m.compose(p, q, one);
+      tubs.setMatrixAt(i, m);
+    }
+    tubs.instanceMatrix.needsUpdate = true;
+  };
+  place(seed * 0.7);
+  if (live) a.anim.add((e) => place(e.t));
 }
 
 /** An ore hauler: a low chassis on six big wheels, a cab, an open bin in the owner's colours. */
@@ -556,7 +615,10 @@ function hauler(a: Ast, x: number, z: number, acc: Paint, hi: Paint) {
   k.box(0.14, 1.3, 2.3, acc, x - 1.0, by, z, { r: 0.03 });
   k.box(0.14, 1.0, 2.3, acc, x + 2.2, by, z, { r: 0.03 });
   k.box(3.3, 0.14, 2.42, hi, x + 0.6, by + 1.25, z, { r: 0.02 });
-  for (let i = 0; i < 9; i++) a.boulderAt(x - 0.4 + a.r() * 2.0, by + 0.85 + a.r() * 0.3, z + (a.r() - 0.5) * 1.6, 0.35 + a.r() * 0.25);
+  for (let i = 0; i < 9; i++) a.boulderAt(x - 0.4 + a.r() * 2.0, by + 0.6 + a.r() * 0.25, z + (a.r() - 0.5) * 1.6, 0.32 + a.r() * 0.2);
+  // a net lashed over the load: nothing stays in an open bin by its weight here
+  for (let i = 0; i <= 6; i++) { const nx = x - 0.9 + i * 0.5; k.beam(V(nx, by + 1.42, z - 1.1), V(nx, by + 1.42, z + 1.1), 0.035, '#c3bcc7'); }
+  for (let i = 0; i <= 4; i++) { const nz = z - 1.0 + i * 0.5; k.beam(V(x - 0.95, by + 1.42, nz), V(x + 2.15, by + 1.42, nz), 0.035, '#c3bcc7'); }
   a.beacon(x - 2.2, y + 2.75, z, '#f7b258', 2, 0.8);
 }
 
@@ -707,8 +769,12 @@ export function astCatapult(o: Act3SetOpts): Piece {
   }
   // ore feed from the rigs: a conveyor into the back of the breech
   const f0 = V(-21.4, gy(-21.4, -4) + 1.0, -4.2), f1 = V(hx - hw / 2 + 0.2, hy + 2.2, -4.2);
-  k.beam(f0, f1, 0.5, '#2f2a3d');
-  for (const s of [-0.4, 0.4]) k.beam(f0.clone().add(V(0, 0.15, s)), f1.clone().add(V(0, 0.15, s)), 0.08, STEEL);
+  // (a closed duct: ore would not stay on an open belt)
+  k.beam(f0, f1, 0.62, '#c3bcc7');
+  const fdir = f1.clone().sub(f0).normalize(), fang = Math.atan2(fdir.y, fdir.x);
+  for (let i = 0; i <= 4; i++) { const q = f0.clone().lerp(f1, 0.06 + i * 0.22); k.geo(new THREE.BoxGeometry(0.14, 0.74, 0.74).rotateZ(fang).translate(q.x, q.y, q.z), i % 2 ? '#7a7186' : acc, 0.02, 0); }
+  k.box(1.5, 1.3, 1.4, '#5b5562', f0.x - 0.2, gy(f0.x, f0.z) - 0.1, f0.z, { r: 0.08 });
+  for (const s of [-1, 1]) { const q = f0.clone().lerp(f1, 0.5); k.beam(q, V(q.x, gy(q.x, q.z + s * 0.9) - 0.05, q.z + s * 0.9), 0.09, '#7a7186'); }
   // a crew member by the pods, boulders round about
   a.suit(hx + 1.6, hz + hd / 2 + 2.6, 2.4);
   a.scatter(14, 0.3, 1.4, -21, -11, 21, 11, [[-21, -5.5, -9, 8.2], [-10, -3.5, 21.5, 3.8]]);
