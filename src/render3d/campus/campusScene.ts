@@ -20,7 +20,7 @@ import { dir } from '../globe/earth';
 import { closeScope, disposeObject, fbm, Kit, mix, openScope, rng, noise, smooth, withClouds, withGrain } from '../kit';
 import { deckHeight, hasModel, loadModels, modelParts, model, TOWNSFOLK, type PersonName } from '../models';
 import {
-  blinkBeacons, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
+  blinkBeacons, builtHeight, clipAbove, cow, crane, fence, fenceMesh, instanced, pad, pumpjack, pylon,
   scaffold, siteClutter, stockPond, streetLamp, utilityPole, windpump, wires, type Env, type Piece,
 } from '../pieces';
 import { FACILITY_PIECES, SET_PIECES, setFactory } from './registry';
@@ -68,6 +68,8 @@ interface Entry {
   crane?: THREE.Group;
   online: boolean;
   rectKey: string;
+  /** An expansion under way: the building as it was, cut away from the ground up as the new one rises through it. */
+  old?: THREE.Object3D;
   /** The building site while it's built (plot-local): the site office's door, the stacks, what stands about. */
   siteInfo?: { door: { x: number; z: number }; stack: { x: number; z: number }; solids: WRect[] };
 }
@@ -936,8 +938,20 @@ export class CampusScene implements Scene3D {
       if (e.online && f.upgrade && !e.site) this.construction(e);
       else if (e.online && !f.upgrade && e.site) this.open(e);
       if (!e.online) {
-        if (e.clip) clipAbove(e.piece.obj, 0.05 + Math.max(0.02, p) * e.piece.h);
+        if (e.clip) clipAbove(e.piece.obj, builtHeight(e.piece, p));
         e.piece.progress?.(Math.max(0.02, p));
+      } else if (f.upgrade && e.site) {
+        const up = Math.min(1, f.upgrade.progress / Math.max(1, f.upgrade.buildDays));
+        if (e.old) {
+          // the new building rises through the old one: below the line the new, above it what still stands
+          const y = builtHeight(e.piece, up);
+          clipAbove(e.piece.obj, y);
+          clipAbove(e.old, y, true);
+          e.piece.progress?.(Math.max(0.02, up));
+        } else {
+          // rows of panels, cabinets or turbines: about half were there already, the rest go in
+          e.piece.progress?.(Math.min(0.999, 0.55 + 0.45 * up));
+        }
       }
       if (e.piece.setLoad) {
         const qty = (f.racks ?? []).reduce((a, b) => a + b.qty, 0);
@@ -981,7 +995,7 @@ export class CampusScene implements Scene3D {
       const day = s?.day ?? 0;
       const p = b.status === 'online' ? 1 : Math.max(0.02, Math.min(1, (day - b.startDay) / Math.max(1, b.readyDay - b.startDay)));
       if (b.status === 'online' && r.crane) { r.root.remove(r.crane); r.crane = null; clipAbove(r.piece.obj, null); }
-      else if (b.status !== 'online') clipAbove(r.piece.obj, 0.05 + p * r.piece.h);
+      else if (b.status !== 'online') clipAbove(r.piece.obj, builtHeight(r.piece, p));
     }
     for (const [id, r] of this.rivals) if (!rseen.has(id)) { this.world.remove(r.root); this.rivals.delete(id); }
     // empty plots: survey stakes
@@ -1033,7 +1047,8 @@ export class CampusScene implements Scene3D {
     settleCars(root);
     this.world.add(root);
     this.decks = null;
-    const clip = f.type !== 'solar' && f.type !== 'battery' && f.type !== 'wind' && f.type !== 'hq';
+    // (a restart is an old plant put back to work: it stands there whole from the first day, cold, with the works on it)
+    const clip = f.type !== 'solar' && f.type !== 'battery' && f.type !== 'wind' && f.type !== 'hq' && f.type !== 'restart';
     const e: Entry = { f, item, root, piece, clip, online: f.status === 'online', rectKey };
     if (!e.online || f.upgrade) this.construction(e);
     if (e.online) piece.progress?.(1);
@@ -1045,9 +1060,19 @@ export class CampusScene implements Scene3D {
   private construction(e: Entry) {
     const site = new THREE.Group();
     const w = e.item.rect.x1 - e.item.rect.x0, d = e.item.rect.z1 - e.item.rect.z0;
-    const withCrane = e.clip || e.f.type === 'wind';
+    const type = e.f.type;
+    const withCrane = e.clip || type === 'wind' || type === 'restart';
+    // an expansion: what stood there stays until the new building has risen past it (rows of panels, cabinets and
+    // turbines are added to instead)
+    let wasSolid: WRect[] = [];
+    if (e.online && e.f.upgrade && type !== 'solar' && type !== 'battery' && type !== 'wind') {
+      const was = makePiece({ ...e.f, upgrade: undefined }, e.item.rect);
+      e.old = was.obj;
+      e.root.add(was.obj);
+      wasSolid = was.blockers ?? [{ x0: -was.w / 2, z0: -was.d / 2, x1: was.w / 2, z1: was.d / 2 }];
+    }
     // where everything stands (the crew in people.ts walk round it, clock on at the office, fetch from the stacks)
-    const plan = sitePlan(w, d, e.piece, { scaffold: e.clip && !e.online, crane: withCrane });
+    const plan = sitePlan(w, d, e.piece, { scaffold: e.clip, crane: withCrane });
     // the scaffold rings the building itself (its first blocker when the piece says), else the middle of the footprint
     if (plan.scaffold) {
       // (no taller than a scaffold goes: a plant's stacks and towers stand well above the cage round its buildings)
@@ -1063,20 +1088,23 @@ export class CampusScene implements Scene3D {
       e.crane = c;
     }
     // a mixer parked by the site office while the pour goes on
-    const mx = model('mixer', 7.5);
     // by the front-left corner, lengthways across the plot; where the piece itself reaches that far (the gas plant's
     // platform fills its plot but for a strip down each side), in the side strip instead, nose to the road
-    const solid = e.piece.blockers ?? [{ x0: -e.piece.w / 2, z0: -e.piece.d / 2, x1: e.piece.w / 2, z1: e.piece.d / 2 }];
+    const solid = [...(e.piece.blockers ?? [{ x0: -e.piece.w / 2, z0: -e.piece.d / 2, x1: e.piece.w / 2, z1: e.piece.d / 2 }]), ...wasSolid];
     const spots: [number, number, number, number, number][] = [
       [-w / 2 + 5, d / 2 - 4.5, 0, 3.9, 1.4],
       [-w / 2 + 2.1, d / 2 - 5.5, Math.PI / 2, 1.4, 3.9],
       [w / 2 - 2.1, d / 2 - 5.5, Math.PI / 2, 1.4, 3.9],
     ];
-    const clear = spots.find(([x, z, , hx, hz]) => !solid.some((b) => x + hx > b.x0 && x - hx < b.x1 && z + hz > b.z0 && z - hz < b.z1)) ?? spots[0];
-    mx.position.set(clear[0], 0.125, clear[1]);
-    mx.rotation.y = clear[2];
-    mx.userData.drum = true;
-    site.add(mx);
+    // (a building that fills its plot leaves no room for one: the pour is pumped from the road)
+    const clear = spots.find(([x, z, , hx, hz]) => !solid.some((b) => x + hx > b.x0 && x - hx < b.x1 && z + hz > b.z0 && z - hz < b.z1));
+    if (clear) {
+      const mx = model('mixer', 7.5);
+      mx.position.set(clear[0], 0.125, clear[1]);
+      mx.rotation.y = clear[2];
+      mx.userData.drum = true;
+      site.add(mx);
+    }
     e.root.add(site);
     e.site = site;
     e.siteInfo = { door: plan.door, stack: plan.stack, solids: plan.solids };
@@ -1087,7 +1115,8 @@ export class CampusScene implements Scene3D {
     e.online = true;
     if (e.site) e.root.remove(e.site);
     e.site = e.crane = e.siteInfo = undefined;
-    if (e.clip) clipAbove(e.piece.obj, null);
+    if (e.old) { e.root.remove(e.old); disposeObject(e.old); e.old = undefined; }
+    clipAbove(e.piece.obj, null);
     e.piece.progress?.(1);
     if (fresh) this.flash(e.root.position);
   }

@@ -79,7 +79,7 @@ function paletteMaterial(src: THREE.MeshStandardMaterial, skinned = false) {
 /** What a vehicle's texture says about it: its body paint (mean colour in YIQ of the square-rooted colour). */
 interface CarLook { mode: 0 | 1 | 2; i: number; q: number; y: number; ch: number }
 /** Per model: the luma under which a texel is glass (from, to), how far up the vehicle glass starts, and the paint mode if the texture's own answer is wrong. */
-const CAR_GLASS: Record<string, { lum: [number, number]; from: number; mode?: 0 | 1 | 2; hubs?: boolean; tol?: number }> = {
+const CAR_GLASS: Record<string, { lum: [number, number]; from: number; mode?: 0 | 1 | 2; hubs?: boolean; tol?: number; cab?: number }> = {
   // (hubs: the model's wheels are painted a colour no wheel has: the wheel zone's odd colours go to steel)
   sedan: { lum: [0.075, 0.115], from: 0.46, hubs: true },
   hatchback: { lum: [0.09, 0.15], from: 0.44 },
@@ -87,8 +87,9 @@ const CAR_GLASS: Record<string, { lum: [number, number]; from: number; mode?: 0 
   pickup: { lum: [0.1, 0.16], from: 0.5 },
   van: { lum: [0.14, 0.21], from: 0.36, mode: 1 },
   semitruck: { lum: [0.09, 0.15], from: 0.36, mode: 1 },
-  // (the flatbed's timber deck is nearly its cab's colour, so a new paint would stain the deck: it keeps its own)
-  flatbed: { lum: [0.09, 0.15], from: 0.4, mode: 0 },
+  // (cab: the flatbed's timber deck and its load's straps are nearly its cab's colour, so a new paint would stain
+  // them: only the cab is painted, the front third of its length)
+  flatbed: { lum: [0.09, 0.15], from: 0.4, mode: 1, cab: 0.335 },
   mixer: { lum: [0.0, 0.001], from: 0.4, mode: 1 },
 };
 /** The colours cars come in (muted, in the palette's spirit); null = the model's own. */
@@ -159,7 +160,11 @@ function paintUniforms(look: CarLook, mode: 0 | 1 | 2, paint: string | null) {
   return { body, to };
 }
 
-function carMaterial(map: THREE.Texture | null, name: string, up: THREE.Vector4, look: CarLook, paint: string | null) {
+/** Parked: every shared vehicle material's wheels stand still. */
+const PARKED = { value: 0 };
+
+function carMaterial(map: THREE.Texture | null, name: string, part: CarPart, look: CarLook, paint: string | null, spin: { value: number } = PARKED) {
+  const { up, axis, fwd } = part;
   const cfg = CAR_GLASS[name] ?? { lum: [0.09, 0.15] as [number, number], from: 0.45 };
   const m = new THREE.MeshStandardMaterial({ map, color: 0xffffff, roughness: 0.55, metalness: 0 });
   const { body, to } = paintUniforms(look, cfg.mode ?? look.mode, paint);
@@ -172,13 +177,23 @@ function carMaterial(map: THREE.Texture | null, name: string, up: THREE.Vector4,
     sh.uniforms.uCarPaint = { value: to };
     sh.uniforms.uCarGlass = { value: glass };
     sh.uniforms.uCarUp = { value: up };
+    sh.uniforms.uCarAxis = { value: axis };
+    sh.uniforms.uCarFwd = { value: fwd };
+    sh.uniforms.uCarCab = { value: cfg.cab ?? 2 };
+    sh.uniforms.uCarSpin = spin;
+    // the wheels turn: their vertices (aAxle: a point on the axle, w = 1) go round the axle by uCarSpin
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform vec4 uCarUp; varying float vCarY;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarY = dot(uCarUp.xyz, position) + uCarUp.w;');
+      .replace('#include <common>', `#include <common>
+        uniform vec4 uCarUp; varying float vCarY; uniform vec4 uCarFwd; varying float vCarX;
+        attribute vec4 aAxle; uniform vec3 uCarAxis; uniform float uCarSpin;
+        vec3 kpSpin(vec3 v) { float c = cos(uCarSpin), s = sin(uCarSpin); return v * c + cross(uCarAxis, v) * s + uCarAxis * (dot(uCarAxis, v) * (1.0 - c)); }`)
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nif (aAxle.w > 0.5) objectNormal = kpSpin(objectNormal);')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarY = dot(uCarUp.xyz, position) + uCarUp.w;\nvCarX = dot(uCarFwd.xyz, position) + uCarFwd.w;\nif (aAxle.w > 0.5) transformed = aAxle.xyz + kpSpin(transformed - aAxle.xyz);');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform float uPalPull; uniform vec3 uPal[${palLinear.length}];
         uniform vec4 uCarBody; uniform vec4 uCarPaint; uniform vec4 uCarGlass; varying float vCarY;
+        uniform float uCarCab; varying float vCarX;
         float kpGlass = 0.0;`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         {
@@ -200,7 +215,7 @@ function carMaterial(map: THREE.Texture | null, name: string, up: THREE.Vector4,
             float m = smoothstep(0.5, 0.66, Y) * (1.0 - smoothstep(0.05, 0.11, ch));
             c = mix(c, c * uCarPaint.rgb, m);
           } else if (uCarBody.w > 0.5) {
-            float m = own * smoothstep(0.03, 0.09, ch) * (1.0 - kpGlass);
+            float m = own * smoothstep(0.03, 0.09, ch) * (1.0 - kpGlass) * (1.0 - smoothstep(uCarCab, uCarCab + 0.012, vCarX));
             vec2 q2 = vec2(iq.x * uCarPaint.x - iq.y * uCarPaint.y, iq.x * uCarPaint.y + iq.y * uCarPaint.x) * uCarPaint.z;
             float y2 = Y * uCarPaint.w;
             vec3 g2 = clamp(vec3(y2 + 0.956 * q2.x + 0.621 * q2.y, y2 - 0.272 * q2.x - 0.647 * q2.y, y2 - 1.106 * q2.x + 1.703 * q2.y), 0.0, 1.0);
@@ -225,23 +240,172 @@ function carMaterial(map: THREE.Texture | null, name: string, up: THREE.Vector4,
         material.specularColor = mix(material.specularColor, vec3(0.07), kpGlass);`);
   };
   m.customProgramCacheKey = () => 'kp-car';
-  m.userData.shared = true;
+  // (a moving vehicle's own material is freed with it; its texture is the model's, kept)
+  if (spin === PARKED) m.userData.shared = true;
+  if (map) map.userData.shared = true;
   return withClouds(m);
 }
 
 /** Per vehicle model: each mesh's texture, its "up" in the mesh's own space, its look, and the paints made so far. */
-const carParts = new Map<string, { look: CarLook; meshes: { map: THREE.Texture | null; up: THREE.Vector4 }[]; mats: Map<number, THREE.Material[]> }>();
+interface CarPart { map: THREE.Texture | null; up: THREE.Vector4; /** How far back from the nose (0–1). */ fwd: THREE.Vector4; axis: THREE.Vector3 }
+const carParts = new Map<string, { look: CarLook; meshes: CarPart[]; mats: Map<number, THREE.Material[]>; wheels: Wheel[] }>();
 
 function carMats(n: string, paint: number): THREE.Material[] | null {
   const info = carParts.get(n);
   if (!info) return null;
   let m = info.mats.get(paint);
   if (!m) {
-    m = info.meshes.map((p) => carMaterial(p.map, n, p.up, info.look, CAR_PAINTS[paint]));
+    m = info.meshes.map((p) => carMaterial(p.map, n, p, info.look, CAR_PAINTS[paint]));
     info.mats.set(paint, m);
   }
   return m;
 }
+
+// ── wheels that turn ─────────────────────────────────────────────────────────────────────────
+// A vehicle is one mesh, wheels and all. When it loads, its wheels are found from its shape: the clumps of
+// vertices that touch the ground are the tyres' contact patches, a circle fitted to the underside of each gives
+// the axle's place and the wheel's radius, and every vertex inside that circle (and out beyond the tyre's inner
+// face) is the wheel's. Those vertices carry their axle (`aAxle`), and the vehicle's material turns them.
+
+/** A wheel in the model's own frame (front at -x, y up from the ground, z across): its axle and radius. */
+export interface Wheel { x: number; r: number; side: 1 | -1; z0: number }
+
+function findWheels(root: THREE.Object3D, off: THREE.Vector3, size: THREE.Vector3): Wheel[] {
+  const meshes: THREE.Mesh[] = [];
+  root.traverse((c) => { if ((c as THREE.Mesh).isMesh) meshes.push(c as THREE.Mesh); });
+  const P: Float32Array[] = meshes.map((m) => {
+    const pos = m.geometry.getAttribute('position');
+    const out = new Float32Array(pos.count * 3);
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld).add(off); out[i * 3] = v.x; out[i * 3 + 1] = v.y; out[i * 3 + 2] = v.z; }
+    return out;
+  });
+  // the contact patches: what touches the ground, clumped along the vehicle on each side
+  const wheels: Wheel[] = [];
+  for (const side of [1, -1] as const) {
+    const touch: [number, number][] = [];
+    for (const p of P) for (let i = 0; i < p.length; i += 3) if (p[i + 1] < size.y * 0.03 && p[i + 2] * side > size.z * 0.12) touch.push([p[i], Math.abs(p[i + 2])]);
+    touch.sort((a, b) => a[0] - b[0]);
+    let from = 0;
+    for (let i = 1; i <= touch.length; i++) {
+      if (i < touch.length && touch[i][0] - touch[i - 1][0] < size.x * 0.035) continue;
+      const clump = touch.slice(from, i);
+      from = i;
+      if (clump.length < 3) continue;
+      const cx = (clump[0][0] + clump[clump.length - 1][0]) / 2;
+      const z0 = Math.min(...clump.map((c) => c[1]));
+      // the tyre's underside from the side: the lowest point at each distance from the axle's line
+      const BW = size.x * 0.004, NB = 60;
+      const low = new Float32Array(NB).fill(1e9);
+      // (along every triangle's edges, not only at its corners: a low-poly wheel has a corner every 45°)
+      const near = (p: Float32Array, i: number) => p[i * 3 + 2] * side >= z0 - size.z * 0.02 && Math.abs(p[i * 3] - cx) < NB * BW;
+      meshes.forEach((m, mi) => {
+        const p = P[mi], idx = m.geometry.getIndex();
+        const n = idx ? idx.count : p.length / 3;
+        for (let t = 0; t < n; t += 3) {
+          const v = [idx ? idx.getX(t) : t, idx ? idx.getX(t + 1) : t + 1, idx ? idx.getX(t + 2) : t + 2];
+          if (!near(p, v[0]) || !near(p, v[1]) || !near(p, v[2])) continue;
+          for (let e = 0; e < 3; e++) {
+            const a = v[e] * 3, b = v[(e + 1) % 3] * 3;
+            const k = Math.max(1, Math.ceil(Math.abs(p[b] - p[a]) / (BW * 0.5)));
+            for (let j = 0; j <= k; j++) {
+              const f = j / k, bin = Math.floor(Math.abs(p[a] + (p[b] - p[a]) * f - cx) / BW), y = p[a + 1] + (p[b + 1] - p[a + 1]) * f;
+              if (bin < NB && y < low[bin]) low[bin] = y;
+            }
+          }
+        }
+      });
+      // the radius whose circle (resting on the ground) most of that underside lies on
+      let best = 0, bs = -1;
+      for (let r = size.y * 0.07; r <= size.y * 0.36; r += size.y * 0.0025) {
+        let fit = 0, n = 0, err = 0;
+        for (let b = 0; b < NB; b++) {
+          const d = (b + 0.5) * BW;
+          if (d < r * 0.35 || d > r * 0.96) continue;
+          n++;
+          const off = low[b] < 1e8 ? Math.abs(low[b] - (r - Math.sqrt(r * r - d * d))) / r : 1;
+          if (off < 0.085) { fit++; err += off; }
+        }
+        // (most of the underside on the circle, and as close to it as can be)
+        const sc = n >= 4 && fit ? fit / n - (err / fit) * 3 : 0;
+        if (sc > bs + 1e-6) { bs = sc; best = r; }
+      }
+      if (bs >= 0.5) wheels.push({ x: cx, r: best, side, z0 });
+    }
+  }
+  if (!wheels.length) { for (const m of meshes) m.geometry.setAttribute('aAxle', new THREE.BufferAttribute(new Float32Array(m.geometry.getAttribute('position').count * 4), 4)); return wheels; }
+  // one size of wheel a vehicle (they all turn at one rate): the commonest fit
+  const rs = wheels.map((w) => w.r).sort((a, b) => a - b);
+  const R = rs[rs.length >> 1];
+  for (const w of wheels) w.r = R;
+  // which vertices are a wheel's: inside its circle, from the tyre's inner face outwards
+  const key = (p: Float32Array, i: number) => `${Math.round(p[i] / size.x * 4000)},${Math.round(p[i + 1] / size.x * 4000)},${Math.round(p[i + 2] / size.x * 4000)}`;
+  const owner = P.map((p) => {
+    const o = new Int8Array(p.length / 3).fill(-1);
+    for (let i = 0, v = 0; i < p.length; i += 3, v++) {
+      for (let k = 0; k < wheels.length; k++) {
+        const w = wheels[k];
+        if (p[i + 2] * w.side < w.z0 - size.z * 0.025) continue;
+        const dx = p[i] - w.x, dy = p[i + 1] - w.r;
+        if (dx * dx + dy * dy <= w.r * w.r * 1.05) { o[v] = k; break; }
+      }
+    }
+    return o;
+  });
+  // a triangle half on a wheel would be wrung like a cloth: its wheel-side corners stay with the body (and so does
+  // every vertex that shares their place), until only whole triangles turn
+  for (let pass = 0; pass < 6; pass++) {
+    const drop = new Set<string>();
+    meshes.forEach((m, mi) => {
+      const idx = m.geometry.getIndex();
+      const n = idx ? idx.count : P[mi].length / 3;
+      const o = owner[mi];
+      for (let t = 0; t < n; t += 3) {
+        const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
+        if (o[a] === o[b] && o[b] === o[c]) continue;
+        for (const v of [a, b, c]) if (o[v] >= 0) drop.add(key(P[mi], v * 3));
+      }
+    });
+    if (!drop.size) break;
+    P.forEach((p, mi) => { const o = owner[mi]; for (let v = 0; v < o.length; v++) if (o[v] >= 0 && drop.has(key(p, v * 3))) o[v] = -1; });
+  }
+  const inv = new THREE.Matrix4(), c = new THREE.Vector3();
+  meshes.forEach((m, mi) => {
+    inv.copy(m.matrixWorld).invert();
+    const o = owner[mi];
+    const a = new Float32Array(o.length * 4);
+    for (let v = 0; v < o.length; v++) {
+      if (o[v] < 0) continue;
+      const w = wheels[o[v]];
+      c.set(w.x, w.r, 0).sub(off).applyMatrix4(inv);
+      a[v * 4] = c.x; a[v * 4 + 1] = c.y; a[v * 4 + 2] = c.z; a[v * 4 + 3] = 1;
+    }
+    m.geometry.setAttribute('aAxle', new THREE.BufferAttribute(a, 4));
+  });
+  return wheels;
+}
+
+/**
+ * A vehicle that drives: its own materials, so its wheels can turn on their own. Returns the angle to advance
+ * (`spin.value`, radians) and the wheels' radius in the copy's own size, or null for something without wheels.
+ */
+export function drivenCar(o: THREE.Object3D): { spin: { value: number }; r: number } | null {
+  const n = o.userData.model as string;
+  const info = carParts.get(n);
+  if (!info || !info.wheels.length) return null;
+  const spin = { value: 0 };
+  const paint = CAR_PAINTS[(o.userData.paint as number) ?? 0];
+  let i = 0;
+  o.traverse((c) => {
+    const mesh = c as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const p = info.meshes[i++];
+    if (p) mesh.material = carMaterial(p.map, n, p, info.look, paint, spin);
+  });
+  return { spin, r: info.wheels[0].r * o.scale.x };
+}
+
+export const wheelsOf = (n: string) => carParts.get(n)?.wheels ?? [];
 
 /**
  * Give a vehicle from `model()` a paint job: `pick` (0–1, e.g. from the scene's seeded random) chooses among the
@@ -293,17 +457,24 @@ export function loadModels(names: (ModelName | PersonName)[]): Promise<void> {
       if (VEHICLES.has(n)) {
         // each mesh's height up the vehicle (0 at the tyres' contact, 1 at the roof) from its own coordinates
         const size = wrap.userData.size as THREE.Vector3;
-        const meshes: { map: THREE.Texture | null; up: THREE.Vector4 }[] = [];
+        const meshes: CarPart[] = [];
         let look: CarLook | null = null;
+        const wheels = findWheels(root, root.position, size);
         root.traverse((c) => {
           const mesh = c as THREE.Mesh;
           if (!mesh.isMesh) return;
           const e = mesh.matrixWorld.elements;
           const map = (mesh.material as THREE.MeshStandardMaterial).map;
           look ??= carLook(map);
-          meshes.push({ map, up: new THREE.Vector4(e[1] / size.y, e[5] / size.y, e[9] / size.y, (e[13] - box.min.y) / size.y) });
+          // (the axle's direction in the mesh's own space: across the vehicle)
+          const axis = new THREE.Vector3(e[2], e[6], e[10]).normalize();
+          meshes.push({
+            map, axis,
+            up: new THREE.Vector4(e[1] / size.y, e[5] / size.y, e[9] / size.y, (e[13] - box.min.y) / size.y),
+            fwd: new THREE.Vector4(e[0] / size.x, e[4] / size.x, e[8] / size.x, (e[12] - box.min.x) / size.x),
+          });
         });
-        carParts.set(n, { look: look ?? { mode: 0, i: 1, q: 0, y: 1, ch: 0 }, meshes, mats: new Map() });
+        carParts.set(n, { look: look ?? { mode: 0, i: 1, q: 0, y: 1, ch: 0 }, meshes, mats: new Map(), wheels });
         const own = carMats(n, 0)!;
         let i = 0;
         root.traverse((c) => { const mesh = c as THREE.Mesh; if (mesh.isMesh) mesh.material = own[i++]; });

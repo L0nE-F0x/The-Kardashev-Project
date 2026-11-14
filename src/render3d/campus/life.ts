@@ -222,6 +222,8 @@ export function parkedCars(parent: THREE.Object3D, x0: number, z: number, n: num
     // whatever the piece laid there
     c.position.set(x0 + i * gap, 0.125, z);
     c.userData.bay = { len, wid: len * (WID[kind] ?? 0.52) };
+    // (a car park fills when the building opens: `clipAbove`)
+    c.userData.late = true;
     parent.add(c);
   }
   // a real car park (a row of bays side by side) says how far it reaches, empty bays and all: paved paths are

@@ -187,35 +187,114 @@ export function siteClutter(w: number, d: number, seed = 1) {
   return kit.build();
 }
 
-/** Clip everything in obj above world height y (null = no clip). Gives the meshes their own materials. */
-export function clipAbove(obj: THREE.Object3D, y: number | null) {
-  obj.traverse((o) => {
+/**
+ * Clip everything in obj above world height y (null = no clip). Gives the meshes their own materials.
+ * `below`: cut away what is under y instead (an old building while its replacement rises through it).
+ */
+export function clipAbove(obj: THREE.Object3D, y: number | null, below = false) {
+  const walk = (o: THREE.Object3D) => {
+    // planting and parked cars arrive when the building opens (never cut through by the rising clip), and leave
+    // an old building as soon as the works on it begin
+    if (o.userData.plant || o.userData.late) { o.visible = y === null; return; }
     const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    // planting goes in when the building opens (and is never cut through by the rising clip)
-    if (m.userData.plant) { m.visible = y === null; return; }
-    if (y === null) {
-      if (m.userData.ownMat) {
-        m.material = m.userData.ownMat.orig;
-        delete m.userData.ownMat;
+    if (m.isMesh) {
+      if (y === null) {
+        if (m.userData.ownMat) {
+          m.material = m.userData.ownMat.orig;
+          delete m.userData.ownMat;
+        }
+      } else {
+        if (!m.userData.ownMat) {
+          const orig = m.material as THREE.Material;
+          const c = orig.clone();
+          // keep the palette shader hooks on Meshy materials
+          c.onBeforeCompile = orig.onBeforeCompile;
+          c.customProgramCacheKey = orig.customProgramCacheKey;
+          const plane = below ? new THREE.Plane(new THREE.Vector3(0, 1, 0), -y) : new THREE.Plane(new THREE.Vector3(0, -1, 0), y);
+          c.clippingPlanes = [plane];
+          c.clipShadows = true;
+          c.side = THREE.DoubleSide;
+          m.material = c;
+          m.userData.ownMat = { orig, plane };
+        }
+        (m.userData.ownMat.plane as THREE.Plane).constant = below ? -y : y;
       }
-      return;
     }
-    if (!m.userData.ownMat) {
-      const orig = m.material as THREE.Material;
-      const c = orig.clone();
-      // keep the palette shader hooks on Meshy materials
-      c.onBeforeCompile = orig.onBeforeCompile;
-      c.customProgramCacheKey = orig.customProgramCacheKey;
-      const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), y);
-      c.clippingPlanes = [plane];
-      c.clipShadows = true;
-      c.side = THREE.DoubleSide;
-      m.material = c;
-      m.userData.ownMat = { orig, plane };
+    for (const c of o.children) walk(c);
+  };
+  walk(obj);
+}
+
+// A piece under construction goes up at the pace of the work in it, not of a ruler: a plant is mostly low
+// buildings and one tall stack, and a clip that climbs evenly has the buildings done in the first quarter and
+// then nothing but the stack for the rest. So the clip's height follows how much wall there is at each height
+// (floors and roofs count a quarter: they are laid, not raised), with some of the even climb kept so that the
+// tall part is never left to the last day.
+const RISE_N = 40;
+const rise = new WeakMap<THREE.Object3D, Float32Array>();
+
+function riseCurve(obj: THREE.Object3D, h: number): Float32Array {
+  const hist = new Float32Array(RISE_N);
+  obj.updateMatrixWorld(true);
+  const y0 = obj.getWorldPosition(new THREE.Vector3()).y;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+  const mw = new THREE.Matrix4(), mi = new THREE.Matrix4();
+  const tri = (weight: number) => {
+    n.subVectors(b, a).cross(c.sub(a));
+    const l = n.length();
+    if (l < 1e-9) return;
+    c.add(a);
+    const lo = Math.min(a.y, b.y, c.y) - y0, hi = Math.max(a.y, b.y, c.y) - y0;
+    if (hi < 0.2) return;
+    const i0 = Math.max(0, Math.min(RISE_N - 1, Math.floor((lo / h) * RISE_N))), i1 = Math.max(0, Math.min(RISE_N - 1, Math.floor((hi / h) * RISE_N)));
+    const w = (l * 0.5 * (0.25 + 0.75 * (1 - Math.abs(n.y) / l)) * weight) / (i1 - i0 + 1);
+    for (let i = i0; i <= i1; i++) hist[i] += w;
+  };
+  const walk = (o: THREE.Object3D) => {
+    if (o.userData.plant || o.userData.late) return;
+    const m = o as THREE.Mesh;
+    if (m.isMesh && m.geometry) {
+      const pos = m.geometry.getAttribute('position'), idx = m.geometry.getIndex();
+      const inst = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh) : null;
+      const copies = inst ? inst.count : 1;
+      const tris = pos ? Math.floor((idx ? idx.count : pos.count) / 3) : 0;
+      // (a sample of the triangles is enough: a few thousand per mesh)
+      const step = Math.max(1, Math.ceil((tris * copies) / 4000));
+      for (let k = 0; k < copies; k++) {
+        if (inst) { inst.getMatrixAt(k, mi); mw.multiplyMatrices(m.matrixWorld, mi); } else mw.copy(m.matrixWorld);
+        for (let t = (k * 7) % step; t < tris; t += step) {
+          a.fromBufferAttribute(pos, idx ? idx.getX(t * 3) : t * 3).applyMatrix4(mw);
+          b.fromBufferAttribute(pos, idx ? idx.getX(t * 3 + 1) : t * 3 + 1).applyMatrix4(mw);
+          c.fromBufferAttribute(pos, idx ? idx.getX(t * 3 + 2) : t * 3 + 2).applyMatrix4(mw);
+          tri(step);
+        }
+      }
     }
-    (m.userData.ownMat.plane as THREE.Plane).constant = y;
-  });
+    for (const ch of o.children) walk(ch);
+  };
+  walk(obj);
+  let total = 0;
+  for (let i = 0; i < RISE_N; i++) total += hist[i];
+  const out = new Float32Array(RISE_N + 1);
+  let bin = 0, cum = 0;
+  for (let k = 0; k <= RISE_N; k++) {
+    const even = (k / RISE_N) * h;
+    if (total <= 0) { out[k] = even; continue; }
+    const want = (k / RISE_N) * total;
+    while (bin < RISE_N - 1 && cum + hist[bin] < want) cum += hist[bin++];
+    const byWork = ((bin + (hist[bin] > 0 ? Math.min(1, (want - cum) / hist[bin]) : 1)) / RISE_N) * h;
+    out[k] = byWork * 0.72 + even * 0.28;
+  }
+  out[RISE_N] = h;
+  return out;
+}
+
+/** How high a piece under construction stands at progress p (0–1): the height to clip it at. */
+export function builtHeight(piece: { obj: THREE.Object3D; h: number }, p: number): number {
+  let c = rise.get(piece.obj);
+  if (!c) { c = riseCurve(piece.obj, piece.h); rise.set(piece.obj, c); }
+  const f = Math.max(0.02, Math.min(1, p)) * RISE_N, i = Math.min(RISE_N - 1, Math.floor(f));
+  return 0.05 + c[i] + (c[i + 1] - c[i]) * (f - i);
 }
 
 // ── the data hall ────────────────────────────────────────────────────────────────────────────

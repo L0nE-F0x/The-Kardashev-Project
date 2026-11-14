@@ -6,7 +6,7 @@
  * Right-hand traffic. Wheels stay on the ground, nose pitched with the slope.
  */
 import * as THREE from 'three';
-import { model, paintCar, type ModelName } from '../models';
+import { drivenCar, model, paintCar, type ModelName } from '../models';
 import { glowMat, lightPool, poolMat, rng } from '../kit';
 import type { Env } from '../pieces';
 
@@ -37,6 +37,8 @@ interface Car {
   pushT: number;
   pos: THREE.Vector2;
   dir: THREE.Vector2;
+  /** Its wheels: the angle they have turned through (the material reads it) and their radius. */
+  wheels: { spin: { value: number }; r: number } | null;
 }
 
 /** Round a polyline's corners (radius per corner, 0 = sharp) and resample it every ~0.5 m. */
@@ -154,6 +156,7 @@ function vehicle(n: ModelName, headMat: THREE.Material, tailMat: THREE.Material,
   // the Meshy vehicles' fronts are at -x; turn them so +z is forward
   body.rotation.y = Math.PI / 2;
   const spots = lampsFor(n, body, len);
+  const wheels = drivenCar(body);
   o.add(body);
   // lamps as lenses set into the bodywork (a flattened ball, half sunk)
   lens ??= new THREE.SphereGeometry(1, 10, 6).scale(1, 0.8, 0.35);
@@ -163,7 +166,7 @@ function vehicle(n: ModelName, headMat: THREE.Material, tailMat: THREE.Material,
   for (const p of spots.tail) { const tl = new THREE.Mesh(lens, tailMat); tl.scale.setScalar(r * 0.9); tl.position.copy(p); o.add(tl); }
   lightPool(o, 0, 0, len / 2 + 4.5, 3.2, beam, 0.55);
   o.rotation.order = 'YXZ';
-  return { o, len };
+  return { o, len, wheels };
 }
 
 export interface RoadNet {
@@ -198,9 +201,9 @@ export class Traffic {
   }
 
   private add(n: ModelName, route: Route, s: number, v0: number, paint: number) {
-    const { o, len } = vehicle(n, this.head, this.tail, this.beam, paint);
+    const { o, len, wheels } = vehicle(n, this.head, this.tail, this.beam, paint);
     this.group.add(o);
-    const c: Car = { obj: o, len, route, s, v: v0 * 0.8, v0, held: -1, heldT: 0, served: new Set(), yieldT: 0, pushT: 0, pos: new THREE.Vector2(), dir: new THREE.Vector2(1, 0) };
+    const c: Car = { obj: o, len, route, s, v: v0 * 0.8, v0, held: -1, heldT: 0, served: new Set(), yieldT: 0, pushT: 0, pos: new THREE.Vector2(), dir: new THREE.Vector2(1, 0), wheels };
     sample(route, s, c.pos, c.dir);
     this.cars.push(c);
     return c;
@@ -345,6 +348,7 @@ export class Traffic {
       if (c.held >= 0) { c.v = 0; acc = 0; }
       c.v = Math.max(0, c.v + Math.max(-9, acc) * dt);
       c.s += c.v * dt;
+      if (c.wheels) c.wheels.spin.value = (c.wheels.spin.value + (c.v * dt) / c.wheels.r) % (Math.PI * 2);
       if (c.s >= r.total) {
         if (r.wrap) { c.s -= r.total; c.served.clear(); } else c.s = r.total;
       }

@@ -17,7 +17,7 @@ import { buildGround, type Backdrop } from './campus/ground';
 import { CampusSky } from './campus/sky';
 import { FACILITY_PIECES, setFactory } from './campus/registry';
 import { sizeOf } from './campus/viewOnly';
-import { clipAbove, pad, type Env, type Piece } from './pieces';
+import { builtHeight, clipAbove, pad, type Env, type Piece } from './pieces';
 import { plumeUniforms } from './fx';
 import { habitatShell } from './campus/habitatShell';
 import { closeScope, openScope } from './kit';
@@ -93,7 +93,8 @@ async function show(o: LabOpts = {}) {
   if (piece) {
     scene.add(piece.obj);
     if (o.progress !== undefined && o.progress < 1) {
-      clipAbove(piece.obj, 0.05 + Math.max(0.02, o.progress) * piece.h);
+      // (as on a campus: rows of panels, cabinets and turbines, the HQ and the restart are not clipped)
+      if (!o.piece || !['solar', 'battery', 'wind', 'hq', 'restart'].includes(o.piece)) clipAbove(piece.obj, builtHeight(piece, o.progress));
       piece.progress?.(o.progress);
     } else piece.progress?.(1);
   }
