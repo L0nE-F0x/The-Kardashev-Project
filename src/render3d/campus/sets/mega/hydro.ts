@@ -6,7 +6,7 @@
  * The same scheme, part built, is the hydro build-out site (megaBuild).
  */
 import * as THREE from 'three';
-import { col, fbm, Kit, lightPool, noise, rng, smooth, withClouds, withGrain } from '../../../kit';
+import { col, fbm, Kit, type Paint, lightPool, mix, noise, rng, smooth, withClouds, withGrain } from '../../../kit';
 import { BACKDROPS, type Backdrop } from '../../ground';
 import type { Piece } from '../../../pieces';
 import { treeField, type TreeKind } from '../../trees';
@@ -37,8 +37,84 @@ function shapeOf(v: number, seed: number): Shape {
   };
 }
 
-/** The ground in the scheme's own (62 × 52) coordinates. */
-function heightOf(sh: Shape) {
+/**
+ * A scheme under construction stands on a works yard: graded, compacted ground a pad's height above the land, from
+ * the mountain's foot to the front of the footprint, with the lower basin a dry excavation in it and the spoil
+ * heaped in a berm along its outer rim. The yard is there for the seam: the land's grid is far coarser than the
+ * skin (1.4 units near the middle of a site, 4 and more at its far rows), so wherever the land has to drop under
+ * the skin its edge is ragged by a cell or two. Under the yard that edge is out of sight (the land only drops
+ * inside `HOLE` of the pit's rim, see `landUnderYard`), and round the yard the land is exactly level, so the yard
+ * ends in a straight bevel like any pad.
+ */
+const YARD = { z0: 4, top: 0.12 };
+/** The excavation: smaller than the lake it will be (the powerhouse keeps an apron for its trucks, the road its verge). */
+const PIT = { z: 15.3, rx: 17, rz: 4.4, deep: 2.9 };
+const HOLE = 3;
+/** How much of the yard a point is on: 1 on it, falling to 0 across its bevel. */
+const yardAt = (x: number, z: number) => smooth(YARD.z0 - 0.6, YARD.z0, z) * smooth(0, 0.6, Math.min(NW / 2 - 0.6 - Math.abs(x), Z1 - 0.6 - z));
+/** How far inside the pit's rim (grown by `grow`) a point is, negative outside: near enough for an ellipse. */
+function pitIn(sh: Shape, x: number, z: number, grow = 0) {
+  const dx = x - sh.lx, dz = z - PIT.z, a = PIT.rx + grow, b = PIT.rz + grow;
+  const q = Math.hypot(dx / a, dz / b);
+  return q < 0.05 ? b * (1 - q) : ((1 - q) * q) / Math.hypot(dx / (a * a), dz / (b * b));
+}
+/**
+ * How far in from the pit's rim a point is, counted in the cut's own rings (each a smaller ellipse: `pitRing`), so
+ * the skin and the cut agree on where a wall or a bench is. Negative outside, PIT.rz along the floor's middle.
+ */
+function pitU(sh: Shape, x: number, z: number) {
+  const dx = x - sh.lx, dz = z - PIT.z;
+  const f = (u: number) => (dx / (PIT.rx - u)) ** 2 + (dz / (PIT.rz - u)) ** 2 - 1;
+  let lo = -8, hi = PIT.rz - 0.01;
+  if (f(lo) > 0) return lo;
+  if (f(hi) < 0) return PIT.rz;
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) > 0) hi = mid; else lo = mid;
+  }
+  return (lo + hi) / 2;
+}
+/**
+ * The cut's section from the rim inwards, [distance in, height]: a low lip of trimmed earth on the yard, a wall, a
+ * bench a machine can stand on, a second wall, the floor.
+ */
+const CUT: [number, number][] = [[-0.6, YARD.top + 0.03], [0, YARD.top + 0.08], [0.55, -0.6], [1.1, -1.3], [1.95, -1.36], [2.45, -2.1], [2.95, -PIT.deep + 0.1], [PIT.rz, -PIT.deep]];
+function cutY(u: number) {
+  for (let i = 0; i + 1 < CUT.length; i++) if (u <= CUT[i + 1][0]) return CUT[i][1] + ((CUT[i + 1][1] - CUT[i][1]) * (u - CUT[i][0])) / (CUT[i + 1][0] - CUT[i][0]);
+  return -PIT.deep;
+}
+/** The spoil berm: along the pit's far side from the powerhouse and round its east end, in heaps (the west end is the digger's). */
+function bermAt(sh: Shape, x: number, z: number, u: number) {
+  const v = -u;
+  if (v < 0.7 || v > 3.2) return 0;
+  const side = smooth(-0.45, 0.2, (z - PIT.z) / PIT.rz) * smooth(sh.lx - PIT.rx - 0.5, sh.lx - PIT.rx + 5, x);
+  return 1.05 * smooth(0.7, 1.7, v) * (1 - smooth(1.9, 3.2, v)) * side * (0.3 + 0.9 * fbm(x * 0.3, z * 0.3, sh.seed + 23, 2));
+}
+/**
+ * The land under a works yard: level, but for a hole under the pit that starts `HOLE` outside its rim. Its side is
+ * a curve that only steepens (never above the straight line between two of its points), so the land's own facets,
+ * whatever their size, lie under it, and it is under the pit's wall with room to spare.
+ */
+function landUnderYard(sh: Shape, x: number, z: number) {
+  const u = pitIn(sh, x, z, HOLE);
+  if (u <= 0) return 0;
+  const c = 2.4, k = 2.2;
+  return -Math.min(6, u < c ? (k * u * u) / (2 * c) : k * (u - c / 2));
+}
+
+/** The ground in the scheme's own (62 × 52) coordinates; `dig` = under construction (the works yard, the dry pit). */
+function heightOf(sh: Shape, dig = false) {
+  const nat = naturalHeight(sh, !dig);
+  if (!dig) return nat;
+  return (x: number, z: number) => {
+    const y = nat(x, z), m = yardAt(x, z);
+    if (m <= 0) return y;
+    const u = pitU(sh, x, z);
+    const yard = u > CUT[0][0] ? cutY(u) : Math.max(y, YARD.top) + bermAt(sh, x, z, u);
+    return y + (yard - y) * m;
+  };
+}
+function naturalHeight(sh: Shape, lake: boolean) {
   const { bx, lx, px } = sh;
   return (x: number, z: number) => {
     const edge = smooth(0, 5, inside(x, z));
@@ -63,7 +139,7 @@ function heightOf(sh: Shape) {
     const tdx = Math.max(0, Math.abs(x - (px + 3)) - 10), tdz = Math.max(0, Math.abs(z - 4.6) - 3.2);
     h *= smooth(0, 2.6, Math.hypot(tdx, tdz));
     // the lower reservoir
-    const q2 = Math.hypot((x - lx) / 21, (z - 15) / 7.5);
+    const q2 = lake ? Math.hypot((x - lx) / 21, (z - 15) / 7.5) : 2;
     if (q2 < 1) h = -2.8 + (Math.min(h, 0) + 2.8) * smooth(0.66, 1.0, q2) + Math.max(0, h) * smooth(0.66, 1, q2);
     if (h <= 0) return h * edge;
     // the foot of the massif wanders in and out (the footprint's straight edge showed as a ruled line under a sheer
@@ -85,7 +161,7 @@ const terrainMat = withGrain(withClouds(new THREE.MeshStandardMaterial({ vertexC
  * The mountain's own skin (the real ground sits just under it): meadow at the foot, forest on the
  * lower flanks, alpine meadow, bare rock on the steep faces and the summits, snow on the peaks.
  */
-function mountainMesh(h: (x: number, z: number) => number, backdrop: string | undefined, seed: number, sh: Shape, wet: boolean) {
+function mountainMesh(h: (x: number, z: number) => number, backdrop: string | undefined, seed: number, sh: Shape, wet: boolean, dig = false) {
   const bd = (backdrop ?? 'mountain') as Backdrop;
   const ground = BACKDROPS[bd]?.ground ?? BACKDROPS.mountain.ground;
   const green = bd === 'mountain' || bd === 'boreal' || bd === 'temperate' || bd === 'coast' || bd === 'tropical';
@@ -94,13 +170,23 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
     low: col(ground[0]), forest: col(green ? '#4f6b3a' : dry ? '#c9925a' : '#a59a54'), meadow: col(green ? '#879a50' : dry ? '#c08850' : '#b0a462'),
     rock: col(dry ? '#b5623c' : bd === 'plains' || bd === 'savanna' ? '#a08d84' : '#8a7a72'), rockD: col(dry ? '#8c4a3a' : '#6e605c'),
     mud: col('#5a5a46'), scree: col('#b3a596'), snow: col('#eef3f8'),
+    // a works yard: compacted fill, fresh spoil on the berm
+    yard: yardPaint(ground[0]), spoil: mix(ground[0], '#8a6a4c', 0.62),
   };
   const snowy = !dry && bd !== 'tropical' && bd !== 'savanna';
   const step = 0.75, inset = 0.6;
   const xs: number[] = [], zs: number[] = [];
-  for (let x = -NW / 2 + inset; x <= NW / 2 - inset + 0.01; x += step) xs.push(x);
-  for (let z = Z0 + inset; z <= Z1 - inset + 0.01; z += step) zs.push(z);
+  if (dig) {
+    // a finer skin that ends exactly on the yard's edge (its outer ring is the bevel's foot)
+    const nx = Math.round((NW - 2 * inset) / 0.6), nz = Math.round((Z1 - Z0 - 2 * inset) / 0.6);
+    for (let q = 0; q <= nx; q++) xs.push(-NW / 2 + inset + ((NW - 2 * inset) * q) / nx);
+    for (let q = 0; q <= nz; q++) zs.push(Z0 + inset + ((Z1 - Z0 - 2 * inset) * q) / nz);
+  } else {
+    for (let x = -NW / 2 + inset; x <= NW / 2 - inset + 0.01; x += step) xs.push(x);
+    for (let z = Z0 + inset; z <= Z1 - inset + 0.01; z += step) zs.push(z);
+  }
   const pos = new Float32Array(xs.length * zs.length * 3), cols = new Float32Array(xs.length * zs.length * 3);
+  const us = new Float32Array(xs.length * zs.length).fill(-9);
   const c = new THREE.Color();
   let i = 0;
   for (const z of zs)
@@ -115,13 +201,28 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
       if (y > TOE - 1 && y < FLOOR + 0.5 && slope < 0.6) c.lerp(pal.scree, 0.6);
       if (y < LOWER - 0.2) c.lerp(pal.mud, smooth(LOWER - 0.2, LOWER - 1.2, y));
       // a shingle shore round the lower lake, and the stream's stony bed down the gully
-      const shore = Math.hypot((x - sh.lx) / 21, (z - 15) / 7.5);
+      const shore = dig ? 2 : Math.hypot((x - sh.lx) / 21, (z - 15) / 7.5);
       if (shore > 0.9 && shore < 1.16 && y < 1.2) c.lerp(pal.scree, 0.7 * (1 - Math.abs(shore - 1.03) / 0.13) * (0.7 + n * 0.6));
       if (wet && z > DAM_Z + 3 && z < 9.6) c.lerp(n2 > 0.5 ? pal.scree : pal.rock, 0.85 * (1 - smooth(1.0, 2.5, Math.abs(x - creekX(sh, z)) + n * 0.6)));
       if (snowy) c.lerp(pal.snow, smooth(23, 25.5, y + n * 3) * (1 - smooth(1.8, 2.6, slope) * 0.5));
-      c.multiplyScalar(0.94 + n * 0.12);
       // round the foot the skin dives under the real ground, so the seam follows the contour
-      pos.set([x, y - 0.35 * (1 - smooth(0.25, 0.9, Math.abs(y))), z], i * 3);
+      let py = y - 0.35 * (1 - smooth(0.25, 0.9, Math.abs(y)));
+      const yd = dig ? yardAt(x, z) : 0;
+      if (dig && z > YARD.z0 - 1) {
+        // the works yard keeps its height (its bevel's foot goes well under the land: far out on a big site the
+        // land's last facet can sag a little beside it)
+        const u = pitU(sh, x, z), edge = Math.min(NW / 2 - inset - Math.abs(x), Z1 - inset - z) < 0.01;
+        py = edge ? -0.9 : py + (y - py) * yd;
+        // (the cut itself is `pitMesh`: the skin keeps under it, and is left out inside it)
+        us[i] = u;
+        if (u > CUT[0][0]) py = (u < -0.1 ? YARD.top : y) - 0.25 * smooth(-0.5, -0.1, u);
+        // its colours, where it is not the mountain coming down onto it: compacted fill, fresh spoil on the berm
+        const k = yd * (1 - smooth(0.5, 1.3, y) * (1 - smooth(-3.4, -0.3, u)));
+        c.lerp(pal.yard, k);
+        c.lerp(pal.spoil, k * smooth(YARD.top + 0.06, YARD.top + 0.4, y) * (u > -3.4 && u < -0.6 ? 1 : 0));
+      }
+      c.multiplyScalar(0.94 + n * 0.12);
+      pos.set([x, py, z], i * 3);
       cols.set([c.r, c.g, c.b], i * 3);
       i++;
     }
@@ -129,6 +230,7 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
   for (let j = 0; j + 1 < zs.length; j++)
     for (let q = 0; q + 1 < xs.length; q++) {
       const a = j * xs.length + q, b = a + 1, c2 = a + xs.length, d = c2 + 1;
+      if (us[a] > 0.5 && us[b] > 0.5 && us[c2] > 0.5 && us[d] > 0.5) continue;
       idx.push(a, c2, b, b, c2, d);
     }
   const g = new THREE.BufferGeometry();
@@ -140,6 +242,70 @@ function mountainMesh(h: (x: number, z: number) => number, backdrop: string | un
   m.castShadow = true;
   m.receiveShadow = true;
   return m;
+}
+const yardPaint = (ground: Paint) => mix(ground, '#c4b8a6', 0.6);
+/** Each ring of the cut: the rim's ellipse brought in by `u`, a little out of true (dug, not drawn). */
+function pitRing(sh: Shape, u: number, y: number, n: number) {
+  const out: THREE.Vector3[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = ((i % n) / n) * Math.PI * 2;
+    const wob = 1 + (fbm(Math.cos(t) * 2.2 + 5, Math.sin(t) * 2.2, sh.seed + 31, 2) - 0.5) * 0.05 * smooth(-0.1, 0.6, u) * (1 - smooth(2.9, PIT.rz, u));
+    out.push(V(sh.lx + Math.cos(t) * Math.max(0.02, PIT.rx - u) * wob, y, PIT.z + Math.sin(t) * Math.max(0.02, PIT.rz - u) * wob));
+  }
+  return out;
+}
+/**
+ * The dry excavation: the cut's section (CUT) swept round the pit, each face with its own edge (a crisp crest, bench
+ * and toe, as a dug bank has), the subsoil's beds showing in the walls.
+ */
+function pitMesh(sh: Shape, backdrop: string | undefined, seed: number) {
+  const ground = (BACKDROPS[(backdrop ?? 'mountain') as Backdrop]?.ground ?? BACKDROPS.mountain.ground)[0];
+  // lip, upper wall in two beds, bench, lower wall in two beds, floor
+  const paints = [mix(yardPaint(ground), '#9a6a48', 0.4), mix(ground, '#9a6a48', 0.6), mix(ground, '#7c5238', 0.72), mix(ground, '#a08a70', 0.6), mix(ground, '#6a4c3a', 0.78), mix(ground, '#57443a', 0.82), mix(ground, '#7d6e5c', 0.72)];
+  const N = 84;
+  const pos: number[] = [], cols: number[] = [], idx: number[] = [];
+  const c = new THREE.Color();
+  for (let b = 0; b + 1 < CUT.length; b++) {
+    const ra = pitRing(sh, CUT[b][0], CUT[b][1], N), rb = pitRing(sh, CUT[b + 1][0], CUT[b + 1][1], N);
+    const base = pos.length / 3;
+    for (let i = 0; i <= N; i++)
+      for (const q of [ra[i], rb[i]]) {
+        pos.push(q.x, q.y, q.z);
+        c.copy(paints[b]).multiplyScalar(0.9 + noise(q.x * 0.6, q.z * 0.6 + b * 7, seed) * 0.2);
+        cols.push(c.r, c.g, c.b);
+      }
+    for (let i = 0; i < N; i++) {
+      const a = base + i * 2;
+      idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const m = new THREE.Mesh(g, terrainMat);
+  m.receiveShadow = true;
+  return m;
+}
+/** A tracked excavator at (x, z) on `y`, facing `ry`, its boom out over what it digs. */
+function excavator(k: Kit, x: number, y: number, z: number, ry: number, paint: string) {
+  const cs = Math.cos(ry), sn = Math.sin(ry);
+  const at = (lx: number, ly: number, lz: number) => V(x + lx * cs + lz * sn, y + ly, z - lx * sn + lz * cs);
+  const box = (w: number, h: number, d: number, p: string, lx: number, ly: number, lz: number, r = 0.08) => { const q = at(lx, ly, lz); k.box(w, h, d, p, q.x, q.y, q.z, { r, ry }); };
+  for (const sd of [-1.2, 1.2]) box(4.4, 0.8, 0.7, '#3a3442', 0, 0, sd, 0.3);
+  box(2.2, 0.5, 2.0, '#4a4456', 0, 0.45, 0);
+  box(3.3, 1.35, 2.7, paint, -0.5, 0.95, 0, 0.14);
+  box(0.9, 1.1, 2.7, '#3a3442', -2.3, 0.85, 0, 0.14);
+  box(1.4, 1.55, 1.05, '#ede6da', 0.55, 1.0, -0.82, 0.1);
+  box(1.44, 0.75, 1.09, P.glassD, 0.55, 1.6, -0.82, 0.04);
+  const foot = at(0.9, 1.9, 0.35), knee = at(4.9, 5.1, 0.35), tip = at(7.4, 1.5, 0.35);
+  k.beam(foot, knee, 0.5, paint);
+  k.beam(knee, tip, 0.38, paint);
+  k.beam(at(1.9, 1.9, 0.35), at(3.4, 3.7, 0.35), 0.16, '#c9c4d2');
+  k.beam(at(4.0, 4.6, 0.35), at(5.9, 3.9, 0.35), 0.16, '#c9c4d2');
+  const bk = at(7.5, 1.0, 0.35);
+  k.box(1.0, 0.9, 1.1, '#3a3442', bk.x, bk.y - 0.45, bk.z, { r: 0.12, ry });
 }
 /** Where the stream runs, down the gully from the dam's toe. */
 const creekX = (sh: Shape, z: number) => sh.bx + Math.sin(z * 0.7) * 0.9;
@@ -208,13 +374,14 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   people.position.z = OFF;
   const v = (o.vseed ?? 0) % 3;
   const sh = shapeOf(v, o.seed);
-  const h = heightOf(sh);
   const p = build ? Math.max(0.1, Math.min(0.97, build.p)) : 1;
+  const h = heightOf(sh, !!build);
   const f = fieldOf(o.backdrop);
   const k = new Kit(rng(o.seed));
   const glow: Win = [];
   const lamps: THREE.Vector3[] = [];
-  g.add(mountainMesh(h, o.backdrop, sh.seed, sh, p >= 1));
+  g.add(mountainMesh(h, o.backdrop, sh.seed, sh, p >= 1, !!build));
+  if (build) g.add(pitMesh(sh, o.backdrop, sh.seed));
   const put = (x: number, z: number, ry: number, seed: number, kind?: 'worker' | 'engineer', y?: number) => standing(people, x * s, z * s, ry, seed, kind, (y ?? h(x, z)) * s);
   // the reservoirs
   if (p > 0.75) {
@@ -363,7 +530,7 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   for (let i = 0; i < 1100; i++) {
     const x = (r() - 0.5) * (NW - 4), z = Z0 + 2 + r() * (Z1 - Z0 - 4);
     const y = h(x, z);
-    if (y < 1.2) continue;
+    if (y < 1.2 || (build && yardAt(x, z) > 0 && y < 2.2)) continue;
     if (Math.abs(x - sh.bx) < 9.5 && z > -10.5 && z < 8) continue;
     if (Math.hypot((x - sh.bx) / 11.5, (z + 12.5) / 6.5) < 1) continue;
     const t = (x - top.x) * (bot.x - top.x) + (z - top.z) * (bot.z - top.z);
@@ -417,10 +584,12 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
     flag(g, anim, -NW / 2 + 17.5, rdz - 1.4, 5, { a: build.acc, b: build.hi }, o.seed + 1, 0, 1.8);
     flag(g, anim, px - 7.5, pz + 4.5, 5, { a: build.acc, b: build.hi }, o.seed + 2, 0, 1.8);
     put(sh.bx + 1, DAM_Z + 1.6, 0.2, o.seed + 3, 'worker', top2);
-    put(px - 2, pz + pd / 2 + 1.3, 2.4, o.seed + 4, 'worker', 0);
-    put(-NW / 2 + 9.6, rdz - 1.2, 0.5, o.seed + 9, 'engineer', 0);
-    vehicle(g, 'mixer', px + 4, pz + pd / 2 + 1.8, 0.1);
-    vehicle(g, 'flatbed', -NW / 2 + 22, rdz, Math.PI);
+    put(px - 2, pz + pd / 2 + 1.3, 2.4, o.seed + 4, 'worker', YARD.top);
+    put(-NW / 2 + 9.6, rdz - 1.2, 0.5, o.seed + 9, 'engineer', YARD.top);
+    // the digger at the pit's west end
+    excavator(k, sh.lx - PIT.rx - 3.6, YARD.top, PIT.z, 0, build.acc);
+    vehicle(g, 'mixer', px + 4, pz + pd / 2 + 1.8, 0.1, YARD.top + 0.04);
+    vehicle(g, 'flatbed', -NW / 2 + 22, rdz, Math.PI, YARD.top + 0.14);
     lightPool(g, px, 0, pz + pd / 2 + 2, 6, workPool);
   }
   g.add(k.build());
@@ -429,7 +598,10 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
     obj: root, w: W, d: D, h: (CREST + 12) * s, update: anim.update,
     ground: (x, z) => {
       if (Math.abs(x) > W / 2 || Math.abs(z) > D / 2) return null;
-      const y = h(x / s, (z - OFF) / s);
+      const lx = x / s, lz = (z - OFF) / s;
+      // (under a works yard, and a few units up the mountain behind it, the land is level or dug: see YARD)
+      if (build && lz > YARD.z0 - 3.2) return landUnderYard(sh, lx, lz) * s;
+      const y = h(lx, lz);
       return (y - dipAt(y)) * s;
     },
   };
