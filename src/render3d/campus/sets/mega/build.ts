@@ -453,61 +453,128 @@ function fusionBuild(o: Act3SetOpts, p: number, acc: Paint, hi: Paint, design: s
   const glow: Win = [];
   yard(ground, W - 1, D - 1, 0, 0, '#bdb4aa');
   const cx = -3, cz = -4, R = 10;
-  // the bioshield: a thick round wall rising, the machine being assembled inside it
-  const wallH = Math.max(1.5, 11 * Math.min(1, p * 1.2));
-  k.cyl(R + 1.2, R + 1.4, 0.8, P.concreteD, cx, 0, cz, 40);
-  // the wall is left open towards the road until the machine is in (the gap closes as it goes on)
-  const gap = 0.75 - p * 0.45;
-  k.geo(new THREE.CylinderGeometry(R, R, wallH, 40, 1, true, gap, TAU - 2 * gap).translate(cx, 0.8 + wallH / 2, cz), '#d8d0c4', 0.02, 0.12);
-  k.geo(innerWall(R - 1.2, 0.8, 0.8 + wallH, 40, gap, TAU - 2 * gap).translate(cx, 0, cz), '#9d95a6', 0.02);
-  k.geo(new THREE.RingGeometry(R - 1.2, R, 40, 1, -Math.PI / 2 + gap, TAU - 2 * gap).rotateX(-Math.PI / 2).translate(cx, 0.8 + wallH, cz), '#cfc7bb', 0.02);
-  for (const sgn of [-1, 1]) {
-    const a = sgn * gap;
-    k.box(1.3, wallH, 0.3, '#cfc7bb', cx + Math.sin(a) * (R - 0.6), 0.8, cz + Math.cos(a) * (R - 0.6), { r: 0.04, ry: a + Math.PI / 2 });
-  }
   const hue = FUSION_HUE[design] ?? FUSION_HUE.tokamak;
   const steel = '#b9c2c4';
-  if (design === 'laser') {
-    k.geo(new THREE.SphereGeometry(4.2, 20, 14).translate(cx, 5.4, cz), steel, 0.02);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * TAU;
-      hcyl(k, 0.3, 3, '#8a8490', cx + Math.cos(a) * 5.2, 5.4 + (i % 2 ? 1.6 : -1.6), cz + Math.sin(a) * 5.2, i % 2 ? 'x' : 'z', 8);
+  const lit = new THREE.Mesh(new THREE.TorusGeometry(design === 'laser' ? 4.3 : design === 'dhe3' ? 2.75 : 5.6, 0.08, 4, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(hue), toneMapped: false }));
+  lit.visible = p >= 0.75;
+  g.add(lit);
+  if (design === 'dhe3') {
+    // a linear machine goes up as a linear machine (the finished plant is a long capsule in the open, no hall): its
+    // base and cradles first, then the vessel section by section from one end, each with its hoop of coils, a
+    // scaffold along both sides, the next section waiting on timbers
+    const len = 20, vr = 2.3, vy = 4.0, x0 = cx - len / 2;
+    k.box(len + 1.6, 0.7, 6.6, '#e3ded6', cx, 0, cz, { r: 0.2, shade: 0.12 });
+    for (let i = 0; i < 8; i++) k.box(0.9, vy - vr - 0.2, 3.4, '#cfc7bb', x0 + 1.4 + (i * (len - 2.8)) / 7, 0.7, cz, { r: 0.1, shade: 0.1 });
+    const segs = 10, placed = Math.max(2, Math.round(segs * Math.min(1, p * 1.25))), sl = len / segs;
+    for (let i = 0; i < placed; i++) {
+      const x = x0 + (i + 0.5) * sl;
+      hcyl(k, vr, sl - 0.06, i % 2 ? '#f4f1ec' : '#e6e1da', x, vy, cz, 'x', 24);
+      k.geo(new THREE.TorusGeometry(vr + 0.3, 0.2, 6, 24).rotateY(Math.PI / 2).translate(x, vy, cz), shade(hi, 0.05), 0.02);
     }
-    // the long laser bay beside it, its frame going up
-    for (let x = cx + R + 1; x < W / 2 - 1; x += 3) for (const z of [cz - 3, cz + 3]) k.box(0.3, 6 * Math.min(1, p * 1.3), 0.3, '#8a8490', x, 0, z, { r: 0 });
-  } else if (design === 'pinch') {
-    k.cyl(2.6, 2.6, 9, steel, cx, 0.8, cz, 20);
-    for (let i = 0; i < 16; i++) {
-      const a = (i / 16) * TAU;
-      k.box(1.4, 3.2, 1.0, '#7a7186', cx + Math.cos(a) * 6.4, 0.8, cz + Math.sin(a) * 6.4, { r: 0.08, ry: -a });
+    k.geo(new THREE.SphereGeometry(vr, 20, 10, 0, TAU, 0, Math.PI / 2).rotateZ(Math.PI / 2).scale(0.6, 1, 1).translate(x0, vy, cz), '#f4f1ec', 0.02);
+    // the open end: the flange of the last section, dark inside
+    const xe = x0 + placed * sl;
+    k.geo(new THREE.CircleGeometry(vr - 0.25, 24).rotateY(Math.PI / 2).translate(xe + 0.01, vy, cz), '#3a3448', 0, 0);
+    k.geo(new THREE.TorusGeometry(vr - 0.05, 0.16, 6, 24).rotateY(Math.PI / 2).translate(xe, vy, cz), '#8a8490', 0.02);
+    // the next section on timbers in front, a coil hoop leaning on it
+    if (placed < segs) {
+      const wx = cx + 5, wz = cz + 7.4;
+      for (const dx of [-0.6, 0.6]) k.box(0.3, 0.3, 4.4, P.timberD, wx + dx, 0.1, wz, { r: 0.03 });
+      hcyl(k, vr, sl - 0.06, '#f4f1ec', wx, vr + 0.4, wz, 'x', 24);
+      k.geo(new THREE.TorusGeometry(vr + 0.3, 0.2, 6, 24).rotateX(Math.PI / 2 - 0.12).translate(wx - 4.2, 0.42, wz), shade(hi, 0.05), 0.02);
     }
-  } else {
-    // a torus (stellarators get a twist of coils), segments placed to the progress
+    // the scaffold along both sides, as far as the vessel has got (and a bay beyond)
+    const sx1 = Math.min(x0 + len, xe + sl);
+    for (const sz of [-3.9, 3.9]) {
+      for (let x = x0; x <= sx1 + 0.01; x += 2.5) k.box(0.1, 7.4, 0.1, acc, x, 0.7, cz + sz, { r: 0 });
+      for (const y of [2.6, 4.9, 7.2]) {
+        k.box(sx1 - x0, 0.06, 0.06, acc, (x0 + sx1) / 2, 0.7 + y + 0.9, cz + sz, { r: 0 });
+        k.box(sx1 - x0, 0.08, 0.8, P.timber, (x0 + sx1) / 2, 0.7 + y, cz + sz, { r: 0 });
+      }
+    }
+    lit.geometry.rotateZ(Math.PI / 2);
+    lit.position.set(xe - sl / 2, vy, cz);
+  } else if (design === 'stellarator') {
+    // the stellarator's hall is a long glass vault on portal frames, not a concrete drum: the machine is assembled on
+    // its plinth while the frames go up bay by bay, columns first, then the arches
+    const hw = 12, hd = 8.5, bays = 7;
+    k.box(hw * 2 + 1.6, 0.6, hd * 2 + 1.6, P.concrete, cx, 0, cz, { r: 0.06, shade: 0.1 });
+    k.cyl(8.6, 8.8, 0.5, P.concreteD, cx, 0.6, cz, 32);
     const segs = 18, placed = Math.max(4, Math.round(segs * Math.min(1, p * 1.3)));
     for (let i = 0; i < placed; i++) {
       const a = (i / segs) * TAU;
-      const tor = new THREE.TorusGeometry(5.6, 2.2, 10, 3, TAU / segs - 0.03).rotateZ(a).rotateX(Math.PI / 2);
-      k.geo(tor.translate(cx, 4.2, cz), i % 2 ? steel : '#a9b2b4', 0.02);
-      const tw = design === 'stellarator' ? Math.sin(a * 5) * 0.5 : 0;
-      k.geo(new THREE.TorusGeometry(2.7, 0.35, 6, 14).rotateY(-a + Math.PI / 2).rotateZ(tw).translate(cx + Math.cos(a) * 5.6, 4.2, cz + Math.sin(a) * 5.6), shade(acc, -0.1), 0.02);
+      k.geo(new THREE.TorusGeometry(5.6, 2.0, 10, 3, TAU / segs - 0.03).rotateZ(a).rotateX(Math.PI / 2).translate(cx, 4.4, cz), i % 2 ? steel : '#a9b2b4', 0.02);
+      k.geo(new THREE.TorusGeometry(2.5, 0.32, 6, 14).rotateY(-a + Math.PI / 2).rotateZ(Math.sin(a * 5) * 0.5).translate(cx + Math.cos(a) * 5.6, 4.4, cz + Math.sin(a) * 5.6), shade(acc, -0.1), 0.02);
     }
-    k.cyl(1.4, 1.4, 6.6, '#8a8490', cx, 0.8, cz, 16);
-  }
-  // a glimpse of the design's colour: the first coils energised for testing at night
-  const lit = new THREE.Mesh(new THREE.TorusGeometry(design === 'laser' ? 4.3 : 5.6, 0.08, 4, 40).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: col(hue), toneMapped: false }));
-  lit.position.set(cx, design === 'laser' ? 5.4 : 4.2, cz);
-  lit.visible = p >= 0.75;
-  g.add(lit);
-  // the hall's frame rising round it, a gantry crane, a tower crane
-  const hh = 18 * Math.min(1, p * 1.15);
-  for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * TAU;
-    k.box(0.5, hh, 0.5, '#8a8490', cx + Math.cos(a) * (R + 2), 0, cz + Math.sin(a) * (R + 2), { r: 0 });
-  }
-  if (p >= 0.75) for (let i = 0; i < 10; i++) {
-    const a = (i / 10) * TAU, b = ((i + 1) / 10) * TAU;
-    k.beam(V(cx + Math.cos(a) * (R + 2), hh, cz + Math.sin(a) * (R + 2)), V(cx + Math.cos(b) * (R + 2), hh, cz + Math.sin(b) * (R + 2)), 0.3, '#8a8490');
-    k.beam(V(cx + Math.cos(a) * (R + 2), hh, cz + Math.sin(a) * (R + 2)), V(cx, hh + 3, cz), 0.2, '#9d95a6');
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU; k.box(0.5, 3.0, 0.5, '#8a8490', cx + Math.cos(a) * 5.6, 1.1, cz + Math.sin(a) * 5.6, { r: 0.04 }); }
+    const colH = 7.5 * Math.min(1, p * 1.6 + 0.2);
+    const arched = Math.round(bays * Math.max(0, Math.min(1, (p - 0.35) * 1.8)));
+    for (let i = 0; i <= bays; i++) {
+      const x = cx - hw + (i * hw * 2) / bays;
+      for (const sz of [-1, 1]) k.box(0.4, colH, 0.4, acc, x, 0.6, cz + sz * hd, { r: 0.03 });
+      if (i < arched || (i === bays && arched === bays)) {
+        // an arch: a low vault from column head to column head
+        let prev = V(x, 0.6 + colH, cz - hd);
+        for (let j = 1; j <= 8; j++) {
+          const t = j / 8, q = V(x, 0.6 + colH + Math.sin(t * Math.PI) * 4.2, cz - hd + t * hd * 2);
+          k.beam(prev, q, 0.3, acc);
+          prev = q;
+        }
+      }
+    }
+    for (const sz of [-1, 1]) if (p >= 0.5) k.box(hw * 2, 0.24, 0.24, shade(acc, -0.12), cx, 0.6 + colH - 0.3, cz + sz * hd, { r: 0 });
+    lit.position.set(cx, 4.4, cz);
+  } else {
+    // the bioshield: a thick round wall rising, the machine being assembled inside it
+    const wallH = Math.max(1.5, 11 * Math.min(1, p * 1.2));
+    k.cyl(R + 1.2, R + 1.4, 0.8, P.concreteD, cx, 0, cz, 40);
+    // the wall is left open towards the road until the machine is in (the gap closes as it goes on)
+    const gap = 0.75 - p * 0.45;
+    k.geo(new THREE.CylinderGeometry(R, R, wallH, 40, 1, true, gap, TAU - 2 * gap).translate(cx, 0.8 + wallH / 2, cz), '#d8d0c4', 0.02, 0.12);
+    k.geo(innerWall(R - 1.2, 0.8, 0.8 + wallH, 40, gap, TAU - 2 * gap).translate(cx, 0, cz), '#9d95a6', 0.02);
+    k.geo(new THREE.RingGeometry(R - 1.2, R, 40, 1, -Math.PI / 2 + gap, TAU - 2 * gap).rotateX(-Math.PI / 2).translate(cx, 0.8 + wallH, cz), '#cfc7bb', 0.02);
+    for (const sgn of [-1, 1]) {
+      const a = sgn * gap;
+      k.box(1.3, wallH, 0.3, '#cfc7bb', cx + Math.sin(a) * (R - 0.6), 0.8, cz + Math.cos(a) * (R - 0.6), { r: 0.04, ry: a + Math.PI / 2 });
+    }
+    if (design === 'laser') {
+      k.geo(new THREE.SphereGeometry(4.2, 20, 14).translate(cx, 5.4, cz), steel, 0.02);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * TAU;
+        hcyl(k, 0.3, 3, '#8a8490', cx + Math.cos(a) * 5.2, 5.4 + (i % 2 ? 1.6 : -1.6), cz + Math.sin(a) * 5.2, i % 2 ? 'x' : 'z', 8);
+      }
+      // the long laser bay beside it, its frame going up
+      for (let x = cx + R + 1; x < W / 2 - 1; x += 3) for (const z of [cz - 3, cz + 3]) k.box(0.3, 6 * Math.min(1, p * 1.3), 0.3, '#8a8490', x, 0, z, { r: 0 });
+    } else if (design === 'pinch') {
+      k.cyl(2.6, 2.6, 9, steel, cx, 0.8, cz, 20);
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * TAU;
+        k.box(1.4, 3.2, 1.0, '#7a7186', cx + Math.cos(a) * 6.4, 0.8, cz + Math.sin(a) * 6.4, { r: 0.08, ry: -a });
+      }
+    } else {
+      // a torus (stellarators get a twist of coils), segments placed to the progress
+      const segs = 18, placed = Math.max(4, Math.round(segs * Math.min(1, p * 1.3)));
+      for (let i = 0; i < placed; i++) {
+        const a = (i / segs) * TAU;
+        const tor = new THREE.TorusGeometry(5.6, 2.2, 10, 3, TAU / segs - 0.03).rotateZ(a).rotateX(Math.PI / 2);
+        k.geo(tor.translate(cx, 4.2, cz), i % 2 ? steel : '#a9b2b4', 0.02);
+        const tw = design === 'stellarator' ? Math.sin(a * 5) * 0.5 : 0;
+        k.geo(new THREE.TorusGeometry(2.7, 0.35, 6, 14).rotateY(-a + Math.PI / 2).rotateZ(tw).translate(cx + Math.cos(a) * 5.6, 4.2, cz + Math.sin(a) * 5.6), shade(acc, -0.1), 0.02);
+      }
+      k.cyl(1.4, 1.4, 6.6, '#8a8490', cx, 0.8, cz, 16);
+    }
+    lit.position.set(cx, design === 'laser' ? 5.4 : 4.2, cz);
+    // the hall's frame rising round it, a gantry crane, a tower crane
+    const hh = 18 * Math.min(1, p * 1.15);
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * TAU;
+      k.box(0.5, hh, 0.5, '#8a8490', cx + Math.cos(a) * (R + 2), 0, cz + Math.sin(a) * (R + 2), { r: 0 });
+    }
+    if (p >= 0.75) for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * TAU, b = ((i + 1) / 10) * TAU;
+      k.beam(V(cx + Math.cos(a) * (R + 2), hh, cz + Math.sin(a) * (R + 2)), V(cx + Math.cos(b) * (R + 2), hh, cz + Math.sin(b) * (R + 2)), 0.3, '#8a8490');
+      k.beam(V(cx + Math.cos(a) * (R + 2), hh, cz + Math.sin(a) * (R + 2)), V(cx, hh + 3, cz), 0.2, '#9d95a6');
+    }
   }
   const tc = towerCrane(30, 22, acc, hi, o.seed + 4);
   tc.position.set(cx + R + 4, 0, cz + 8);
