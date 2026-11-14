@@ -46,6 +46,53 @@ export const lampHeadMat = nightGlow('#e9e1d2', 'yel1', 3.0);
 /** Lit signs and logo panels. */
 export const warmPool = poolMat('#ffd9a0', 0.5);
 export const coolPool = poolMat('#cfeee8', 0.45);
+/**
+ * Concrete washed by floodlights at its foot (cooling towers, containments): by day the plain painted material, at
+ * night the paint itself glows warm near the ground and falls away to nothing at `reach` metres up: a gradient on
+ * the shell, well under the lit windows' level, never a glowing tower. (The lamp field lights only the first few
+ * metres above the ground; this carries the wash on up.)
+ */
+function floodlit(reach: number, k = 0.26) {
+  const m = withClouds(glowMat('#ffd9b0', 0));
+  m.vertexColors = true;
+  m.color.set(0xffffff);
+  m.roughness = 0.88;
+  m.userData.nightOnly = k;
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev.call(m, sh, r);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vFloodY;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvFloodY = (modelMatrix * vec4(transformed, 1.0)).y;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vFloodY;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        {
+          float fl = 1.0 - smoothstep(0.4, ${reach.toFixed(1)}, vFloodY);
+          totalEmissiveRadiance *= diffuseColor.rgb * fl * fl;
+        }`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => key() + '-flood' + reach;
+  return m;
+}
+/** Floodlit shells by height: the big towers, the old tower and the big containment, the old containment. */
+export const washMat = { tall: floodlit(24), mid: floodlit(16), low: floodlit(12) };
+/**
+ * The floodlights themselves: `n` low heads round a circle of radius `R` (on a tower's basin curb, at a containment's
+ * foot), each with its pool, which lights the ground and the first metres of the shell.
+ */
+export function floodRing(k: Kit, lamps: Kit, g: THREE.Object3D, x: number, z: number, R: number, n: number, o: { y?: number; phase?: number; pool?: number; skip?: (px: number, pz: number) => boolean } = {}) {
+  const y = o.y ?? 0;
+  for (let i = 0; i < n; i++) {
+    const a = (o.phase ?? 0) + (i / n) * Math.PI * 2;
+    const px = x + Math.cos(a) * R, pz = z + Math.sin(a) * R;
+    if (o.skip?.(px, pz)) continue;
+    k.box(0.34, 0.26, 0.34, P.steelDark, px, y, pz, { r: 0.03, ry: -a, jitter: 0 });
+    lamps.box(0.2, 0.3, 0.46, '#e9e1d2', px - Math.cos(a) * 0.1, y + 0.24, pz - Math.sin(a) * 0.1, { r: 0.03, ry: -a, jitter: 0 });
+    lightPool(g, px - Math.cos(a) * 1.2, 0, pz - Math.sin(a) * 1.2, o.pool ?? 4.6, warmPool);
+  }
+}
 const beaconBase = glowMat('red3', 0.2);
 const beaconGeo = new THREE.SphereGeometry(0.24, 8, 6);
 

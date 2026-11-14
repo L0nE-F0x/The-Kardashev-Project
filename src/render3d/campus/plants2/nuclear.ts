@@ -10,8 +10,8 @@ import { scaffold, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
-  Anim, At, bayLines, beacon, draftTower, extrudeX, litSign, fenceMeshAt, fencePosts, lampHeadMat, mechTower, mixHex, P, paving, pipeRun, pipeStands,
-  poleLamp, rollDoor, sagWires, shed, switchyard, tank, transformer, V, wallLamp, windowRow, winMat, coolWinMat,
+  Anim, At, bayLines, beacon, draftTower, extrudeX, floodRing, litSign, fenceMeshAt, fencePosts, lampHeadMat, mechTower, mixHex, P, paving, pipeRun, pipeStands,
+  poleLamp, rollDoor, sagWires, shed, switchyard, tank, transformer, V, wallLamp, washMat, windowRow, winMat, coolWinMat,
 } from './parts';
 
 // ── shared: containment, turbine hall, vent stack ────────────────────────────────────────────
@@ -53,6 +53,13 @@ function containment(k: Kit, x: number, z: number, r: number, wall: number, o: C
     k.geo(new THREE.CylinderGeometry(r + 0.04, r + 0.04, ph, 3, 1, true, th, 0.2 + rand() * 0.25).translate(x, 0.6 + py, z), '#e8e2d8', 0.02, 0);
   }
   return 0.6 + wall + r;
+}
+/** Small bulkhead lamps round a containment's ring girder (the gallery at the springline). */
+function galleryLamps(lamps: Kit, x: number, z: number, r: number, y: number, n: number) {
+  for (let i = 0; i < n; i++) {
+    const a = 0.25 + (i / n) * Math.PI * 2;
+    lamps.box(0.16, 0.12, 0.16, '#e9e1d2', x + Math.cos(a) * (r * 1.015 + 0.06), y + 0.28, z + Math.sin(a) * (r * 1.015 + 0.06), { r: 0.02, ry: -a, jitter: 0 });
+  }
 }
 /** A slim vent stack with a platform and a beacon. */
 function ventStack(k: Kit, g: THREE.Group, x: number, z: number, h: number, paint: Paint = '#c9c3ba') {
@@ -107,13 +114,17 @@ export function restart(o: PieceOpts): Piece {
   const OLD = '#c2b8a8';
   // the cooling tower behind, steaming again
   const tx = 7.0, tz = -6.4, tr = 5.8;
-  const t = draftTower(k, tx, tz, 22, tr, { paint: '#cfc6b6', weather: 0.5, stripe: null });
+  const tk = new Kit(rng(o.seed + 4)), ck = new Kit(rng(o.seed + 6)); // the tower and the containment: floodlit at night
+  const t = draftTower(tk, tx, tz, 22, tr, { paint: '#cfc6b6', weather: 0.5, stripe: null });
+  floodRing(k, lamps, g, tx, tz, tr * 1.09, 6, { y: 0.5, phase: 0.5 });
   anim.plume(g, tx, t.top, tz, { count: 30, life: 11, rise: 2.0, spread: 1.6, size0: t.r * 1.6, size1: t.r * 4.2, opacity: 0.75, radius: t.r * 0.6, wind: 0.8 }, o.seed + 5);
   beacon(g, tx + t.r * 0.9, t.top + 0.3, tz, 0.4);
   beacon(g, tx - t.r * 0.9, t.top + 0.3, tz, 2.1);
   // old containment, freshly patched; the aux block and the vent stack
   const cx = -6.4, cz = -5.0, cr = 4.4;
-  const cTop = containment(k, cx, cz, cr, 5.6, { paint: OLD, weather: 0.45, patches: 9, seed: o.seed + 7 });
+  const cTop = containment(ck, cx, cz, cr, 5.6, { paint: OLD, weather: 0.45, patches: 9, seed: o.seed + 7 });
+  floodRing(k, lamps, g, cx, cz, cr + 1.5, 5, { phase: 2.2, pool: 3.8, skip: (px, pz) => pz > cz + cr * 0.5 || px < -12.6 });
+  galleryLamps(lamps, cx, cz, cr, 0.6 + 5.6, 6);
   shed(k, -6.0, 0.0, 9.4, 2.8, 4.4, { wall: OLD, band: null, ribs: 0, roof: '#57515e' });
   ventStack(k, g, -0.9, -9.8, 15.5, '#bdb3a4');
   // turbine hall: rusty old panels with new blue ones bolted in
@@ -174,7 +185,7 @@ export function restart(o: PieceOpts): Piece {
   // an old fence, rust-brown posts
   plotFence(k, g, o.w - 1.4, o.d - 1.4, 7, [[-12.95, -5.45]]);
   for (const z of [-11.5, 2.0]) poleLamp(k, lamps, g, -12.4, z, 4.6, 1);
-  g.add(k.build(), lit.build(winMat), lamps.build(lampHeadMat));
+  g.add(k.build(), tk.build(washMat.mid), ck.build(washMat.low), lit.build(winMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(22, cTop, hallTop) + 0.4,
     progress(p) { anim.done = p; },
@@ -292,12 +303,17 @@ export function reactor(o: PieceOpts): Piece {
   const TH = 32, TR = 8.0;
   towers.forEach(([x, z], i) => {
     const t = draftTower(tk, x, z, TH - i * 1.2, TR, { paint: '#ddd6cb', weather: 0.22, stripe: null });
+    // floodlights on the basin's curb, washing up the shell
+    floodRing(k, lamps, g, x, z, TR * 1.09, 8, { y: 0.5, phase: 0.2 + i * 0.4 });
     anim.plume(g, x, t.top, z, { count: 40, life: 15, rise: 2.3, spread: 2.4, size0: t.r * 1.6, size1: t.r * 5.2, opacity: 0.8, radius: t.r * 0.62, wind: 0.9 }, o.seed + 10 + i);
     for (const a of [0.6, 2.7, 4.8]) beacon(g, x + Math.cos(a) * t.r * 1.02, t.top + 0.3, z + Math.sin(a) * t.r * 1.02, i * 1.3 + a);
   });
   // the containment, the aux and fuel buildings round its base
   const cx = -6.6, cz = D - 12.2, cr = 6.0;
-  const cTop = containment(k, cx, cz, cr, 8.0, { paint: '#e6e0d6', weather: 0.1, band: 'cyn3', seed: o.seed + 7 });
+  const ck = new Kit(rng(o.seed + 5)); // the containment: floodlit from its foot, lamps round the gallery at the springline
+  const cTop = containment(ck, cx, cz, cr, 8.0, { paint: '#e6e0d6', weather: 0.1, band: 'cyn3', seed: o.seed + 7 });
+  floodRing(k, lamps, g, cx, cz, cr + 1.6, 7, { phase: 0.35, pool: 4.4, skip: (px, pz) => pz < cz - cr * 0.55 || px < -13 });
+  galleryLamps(lamps, cx, cz, cr, 0.6 + 8.0, 8);
   shed(k, cx, cz - cr - 1.6, 10.6, 3.6, 6.2, { wall: '#dcd5ca', band: null, ribs: 1.4 });
   shed(k, -9.6, -D + 23.5, 7.2, 6.0, 7.6, { wall: '#dcd5ca', band: 'cyn3', ribs: 1.3 }); // fuel building
   ventStack(k, g, -12.0, -D + 28.8, 24);
@@ -347,7 +363,7 @@ export function reactor(o: PieceOpts): Piece {
   for (const z of [-D + 6, -D + 16, -D + 34]) poleLamp(k, lamps, g, 12.7, z, 5.0, -1);
   for (const z of [-D + 4, -D + 19]) poleLamp(k, lamps, g, -12.7, z, 5.0, 1);
   plotFence(k, g, o.w - 1.2, o.d - 1.2, 6, [[-12.95, -3.0]]);
-  g.add(k.build(), tk.build(), lit.build(winMat), lamps.build(lampHeadMat));
+  g.add(k.build(), tk.build(washMat.tall), ck.build(washMat.mid), lit.build(winMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(TH, cTop) + 0.4,
     progress(p) { anim.done = p; },
