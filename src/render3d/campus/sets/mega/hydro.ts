@@ -223,10 +223,14 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
     up.receiveShadow = true;
     g.add(up);
   }
-  const low = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2).scale(21.5, 1, 8), lakeMat);
-  low.position.set(sh.lx, LOWER, 15);
-  low.receiveShadow = true;
-  g.add(low);
+  // (while the scheme is being built the lower basin is a dry excavation: it is flooded when the works are done.
+  // At a build site's half scale the land's coarse grid also let the water spread under the yard beside it)
+  if (p >= 1) {
+    const low = new THREE.Mesh(new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2).scale(21.5, 1, 8), lakeMat);
+    low.position.set(sh.lx, LOWER, 15);
+    low.receiveShadow = true;
+    g.add(low);
+  }
   // the dam
   dam(k, sh, p >= 1 ? CREST : TOE + (CREST - TOE) * p, lamps);
   if (p >= 1) {
@@ -431,5 +435,5 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
   };
 }
 
-/** A pumped-hydro scheme (see hydroScheme). */
-export const pumpedHydro = (o: Act3SetOpts) => hydroScheme(o);
+/** A pumped-hydro scheme (see hydroScheme); `variant: 'build'` = under construction at progress `p`, in the builder's colours. */
+export const pumpedHydro = (o: Act3SetOpts) => hydroScheme(o, o.variant === 'build' ? { p: o.p ?? 0.5, acc: o.accent || P.orange, hi: o.hi || P.yellow, label: o.label, size: o.n ?? 1 } : undefined);
