@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { col, glowMat, Kit, lightPool, poolMat, withClouds, type BoxOpts, type Paint } from '../../kit';
+import { cloudUniforms, col, glowMat, grainTexture, Kit, lightPool, poolMat, withClouds, type BoxOpts, type Paint } from '../../kit';
 import { Plume, sign, type PlumeOpts } from '../../fx';
 import type { Env } from '../../pieces';
 import { plantField, type Placement, type TreeKind } from '../trees';
@@ -49,8 +49,41 @@ export const coolPool = poolMat('#cfeee8', 0.45);
 const beaconBase = glowMat('red3', 0.2);
 const beaconGeo = new THREE.SphereGeometry(0.24, 8, 6);
 
+/**
+ * Still water is never a mirror-flat sheet: small ripples (two layers of the shared grain sliding over each other,
+ * looked up by world position, so any level surface takes them) break the sun's glint into a soft, shifting path
+ * instead of one hard-edged white patch, and the glint itself is levelled off below the bloom (a pond in a model
+ * is not a mirror for the sun). Only faces that look up are ruffled (a pool's box has sides).
+ */
+function rippled<M extends THREE.MeshStandardMaterial>(m: M, amp = 0.3, cap = 0.2): M {
+  const u = { uRipGrain: { value: grainTexture() }, uRipTime: cloudUniforms.uCloudTime };
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    prev.call(m, sh, r);
+    Object.assign(sh.uniforms, u);
+    // vCloudXZ (withClouds) is the fragment's world x, z
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uRipGrain; uniform float uRipTime;')
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          vec2 rp1 = mat2(0.866, 0.5, -0.5, 0.866) * vCloudXZ, rp2 = mat2(0.342, -0.94, 0.94, 0.342) * vCloudXZ;
+          vec2 rg = (texture2D(uRipGrain, rp1 * 0.047 + vec2(uRipTime * 0.013, uRipTime * 0.007)).rg - 0.5)
+            + (texture2D(uRipGrain, rp2 * 0.19 - vec2(uRipTime * 0.021, -uRipTime * 0.015)).rg - 0.5) * 0.6;
+          vec3 ripN = normalize((viewMatrix * vec4(normalize(vec3(rg.x * ${amp.toFixed(3)}, 1.0, rg.y * ${amp.toFixed(3)})), 0.0)).xyz);
+          float ripUp = step(0.9, inverseTransformDirection(normal, viewMatrix).y);
+          normal = normalize(mix(normal, ripN, ripUp));
+        }`)
+      // the sun on the ripples: a soft bright sheen, never a white-out (it levels off at ${cap.toFixed(2)})
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        reflectedLight.directSpecular = reflectedLight.directSpecular / (1.0 + reflectedLight.directSpecular * ${(1 / cap).toFixed(3)});`);
+  };
+  const key = m.customProgramCacheKey.bind(m);
+  m.customProgramCacheKey = () => key() + '-ripple';
+  return m;
+}
+
 /** Water: blue-green and a touch glossy (the only shiny thing besides glass). */
-export const lakeMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#2f6f86'), roughness: 0.14, metalness: 0.12 }));
+export const lakeMat = rippled(withClouds(new THREE.MeshStandardMaterial({ color: col('#2f6f86'), roughness: 0.22, metalness: 0.12 })));
 export const riverMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#3a8590'), roughness: 0.2, metalness: 0.1 }));
 /** Glazing with a little sheen (vertex coloured). */
 export const glassMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.15 }));
