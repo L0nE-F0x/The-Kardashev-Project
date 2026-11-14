@@ -12,7 +12,7 @@ import type { Piece } from '../../../pieces';
 import { treeField, type TreeKind } from '../../trees';
 import type { Act3SetOpts } from '../../act3sets';
 import {
-  Anim, beacon, builderBoard, cabin, CHARTER, fieldOf, flag, gantry, hoarding, lakeMat, lampHead, laydown, latticeTower, P, placard,
+  Anim, beacon, builderBoard, cabin, CHARTER, fieldOf, flag, floodMast, gantry, hoarding, lakeMat, lampHead, laydown, latticeTower, P, placard,
   plantMat, ribbon, sagWires, standing, towerCrane, transformer, V, vehicle, warmPool, windows, workCrane, workPool,
 } from './common';
 
@@ -586,6 +586,9 @@ export function hydroScheme(o: Act3SetOpts, build?: { p: number; acc: string; hi
     put(sh.bx + 1, DAM_Z + 1.6, 0.2, o.seed + 3, 'worker', top2);
     put(px - 2, pz + pd / 2 + 1.3, 2.4, o.seed + 4, 'worker', YARD.top);
     put(-NW / 2 + 9.6, rdz - 1.2, 0.5, o.seed + 9, 'engineer', YARD.top);
+    // the night shift: floods on the dam's working lift from both abutments, one over the pit's west end
+    for (const sd of [-1, 1]) floodMast(g, k, sh.bx + sd * 8.6, DAM_Z + 0.9, 4.5, -sd * Math.PI / 2, top2);
+    floodMast(g, k, sh.lx - PIT.rx - 8.4, PIT.z - 3.6, 9, Math.PI / 2, YARD.top);
     // the digger at the pit's west end
     excavator(k, sh.lx - PIT.rx - 3.6, YARD.top, PIT.z, 0, build.acc);
     vehicle(g, 'mixer', px + 4, pz + pd / 2 + 1.8, 0.1, YARD.top + 0.04);
