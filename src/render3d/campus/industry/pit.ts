@@ -385,24 +385,43 @@ export const openPit: SetPieceFactory = (o) => {
   const k = new Kit(rng(o.seed));
   const lampK = new Kit();
   const pool = poolMat('#ffe2b0', 0.75);
-  // the haul road from the rim to the tipping pad in the front-left corner, the pad and its stockpile
+  // The tip, in the front-left corner: an apron where the haul road comes over the rim, and a lane north from it
+  // to the tip wall (concrete blocks the trucks back up to), the stockpile heaped against the wall's far side. A
+  // truck comes up the inner lane, swings left across the apron until it faces south, backs up the lane to the
+  // wall and tips over it; then it pulls straight out and bears left into the outer lane, back down. (They used to
+  // tip driving forwards, their tails in the pile.)
   const lead = lanePoint(TH_S + LEAD, 0), lead1 = lanePoint(TH_S + LEAD, 1);
   const roadIn = new THREE.Vector3((lead.x + lead1.x) / 2, 0, (lead.z + lead1.z) / 2);
-  const padC = new THREE.Vector3(-28.4, 0, 18.6);
+  // the lanes' own direction at the rim (outbound), and its left
+  const hOut = new THREE.Vector3(-(lead1.z - lead.z), 0, lead1.x - lead.x).normalize();
+  if (hOut.x > 0) hOut.negate();
+  const leftOf = (h: THREE.Vector3) => new THREE.Vector3(h.z, 0, -h.x);
+  // the lane's line: where a left-hand arc of radius R_IN from the inner lane has turned south
+  const R_IN = 3.05;
+  const cIn = lead1.clone().addScaledVector(leftOf(hOut), R_IN);
+  const AX = cIn.x - R_IN;
+  const stopS = new THREE.Vector3(AX, 0.12, cIn.z + 1.25);
+  // the way out: straight down the lane, then a left-hand arc that ends on the outer lane, heading back in
+  const hIn = hOut.clone().negate();
+  const R_OUT = (lead.x - AX) / (1 - leftOf(hIn).x);
+  const cOut = lead.clone().addScaledVector(leftOf(hIn), R_OUT);
+  // the wall stands clear of the arriving trucks' swing (their outer corners pass ~6 m from the arc's centre)
+  const wallZ = Math.min(cIn.z - 6.9, cOut.z - 4.7);
+  const tipW = new THREE.Vector3(AX, 0.12, wallZ + 3.2);
+  const stockC = new THREE.Vector3(AX - 0.3, 0, wallZ - 2.5);
+  const apron = new THREE.Vector3((AX + roadIn.x) / 2 - 0.4, 0, (cIn.z + cOut.z) / 2);
   const road = new Kit(rng(o.seed + 2));
   const seg = (a: THREE.Vector3, b: THREE.Vector3, w: number) => {
     const len = Math.hypot(b.x - a.x, b.z - a.z);
     road.box(w, 0.1, len + w * 0.6, rock.road, (a.x + b.x) / 2, 0, (a.z + b.z) / 2, { r: 0.04, shade: 0, jitter: 0.04, ry: Math.atan2(b.x - a.x, b.z - a.z) });
   };
-  const bend = new THREE.Vector3(roadIn.x - 3.2, 0, roadIn.z + 3.4);
-  seg(roadIn, bend, LW);
-  seg(bend, padC, LW);
-  road.geo(new THREE.CylinderGeometry(5.3, 5.6, 0.16, 28).translate(padC.x, 0.02, padC.z), mix(rock.road, rock.berm, 0.3), 0.04, 0);
-  // the tipping edge: a concrete block wall, the stockpile of ore behind it
-  const stockC = new THREE.Vector3(padC.x - 3.2, 0, padC.z + 3.4);
-  road.geo(new THREE.ConeGeometry(3.0, 2.8, 14, 3).translate(stockC.x, 1.35, stockC.z), rock.ore, 0.12);
-  road.geo(new THREE.ConeGeometry(2.0, 1.7, 12, 2).translate(stockC.x + 2.6, 0.8, stockC.z + 0.8), mix(rock.ore, rock.berm, 0.3), 0.12);
-  for (let i = 0; i < 4; i++) road.box(1.3, 0.75, 0.75, '#bdb4aa', padC.x - 5.2 + i * 1.35, 0, padC.z + 1.6 + i * 0.85, { r: 0.08, ry: -0.75 });
+  seg(roadIn, apron, LW);
+  road.geo(new THREE.CylinderGeometry(5.0, 5.3, 0.16, 28).translate(apron.x, 0.02, apron.z), mix(rock.road, rock.berm, 0.3), 0.04, 0);
+  seg(new THREE.Vector3(AX, 0, stopS.z + 1.4), new THREE.Vector3(AX, 0, wallZ + 1.1), 4.4);
+  // the tip wall and the stockpile behind it (its toe comes up against the blocks' backs)
+  for (let i = -1; i <= 1; i++) road.box(1.3, 0.75, 0.75, '#bdb4aa', AX + i * 1.36, 0, wallZ + (i ? 0.04 : 0), { r: 0.08, ry: i * 0.05 });
+  road.geo(new THREE.ConeGeometry(2.7, 2.6, 14, 3).translate(stockC.x, 1.25, stockC.z), rock.ore, 0.12);
+  road.geo(new THREE.ConeGeometry(1.7, 1.5, 12, 2).translate(stockC.x - 1.1, 0.7, stockC.z - 2.3), mix(rock.ore, rock.berm, 0.3), 0.12);
   const roadMesh = road.build();
   roadMesh.castShadow = false;
   g.add(roadMesh);
@@ -423,54 +442,69 @@ export const openPit: SetPieceFactory = (o) => {
   const loopAt = (deg: number) => new THREE.Vector3(LOOP.x + LOOP.r * Math.sin(deg * RAD), FY, LOOP.z - LOOP.r * Math.cos(deg * RAD));
   const loadDeg = Math.atan2(shx - LOOP.x, -(shz - LOOP.z)) / RAD + 360;
   const loadSpot = loopAt(loadDeg);
-  // the trucks' loop: shovel → round the loop → along the back wall → up the inner lane → road → pad → tip → road →
-  // down the outer lane → along the back wall → onto the loop → shovel
+  // the trucks' run, from the tip wall and back to it: out of the lane → bear left into the outer lane → down →
+  // along the back wall → onto the loop → shovel → round the loop → along the back wall → up the inner lane → swing
+  // left across the apron to face south (`stopS`). From there they back up the lane to the wall (`tipW`): the run
+  // is an open line, and its two ends are joined by the reversing.
   const pts: THREE.Vector3[] = [];
+  for (const dz of [0, 0.5, 1.0]) pts.push(new THREE.Vector3(AX, 0.12, tipW.z + dz));
+  const arc = (c: THREE.Vector3, R: number, a0: number, a1: number, n: number, ends: boolean) => {
+    // a left-hand arc: heading (sin a, cos a) at angle a, the truck at c − R·left
+    for (let i = ends ? 0 : 1; i <= (ends ? n : n - 1); i++) {
+      const a = a0 + ((a1 - a0) * i) / n;
+      pts.push(new THREE.Vector3(c.x - R * Math.cos(a), 0.12, c.z + R * Math.sin(a)));
+    }
+  };
+  const aOf = (h: THREE.Vector3) => Math.atan2(h.x, h.z);
+  arc(cOut, R_OUT, 0, aOf(hIn), 3, true);
+  for (let th = TH_S + LEAD - 0.035; th >= TH_E - 0.02 - 0.001; th -= 0.035) pts.push(lanePoint(th, 0));
+  for (const deg of [360, 315, 270]) if (deg > loadDeg + 20) pts.push(loopAt(deg));
   pts.push(loadSpot);
   for (const deg of [225, 180, 135, 90]) if (deg < loadDeg - 20) pts.push(loopAt(deg));
   pts.push(new THREE.Vector3(LOOP.x + 3.2, FY, LOOP.z - 1.5));
   pts.push(new THREE.Vector3(LOOP.x + 3.8, FY, LOOP.z - 2.8));
   for (let th = TH_E + 0.12; th <= TH_S + LEAD + 0.001; th += 0.035) pts.push(lanePoint(th, 1));
-  pts.push(new THREE.Vector3(bend.x - 1.6, 0.12, bend.z + 1.0));
-  pts.push(new THREE.Vector3(padC.x + 3.2, 0.12, padC.z - 2.6));
-  pts.push(new THREE.Vector3(padC.x - 0.6, 0.12, padC.z - 3.4));
-  pts.push(new THREE.Vector3(padC.x - 3.6, 0.12, padC.z - 0.6));
-  const dumpSpot = new THREE.Vector3(padC.x - 1.0, 0.12, padC.z + 0.6);
-  pts.push(dumpSpot);
-  pts.push(new THREE.Vector3(padC.x + 2.6, 0.12, padC.z + 0.4));
-  pts.push(new THREE.Vector3(bend.x + 0.8, 0.12, bend.z + 1.6));
-  for (let th = TH_S + LEAD; th >= TH_E - 0.02 - 0.001; th -= 0.035) pts.push(lanePoint(th, 0));
-  for (const deg of [360, 315, 270]) if (deg > loadDeg + 20) pts.push(loopAt(deg));
-  const curve = new THREE.CatmullRomCurve3(pts, true, 'centripetal');
+  arc(cIn, R_IN, aOf(hOut), 0, 4, false);
+  for (const dz of [-1.25, -0.6, 0]) pts.push(new THREE.Vector3(AX, 0.12, stopS.z + dz));
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
   const M = 900;
   const path = curve.getSpacedPoints(M);
   const total = curve.getLength();
   const nearest = (p: THREE.Vector3) => { let bi = 0, bd = 1e9; path.forEach((q, i) => { const d = q.distanceToSquared(p); if (d < bd) { bd = d; bi = i; } }); return bi; };
-  const iLoad = nearest(loadSpot), iDump = nearest(dumpSpot);
-  const dLD = (((iDump - iLoad + M) % M) / M) * total, dDL = total - dLD;
+  const dL = (nearest(loadSpot) / M) * total;
   // (the stops are chosen with the passing places in mind: see `starts`)
-  const V0 = 5.8, TA = 1.6, T_LOAD = 8.5, T_DUMP = 8;
-  const t1 = dLD / V0 + TA, t2 = dDL / V0 + TA;
-  const PER = T_LOAD + t1 + T_DUMP + t2;
+  const V0 = 5.8, TA = 1.6, T_LOAD = 8.5, T_DUMP = 8, T_BACK = 6;
+  const tDown = dL / V0 + TA, tUp = (total - dL) / V0 + TA;
+  const PER = T_DUMP + tDown + T_LOAD + tUp + T_BACK;
   const travel = (tau: number, T: number, d: number) => {
     if (tau < TA) return (0.5 * V0 * tau * tau) / TA;
     if (tau < T - TA) return 0.5 * V0 * TA + V0 * (tau - TA);
     const r = T - tau;
     return d - (0.5 * V0 * r * r) / TA;
   };
-  /** Where a truck is `tau` seconds into its round: how far along the loop, and what it is doing there. */
-  const roundAt = (tau: number): { dist: number; loading: number; dumping: number; loaded: boolean } => {
-    if (tau < T_LOAD) return { dist: (iLoad / M) * total, loading: tau / T_LOAD, dumping: -1, loaded: false };
-    if (tau < T_LOAD + t1) return { dist: (iLoad / M) * total + travel(tau - T_LOAD, t1, dLD), loading: -1, dumping: -1, loaded: true };
-    if (tau < T_LOAD + t1 + T_DUMP) return { dist: (iDump / M) * total, loading: -1, dumping: (tau - T_LOAD - t1) / T_DUMP, loaded: true };
-    return { dist: (iDump / M) * total + travel(tau - T_LOAD - t1 - T_DUMP, t2, dDL), loading: -1, dumping: -1, loaded: false };
+  /** Where a truck is `tau` seconds into its round (which starts as it tips): how far along the run, what it is doing there, and how far it has backed up the lane (0…1, the run's end to its start). */
+  const roundAt = (tau: number): { dist: number; loading: number; dumping: number; loaded: boolean; back: number } => {
+    if (tau < T_DUMP) return { dist: 0, loading: -1, dumping: tau / T_DUMP, loaded: true, back: 0 };
+    tau -= T_DUMP;
+    if (tau < tDown) return { dist: travel(tau, tDown, dL), loading: -1, dumping: -1, loaded: false, back: 0 };
+    tau -= tDown;
+    if (tau < T_LOAD) return { dist: dL, loading: tau / T_LOAD, dumping: -1, loaded: false, back: 0 };
+    tau -= T_LOAD;
+    if (tau < tUp) return { dist: dL + travel(tau, tUp, total - dL), loading: -1, dumping: -1, loaded: true, back: 0 };
+    return { dist: total, loading: -1, dumping: -1, loaded: true, back: smooth(Math.min(1, (tau - tUp) / T_BACK)) };
   };
   const tmpA = new THREE.Vector3();
-  const place = (obj: THREE.Object3D, dist: number) => {
-    const u = ((dist / total) % 1 + 1) % 1;
-    const f = u * M, i0 = Math.floor(f) % M, i1 = (i0 + 1) % M;
-    obj.position.lerpVectors(path[i0], path[i1], f - Math.floor(f));
-    const a = path[(i0 - 3 + M) % M], b = path[(i0 + 4) % M];
+  const place = (obj: THREE.Object3D, dist: number, back = 0) => {
+    if (back > 0) {
+      // backing up the lane: straight, facing south all the way
+      obj.position.lerpVectors(path[M], path[0], back);
+      obj.rotation.y = 0;
+      obj.rotation.x = 0;
+      return;
+    }
+    const f = Math.min(M - 1e-4, Math.max(0, (dist / total) * M)), i0 = Math.floor(f), i1 = i0 + 1;
+    obj.position.lerpVectors(path[i0], path[i1], f - i0);
+    const a = path[Math.max(0, i0 - 3)], b = path[Math.min(M, i0 + 4)];
     tmpA.subVectors(b, a);
     obj.rotation.y = Math.atan2(tmpA.x, tmpA.z);
     obj.rotation.x = -Math.atan2(tmpA.y, Math.hypot(tmpA.x, tmpA.z));
@@ -485,7 +519,8 @@ export const openPit: SetPieceFactory = (o) => {
     const probe = new THREE.Object3D();
     const box: { x: number; y: number; z: number; c: number; s: number }[] = [];
     for (let i = 0; i < K; i++) {
-      place(probe, roundAt((i / K) * PER).dist);
+      const r = roundAt((i / K) * PER);
+      place(probe, r.dist, r.back);
       box.push({ x: probe.position.x, y: probe.position.y, z: probe.position.z, c: Math.cos(probe.rotation.y), s: Math.sin(probe.rotation.y) });
     }
     // two trucks' footprints overlap (separating axes: each one's length and width)
@@ -535,7 +570,7 @@ export const openPit: SetPieceFactory = (o) => {
   const mast = drill(k, dx, -HB, dz, thDrill + Math.PI / 2);
   beacon(g, mast[0], mast[1], mast[2], 0.4);
   lightTower(g, k, lampK, shx + 1.5, -HB * N, shz + 5.5, Math.atan2(-1.5, -5.5), pool);
-  lightTower(g, k, lampK, padC.x + 4.6, 0.1, padC.z + 3.8, -2.4, pool);
+  lightTower(g, k, lampK, AX - 2.9, 0.1, wallZ - 1.3, 0, pool);
   // the site office, a fuel tank and a pickup in the front-right corner
   k.box(5.2, 2.5, 2.4, '#ece6dc', 29.4, 0.05, 20.6, { r: 0.12 });
   k.box(5.4, 0.18, 2.6, '#5b5562', 29.4, 2.55, 20.6, { r: 0.04 });
@@ -564,7 +599,7 @@ export const openPit: SetPieceFactory = (o) => {
   dust.obj.position.set(fx * 0.6 + shx * 0.4, -HB * N + 0.4, fz * 0.6 + shz * 0.4);
   g.add(dust.obj);
   const tipDust = new Plume({ count: 10, life: 3.5, rise: 0.8, spread: 1.4, size0: 1.4, size1: 4.6, color: mix(rock.berm, '#e6d4a4', 0.5), opacity: 0.35, radius: 1.2, wind: 0.6 }, o.seed + 6);
-  tipDust.obj.position.set(stockC.x + 1.5, 0.4, stockC.z - 1.5);
+  tipDust.obj.position.set(AX, 0.5, wallZ - 0.7);
   g.add(tipDust.obj);
   const truckYaw = Math.atan2(loadSpot.x - shx, loadSpot.z - shz);
   return {
@@ -597,7 +632,7 @@ export const openPit: SetPieceFactory = (o) => {
           t.load.visible = r.loaded;
           t.load.scale.y = 1;
         }
-        place(t.obj, dist);
+        place(t.obj, dist, r.back);
         t.bed.rotation.x = -tilt;
       });
       // the shovel: two passes per truck, dig → swing → dump → back
