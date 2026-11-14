@@ -2696,19 +2696,38 @@ drawn. The new code on that AppImage's own engine (the debug binary swapped into
 with `APPDIR`): 112 poses in 14 places, day and night, High, no non-finite pixel, no shader error. Not on Windows,
 not on macOS; v0.15.1's own AppImage does not exist until its tag is pushed.
 
-**Seen and left this time (the helpers' lists and mine):**
-- Plants: `lakeMat` throws a hard white glint across the hydro reservoir at a low angle (a roughness call that
-  touches every Act II water); the reactor's towers and containment are unlit masses at night; the gas plant's
-  control house has a 1.1 m door on the model; the tailrace ends at the plot edge; the pit's haul truck tips with
-  its tail over the stockpile; suppliers' lit panes run a little brighter than the plants'.
-- Places: the dry hydro basin's rim is ragged where the land's coarse grid meets the piece (needs a finer ground
-  grid under a piece); Aurora's blossom and cypress trees are still the old faceted shapes (`trees.ts` has no
-  pink or columnar kind) and flower heads are faceted dots; the cost of Aurora's hedges on the Intel card was not
-  measured; the laser plant's build bays do not match the finished plant's angles; the bloc banners on Geneva's
-  flags are blocky squares close up.
-- Not reached: megaprojects at night in a stage-2 world, `converter` and `seaWindBuild` while building, Ring
-  One's hub and racks close up, the reactor and the fab in a real campus, the gas works, salt plant, cable hut
-  and manhole at night.
-- Mine: vehicles do not steer their front wheels; a moving vehicle's shadow shows its wheels still (the depth
-  pass does not turn them: nobody can see it); an HQ upgrade shows no change of building (its tiers share the
-  garage); cut walls during construction are hollow shells (as before).
+**The third round (the same day):** the user, seeing that list: "I see there's still some things that are still
+left to do ... finish those up first before we ship everything in one go"; and since v0.15.0's draft was never
+published, v0.15.1 is the one release that carries both passes. Two helpers again (plants, places); both were cut
+off by the model's usage limit before reporting (their commits were safe; the plants helper's half-done pit was
+finished and committed by me), and the session moved to another model to finish. What the list became:
+- **Plants:** still water ripples and its sun glint is levelled off below the bloom (the hydro reservoir's hard
+  white patch; `lakeMat`); the tailrace ends in outlet works (gated culverts under the road, wing walls, riprap);
+  the reactor and the restart are floodlit at night (a soft warm wash up the towers and the containments, lamps
+  round the dome's gallery); the gas plant's control house is rebuilt in code round the model's hut at human scale
+  (a full-height door, a control room with a ribbon window over the pipe yard, lit at night); the pit's trucks back
+  up to a tip wall and tip over it (they tipped driving forwards with their tails in the pile); suppliers' lit
+  panes at the plants' level (`Lit`: × 0.8). Looked at night: the gas works, the salt plant, the cable landing.
+- **Places:** pumped hydro builds as a works yard with a benched excavation inside it, so no rim meets the land's
+  coarse grid; the laser plant goes up on the finished plant's plan; Geneva's bloc banners are drawn as heraldic
+  shapes (twelve emblems, clean fields, the swallowtail cut in the cloth); megaproject sites are lit at night
+  (floods on the tower cranes, lit builders' boards); the converter station's trucks and crew stand clear of its
+  plant. Aurora's hedges were counted: 220 shrubs, 110k of the place's 1.12M triangles (under a tenth): kept.
+- **Mine:** front wheels steer into a bend (the angle a wheelbase needs for the turn being made; checked on a
+  five-minute run: always the way the vehicle turns) and wheels turn in shadows too (`drivenCar` gives the
+  vehicle a depth material that turns them); a new mixer truck with glass (the old one had open window holes;
+  Meshy, 36 credits, about 394 left); a half-built wall shows a bare inside instead of its finished paint
+  (`clipAbove`: back faces greyed); three new plant kinds (`blossom`, `cypress`, `flower`: a flower head is
+  planted with its own colour, `Placement.c`) and Aurora's cherry trees, cypresses and flower beds use them.
+  The HQ cannot be upgraded in the game, so "an HQ upgrade shows no change" never happens.
+- Looked at and left as they are: Ring One's hub and racks close up; the offshore wind build at 0.3 and 0.7 (the
+  builder's board stands on a marker buoy, as offshore works are marked).
+
+**Checked (the release):** `npm test` (88 passed), both builds, `floorcheck` 0, `feetcheck` and `bumpcheck` clean
+on eight campuses, and on the AppImage's own engine (the debug binary in the extracted v0.15.0 AppImage, in a
+headless Hyprland): 112 poses in 14 places, day and night, no non-finite pixel, no shader error.
+
+**Still open after it (smaller):** cut walls during construction have no thickness (a bare inside, seen from
+above); Aurora's broadleaf trees are 470k of its 1.12M triangles (fine on the Intel card at Medium in one
+measurement, but the habitat uses no far level of detail); the reactor and the fab were only seen in the lab,
+never on a real campus plot; the gas plant's control house keeps the model's hut inside the new building.

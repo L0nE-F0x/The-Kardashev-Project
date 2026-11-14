@@ -91,7 +91,8 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   card's). Kinds come in variants and two levels of detail; `plantField(kind, placements, { far, shadow })` mixes
   the variants (one instanced mesh each, one shared material that sways the foliage in the wind:
   `treeUniforms.uTreeSway`, 0 with Reduce motion). `ground.ts` plants the land: the full trees within `NEAR_R` of
-  the campus, the plain ones beyond, sagebrush instead of leafy bushes in dry country, and no tall kind in the
+  the campus, the plain ones beyond (v0.15.1 added `blossom`, `cypress` and `flower`, a flower head planted in its own colour:
+  `Placement.c`), sagebrush instead of leafy bushes in dry country, and no tall kind in the
   meadow south of the highway (the low views of a campus are taken from there). A piece that wants a plant calls
   `plantField` (the older `treeField(kind, at)` still works). The Meshy trees are gone; rocks and cows are still
   models. Measured on the Intel card at Medium: 3.5 ms a frame for the plants, against 4.7 for the old ones.
@@ -103,10 +104,11 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   blue-grey glass (say so in the concept) and gets a row in `CAR_GLASS`. Lamps (`vehicles.ts lampsFor`) are set
   on the bodywork by a ray from ahead and behind, once per model. Vehicles on the campus roads wait for anyone
   on foot in their way (`Traffic.walkers`).
-  Wheels turn (v0.15.1): `findWheels` finds them from the mesh when a model loads (the clumps of vertices on the
+  Wheels turn and the front ones steer (v0.15.1): `findWheels` finds them from the mesh when a model loads (the clumps of vertices on the
   ground are the contact patches, a circle fitted to each one's underside gives axle and radius) and marks their
   vertices with `aAxle`; the vehicle's shader turns them by `uCarSpin`. Parked cars share materials (spin 0); a
-  vehicle that drives gets its own through `drivenCar(obj)` and Traffic advances its `spin.value`. `CAR_GLASS`'s
+  vehicle that drives gets its own through `drivenCar(obj)` (a depth material too, so its shadow's wheels turn) and Traffic
+  sets its `spin.value` (x: turned, y: steered, from the turn being made and the wheelbase). `CAR_GLASS`'s
   `cab` limits the paint to the front share of the length (the flatbed: its deck and straps are its cab's colour).
 - **How a piece goes up (v0.15.1):** `builtHeight(piece, p)` (pieces.ts) is the height to clip at: it follows how
   much wall there is at each height (a curve made once per piece from its triangles; floors and roofs count a
@@ -115,7 +117,7 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   on; `below` cuts away what is under y. An expansion (`f.upgrade`) keeps the old tier's piece (`Entry.old`) and
   cuts it away from the ground up as the new one rises through it; solar, battery and wind add rows through
   their own `progress` (0.55 → 1). The reactor restart is never clipped (an old plant, cold until it opens).
-  The lab page's `progress=` does the same.
+  The lab page's `progress=` does the same. A clipped material greys its back faces (a cut wall's bare inside).
 - **The road's end, doors, the yard (v0.15):** the frontage road ends in a turning circle (`roads.ts`: `bulbAt`,
   `bulbMesh`, `bulbHalf`; the island, the barrier and its planting in `buildRoads`); deliveries drive round the
   island (`RoadNet.turn`). Doors open: `campusScene.buildDoorways` puts a leaf (the wall's own colour, read
@@ -578,7 +580,7 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, at the user's word the morning after ("finish up everything that was left in the known leftovers"). It is built and committed but was not pushed or tagged (they did not say ship; v0.15.0's draft release was still unpublished at the time): ask. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Seen and left" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
+**Next:** v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, in three rounds on 2026-11-14 ("finish up everything that was left", then "finish those up first before we ship everything in one go"). v0.15.0's draft was never published, so v0.15.1 is the one release carrying both; publishing its draft is the user's step. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Still open after it" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
 rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
 clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and

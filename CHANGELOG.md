@@ -1,7 +1,7 @@
 # Changelog
 
 ## 0.15.1 — Loose Ends (2026-11-14)
-What the realism pass saw and left, finished.
+What the realism pass saw and left, finished. (0.15.0 was never released on its own: this update brings both.)
 
 - **Wheels turn.** Every car, van and truck rolls on wheels that go round, at the speed it is driving.
 - **The flatbed comes in colours** like the other vehicles. Only its cab takes the paint: the timber deck and the load's straps stay as they are.
@@ -15,6 +15,17 @@ What the realism pass saw and left, finished.
 - **Street lamps** are a tapered column with a swept arm and a lantern, not a square post with a square bar.
 - **The Steppe Cosmodrome is inland:** no sea behind its pad, and no surf to hear.
 - **Doors open inwards.** A door swinging out could sweep through whoever was arriving at the step.
+- **Front wheels steer** into a bend, and wheels turn in a moving vehicle's shadow too.
+- **A new concrete mixer** with glass in its windows (the old one had open holes), in the same paints as the other trucks.
+- **A half-built wall** shows bare concrete inside instead of its finished paint.
+- **The open pit's trucks back up to a tip wall** and tip over it onto the stockpile. They used to tip driving forwards, their tails in the pile.
+- **The reactor and the restart are floodlit at night:** a soft wash up the cooling towers and the containment, lamps round the dome. They were black shapes after dark.
+- **The gas plant's control house** is a building at human scale, with a real door, a control room over the pipe yard and a lit window.
+- **Hydro:** no more hard white glare across the reservoir; the tailrace ends in outlet works under the road instead of stopping at the edge of the plot.
+- **Building sites of the megaprojects are lit at night:** floodlights on the tower cranes, lit builders' boards. Pumped hydro is built in a works yard round a clean excavation; the laser fusion plant goes up where the finished one will stand; trucks and crews at the converter station no longer stand inside its plant.
+- **Geneva's flags** carry drawn emblems on clean fields instead of blocky squares.
+- **Aurora:** cherry trees in blossom, tall cypresses and flower beds with real flowers, in place of the last old-style shapes.
+- **Suppliers' sites** glow at night no brighter than your own plants.
 - **Lit at night:** the research lab's own windows, pane by pane, with lights under its canopy; the gas plant gets a row of windows under each hall's eaves, lights over its doors and along its walkways, and a lit control house. Signs on the SMR plant and the fab are lit after dark.
 - **The plants of the scale-up, looked at closely:**
   - Hydro: foam at the outlets that fades at its edges instead of hard white discs; the service truck parks beside the road, not across it.
