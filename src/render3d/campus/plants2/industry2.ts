@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { plantOn } from '../trees';
 import { Kit, rng, type Paint } from '../../kit';
 import type { Piece } from '../../pieces';
-import { model } from '../../models';
+import { parkVehicle } from '../industry/common';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
@@ -106,10 +106,7 @@ export function packaging(o: PieceOpts): Piece {
   paving(k, dx0 - (docks - 1) * 1.5, (front + 1.0 + courtZ1) / 2, docks * 3.0 + 1.6, courtZ1 - front - 1.0);
   const trucks = tier === 1 ? [0] : [0, 2];
   for (const i of trucks) {
-    const t = model('semitruck', 10.4);
-    t.rotation.y = Math.PI / 2;
-    t.position.set(dx0 - i * 3.0, 0.18, front + 6.6);
-    g.add(t);
+    parkVehicle(g, 'semitruck', 10.4, dx0 - i * 3.0, front + 6.6, Math.PI / 2);
   }
   // nitrogen tanks and a vaporiser bank at the back right
   const tx = 11.0;

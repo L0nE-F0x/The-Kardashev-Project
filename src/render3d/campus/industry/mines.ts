@@ -6,12 +6,11 @@
  */
 import * as THREE from 'three';
 import { col, glowMat, Kit, lightPool, mix, noise, poolMat, rng, withClouds, type Paint } from '../../kit';
-import { model } from '../../models';
 import { Plume } from '../../fx';
 import type { Env } from '../../pieces';
 import type { SetPieceFactory } from '../registry';
 import {
-  airHandler, beacon, block, brandOf, curtain, Fans, G, lamps, Lit, P, pipeRun, putSign, stack, tube, V, wallLights, wheel, MINE_YELLOW,
+  airHandler, beacon, block, brandOf, curtain, Fans, G, lamps, Lit, P, parkVehicle, pipeRun, putSign, stack, tube, V, wallLights, wheel, MINE_YELLOW,
 } from './common';
 import { haulTruck, ROCKS, truckLights } from './pit';
 
@@ -255,10 +254,7 @@ const saltPlant: SetPieceFactory = (o) => {
   pipeRun(k, [V(12.8, 1.6, -3.2), V(9.4, 1.6, -3.2), V(9.4, 2.4, -1.2), V(4.0, 2.4, -1.2)], 0.14, '#c3bcc7');
   for (const x of [11.2, 12.6]) k.box(0.2, 1.6, 0.2, P.trim, x, 0, -3.2, { r: 0, jitter: 0 });
   // a truck at the bagging door, lamps
-  const semi = model('semitruck', 10);
-  semi.rotation.y = 0;
-  semi.position.set(-6.0, 0.05, 6.8);
-  g.add(semi);
+  parkVehicle(g, 'semitruck', 10, -6.0, 6.8, 0);
   lamps(g, k, [[-12, 4.4], [1.6, 8.6]], [1, 0]);
   fans.build(g, k);
   g.add(k.build());

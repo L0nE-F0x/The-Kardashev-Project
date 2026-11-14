@@ -4,12 +4,11 @@
  */
 import * as THREE from 'three';
 import { glowMat, Kit, mix, rng, type Paint } from '../../kit';
-import { model } from '../../models';
 import { fence, fenceMesh } from '../../pieces';
 import { parkedCars } from '../life';
 import type { SetPieceFactory } from '../registry';
 import {
-  airHandler, beacon, block, brandOf, curtain, G, Fans, Flag, forklift, hTank, lamps, Lit, P, pipeRun, putSign, shrubs, tree, V, vTank, wallLights, wheel,
+  airHandler, beacon, block, brandOf, curtain, G, Fans, Flag, forklift, hTank, lamps, Lit, P, parkVehicle, pipeRun, putSign, shrubs, tree, V, vTank, wallLights, wheel,
 } from './common';
 
 // ── admin: a corporate office block ──────────────────────────────────────────────────────────
@@ -170,14 +169,8 @@ const warehouse: SetPieceFactory = (o) => {
   g.add(k.build());
   lit.build(g);
   // a van backed into a dock, a semi pulling up
-  const van = model('van', 5.2);
-  van.rotation.y = Math.PI / 2;
-  van.position.set(docks[0], 0.05, z0 + D / 2 + 2.75);
-  g.add(van);
-  const semi = model('semitruck', 10.5);
-  semi.rotation.y = Math.PI;
-  semi.position.set(5.6, 0.05, 6.2);
-  g.add(semi);
+  parkVehicle(g, 'van', 5.2, docks[0], z0 + D / 2 + 3.5, Math.PI / 2, 0.55);
+  parkVehicle(g, 'semitruck', 10.5, 5.6, 6.2, Math.PI);
   wallLights(g, docks.map((x) => [x, 4.1, z0 + D / 2 + 0.1] as [number, number, number]), 2.6, 3);
   return { obj: g, w: 24, d: 16, h: H + 0.7 };
 };
@@ -234,10 +227,7 @@ const crateYard: SetPieceFactory = (o) => {
     k.box(1.1, 0.9, 1.1, '#d8cfc3', x, 0.28, z, { r: 0.06, jitter: 0.06 });
   }
   // the flatbed loading at the front with a crate already strapped on
-  const fb = model('flatbed', 8.4);
-  fb.rotation.y = 0;
-  fb.position.set(-1.2, 0.05, 5.0);
-  g.add(fb);
+  parkVehicle(g, 'flatbed', 8.4, -1.2, 5.0, 0);
   // a little site shed + the fence
   k.box(2.4, 2.2, 2.0, '#ece6dc', 7.0, 0.1, 4.6, { r: 0.1 });
   k.box(2.6, 0.16, 2.2, acc, 7.0, 2.3, 4.6, { r: 0.04, shade: 0 });

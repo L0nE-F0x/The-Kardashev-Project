@@ -5,13 +5,12 @@
  */
 import * as THREE from 'three';
 import { col, glowMat, Kit, lightPool, mix, poolMat, rng, withClouds, type Paint } from '../../kit';
-import { model } from '../../models';
 import { Plume } from '../../fx';
 import type { Env } from '../../pieces';
 import { parkedCars } from '../life';
 import type { SetPieceFactory } from '../registry';
 import {
-  airHandler, beacon, block, brandOf, carPark, G, signPanel, coolingCell, curtain, Fans, hTank, lamps, Lit, P, pipeRun, putSign, shrubs, stack, tree, tube, V, vTank, wallLights,
+  airHandler, beacon, block, brandOf, carPark, G, signPanel, coolingCell, curtain, Fans, hTank, lamps, Lit, P, parkVehicle, pipeRun, putSign, shrubs, stack, tree, tube, V, vTank, wallLights, xfmr,
 } from './common';
 
 /** Roof scrubbers: a box with a pair of exhaust stacks. */
@@ -121,10 +120,7 @@ const logicFab: SetPieceFactory = (o) => {
   tree(k, kestrel ? 27 : -27, 15.5, 1.1);
   tree(k, kestrel ? 24 : -23.8, 17.2, 0.9);
   // a transformer pair by the CUB
-  for (const z of [7.5, 10.5]) {
-    k.box(2.4, 2.1, 2.0, '#8a8f80', -26, 0.2, z, { r: 0.08 });
-    for (let i = 0; i < 4; i++) k.box(0.08, 1.6, 2.1, '#727868', -27 + i * 0.66, 0.4, z, { r: 0, jitter: 0 });
-  }
+  for (const z of [7.4, 10.7]) xfmr(k, -26, z, 0.85);
   fans.build(g, k);
   g.add(k.build());
   lit.build(g);
@@ -409,10 +405,7 @@ const pkgLines: SetPieceFactory = (o) => {
   }
   k.box(12, 1.0, 0.9, '#a39a91', 3, 0, Z + D / 2 + 0.45, { r: 0.05 });
   k.box(20, 0.07, 7, '#c8bfb2', 4, G, 10, { r: 0.03, shade: 0, jitter: 0.02 });
-  const van = model('van', 5.2);
-  van.rotation.y = Math.PI / 2;
-  van.position.set(docks[1], 0.05, Z + D / 2 + 3.2);
-  g.add(van);
+  parkVehicle(g, 'van', 5.2, docks[1], Z + D / 2 + 3.6, Math.PI / 2, 0.1);
   // the utility yard at the right end: nitrogen, chillers, a transformer
   vTank(k, 20.2, -8.4, 1.2, 7.2, '#ece6dc', 0.9, accent);
   for (const z of [-3.2, 0.6]) {
@@ -420,8 +413,7 @@ const pkgLines: SetPieceFactory = (o) => {
     fans.add(19.7, 1.95, z - 0.7, 0.6);
     fans.add(21.1, 1.95, z + 0.7, 0.6);
   }
-  k.box(2.4, 2.0, 2.0, '#8a8f80', 20.4, 0.2, 5, { r: 0.08 });
-  for (let i = 0; i < 4; i++) k.box(0.08, 1.5, 2.1, '#727868', 19.4 + i * 0.66, 0.4, 5, { r: 0, jitter: 0 });
+  xfmr(k, 20.4, 5, 0.85);
   pipeRun(k, [V(20.2, 2.0, -7.1), V(18.4, 2.0, -7.1), V(16.0, 3.4, -7.1)], 0.12);
   // rooftop: a plant deck at the back, a few stacks
   for (let i = 0; i < 4; i++) stack(k, X - 14 + i * 9, H + 0.1, Z - D / 2 + 0.9, 0.34, 3.2, '#d8d2d6', i % 2 ? accent : null);
@@ -509,9 +501,7 @@ const cloudHall: SetPieceFactory = (o) => {
   const nT = v === 'c' ? 3 : 2;
   for (let i = 0; i < nT; i++) {
     const x = tx + i * 3;
-    k.box(2.2, 2.0, 1.8, '#8a8f80', x, 0.15, 9.6, { r: 0.08 });
-    for (let j = 0; j < 4; j++) k.box(0.08, 1.5, 1.9, '#727868', x - 0.9 + j * 0.6, 0.35, 9.6, { r: 0, jitter: 0 });
-    for (const bx of [-0.6, 0, 0.6]) k.cyl(0.09, 0.12, 0.8, '#d8cfc3', x + bx, 2.15, 9.6, 6);
+    xfmr(k, x, 9.6, 0.78);
   }
   fans.build(g, k);
   g.add(k.build());

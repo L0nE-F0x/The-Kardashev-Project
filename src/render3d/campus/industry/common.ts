@@ -9,8 +9,10 @@ import { plantOn } from '../trees';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { col, glowMat, Kit, lightPool, mix, poolMat, withClouds, type Paint } from '../../kit';
 import { sign } from '../../fx';
+import { model, paintCar, type ModelName } from '../../models';
 import type { Env } from '../../pieces';
 import { BRANDS, type SetPieceOpts } from '../registry';
+import { At, transformer } from '../plants2/parts';
 
 export const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 /** The top of the gravel pad the scene lays under every piece that doesn't reshape the ground: flat decals sit on it. */
@@ -317,6 +319,26 @@ export function signPanel(parent: THREE.Object3D, k: Kit, text: string, maxW: nu
   parent.add(s);
   const w = maxW * sc * 0.92, h = h0 * sc * 0.78;
   k.box(w + 0.7, h + 0.4, 0.16, panel, x, y - (h + 0.4) / 2, z, { r: 0.06, shade: 0 });
+}
+
+/**
+ * A lorry or van standing where the piece wants it (at a dock, on a weighbridge). It carries `userData.bay` like a
+ * parked car, so the campus stands it on whatever slab is under it (`settleCars`: set by hand they sat 14 cm into
+ * the yard's concrete), people walk round it, and it is away outside working hours.
+ */
+export function parkVehicle(parent: THREE.Object3D, kind: ModelName, len: number, x: number, z: number, ry: number, pick?: number) {
+  const c = model(kind, len);
+  if (pick !== undefined) paintCar(c, pick);
+  c.rotation.y = ry;
+  c.position.set(x, 0.125, z);
+  c.userData.bay = { len, wid: kind === 'van' ? len * 0.55 : 2.7 };
+  parent.add(c);
+  return c;
+}
+
+/** A power transformer on its plinth (the Act II plants' one: tank, radiator fins, bushings, conservator), long side along x unless turned. */
+export function xfmr(k: Kit, x: number, z: number, s = 0.8, ry = 0) {
+  transformer(new At(k, x, G - 0.02, z, ry), 0, 0, s);
 }
 
 /** A flag on a pole that waves. Colours are stripes from the hoist outwards (or top down when `rows`). */
