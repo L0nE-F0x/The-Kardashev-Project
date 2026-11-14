@@ -1,7 +1,8 @@
 /**
  * The hydro plant: a concrete gravity dam across a gorge the plot carves for itself, the reservoir
  * behind it, a gated spillway with white water down its steps, the powerhouse at the toe with
- * penstocks down the dam face, the tailrace out to a road embankment at the front, and a line
+ * penstocks down the dam face, the tailrace out to the outlet works under the road embankment at the front (gated
+ * culverts: the water leaves the plot underground), and a line
  * pylon on the abutment carrying the power away. Tier 2 (300 MW): a wider dam and gorge, a second
  * powerhouse and pylon, four penstocks.
  */
@@ -19,7 +20,7 @@ import type { Placement } from '../trees';
 // heights: gorge floor, tailwater, reservoir, dam crest; the dam's upstream face and crest. The
 // reservoir sits up on a plateau the plot raises, and nothing is carved below -1.15: backdrops with
 // a sea or lake level lay a flat world water plane at -1.2 or lower, and it must stay under the gorge.
-const GF = -0.8, TW = -0.15, DC = 4.4, WL = DC - 1.45;
+const GF = -0.8, TW = -0.5, DC = 4.4, WL = DC - 1.45;
 const ZU = -4.6, ZC = ZU + 2.4, SLOPE = 0.72;
 const BASE = GF - 0.7;
 const SC = WL - 0.4; // spillway crest
@@ -131,7 +132,24 @@ function fadeTexture() {
   g.fillRect(0, 0, 4, 64);
   return new THREE.CanvasTexture(c);
 }
-let foamMats: { spill: THREE.MeshStandardMaterial; churn: THREE.MeshStandardMaterial; basin: THREE.MeshStandardMaterial; boil: THREE.MeshStandardMaterial; ripple: THREE.MeshStandardMaterial } | null = null;
+/** The draw into a culvert: nothing upstream, thickening to the mouth, soft down both sides. */
+function inflowTexture() {
+  const c = document.createElement('canvas');
+  c.width = 32;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(32, 64);
+  for (let y = 0; y < 64; y++)
+    for (let x = 0; x < 32; x++) {
+      const along = 1 - y / 63, across = Math.sin((Math.PI * (x + 0.5)) / 32);
+      // narrower upstream (the streaks gather towards the mouth)
+      const v = 255 * along * along * Math.min(1, Math.max(0, (across - 0.55 * (1 - along)) * 2.2));
+      img.data.set([v, v, v, 255], (y * 32 + x) * 4);
+    }
+  g.putImageData(img, 0, 0);
+  return new THREE.CanvasTexture(c);
+}
+let foamMats: { spill: THREE.MeshStandardMaterial; churn: THREE.MeshStandardMaterial; basin: THREE.MeshStandardMaterial; inflow: THREE.MeshStandardMaterial; boil: THREE.MeshStandardMaterial; ripple: THREE.MeshStandardMaterial } | null = null;
 function waterFx() {
   if (foamMats) return foamMats;
   const spillT = foamTexture();
@@ -142,6 +160,7 @@ function waterFx() {
     spill: withClouds(new THREE.MeshStandardMaterial({ map: spillT, transparent: true, roughness: 0.55, depthWrite: false })),
     churn: withClouds(new THREE.MeshStandardMaterial({ map: churnT, transparent: true, opacity: 0.9, roughness: 0.6, depthWrite: false })),
     basin: withClouds(new THREE.MeshStandardMaterial({ map: churnT, alphaMap: fadeTexture(), transparent: true, opacity: 0.9, roughness: 0.6, depthWrite: false })),
+    inflow: withClouds(new THREE.MeshStandardMaterial({ map: churnT, alphaMap: inflowTexture(), transparent: true, opacity: 0.62, roughness: 0.6, depthWrite: false })),
     boil: withClouds(new THREE.MeshStandardMaterial({ map: boilTexture(), transparent: true, roughness: 0.6, depthWrite: false })),
     ripple: withClouds(new THREE.MeshStandardMaterial({ map: rippleTexture(), transparent: true, opacity: 0.8, roughness: 0.3, depthWrite: false })),
   };
@@ -415,15 +434,43 @@ export function hydro(o: PieceOpts): Piece {
   const churn = waterPlane(spill.x0, spill.x1, bz0, bz1 + 2.4, TW + 0.05, fx.basin);
   churn.renderOrder = 1;
   g.add(churn);
+  // the draw into the culverts at the far end: streaks gathering speed towards each mouth (the plane is turned
+  // half round, so the churn runs south and is thickest at the gates)
+  const inflow = [-2.1, 0, 2.1].map((cx) => {
+    const m = waterPlane(cx - 0.75, cx + 0.75, 7.9, 10.3, TW + 0.035, fx.inflow);
+    m.rotation.y = Math.PI;
+    m.renderOrder = 1;
+    g.add(m);
+    return m;
+  });
   anim.plume(g, sMid, TW + 0.2, TOE + 0.9, { count: 18, life: 3.4, rise: 0.8, spread: 0.7, size0: 1.4, size1: 4.4, color: '#f4f7f7', opacity: 0.5, radius: sW * 0.35, wind: 0.35 }, o.seed + 40);
 
   // ── the land: embankment road at the front, control building, pylon(s), trees ────────────
   const lk = new Kit(rng(o.seed + 9));
   const lLit = new Kit(rng(o.seed + 10));
   const lLamps = new Kit(rng(o.seed + 11));
-  // headwall + road embankment over the culverts
-  lk.box(11.8, 0.22 - (GF - 0.8), 2.7, P.concrete2, 0, GF - 0.8, 11.1, { r: 0.12, shade: 0.3 });
-  for (const cx of [-2.0, 0, 2.0]) lk.geo(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 14).rotateX(Math.PI / 2).translate(cx, TW - 0.05, 9.72), '#2a2630', 0, 0);
+  // The tailrace's end: the outlet works. The road's embankment closes the gorge; in its upstream face three box
+  // culverts (the head of the tailrace tunnel) take the water under the hill, each under its own slide gate, raised,
+  // with an actuator on the parapet; wing walls funnel the flow in and riprap packs the corners behind them.
+  const EB = GF - 0.8, FZ = 9.75, BZ = 10.35, SOF = 0.0;
+  // (the concrete tops out at 0.19, under the road's asphalt at 0.22)
+  lk.box(11.8, 0.19 - EB, 12.45 - BZ, P.concrete2, 0, EB, (BZ + 12.45) / 2, { r: 0.12, shade: 0.3 });
+  lk.box(11.8, 0.19 - SOF, BZ - FZ + 0.2, P.concrete2, 0, SOF, (FZ + BZ) / 2 + 0.1, { r: 0.05, shade: 0 });
+  const mouths = [-2.1, 0, 2.1], MW = 1.5;
+  for (const sx of [-1, 1]) lk.box(5.9 - 2.85, SOF + 0.05 - EB, BZ - FZ + 0.2, P.concrete2, sx * (5.9 + 2.85) / 2, EB, (FZ + BZ) / 2 + 0.1, { r: 0.08, shade: 0.3 });
+  for (const px of [-1.05, 1.05]) lk.box(0.6, SOF + 0.05 - EB, BZ - FZ + 0.2, P.concrete, px, EB, (FZ + BZ) / 2 + 0.1, { r: 0.06, shade: 0.3 });
+  lk.box(6.6, 0.82, 0.3, P.concrete, 0, 0.2, FZ + 0.15, { r: 0.05, shade: 0.1 }); // the parapet the gates hang on
+  lk.box(6.9, 0.1, 0.44, '#b5ac9e', 0, 1.0, FZ + 0.15, { r: 0.02, shade: 0 });
+  for (const cx of mouths) {
+    lk.box(MW, SOF - EB, 0.05, '#221f28', cx, EB, BZ - 0.02, { r: 0, jitter: 0, shade: 0 }); // the dark of the barrel
+    lk.box(MW + 0.1, 0.78, 0.07, '#4d6a86', cx, 0.12, FZ - 0.05, { r: 0.02, jitter: 0.03 }); // the gate, raised
+    for (let y = 0.3; y < 0.85; y += 0.24) lk.box(MW + 0.1, 0.05, 0.05, '#3f5670', cx, y, FZ - 0.1, { r: 0, jitter: 0, shade: 0 });
+    for (const sx of [-1, 1]) lk.box(0.1, 1.0 - TW, 0.14, '#3f5670', cx + sx * (MW / 2 + 0.06), TW - 0.1, FZ - 0.06, { r: 0, jitter: 0 }); // guides
+    lk.cyl(0.04, 0.04, 0.5, P.steel2, cx, 1.08, FZ + 0.1, 6, { shade: 0 }); // the stem
+    lk.box(0.36, 0.3, 0.3, '#3f5670', cx, 1.08, FZ + 0.15, { r: 0.05 });
+    lk.geo(new THREE.TorusGeometry(0.17, 0.025, 4, 12).translate(cx, 1.5, FZ + 0.34), 'red3', 0, 0); // handwheel
+  }
+  for (const sx of [-1, 1]) lk.box(1.7, 0.3 - (GF - 0.45), 0.3, P.concrete2, sx * 3.62, GF - 0.45, FZ - 0.42, { r: 0.05, shade: 0.25, ry: sx * 0.562 });
   paving(lk, 0, 11.25, 27.4, 1.9, P.asphalt, 0.14);
   for (const zz of [10.15, 12.3]) {
     lk.beam(V(-5.8, 0.85, zz), V(5.8, 0.85, zz), 0.1, '#d9d1c4');
@@ -475,7 +522,7 @@ export function hydro(o: PieceOpts): Piece {
   g.add(lk.build(), lLit.build(winMat), lLamps.build(lampHeadMat));
 
   // trees on the ridges, boulders on the gorge walls, scrub round the shore
-  const pines: Placement[] = [], rocks: Placement[] = [], scrub: Placement[] = [];
+  const pines: Placement[] = [], rocks: Placement[] = [], scrub: Placement[] = [], riprap: Placement[] = [];
   const clearOf = (x: number, z: number) =>
     pylons.every((p) => Math.hypot(x - p.x, z - p.z) > 2.6) && Math.hypot(x - cbx, z - cbz) > 3.4 && !(z > ZU - 1.4 && z < ZC + 0.8 && Math.abs(x) < hw + 3.4);
   for (let i = 0; i < 400 && pines.length < (T2 ? 30 : 36); i++) {
@@ -493,6 +540,14 @@ export function hydro(o: PieceOpts): Piece {
     const y = H(x, z);
     if (y > WL + 0.15 && y < WL + 1.3 && clearOf(x, z)) scrub.push({ x, y: y - 0.05, z, s: 0.4 + r() * 0.5, ry: r() * 6.3, tint: 0.85 + r() * 0.3 });
   }
+  // riprap behind the wing walls and along the last of the banks, at the waterline
+  for (let i = 0; i < 700 && riprap.length < 30; i++) {
+    const x = (r() < 0.5 ? -1 : 1) * (3.1 + r() * 4.6), z = 8.3 + r() * 1.35;
+    const y = H(x, z);
+    const behind = Math.abs(x) > 2.95 + (FZ - z) * 1.6; // outside the funnel the wing walls make
+    if (behind && y > TW - 0.42 && y < TW + 0.3) riprap.push({ x, y: Math.max(y, TW - 0.3) - 0.04, z, s: 0.2 + r() * 0.2, ry: r() * 6.3, tint: 0.8 + r() * 0.3 });
+  }
+  if (riprap.length) g.add(plants('rock', riprap));
   if (pines.length) g.add(plants('pine', pines));
   if (rocks.length) g.add(plants('rock', rocks));
   if (scrub.length) g.add(plants('shrub', scrub));
@@ -501,7 +556,7 @@ export function hydro(o: PieceOpts): Piece {
     animateWater(e.t);
     for (const [i, b] of boils.entries()) b.scale.set(1 + Math.sin(e.t * 2.1 + i) * 0.06, 1, 1 + Math.cos(e.t * 1.7 + i) * 0.08);
   });
-  const water = [sheet, churn, tail, ripple, ...boils];
+  const water = [sheet, churn, tail, ripple, ...boils, ...inflow];
   return {
     obj: g, w: o.w, d: o.d, h: 12,
     ground: (x, z) => (Math.abs(x) > 14.2 || Math.abs(z) > 13.2 ? null : H(x, z)),
