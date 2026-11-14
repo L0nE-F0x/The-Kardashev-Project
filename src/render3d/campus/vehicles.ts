@@ -6,7 +6,7 @@
  * Right-hand traffic. Wheels stay on the ground, nose pitched with the slope.
  */
 import * as THREE from 'three';
-import { drivenCar, model, paintCar, type ModelName } from '../models';
+import { drivenCar, model, paintCar, type ModelName, type WheelState } from '../models';
 import { glowMat, lightPool, poolMat, rng } from '../kit';
 import type { Env } from '../pieces';
 
@@ -37,8 +37,10 @@ interface Car {
   pushT: number;
   pos: THREE.Vector2;
   dir: THREE.Vector2;
-  /** Its wheels: the angle they have turned through (the material reads it) and their radius. */
-  wheels: { spin: { value: number }; r: number } | null;
+  /** Its wheels: how far they have turned and are steered (the material reads it), their radius, the wheelbase. */
+  wheels: { spin: WheelState; r: number; base: number } | null;
+  /** Its heading a moment ago (the front wheels point the way it is turning). */
+  yaw: number;
 }
 
 /** Round a polyline's corners (radius per corner, 0 = sharp) and resample it every ~0.5 m. */
@@ -203,7 +205,7 @@ export class Traffic {
   private add(n: ModelName, route: Route, s: number, v0: number, paint: number) {
     const { o, len, wheels } = vehicle(n, this.head, this.tail, this.beam, paint);
     this.group.add(o);
-    const c: Car = { obj: o, len, route, s, v: v0 * 0.8, v0, held: -1, heldT: 0, served: new Set(), yieldT: 0, pushT: 0, pos: new THREE.Vector2(), dir: new THREE.Vector2(1, 0), wheels };
+    const c: Car = { obj: o, len, route, s, v: v0 * 0.8, v0, held: -1, heldT: 0, served: new Set(), yieldT: 0, pushT: 0, pos: new THREE.Vector2(), dir: new THREE.Vector2(1, 0), wheels, yaw: NaN };
     sample(route, s, c.pos, c.dir);
     this.cars.push(c);
     return c;
@@ -348,7 +350,8 @@ export class Traffic {
       if (c.held >= 0) { c.v = 0; acc = 0; }
       c.v = Math.max(0, c.v + Math.max(-9, acc) * dt);
       c.s += c.v * dt;
-      if (c.wheels) c.wheels.spin.value = (c.wheels.spin.value + (c.v * dt) / c.wheels.r) % (Math.PI * 2);
+      const step = c.v * dt;
+      if (c.wheels) c.wheels.spin.value.x = (c.wheels.spin.value.x + step / c.wheels.r) % (Math.PI * 2);
       if (c.s >= r.total) {
         if (r.wrap) { c.s -= r.total; c.served.clear(); } else c.s = r.total;
       }
@@ -358,7 +361,19 @@ export class Traffic {
       const h = this.h;
       // on the road's surface (roads.ts lifts the ribbon 0.035 off the ground), not in it
       p.y = h(p.x, p.z) + 0.035;
-      c.obj.rotation.y = Math.atan2(c.dir.x, c.dir.y);
+      const yaw = Math.atan2(c.dir.x, c.dir.y);
+      c.obj.rotation.y = yaw;
+      if (c.wheels) {
+        // the front wheels point into the bend: the angle a wheelbase of this length needs for the turn being made
+        let want = 0;
+        if (step > 0.004 && c.yaw === c.yaw) {
+          let turn = yaw - c.yaw;
+          turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+          want = Math.max(-0.6, Math.min(0.6, Math.atan((c.wheels.base * turn) / step)));
+        } else if (step <= 0.004) want = c.wheels.spin.value.y;
+        c.wheels.spin.value.y += (want - c.wheels.spin.value.y) * Math.min(1, dt * 5);
+      }
+      c.yaw = yaw;
       c.obj.rotation.x = -Math.atan((h(p.x + c.dir.x * 2, p.z + c.dir.y * 2) - h(p.x - c.dir.x * 2, p.z - c.dir.y * 2)) / 4);
     }
   }

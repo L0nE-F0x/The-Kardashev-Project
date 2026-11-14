@@ -10,10 +10,10 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { cloudUniforms, col, noise, rng, withClouds, type Paint } from '../kit';
 
 export type TreeKind = 'pine' | 'palm' | 'saguaro' | 'barrel' | 'birch' | 'broadleaf' | 'blob' | 'acacia' | 'shrub' | 'tuft' | 'rock' | 'boulder'
-  | 'oak' | 'mesquite' | 'sage';
+  | 'oak' | 'mesquite' | 'sage' | 'blossom' | 'cypress' | 'flower';
 
 /** How many variants each kind comes in. */
-const VARIANTS: Record<TreeKind, number> = { pine: 3, palm: 2, saguaro: 3, barrel: 2, birch: 2, broadleaf: 3, blob: 2, acacia: 2, shrub: 3, tuft: 2, rock: 3, boulder: 2, oak: 3, mesquite: 2, sage: 2 };
+const VARIANTS: Record<TreeKind, number> = { pine: 3, palm: 2, saguaro: 3, barrel: 2, birch: 2, broadleaf: 3, blob: 2, acacia: 2, shrub: 3, tuft: 2, rock: 3, boulder: 2, oak: 3, mesquite: 2, sage: 2, blossom: 2, cypress: 2, flower: 3 };
 
 // ── the leaf texture ──────────────────────────────────────────────────────────────────────────
 // A 4×2 sheet of 256 px cells, grey leaves on nothing (the colour comes from the vertices):
@@ -610,6 +610,49 @@ function shrub(b: Builder, far: boolean, v: number, dry: boolean) {
   crown(b, clumps, L, far);
 }
 
+/** A columnar cypress: a short stem under a dense, dark spire. */
+function cypressTree(b: Builder, far: boolean, v: number) {
+  const r = b.r;
+  const H = 4.5 + v * 0.45;
+  b.H = H;
+  b.tube([V(0, -0.1, 0), V(0, 0.5, 0), V(0, H * 0.4, 0)], [0.14, 0.09, 0.05], far ? 5 : 6, bark('#6a5040', b.seed));
+  // fullest a quarter of the way up, drawn in to a point
+  const prof = (t: number) => 0.06 + 0.5 * (t < 0.25 ? 0.62 + 1.52 * t : 1 - Math.pow((t - 0.25) / 0.75, 1.7));
+  const L: Leaves = { light: '#5f8c54', dark: '#2c5038', core: '#16301f', cells: ['fine'], n: 52, size: 1.2, airy: 1 };
+  const y0 = 0.45, core = col(L.core), dark = col(L.dark);
+  // the dark heart: one spire, fluted, so no gap between the sprays shows the sky
+  const ys = [0, 0.12, 0.25, 0.45, 0.65, 0.82, 0.94, 1];
+  b.tube(ys.map((t) => V(0, y0 + t * (H - y0), 0)), ys.map((t) => prof(t) * (far ? 1 : 0.74)), far ? 7 : 8, (t, j) => [far ? dark.clone().lerp(col(L.light), 0.25 + (j % 2) * 0.12 + t * 0.2) : core, 0.85 + t * 0.25], { ribs: 0.14 });
+  if (far) return;
+  const clumps: Clump[] = [];
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    clumps.push({ c: V((r() - 0.5) * 0.06, y0 + 0.12 + t * (H - y0 - 0.45), (r() - 0.5) * 0.06), r: Math.max(0.2, prof(t) * (0.96 + r() * 0.1)), squash: 1.3 });
+  }
+  crown(b, clumps, L, false);
+}
+
+/**
+ * A flower head, one unit across, its middle at the origin (a bed scatters them just over its foliage): petals round
+ * a heart, white, so the colour each one is planted with (`Placement.c`) is the flower's.
+ */
+function flower(b: Builder, v: number) {
+  const r = b.r;
+  b.H = 1e3;
+  const petals = 5 + (v % 2), lift = [0.18, 0.42, 0.75][v % 3];
+  const white = new THREE.Color(1, 1, 1), heart = new THREE.Color(1, 0.86, 0.42);
+  const a0 = r() * 6.28;
+  for (let i = 0; i < petals; i++) {
+    const a = a0 + (i / petals) * Math.PI * 2 + (r() - 0.5) * 0.2;
+    const dir = V(Math.cos(a), 0, Math.sin(a)), len = 0.92 + r() * 0.16;
+    const nrm = V(dir.x * 0.45, 0.9, dir.z * 0.45).normalize();
+    b.strip([V(dir.x * 0.08, 0, dir.z * 0.08), V(dir.x * len * 0.55, lift * 0.34, dir.z * len * 0.55), V(dir.x * len, lift * 0.5, dir.z * len)],
+      (t) => 0.7 * Math.sin((0.14 + 0.72 * t) * Math.PI), V(-dir.z, 0, dir.x), 'solid', (t) => [white, 0.82 + 0.24 * t], () => nrm, 0);
+  }
+  b.tube([V(0, -0.02, 0), V(0, 0.12, 0), V(0, 0.2, 0)], [0.24, 0.2, 0.06], 5, () => [heart, 1], { sway: 0 });
+}
+
 function tuft(b: Builder, v: number) {
   const r = b.r;
   b.H = 0.7;
@@ -730,6 +773,10 @@ export function treeGeometry(kind: TreeKind, variant = 0, far = false): THREE.Bu
       case 'shrub': shrub(b, far, v, false); break;
       case 'sage': shrub(b, far, v, true); break;
       case 'tuft': tuft(b, v); break;
+      case 'cypress': cypressTree(b, far, v); break;
+      case 'flower': flower(b, v); break;
+      // an ornamental cherry: a low, wide crown of pale pink on a dark stem
+      case 'blossom': broadleafTree(b, far, { h: 3.3 + v * 0.25, trunk: 1.0, r0: 0.12, spread: 0.82, clumps: 3 + v, top: 0.92, leaves: { light: '#fbd6e4', dark: '#e592b3', core: '#8a4664', cells: ['fine', 'leafB'], n: 54, size: 0.95, airy: 1 }, bark: '#5c4038' }); break;
     }
     g = b.build();
   }
@@ -738,7 +785,7 @@ export function treeGeometry(kind: TreeKind, variant = 0, far = false): THREE.Bu
 }
 
 /** Where a tree stands; `rx` tips it (round x, after its spin) to stand square to curved ground. */
-export interface Placement { x: number; y: number; z: number; s: number; ry: number; tint?: number; rx?: number }
+export interface Placement { x: number; y: number; z: number; s: number; ry: number; tint?: number; rx?: number; /** A colour of its own (a flower's). */ c?: string }
 
 const hash2 = (x: number, z: number, k: number) => { const s = Math.sin(x * 127.1 + z * 311.7 + k * 74.7) * 43758.5453; return s - Math.floor(s); };
 
@@ -753,7 +800,8 @@ function field(geo: THREE.BufferGeometry, mat: THREE.Material, at: Placement[]):
     im.setMatrixAt(i, m);
     // no two quite the same green
     const t = p.tint ?? 1;
-    c.setRGB(t * (0.93 + hash2(p.x, p.z, 1) * 0.14), t * (0.95 + hash2(p.x, p.z, 2) * 0.1), t * (0.9 + hash2(p.x, p.z, 3) * 0.2));
+    if (p.c) c.set(p.c).multiplyScalar(t * (0.92 + hash2(p.x, p.z, 1) * 0.16));
+    else c.setRGB(t * (0.93 + hash2(p.x, p.z, 1) * 0.14), t * (0.95 + hash2(p.x, p.z, 2) * 0.1), t * (0.9 + hash2(p.x, p.z, 3) * 0.2));
     im.setColorAt(i, c);
   });
   im.count = at.length;

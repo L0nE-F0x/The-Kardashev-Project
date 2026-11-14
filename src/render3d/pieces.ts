@@ -207,9 +207,15 @@ export function clipAbove(obj: THREE.Object3D, y: number | null, below = false) 
         if (!m.userData.ownMat) {
           const orig = m.material as THREE.Material;
           const c = orig.clone();
-          // keep the palette shader hooks on Meshy materials
-          c.onBeforeCompile = orig.onBeforeCompile;
-          c.customProgramCacheKey = orig.customProgramCacheKey;
+          // keep the material's own shader hooks (the palette on Meshy models, grain, clouds), and show the cut
+          // shell's inside as bare structure: seen from above, a half-built hall was a box lined with its own
+          // finished paint
+          const hook = orig.onBeforeCompile;
+          c.onBeforeCompile = (sh, r) => {
+            hook.call(orig, sh, r);
+            sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n\tif (!gl_FrontFacing) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.22, 0.215, 0.21), 0.82);');
+          };
+          c.customProgramCacheKey = () => orig.customProgramCacheKey() + '|cut';
           const plane = below ? new THREE.Plane(new THREE.Vector3(0, 1, 0), -y) : new THREE.Plane(new THREE.Vector3(0, -1, 0), y);
           c.clippingPlanes = [plane];
           c.clipShadows = true;

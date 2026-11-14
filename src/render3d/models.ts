@@ -90,7 +90,7 @@ const CAR_GLASS: Record<string, { lum: [number, number]; from: number; mode?: 0 
   // (cab: the flatbed's timber deck and its load's straps are nearly its cab's colour, so a new paint would stain
   // them: only the cab is painted, the front third of its length)
   flatbed: { lum: [0.09, 0.15], from: 0.4, mode: 1, cab: 0.335 },
-  mixer: { lum: [0.0, 0.001], from: 0.4, mode: 1 },
+  mixer: { lum: [0.09, 0.15], from: 0.42, mode: 1 },
 };
 /** The colours cars come in (muted, in the palette's spirit); null = the model's own. */
 const CAR_PAINTS: (string | null)[] = [null, '#d9d4c8', '#8f959b', '#3b3e44', '#1c1d20', '#2f5a86', '#8c2f2a', '#2f6157', '#c79a3a', '#6d7f8c', '#7a3140', '#b9aa8c'];
@@ -160,10 +160,19 @@ function paintUniforms(look: CarLook, mode: 0 | 1 | 2, paint: string | null) {
   return { body, to };
 }
 
-/** Parked: every shared vehicle material's wheels stand still. */
-const PARKED = { value: 0 };
+/** A vehicle's wheels: how far they have turned (x, radians) and how far the front ones are steered (y). */
+export type WheelState = { value: THREE.Vector2 };
+/** Parked: every shared vehicle material's wheels stand still, pointing ahead. */
+const PARKED: WheelState = { value: new THREE.Vector2(0, 0) };
 
-function carMaterial(map: THREE.Texture | null, name: string, part: CarPart, look: CarLook, paint: string | null, spin: { value: number } = PARKED) {
+/** The wheels' part of a vehicle's vertex shader (the lit pass and the shadow pass share it). */
+const WHEEL_VS = `
+  attribute vec4 aAxle; uniform vec3 uCarAxis; uniform vec3 uCarUpDir; uniform vec2 uCarSpin;
+  vec3 kpRot(vec3 v, vec3 k, float a) { float c = cos(a), s = sin(a); return v * c + cross(k, v) * s + k * (dot(k, v) * (1.0 - c)); }
+  // round the axle, then (the front wheels, w = 2) round the upright through the wheel's middle
+  vec3 kpWheel(vec3 v) { v = kpRot(v, uCarAxis, uCarSpin.x); return aAxle.w > 1.5 ? kpRot(v, uCarUpDir, uCarSpin.y) : v; }`;
+
+function carMaterial(map: THREE.Texture | null, name: string, part: CarPart, look: CarLook, paint: string | null, spin: WheelState = PARKED) {
   const { up, axis, fwd } = part;
   const cfg = CAR_GLASS[name] ?? { lum: [0.09, 0.15] as [number, number], from: 0.45 };
   const m = new THREE.MeshStandardMaterial({ map, color: 0xffffff, roughness: 0.55, metalness: 0 });
@@ -181,14 +190,13 @@ function carMaterial(map: THREE.Texture | null, name: string, part: CarPart, loo
     sh.uniforms.uCarFwd = { value: fwd };
     sh.uniforms.uCarCab = { value: cfg.cab ?? 2 };
     sh.uniforms.uCarSpin = spin;
-    // the wheels turn: their vertices (aAxle: a point on the axle, w = 1) go round the axle by uCarSpin
+    sh.uniforms.uCarUpDir = { value: part.upDir };
+    // the wheels turn: their vertices (aAxle: the wheel's middle, w = 1, or 2 on the steered axle) go round
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-        uniform vec4 uCarUp; varying float vCarY; uniform vec4 uCarFwd; varying float vCarX;
-        attribute vec4 aAxle; uniform vec3 uCarAxis; uniform float uCarSpin;
-        vec3 kpSpin(vec3 v) { float c = cos(uCarSpin), s = sin(uCarSpin); return v * c + cross(uCarAxis, v) * s + uCarAxis * (dot(uCarAxis, v) * (1.0 - c)); }`)
-      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nif (aAxle.w > 0.5) objectNormal = kpSpin(objectNormal);')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarY = dot(uCarUp.xyz, position) + uCarUp.w;\nvCarX = dot(uCarFwd.xyz, position) + uCarFwd.w;\nif (aAxle.w > 0.5) transformed = aAxle.xyz + kpSpin(transformed - aAxle.xyz);');
+        uniform vec4 uCarUp; varying float vCarY; uniform vec4 uCarFwd; varying float vCarX;${WHEEL_VS}`)
+      .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nif (aAxle.w > 0.5) objectNormal = kpWheel(objectNormal);')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarY = dot(uCarUp.xyz, position) + uCarUp.w;\nvCarX = dot(uCarFwd.xyz, position) + uCarFwd.w;\nif (aAxle.w > 0.5) transformed = aAxle.xyz + kpWheel(transformed - aAxle.xyz);');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform float uPalPull; uniform vec3 uPal[${palLinear.length}];
@@ -247,7 +255,7 @@ function carMaterial(map: THREE.Texture | null, name: string, part: CarPart, loo
 }
 
 /** Per vehicle model: each mesh's texture, its "up" in the mesh's own space, its look, and the paints made so far. */
-interface CarPart { map: THREE.Texture | null; up: THREE.Vector4; /** How far back from the nose (0–1). */ fwd: THREE.Vector4; axis: THREE.Vector3 }
+interface CarPart { map: THREE.Texture | null; up: THREE.Vector4; /** How far back from the nose (0–1). */ fwd: THREE.Vector4; axis: THREE.Vector3; upDir: THREE.Vector3 }
 const carParts = new Map<string, { look: CarLook; meshes: CarPart[]; mats: Map<number, THREE.Material[]>; wheels: Wheel[] }>();
 
 function carMats(n: string, paint: number): THREE.Material[] | null {
@@ -268,7 +276,7 @@ function carMats(n: string, paint: number): THREE.Material[] | null {
 // face) is the wheel's. Those vertices carry their axle (`aAxle`), and the vehicle's material turns them.
 
 /** A wheel in the model's own frame (front at -x, y up from the ground, z across): its axle and radius. */
-export interface Wheel { x: number; r: number; side: 1 | -1; z0: number }
+export interface Wheel { x: number; r: number; side: 1 | -1; z0: number; /** The front axle's: it steers. */ steer?: boolean }
 
 function findWheels(root: THREE.Object3D, off: THREE.Vector3, size: THREE.Vector3): Wheel[] {
   const meshes: THREE.Mesh[] = [];
@@ -369,6 +377,11 @@ function findWheels(root: THREE.Object3D, off: THREE.Vector3, size: THREE.Vector
     if (!drop.size) break;
     P.forEach((p, mi) => { const o = owner[mi]; for (let v = 0; v < o.length; v++) if (o[v] >= 0 && drop.has(key(p, v * 3))) o[v] = -1; });
   }
+  // the front axle steers (the nose is at -x): each of its wheels swivels about its own middle
+  const nose = Math.min(...wheels.map((w) => w.x));
+  for (const w of wheels) w.steer = w.x - nose < size.x * 0.03;
+  const mid = wheels.map(() => [1e9, -1e9]);
+  P.forEach((p, mi) => { const o = owner[mi]; for (let v = 0; v < o.length; v++) if (o[v] >= 0) { const z = p[v * 3 + 2]; const m = mid[o[v]]; if (z < m[0]) m[0] = z; if (z > m[1]) m[1] = z; } });
   const inv = new THREE.Matrix4(), c = new THREE.Vector3();
   meshes.forEach((m, mi) => {
     inv.copy(m.matrixWorld).invert();
@@ -377,8 +390,8 @@ function findWheels(root: THREE.Object3D, off: THREE.Vector3, size: THREE.Vector
     for (let v = 0; v < o.length; v++) {
       if (o[v] < 0) continue;
       const w = wheels[o[v]];
-      c.set(w.x, w.r, 0).sub(off).applyMatrix4(inv);
-      a[v * 4] = c.x; a[v * 4 + 1] = c.y; a[v * 4 + 2] = c.z; a[v * 4 + 3] = 1;
+      c.set(w.x, w.r, (mid[o[v]][0] + mid[o[v]][1]) / 2).sub(off).applyMatrix4(inv);
+      a[v * 4] = c.x; a[v * 4 + 1] = c.y; a[v * 4 + 2] = c.z; a[v * 4 + 3] = w.steer ? 2 : 1;
     }
     m.geometry.setAttribute('aAxle', new THREE.BufferAttribute(a, 4));
   });
@@ -389,20 +402,35 @@ function findWheels(root: THREE.Object3D, off: THREE.Vector3, size: THREE.Vector
  * A vehicle that drives: its own materials, so its wheels can turn on their own. Returns the angle to advance
  * (`spin.value`, radians) and the wheels' radius in the copy's own size, or null for something without wheels.
  */
-export function drivenCar(o: THREE.Object3D): { spin: { value: number }; r: number } | null {
+export function drivenCar(o: THREE.Object3D): { spin: WheelState; r: number; base: number } | null {
   const n = o.userData.model as string;
   const info = carParts.get(n);
   if (!info || !info.wheels.length) return null;
-  const spin = { value: 0 };
+  const spin: WheelState = { value: new THREE.Vector2(0, 0) };
   const paint = CAR_PAINTS[(o.userData.paint as number) ?? 0];
   let i = 0;
   o.traverse((c) => {
     const mesh = c as THREE.Mesh;
     if (!mesh.isMesh) return;
     const p = info.meshes[i++];
-    if (p) mesh.material = carMaterial(p.map, n, p, info.look, paint, spin);
+    if (!p) return;
+    mesh.material = carMaterial(p.map, n, p, info.look, paint, spin);
+    // its shadow's wheels turn with it
+    const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+    depth.onBeforeCompile = (sh) => {
+      sh.uniforms.uCarAxis = { value: p.axis };
+      sh.uniforms.uCarUpDir = { value: p.upDir };
+      sh.uniforms.uCarSpin = spin;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', `#include <common>${WHEEL_VS}`)
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nif (aAxle.w > 0.5) transformed = aAxle.xyz + kpWheel(transformed - aAxle.xyz);');
+    };
+    depth.customProgramCacheKey = () => 'kp-car-depth';
+    mesh.customDepthMaterial = depth;
   });
-  return { spin, r: info.wheels[0].r * o.scale.x };
+  // (the distance between the first and the last axle: what the steering angle is worked out from)
+  const xs = info.wheels.map((w) => w.x);
+  return { spin, r: info.wheels[0].r * o.scale.x, base: Math.max(1, (Math.max(...xs) - Math.min(...xs)) * o.scale.x) };
 }
 
 export const wheelsOf = (n: string) => carParts.get(n)?.wheels ?? [];
@@ -469,7 +497,7 @@ export function loadModels(names: (ModelName | PersonName)[]): Promise<void> {
           // (the axle's direction in the mesh's own space: across the vehicle)
           const axis = new THREE.Vector3(e[2], e[6], e[10]).normalize();
           meshes.push({
-            map, axis,
+            map, axis, upDir: new THREE.Vector3(e[1], e[5], e[9]).normalize(),
             up: new THREE.Vector4(e[1] / size.y, e[5] / size.y, e[9] / size.y, (e[13] - box.min.y) / size.y),
             fwd: new THREE.Vector4(e[0] / size.x, e[4] / size.x, e[8] / size.x, (e[12] - box.min.x) / size.x),
           });
