@@ -13,7 +13,8 @@ import { col, glowMat, Kit, lightPool, mix, noise, paintMat, poolMat, rng, type 
 import { Plume } from '../../fx';
 import type { Env } from '../../pieces';
 import type { SetPieceFactory } from '../registry';
-import { beacon, Lit, MINE_YELLOW, V, wheel } from './common';
+import { parkedCars } from '../life';
+import { beacon, Lit, MINE_YELLOW, V, wallLights, wheel } from './common';
 
 export interface Rock { faces: Paint[]; tread: Paint; floor: Paint; berm: Paint; road: Paint; ore: Paint; stain?: Paint }
 export const ROCKS: Record<string, Rock> = {
@@ -540,6 +541,11 @@ export const openPit: SetPieceFactory = (o) => {
   k.box(5.4, 0.18, 2.6, '#5b5562', 29.4, 2.55, 20.6, { r: 0.04 });
   k.box(1.6, 0.9, 0.06, '#34506b', 28.2, 1.2, 21.82, { r: 0, jitter: 0 });
   k.box(1.6, 0.9, 0.06, '#34506b', 30.6, 1.2, 21.82, { r: 0, jitter: 0 });
+  // (its door between the windows, a step, a light over it; the pickup the comment promised)
+  k.box(0.8, 1.95, 0.06, '#4a5a66', 29.4, 0.1, 21.82, { r: 0, jitter: 0 });
+  k.box(1.1, 0.14, 0.5, '#bdb4aa', 29.4, 0.08, 22.05, { r: 0.02 });
+  wallLights(g, [[29.4, 2.25, 21.84]], 1.8, 2.6);
+  parkedCars(g, 33.7, 19.4, 1, 3, o.seed + 8, Math.PI / 2, ['pickup']);
   const lit = new Lit('#ffe6b8', 1.2);
   lit.pane(1.4, 0.75, 28.2, 1.28, 21.87).pane(1.4, 0.75, 30.6, 1.28, 21.87);
   lit.build(g);
