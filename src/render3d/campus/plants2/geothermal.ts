@@ -141,7 +141,10 @@ export function geothermal(o: PieceOpts): Piece {
   }
   // an access road from the front, lamps along it
   paving(k, -5.4, 6.5, 2.4, 13, '#8c8478');
-  for (const z of [1.0, 8.5]) poleLamp(k, lamps, g, -4.0, z, 4.4, -1);
+  // (the second one stands across the road at the gate: at -4.0 it stood in front of the control building's
+  // window, and inside the building at tier 3)
+  poleLamp(k, lamps, g, -4.0, 1.0, 4.4, -1);
+  poleLamp(k, lamps, g, -7.2, 11.5, 4.4, 1);
 
   // ── the cooling tower(s) at the back, the switchyard at the front-right ──────────────────
   const cells = tier === 1 ? 2 : 3;
@@ -161,6 +164,9 @@ export function geothermal(o: PieceOpts): Piece {
     k.box(4.4, 0.12, 4.4, '#c9c0b2', wx, 0.1, wz, { r: 0.04, shade: 0 });
     k.box(3.6, 1.2, 1.6, '#e9e1d2', wx + 0.2, 0.2, wz + 1.6, { r: 0.08 });
     k.box(3.6, 0.3, 1.62, 'org0', wx + 0.2, 1.1, wz + 1.6, { r: 0.04, shade: 0 });
+    // the doghouse's door and window (it was a blank box)
+    k.box(0.7, 0.95, 0.06, '#4a5a66', wx - 1.0, 0.2, wz + 2.42, { r: 0, jitter: 0 });
+    lit.box(1.1, 0.42, 0.06, P.glass, wx + 0.7, 0.62, wz + 2.42, { r: 0, jitter: 0 });
     k.box(2.2, 0.9, 2.2, P.steel, wx, 0.2, wz - 0.3, { r: 0.06 });
     const legs: [number, number][] = [[-0.7, -1.0], [0.7, -1.0], [0.7, 0.4], [-0.7, 0.4]];
     for (const [lx, lz] of legs) k.beam(V(wx + lx, 1.1, wz + lz - 0.3), V(wx + lx * 0.3, mh, wz + lz * 0.3 - 0.3), 0.14, 'org1');

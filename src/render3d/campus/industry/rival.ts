@@ -9,7 +9,7 @@ import { col, glowMat, Kit, rng, type Paint } from '../../kit';
 import { fence, fenceMesh } from '../../pieces';
 import { parkedCars } from '../life';
 import type { SetPieceFactory } from '../registry';
-import { block, carPark, Fans, Flag, Lit, curtain, P, putSign, shrubs, signPanel, wallLights } from './common';
+import { block, carPark, Fans, Flag, Lit, curtain, P, putSign, shrubs, signPanel, wallLights, xfmr } from './common';
 
 interface RivalLook { name: string; ramp: [Paint, Paint, Paint, Paint]; light: Paint; wall: Paint; roof: Paint }
 const LOOKS: Record<string, RivalLook> = {
@@ -115,7 +115,7 @@ const rival: SetPieceFactory = (o) => {
       // a spare plot: a car park and a transformer yard
       carPark(k, c.x, c.z + 2, cw - 6, 8);
       parkedCars(g, c.x - cw / 2 + 4, c.z + 2.4, 9, 2.3, o.seed + i * 7, Math.PI / 2);
-      for (let t = 0; t < 3; t++) k.box(2.2, 2.0, 1.8, '#8a8f80', c.x - 3 + t * 3, 0.12, c.z - 7, { r: 0.08 });
+      for (let t = 0; t < 3; t++) xfmr(k, c.x - 3.2 + t * 3.2, c.z - 7, 0.8);
     }
   });
   // the gate mid-front: gatehouse with a barrier, the flag, the logo pylon

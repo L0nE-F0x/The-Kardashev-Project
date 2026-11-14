@@ -5,14 +5,20 @@
  * charcoal parapet, ribbon glazing in dark frames, teal at the entrance.
  */
 import * as THREE from 'three';
-import { glowMat, Kit, rng } from '../../kit';
+import { col, glowMat, Kit, lightPool, rng } from '../../kit';
 import { model } from '../../models';
 import type { Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { Placement } from '../trees';
-import { fanRotor, lampHeadMat, P, plants, poleLamp, wallLamp, winMat } from '../plants2/parts';
+import { fanRotor, lampHeadMat, P, plants, poleLamp, wallLamp, warmPool } from '../plants2/parts';
 
 const CREAM = '#efe6d6', BASE = '#cf6a3a', CAP = '#4a4452', FRAME = '#3a3442', TEAL = '#1f7f78';
+
+/** The wings' glazing: dark glass by day, lit at the garage's level at night (the plants' window glow burnt out beside the model's own panes). */
+const wingWin = glowMat('yel1', 0);
+wingWin.color.copy(col(P.glass));
+wingWin.userData.nightOnly = 0.78;
+wingWin.userData.scope = 0;
 
 interface Rect { x0: number; z0: number; x1: number; z1: number }
 type Face = 'z+' | 'z-' | 'x+' | 'x-';
@@ -99,6 +105,81 @@ function wing(k: Kit, lit: Kit, lamps: Kit, g: THREE.Group, fans: THREE.Object3D
   return top;
 }
 
+/**
+ * The model's own windows, lit at night: warm or cool panes just in front of the painted glass (measured on the
+ * model at 15 long, in its own coordinates: x across, v towards the front, both from its centre), some left dark,
+ * dark glazing bars over them. `open` says which faces are not built against (a wing covers the east and the rear).
+ * The whole group is shown only at night: by day the model's own glass is what you see.
+ */
+function modelWindows(g: THREE.Group, lamps: Kit, mx: number, mz: number, s: number, seed: number, open: { east: boolean; back: boolean }) {
+  const rand = rng(seed);
+  // a lit lobby, offices with the lights on, the cool white of the lab floors; nothing brighter than the garage's panes
+  const mats = [['yel1', 0.72], ['#ffc98a', 0.42], ['#dff2e8', 0.55], ['#cfe9e2', 0.34]].map(([c, kk]) => {
+    const m = glowMat(c as string, 0);
+    m.color.set('#1c2226');
+    m.userData.nightOnly = kk;
+    return m;
+  });
+  const kits = mats.map((_, i) => new Kit(rng(seed + 31 + i)));
+  const bars = new Kit(rng(seed + 30));
+  const BAR = '#2a2630';
+  /**
+   * Panes on a wall. `face`: which way it looks; `c` = the glass's depth along that axis (model coordinates);
+   * a0..a1 along the wall, y0..y1 up it, cols × rows panes; `pick` chooses each pane's light (−1 = dark).
+   */
+  const glaze = (face: Face, c: number, a0: number, a1: number, y0: number, y1: number, cols: number, rows: number, pick: (i: number, j: number) => number, splits?: number[]) => {
+    const sgn = face === 'z+' || face === 'x+' ? 1 : -1, zf = face === 'z+' || face === 'z-';
+    const at = (a: number, y: number, w: number, h: number, off: number, k: Kit, paint: string) => {
+      const p = c * s + sgn * off;
+      if (zf) k.box(w * s, h * s, 0.02, paint, mx + a * s, y * s, mz + p, { r: 0, jitter: 0, shade: 0 });
+      else k.box(0.02, h * s, w * s, paint, mx + p, y * s, mz + a * s, { r: 0, jitter: 0, shade: 0 });
+    };
+    const edges = splits ?? Array.from({ length: cols + 1 }, (_, i) => a0 + ((a1 - a0) * i) / cols);
+    const ph = (y1 - y0) / rows;
+    for (let i = 0; i < edges.length - 1; i++)
+      for (let j = 0; j < rows; j++) {
+        const m = pick(i, j);
+        if (m >= 0) at((edges[i] + edges[i + 1]) / 2, y0 + j * ph + 0.04, edges[i + 1] - edges[i] - 0.08, ph - 0.08, 0.03, kits[m], '#ffffff');
+      }
+    for (const e of edges) at(e, y0 - 0.04, 0.09, y1 - y0 + 0.08, 0.045, bars, BAR);
+    for (let j = 0; j <= rows; j++) at((a0 + a1) / 2, y0 + j * ph - 0.04, a1 - a0 + 0.09, 0.08, 0.045, bars, BAR);
+  };
+  const some = (dark: number, a: number, b: number) => () => (rand() < dark ? -1 : rand() < 0.7 ? a : b);
+  // the front: the double-height lobby (its glass doors in the middle two bays), the tall window in the slate block
+  const lobby = [-1.19, 0.19, 1.57, 2.81, 4.19];
+  glaze('z+', 5.72, -1.19, 4.19, 3.0, 4.3, 4, 1, (i) => (i === 1 ? 1 : 0), lobby);
+  glaze('z+', 5.72, -1.19, 0.19, 1.05, 3.0, 1, 1, () => 0);
+  glaze('z+', 5.72, 2.81, 4.19, 1.05, 3.0, 1, 1, () => 1);
+  glaze('z+', 5.72, 0.19, 2.81, 0.35, 3.0, 2, 1, () => 0);
+  glaze('z+', 5.3, -4.19, -2.95, 1.44, 4.3, 1, 2, (_, j) => (j ? 2 : -1));
+  if (open.east) {
+    // the east wall: the tall window by the corner, a ribbon of lab windows in the teal band above
+    glaze('x+', 5.875, 2.65, 4.22, 1.36, 4.0, 1, 2, (_, j) => (j ? 1 : 0));
+    glaze('x+', 6.24, -3.95, 2.2, 4.85, 6.35, 6, 1, some(0.34, 2, 3));
+  }
+  if (open.back) {
+    glaze('z-', -5.79, 2.42, 4.37, 1.54, 4.39, 2, 2, some(0.3, 1, 3));
+    glaze('z-', -5.82, -4.23, -2.47, 1.63, 4.39, 2, 2, some(0.3, 2, 1));
+    glaze('z-', -5.916, -4.15, 2.1, 5.0, 6.5, 6, 1, some(0.34, 2, 3));
+    // a bulkhead light on the back wall between the windows
+    lamps.box(0.42, 0.16, 0.2, '#e9e1d2', mx, 3.5 * s, mz - 5.916 * s - 0.1, { r: 0, jitter: 0 });
+    lightPool(g, mx, 0, mz - 5.916 * s - 1.7, 3.2, warmPool);
+  }
+  // downlights under the entrance canopy, a bulkhead on the blank west wall
+  for (const x of [0.5, 2.6]) lamps.box(0.5, 0.07, 0.3, '#e9e1d2', mx + x * s, 4.36 * s, mz + 6.7 * s, { r: 0, jitter: 0 });
+  lightPool(g, mx + 1.55 * s, 0, mz + 6.9 * s, 3.8, warmPool);
+  lamps.box(0.2, 0.16, 0.42, '#e9e1d2', mx - 6.25 * s - 0.1, 3.3 * s, mz + 0.5 * s, { r: 0, jitter: 0 });
+  lightPool(g, mx - 6.25 * s - 1.7, 0, mz + 0.5 * s, 3.0, warmPool);
+  const night = new THREE.Group();
+  kits.forEach((k, i) => { if (!k.empty) { const m = k.build(mats[i]); m.castShadow = false; night.add(m); } });
+  const bm = bars.build();
+  bm.castShadow = false;
+  night.add(bm);
+  night.visible = false;
+  g.add(night);
+  return night;
+}
+
 export function lab(o: { seed: number; tier: number }): Piece {
   const g = new THREE.Group();
   const L = o.tier >= 3 ? 13 : 15, s = L / 15;
@@ -155,16 +236,13 @@ export function lab(o: { seed: number; tier: number }): Piece {
   k.box(15.2, 0.06, 1.5, '#cfc6bd', 0, 0.09, pz - 3.85, { r: 0.02, shade: 0, jitter: 0.02 });
   // tier 1: a bed down the east wall
   if (o.tier <= 1) for (let i = 0; i < 5; i++) bushes.push({ x: bx1 + 0.75 + (i % 2) * 0.15, y: 0.12, z: bz1 - 1.2 - i * 1.5, s: 0.9 + r() * 0.35, ry: r() * 6.3 });
+  // the model's own windows at night (the east wall is built against from tier 2, the rear from tier 3)
+  const night = modelWindows(g, lamps, mx, mz, s, o.seed + 40, { east: o.tier <= 1, back: o.tier <= 2 });
   g.add(k.build(), lamps.build(lampHeadMat));
-  if (!lit.empty) g.add(lit.build(winMat));
+  if (!lit.empty) g.add(lit.build(wingWin));
   if (trees.length) g.add(plants('broadleaf', trees));
   if (bushes.length) g.add(plants('shrub', bushes));
   parkedCars(g, -6, pz, 6, 2.4, o.seed + 78, Math.PI / 2);
-  const lm = glowMat('yel1', 0);
-  lm.userData.nightOnly = 0.7;
-  const glow = new THREE.Mesh(new THREE.BoxGeometry(size.x * 0.3, size.y * 0.3, 0.05), lm);
-  glow.position.set(mx - size.x * 0.05, size.y * 0.25, mz + size.z / 2 - 0.4);
-  g.add(glow);
   // the building (the model is 0.834 as wide as it is deep) with the glass doors under the canopy set back in a
   // notch between the planters and the corner
   const hx = (0.834 * L) / 2, front = mz + L / 2, wall = front - 1.0;
@@ -178,9 +256,9 @@ export function lab(o: { seed: number; tier: number }): Piece {
       ...blockers,
       { x0: -8.1, z0: pz - 2.4, x1: -7.7, z1: pz - 2.0 }, { x0: 7.7, z0: pz - 2.4, x1: 8.1, z1: pz - 2.0 },
     ],
-    // the lobby's light is a night thing (by day the panel would read as a board across the doors)
+    // the lit panes are a night thing (by day the model's own glass shows)
     update(e) {
-      glow.visible = e.night > 0.05;
+      night.visible = e.night > 0.05;
       for (const f of fans) f.rotation.y += e.dt * 4.2;
     },
   };

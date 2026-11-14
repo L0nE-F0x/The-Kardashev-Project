@@ -7,11 +7,10 @@
 import * as THREE from 'three';
 import { Kit, rng, type Paint } from '../../kit';
 import { scaffold, type Piece } from '../../pieces';
-import { sign } from '../../fx';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
-  Anim, At, bayLines, beacon, draftTower, fenceMeshAt, fencePosts, lampHeadMat, mechTower, mixHex, P, paving, pipeRun, pipeStands,
+  Anim, At, bayLines, beacon, draftTower, extrudeX, litSign, fenceMeshAt, fencePosts, lampHeadMat, mechTower, mixHex, P, paving, pipeRun, pipeStands,
   poleLamp, rollDoor, sagWires, shed, switchyard, tank, transformer, V, wallLamp, windowRow, winMat, coolWinMat,
 } from './parts';
 
@@ -81,10 +80,10 @@ function turbineHall(k: Kit, lit: Kit, lamps: Kit, g: THREE.Group, x: number, z:
   return top;
 }
 /** A fence round the whole plot, gate in the front middle (posts + see-through mesh). */
-function plotFence(k: Kit, g: THREE.Group, w: number, d: number, gate = 7) {
-  fencePosts(k, 0, 0, w, d, gate, P.steel, 1.4);
+function plotFence(k: Kit, g: THREE.Group, w: number, d: number, gate = 7, gaps: [number, number][] = []) {
+  fencePosts(k, 0, 0, w, d, gate, P.steel, 1.4, gaps);
   const fg = new THREE.Group();
-  fenceMeshAt(fg, w, d, gate, 1.35);
+  fenceMeshAt(fg, w, d, gate, 1.35, gaps);
   g.add(fg);
 }
 /** An office block with windows and a sign (faces +z). */
@@ -92,7 +91,7 @@ function office(k: Kit, lit: Kit, lamps: Kit, g: THREE.Group, x: number, z: numb
   const top = shed(k, x, z, w, d, h, { wall: P.cream, band, ribs: 0 });
   for (let y = 1.2; y < h - 0.8; y += 1.9) windowRow(k, lit, 'z+', z + d / 2 + 0.02, x - w / 2 + 0.5, x + w / 2 - 0.5, y, 1.0, 1.0, 0.35, rand, 0.7);
   k.box(1.4, 2.1, 0.1, '#4a5a66', x + w / 2 - 1.3, 0.35, z + d / 2 + 0.04, { r: 0, jitter: 0 });
-  k.box(2.4, 0.18, 1.4, band, x + w / 2 - 1.3, 2.5, z + d / 2 + 0.6, { r: 0.04 });
+  k.box(2.4, 0.18, 0.9, band, x + w / 2 - 1.3, 2.5, z + d / 2 + 0.45, { r: 0.04 });
   wallLamp(lamps, g, x + w / 2 - 1.3, 2.3, z + d / 2 + 0.2);
   return top;
 }
@@ -130,9 +129,19 @@ export function restart(o: PieceOpts): Piece {
   sc2.position.set(cx - cr * 0.55, 0.6, cz + cr * 0.95);
   sc2.rotation.y = 0.5;
   g.add(sc2);
-  k.box(2.6, 1.1, 1.5, 'org1', 10.6, 0.1, 1.6, { r: 0.08 });
-  k.box(3.6, 1.6, 1.8, '#e9e1d2', 10.0, 0.1, -0.6, { r: 0.08 });
-  k.box(1.2, 0.5, 0.06, 'cyn2', 10.0, 0.8, 0.32, { r: 0 });
+  // a skip (open, half full of broken concrete) and the site cabin (a door, a step, a window: it was a 1.6 m box)
+  extrudeX(k, 9.85, 11.35, [[0.95, 0.12], [0.5, 1.3], [3.1, 1.3], [2.65, 0.12]], 'org1', 0.14, 0.04);
+  k.box(1.26, 0.06, 2.3, '#3a3442', 10.6, 1.27, 1.8, { r: 0, jitter: 0, shade: 0 });
+  for (let i = 0; i < 9; i++) {
+    const s = 0.28 + r() * 0.34;
+    k.box(s, s * 0.6, s * 0.9, r() < 0.3 ? '#8c5a44' : mixHex(OLD, '#8f877c', r() * 0.6), 10.15 + r() * 0.9, 1.2 + r() * 0.08, 0.95 + r() * 1.7, { r: 0.03, ry: r() * 3, jitter: 0.06 });
+  }
+  for (const zz of [0.62, 2.98]) k.box(1.56, 0.1, 0.1, '#b8603a', 10.6, 1.22, zz, { r: 0.02, jitter: 0 });
+  k.box(3.6, 2.4, 1.8, '#e9e1d2', 10.0, 0.1, -0.6, { r: 0.08 });
+  k.box(3.7, 0.12, 1.9, '#8a8490', 10.0, 2.5, -0.6, { r: 0.03, shade: 0 });
+  lit.box(1.2, 0.7, 0.06, P.glass, 9.3, 1.25, 0.32, { r: 0, jitter: 0 });
+  k.box(0.8, 1.9, 0.06, '#4a5a66', 11.0, 0.3, 0.32, { r: 0, jitter: 0 });
+  k.box(1.0, 0.2, 0.5, '#8a8490', 11.0, 0.1, 0.55, { r: 0.02 });
   // the new switchyard (bright steel) and fresh transformers by the hall
   const lines = switchyard(k, g, 8.6, 9.4, 9.0, 6.0, { bays: 2, gantryH: 5 });
   const a = new At(k, 0, 0, 0);
@@ -151,7 +160,8 @@ export function restart(o: PieceOpts): Piece {
   for (let j = 0; j < 3; j++) wires.push([V(bx1, by + 0.15, bz - 0.14 + j * 0.14), lines[0]?.[j] ?? V(bx1, by, bz)]);
   sagWires(k, wires, 0.35, '#4a4452', 0.03);
   // the admin block and car park (front-left)
-  office(k, lit, lamps, g, -9.2, 11.4, 7.0, 2.4, 3.6, r);
+  // (it stands in the fence line, its door on the street side: the fence ran through it)
+  office(k, lit, lamps, g, -9.2, 11.1, 7.0, 2.0, 3.6, r);
   paving(k, -0.6, 10.8, 9.6, 3.4);
   bayLines(k, -5.2, 10.8, 4, 2.3, 3.0);
   parkedCars(g, -4.05, 10.8, 4, 2.3, o.seed + 11, Math.PI / 2);
@@ -162,7 +172,7 @@ export function restart(o: PieceOpts): Piece {
     pipeStands(k, cw, 0.42, 1.8);
   }
   // an old fence, rust-brown posts
-  plotFence(k, g, o.w - 1.4, o.d - 1.4);
+  plotFence(k, g, o.w - 1.4, o.d - 1.4, 7, [[-12.95, -5.45]]);
   for (const z of [-11.5, 2.0]) poleLamp(k, lamps, g, -12.4, z, 4.6, 1);
   g.add(k.build(), lit.build(winMat), lamps.build(lampHeadMat));
   return {
@@ -239,7 +249,12 @@ export function smr(o: PieceOpts): Piece {
   k.box(2.2, 2.3, 1.4, '#e7e2da', cbx + 2.6, 0.3, cf + 0.7, { r: 0.08 });
   k.box(2.8, 0.2, 2.0, SUN, cbx + 2.6, 2.6, cf + 0.9, { r: 0.04 });
   wallLamp(lamps, g, cbx + 2.6, 2.3, cf + 1.45);
-  const sg = sign('LITTLE SUN', 4.6, '#3b2a24', SUN);
+  // the lobby's glass doors (the vestibule was a blank box)
+  coolLit.box(1.5, 1.95, 0.06, '#6f97a3', cbx + 2.6, 0.42, cf + 1.42, { r: 0, jitter: 0 });
+  k.box(0.07, 1.95, 0.08, '#d8d2c8', cbx + 2.6, 0.42, cf + 1.44, { r: 0, jitter: 0 });
+  k.box(1.7, 0.1, 0.1, '#d8d2c8', cbx + 2.6, 2.37, cf + 1.42, { r: 0, jitter: 0 });
+  paving(k, cbx + 2.6, cf + 2.0, 2.4, 1.1, '#b9b1a6', 0.1);
+  const sg = litSign('LITTLE SUN', 4.6, '#3b2a24', SUN);
   sg.position.set(cbx - 1.2, cTop + 0.66, cf - 0.3);
   g.add(sg);
   k.box(5.0, 1.0, 0.2, P.roof, cbx - 1.2, cTop - 0.05, cf - 0.44, { r: 0.02 });
@@ -250,7 +265,8 @@ export function smr(o: PieceOpts): Piece {
   // line from the turbine building out to the yard
   const tb = [V(4.6, tTop + 0.8, tbz), V(4.8, tTop + 0.8, tbz + 1)];
   k.box(0.3, 1.0, 0.3, P.galv, 4.6, tTop - 0.2, tbz, { r: 0 });
-  sagWires(k, [[tb[0], lines[0]?.[1] ?? tb[1]]], 0.8, '#4a4452', 0.03);
+  k.box(1.5, 0.14, 0.14, P.galv, 4.6, tTop + 0.72, tbz, { r: 0, jitter: 0 });
+  sagWires(k, [-1, 0, 1].map((j) => [V(4.6 + j * 0.6, tb[0].y, tbz), lines[0]?.[j + 1] ?? tb[1]]), 0.8, '#4a4452', 0.03);
   plotFence(k, g, o.w - 1.4, o.d - 1.4);
   for (const x of [-12.2, 12.2]) poleLamp(k, lamps, g, x, 2.2, 4.6, x < 0 ? 1 : -1);
   g.add(k.build(), lit.build(winMat), coolLit.build(coolWinMat), lamps.build(lampHeadMat));
@@ -322,12 +338,15 @@ export function reactor(o: PieceOpts): Piece {
   pipeStands(k, p2, 0.55, 2.4);
   // water tanks, the admin block and its car park at the front-left
   tank(k, 1.8, -D + 39.0, 1.4, 4.2, '#e6e0e3', { band: 'cyn3', ladder: true });
-  office(k, lit, lamps, g, -7.4, D - 2.6, 10.6, 2.6, 4.0, r);
+  office(k, lit, lamps, g, -7.4, D - 2.3, 10.6, 2.6, 4.0, r);
   paving(k, -1.8, D - 3.0, 2.2, 3.6, '#8c8478');
   // roads round the site, lamps
   paving(k, -1.0, 0, 2.4, o.d - 5, '#8c8478');
-  for (const z of [-D + 6, -D + 18, -D + 30, -D + 42]) poleLamp(k, lamps, g, 0.4, z, 5.0, -1);
-  plotFence(k, g, o.w - 1.2, o.d - 1.2, 6);
+  // (two of the four along the road stood inside the towers' shells: the site was dark at night)
+  for (const z of [-D + 18, -D + 42]) poleLamp(k, lamps, g, 0.4, z, 5.0, -1);
+  for (const z of [-D + 6, -D + 16, -D + 34]) poleLamp(k, lamps, g, 12.7, z, 5.0, -1);
+  for (const z of [-D + 4, -D + 19]) poleLamp(k, lamps, g, -12.7, z, 5.0, 1);
+  plotFence(k, g, o.w - 1.2, o.d - 1.2, 6, [[-12.95, -3.0]]);
   g.add(k.build(), tk.build(), lit.build(winMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(TH, cTop) + 0.4,

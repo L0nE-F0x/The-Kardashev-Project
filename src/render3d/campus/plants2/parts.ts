@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { col, glowMat, Kit, lightPool, poolMat, withClouds, type BoxOpts, type Paint } from '../../kit';
-import { Plume, type PlumeOpts } from '../../fx';
+import { Plume, sign, type PlumeOpts } from '../../fx';
 import type { Env } from '../../pieces';
 import { plantField, type Placement, type TreeKind } from '../trees';
 
@@ -36,9 +36,9 @@ function nightGlow(day: Paint, glow: Paint, k: number) {
   return m;
 }
 /** Office and control-room windows: blue-grey glass by day, warm at night. */
-export const winMat = nightGlow(P.glass, 'yel1', 1.15);
+export const winMat = nightGlow(P.glass, 'yel1', 0.9);
 /** Cleanroom and gowning windows: a cool white at night. */
-export const coolWinMat = nightGlow('#6f97a3', '#d9f2ee', 1.0);
+export const coolWinMat = nightGlow('#6f97a3', '#d9f2ee', 0.82);
 /** Roof glazing (north lights, skylights): a soft glow, much dimmer than windows. */
 export const skyMat = nightGlow('#86a9b5', '#e6efe0', 0.38);
 /** Lamp heads and wall packs. */
@@ -54,6 +54,21 @@ export const lakeMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#
 export const riverMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#3a8590'), roughness: 0.2, metalness: 0.1 }));
 /** Glazing with a little sheen (vertex coloured). */
 export const glassMat = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.15 }));
+
+/** A sign that is lit at night (fx.sign is plain paint: dark after sunset); by day it is the same painted panel. */
+export function litSign(text: string, w: number, fg: Paint, bg: Paint | null, k = 0.75) {
+  const s = sign(text, w, fg, bg);
+  const old = s.material as THREE.MeshStandardMaterial;
+  const m = glowMat('#ffffff', 0);
+  m.map = old.map;
+  m.emissiveMap = old.map;
+  m.transparent = old.transparent;
+  m.roughness = 0.7;
+  m.userData.nightOnly = k;
+  old.dispose();
+  s.material = m;
+  return s;
+}
 
 /** A red aviation light that blinks (the scene and the lab blink anything with userData.beacon). */
 export function beacon(g: THREE.Object3D, x: number, y: number, z: number, phase = 0) {
@@ -282,7 +297,19 @@ export function switchyard(k: Kit, g: THREE.Group, x: number, z: number, w: numb
 
 /** See-through chain-link panels round a rectangle (centred on the group's origin). */
 const meshMat = new THREE.MeshStandardMaterial({ color: col('#9a94a0'), transparent: true, opacity: 0.26, roughness: 1, side: THREE.DoubleSide, depthWrite: false });
-export function fenceMeshAt(group: THREE.Object3D, w: number, d: number, gate = 6, h = 1.25) {
+/** The front side's fenced stretches: everything but the gate in the middle and any other `gaps` (x ranges: a building standing in the fence line). */
+function frontRuns(w: number, gate: number, gaps: [number, number][] = []) {
+  const cuts = [[-gate / 2, gate / 2], ...gaps].filter(([a, b]) => b > a).sort((a, b) => a[0] - b[0]);
+  const runs: [number, number][] = [];
+  let x = -w / 2;
+  for (const [a, b] of cuts) {
+    if (a - x > 0.3) runs.push([x, a]);
+    x = Math.max(x, b);
+  }
+  if (w / 2 - x > 0.3) runs.push([x, w / 2]);
+  return runs;
+}
+export function fenceMeshAt(group: THREE.Object3D, w: number, d: number, gate = 6, h = 1.25, gaps: [number, number][] = []) {
   const add = (len: number, x: number, z: number, ry: number) => {
     if (len <= 0.05) return;
     const p = new THREE.Mesh(new THREE.PlaneGeometry(len, h), meshMat);
@@ -293,13 +320,12 @@ export function fenceMeshAt(group: THREE.Object3D, w: number, d: number, gate = 
   add(w, 0, -d / 2, 0);
   add(d, w / 2, 0, Math.PI / 2);
   add(d, -w / 2, 0, Math.PI / 2);
-  const seg = (w - gate) / 2;
-  add(seg, -w / 2 + seg / 2, d / 2, 0);
-  add(seg, w / 2 - seg / 2, d / 2, 0);
+  for (const [a, b] of frontRuns(w, gate, gaps)) add(b - a, (a + b) / 2, d / 2, 0);
 }
-/** Fence posts and rails round a rectangle centred at (x, z), with a gate gap in the front side. */
-export function fencePosts(k: Kit, x: number, z: number, w: number, d: number, gate = 6, post: Paint = P.steel, h = 1.3) {
-  const sides: [number, number, number, number][] = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [-w / 2, -d / 2, -w / 2, d / 2], [-w / 2, d / 2, -gate / 2, d / 2], [gate / 2, d / 2, w / 2, d / 2]];
+/** Fence posts and rails round a rectangle centred at (x, z), with a gate gap in the front side (and any other `gaps` there). */
+export function fencePosts(k: Kit, x: number, z: number, w: number, d: number, gate = 6, post: Paint = P.steel, h = 1.3, gaps: [number, number][] = []) {
+  const sides: [number, number, number, number][] = [[-w / 2, -d / 2, w / 2, -d / 2], [w / 2, -d / 2, w / 2, d / 2], [-w / 2, -d / 2, -w / 2, d / 2]];
+  for (const [a, b] of frontRuns(w, gate, gaps)) sides.push([a, d / 2, b, d / 2]);
   for (const [x0, z0, x1, z1] of sides) {
     const len = Math.hypot(x1 - x0, z1 - z0);
     if (len < 0.1) continue;

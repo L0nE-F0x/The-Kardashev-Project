@@ -6,13 +6,22 @@
  * steam over to a turbine house, a cooling tower. Tier 3 is the second block.
  */
 import * as THREE from 'three';
-import { Kit, rng } from '../../kit';
+import { col, glowMat, Kit, lightPool, rng } from '../../kit';
 import { model } from '../../models';
 import type { Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import {
-  Anim, At, beacon, lampHeadMat, mechTower, P, pipe, pipeRun, pipeStands, poleLamp, rollDoor, shed, tank, transformer, V, wallLamp, windowRow, winMat,
+  Anim, At, beacon, lampHeadMat, mechTower, P, pipe, pipeRun, pipeStands, poleLamp, rollDoor, shed, tank, transformer, V, wallLamp, warmPool, windowRow,
 } from '../plants2/parts';
+
+/** The plant's glazing: dark glass by day; at night the halls' lights at two strengths (the garage's panes set the level: nothing burns out). */
+const [hallWin, hallWinDim] = [['#ffdca8', 0.66], ['#ffd09a', 0.36]].map(([c, kk]) => {
+  const m = glowMat(c as string, 0);
+  m.color.copy(col(P.glass));
+  m.userData.nightOnly = kk;
+  m.userData.scope = 0;
+  return m;
+});
 
 const GAS_YELLOW = '#e3b341';
 const RUST = '#c8623c';
@@ -196,6 +205,54 @@ export function gas(o: { seed: number; tier: number }): Piece {
     blockers.push({ x0: tx - 1.25 * ts, z0: z - 1.7 * ts, x1: X(-10.06), z1: z + 1.7 * ts });
   }
 
+  // ── the night shift ──────────────────────────────────────────────────────────────────────────
+  // a clerestory ribbon under the eaves of each hall's outer wall (the model's walls are blank: at night the plant
+  // was two black blocks), most panes lit, a few dark; measured on the model: the east hall's wall is x = 8.0,
+  // z −6.2…4.1, the west hall's x = −8.05, z −6.8…3.4, the eaves at 4.2
+  const dim = new Kit(rng(o.seed + 7));
+  const wr = rng(o.seed + 8);
+  for (const [wx, z0, z1, sgn] of [[8.02, -5.7, 3.6, 1], [-8.06, -6.3, 2.9, -1]] as [number, number, number, number][]) {
+    const n = Math.round((z1 - z0) / 1.05), pw = (z1 - z0) / n;
+    const y0 = 3.32 * s, ph = 0.62 * s;
+    k.box(0.08, ph + 0.14, (z1 - z0) * s + 0.14, '#3a3442', X(wx) + sgn * 0.03, y0 - 0.07, Z((z0 + z1) / 2), { r: 0, jitter: 0, shade: 0 });
+    k.box(0.16, 0.07, (z1 - z0) * s + 0.24, '#b9a58a', X(wx) + sgn * 0.06, y0 - 0.14, Z((z0 + z1) / 2), { r: 0.02, jitter: 0, shade: 0 });
+    for (let i = 0; i < n; i++) {
+      const t = wr();
+      (t < 0.2 ? k : t < 0.45 ? dim : lit).box(0.08, ph, pw * s - 0.09, P.glass, X(wx) + sgn * 0.055, y0, Z(z0 + (i + 0.5) * pw), { r: 0, jitter: 0.04, shade: 0 });
+    }
+  }
+  // bulkhead lights where people go: over the west hall's door, the control house's door, along the east walkway,
+  // into the pipe yard between the halls, at the head of the steps; each lays its pool on the deck
+  const bulk = (x: number, y: number, z: number, px: number, pz: number, r = 2.6, alongZ = true) => {
+    lamps.box(alongZ ? 0.16 : 0.36, 0.14, alongZ ? 0.36 : 0.16, '#e9e1d2', X(x), y * s, Z(z), { r: 0, jitter: 0 });
+    lightPool(g, X(px), deck + 0.03, Z(pz), r, warmPool);
+  };
+  bulk(-9.22, 2.72, -4.5, -9.6, -4.5, 2.3);
+  bulk(-2.9, 2.42, -9.82, -3.9, -9.8, 2.3);
+  for (const z of [-3.6, 1.4]) bulk(8.1, 2.9, z, 9.0, z, 2.8);
+  bulk(2.82, 3.0, 0.4, 1.7, 0.4, 2.8);
+  bulk(-2.86, 3.0, -1.6, -1.7, -1.6, 2.8);
+  // the steps: a light on a post at their head
+  k.box(0.08, 2.5, 0.08, P.steelDark, X(10.01) - 0.2, deck, sz + 0.95, { r: 0, jitter: 0 });
+  lamps.box(0.34, 0.14, 0.2, '#e9e1d2', X(10.01) - 0.05, deck + 2.42, sz + 0.95, { r: 0, jitter: 0 });
+  lightPool(g, sx1 + 0.3, 0, sz, 2.4, warmPool);
+  // the control house's three windows (at the back), lit at night with their glazing bars
+  const ctrlMat = glowMat('yel1', 0);
+  ctrlMat.color.set('#1c2226');
+  ctrlMat.userData.nightOnly = 0.75;
+  const ctrl = new Kit(rng(o.seed + 9)), ctrlBars = new Kit(rng(o.seed + 10));
+  for (const cx of [0.36, -0.77, -1.88]) {
+    ctrl.box(0.5 * s, 0.62 * s, 0.02, '#ffffff', X(cx), 1.66 * s, Z(-11.09), { r: 0, jitter: 0, shade: 0 });
+    ctrlBars.box(0.04, 0.62 * s, 0.02, '#e9e1d2', X(cx), 1.66 * s, Z(-11.09) - 0.012, { r: 0, jitter: 0, shade: 0 });
+    ctrlBars.box(0.5 * s, 0.035, 0.02, '#e9e1d2', X(cx), 1.95 * s, Z(-11.09) - 0.012, { r: 0, jitter: 0, shade: 0 });
+  }
+  const night = new THREE.Group();
+  const cm = ctrl.build(ctrlMat), cb = ctrlBars.build();
+  cm.castShadow = cb.castShadow = false;
+  night.add(cm, cb);
+  night.visible = false;
+  g.add(night);
+
   let top = 12.4 * s;
   if (!big) {
     // the peaker: the gas main comes in on the east side, behind the operators' pickup
@@ -264,7 +321,8 @@ export function gas(o: { seed: number; tier: number }): Piece {
     parkedCars(g, 10.2, 9.6, 1, 3, o.seed + 4, Math.PI / 2, ['pickup']);
   }
   g.add(k.build(), lamps.build(lampHeadMat));
-  if (!lit.empty) g.add(lit.build(winMat));
+  if (!lit.empty) g.add(lit.build(hallWin));
+  if (!dim.empty) g.add(dim.build(hallWinDim));
   return {
     obj: g, w: 26, d: 24, h: top + 0.5,
     // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
@@ -272,6 +330,6 @@ export function gas(o: { seed: number; tier: number }): Piece {
     doors: [{ x: 0, z: 12.85 }],
     blockers,
     progress(p) { anim.done = p; },
-    update(e) { anim.update(e); },
+    update(e) { anim.update(e); night.visible = e.night > 0.05; },
   };
 }

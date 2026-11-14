@@ -6,12 +6,11 @@
  */
 import * as THREE from 'three';
 import { col, glowMat, Kit, lightPool, mix, noise, poolMat, rng, withClouds, type Paint } from '../../kit';
-import { model } from '../../models';
 import { Plume } from '../../fx';
 import type { Env } from '../../pieces';
 import type { SetPieceFactory } from '../registry';
 import {
-  airHandler, beacon, block, brandOf, curtain, Fans, G, lamps, Lit, P, pipeRun, putSign, stack, tube, V, wallLights, wheel, MINE_YELLOW,
+  airHandler, beacon, block, brandOf, curtain, Fans, G, lamps, Lit, P, parkVehicle, pipeRun, putSign, stack, tube, V, wallLights, wheel, MINE_YELLOW,
 } from './common';
 import { haulTruck, ROCKS, truckLights } from './pit';
 
@@ -159,11 +158,27 @@ const brinePonds: SetPieceFactory = (o) => {
   // a little loader at work in the drained pond
   const hx = x0 + harvest.c * (pw + inner) + pw / 2, hz = z0 + harvest.r * (pd + inner) + pd / 2;
   const ldr = new Kit(rng(o.seed + 5));
-  ldr.box(1.8, 1.0, 3.2, MINE_YELLOW, 0, 0.6, 0, { r: 0.12 });
-  ldr.box(1.3, 1.2, 1.2, MINE_YELLOW, 0, 1.6, -0.5, { r: 0.1 });
-  ldr.box(1.1, 0.6, 0.06, '#34506b', 0, 2.1, 0.12, { r: 0, jitter: 0 });
-  ldr.box(2.4, 0.9, 0.9, '#8a8490', 0, 0.3, 2.2, { r: 0.08 });
-  for (const sx of [-1.0, 1.0]) for (const sz of [-1.0, 1.0]) wheel(ldr, sx, 0.6, sz, 0.6, 0.5);
+  // (a wheel loader: frame, engine hood with its grille and exhaust, a glazed cab, lift arms and a bucket full of
+  // salt; it was two yellow boxes and a grey one)
+  ldr.box(1.5, 0.6, 3.6, '#3a3442', 0, 0.55, -0.1, { r: 0.08 });
+  ldr.box(1.7, 0.95, 1.5, MINE_YELLOW, 0, 1.0, -1.2, { r: 0.14 });
+  ldr.box(1.3, 0.6, 0.06, '#433c52', 0, 1.2, -1.97, { r: 0.02, jitter: 0 });
+  ldr.cyl(0.07, 0.07, 0.7, '#5b5562', 0.5, 1.95, -1.3, 6);
+  ldr.box(1.7, 0.5, 1.5, MINE_YELLOW, 0, 1.0, 0.25, { r: 0.1 });
+  ldr.box(1.3, 1.25, 1.25, MINE_YELLOW, 0, 1.5, 0.05, { r: 0.1 });
+  ldr.box(1.36, 0.1, 1.4, '#e6e0e3', 0, 2.75, 0.05, { r: 0.03, shade: 0 });
+  ldr.box(1.1, 0.7, 0.06, '#34506b', 0, 1.95, 0.7, { r: 0, jitter: 0 });
+  ldr.box(1.1, 0.6, 0.06, '#34506b', 0, 2.0, -0.6, { r: 0, jitter: 0 });
+  for (const sx of [-0.67, 0.67]) ldr.box(0.06, 0.7, 0.95, '#34506b', sx, 1.95, 0.05, { r: 0, jitter: 0 });
+  for (const sx of [-0.62, 0.62]) {
+    ldr.beam(V(sx, 1.55, 0.8), V(sx, 0.75, 2.35), 0.2, MINE_YELLOW);
+    ldr.beam(V(sx * 0.6, 1.1, 0.9), V(sx * 0.6, 0.95, 2.1), 0.09, '#c3bcc7');
+  }
+  ldr.geo(new THREE.BoxGeometry(2.5, 0.12, 1.1).rotateX(0.12).translate(0, 0.42, 2.85), '#8a8490', 0.03, 0.1);
+  ldr.geo(new THREE.BoxGeometry(2.5, 1.0, 0.12).rotateX(-0.25).translate(0, 0.9, 2.42), '#8a8490', 0.03, 0.1);
+  for (const sx of [-1.22, 1.22]) ldr.geo(new THREE.BoxGeometry(0.1, 0.9, 1.0).rotateX(-0.1).translate(sx, 0.85, 2.85), '#8a8490', 0.03, 0);
+  ldr.geo(new THREE.IcosahedronGeometry(0.75, 1).scale(1.5, 0.5, 0.6).translate(0, 0.85, 2.85), '#f6f2ea', 0.04);
+  for (const sx of [-0.95, 0.95]) for (const sz of [-1.15, 1.25]) wheel(ldr, sx, 0.68, sz, 0.68, 0.5);
   const loader = ldr.build();
   loader.position.set(hx + pw * 0.15, BY + 0.5, hz - 0.5);
   g.add(loader);
@@ -173,6 +188,9 @@ const brinePonds: SetPieceFactory = (o) => {
     const x = x0 + c * (pw + inner) + pw / 2;
     k.box(2.0, 1.6, 1.7, '#e6dccb', x + pw / 2 - 1.2, BY + bermH - 0.05, z1 + outer / 2, { r: 0.1 });
     k.box(2.2, 0.16, 1.9, '#5a9fa0', x + pw / 2 - 1.2, BY + bermH + 1.55, z1 + outer / 2, { r: 0.04 });
+    // a hatch and a vent on each kiosk
+    k.box(0.75, 1.15, 0.05, '#8a8490', x + pw / 2 - 1.55, BY + bermH + 0.1, z1 + outer / 2 + 0.86, { r: 0, jitter: 0 });
+    for (let y = 0.95; y < 1.3; y += 0.11) k.box(0.55, 0.04, 0.04, '#9d95a6', x + pw / 2 - 0.65, BY + bermH + y, z1 + outer / 2 + 0.86, { r: 0, jitter: 0 });
   }
   tube(k, V(x0 - 0.5, pipeY + 0.1, z1 + outer / 2 + 0.6), V(x1 + 0.5, pipeY + 0.1, z1 + outer / 2 + 0.6), 0.16, '#9d95a6');
   for (let c = 1; c < COLS; c++) for (let rr = 0; rr < ROWS; rr++) {
@@ -255,10 +273,7 @@ const saltPlant: SetPieceFactory = (o) => {
   pipeRun(k, [V(12.8, 1.6, -3.2), V(9.4, 1.6, -3.2), V(9.4, 2.4, -1.2), V(4.0, 2.4, -1.2)], 0.14, '#c3bcc7');
   for (const x of [11.2, 12.6]) k.box(0.2, 1.6, 0.2, P.trim, x, 0, -3.2, { r: 0, jitter: 0 });
   // a truck at the bagging door, lamps
-  const semi = model('semitruck', 10);
-  semi.rotation.y = 0;
-  semi.position.set(-6.0, 0.05, 6.8);
-  g.add(semi);
+  parkVehicle(g, 'semitruck', 10, -6.0, 6.8, 0);
   lamps(g, k, [[-12, 4.4], [1.6, 8.6]], [1, 0]);
   fans.build(g, k);
   g.add(k.build());
@@ -336,7 +351,8 @@ const crusher: SetPieceFactory = (o) => {
       // a 20 s cycle: back up, tip, lower, pull forward, wait for the next load
       const T = 20, t = (e.t % T) / T;
       const back = t < 0.18 ? smooth(t / 0.18) : t < 0.62 ? 1 : t < 0.78 ? 1 - smooth((t - 0.62) / 0.16) : 0;
-      truck.obj.position.set(tipX + (1 - back) * 1.3, PH + 0.05, hz);
+      // (it pulls 0.7 forward, not 1.3: its front wheels left the platform's edge)
+      truck.obj.position.set(tipX + (1 - back) * 0.7, PH + 0.05, hz);
       const tip = t > 0.22 && t < 0.6 ? Math.sin(((t - 0.22) / 0.38) * Math.PI) * 0.85 : 0;
       truck.bed.rotation.x = -tip;
       truck.load.visible = t < 0.38 || t > 0.9;
