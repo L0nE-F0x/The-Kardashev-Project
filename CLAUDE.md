@@ -9,7 +9,7 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.15.0 "True to Life"** (the realism pass on the 3D world: glass and paint on the cars, a real turning circle, trees rebuilt, doors that open, the facility pieces and the later places gone over one by one: SPEC §35) on top of **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
+Current build: **v0.15.1 "Loose Ends"** (what the realism pass saw and left, finished: wheels that turn, buildings that go up at the pace of the work, expansions that rise through the old building, the Act II plants, the suppliers' sites and the later places gone over at close range: SPEC §36) on top of **v0.15.0 "True to Life"** (the realism pass on the 3D world: glass and paint on the cars, a real turning circle, trees rebuilt, doors that open, the facility pieces and the later places gone over one by one: SPEC §35) on top of **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
 plywood and paper in the garage to nothing but light at Type I, the title and loading screens included: SPEC §34;
 on the first pass of the overhaul: a display typeface, panels that lead with tiles, a build menu with pictures:
 SPEC §33) on top of v0.13.3 "Steady Hand" (the Linux app no longer crashes at the first click on the stronger
@@ -103,6 +103,19 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   blue-grey glass (say so in the concept) and gets a row in `CAR_GLASS`. Lamps (`vehicles.ts lampsFor`) are set
   on the bodywork by a ray from ahead and behind, once per model. Vehicles on the campus roads wait for anyone
   on foot in their way (`Traffic.walkers`).
+  Wheels turn (v0.15.1): `findWheels` finds them from the mesh when a model loads (the clumps of vertices on the
+  ground are the contact patches, a circle fitted to each one's underside gives axle and radius) and marks their
+  vertices with `aAxle`; the vehicle's shader turns them by `uCarSpin`. Parked cars share materials (spin 0); a
+  vehicle that drives gets its own through `drivenCar(obj)` and Traffic advances its `spin.value`. `CAR_GLASS`'s
+  `cab` limits the paint to the front share of the length (the flatbed: its deck and straps are its cab's colour).
+- **How a piece goes up (v0.15.1):** `builtHeight(piece, p)` (pieces.ts) is the height to clip at: it follows how
+  much wall there is at each height (a curve made once per piece from its triangles; floors and roofs count a
+  quarter), so the low buildings take most of the build and the stack follows. `clipAbove(obj, y, below)`:
+  anything with `userData.plant` or `userData.late` (parked cars: `parkedCars` sets it) is hidden while a clip is
+  on; `below` cuts away what is under y. An expansion (`f.upgrade`) keeps the old tier's piece (`Entry.old`) and
+  cuts it away from the ground up as the new one rises through it; solar, battery and wind add rows through
+  their own `progress` (0.55 → 1). The reactor restart is never clipped (an old plant, cold until it opens).
+  The lab page's `progress=` does the same.
 - **The road's end, doors, the yard (v0.15):** the frontage road ends in a turning circle (`roads.ts`: `bulbAt`,
   `bulbMesh`, `bulbHalf`; the island, the barrier and its planting in `buildRoads`); deliveries drive round the
   island (`RoadNet.turn`). Doors open: `campusScene.buildDoorways` puts a leaf (the wall's own colour, read
