@@ -65,7 +65,11 @@ export const CHARTER_ACCENT = { accent: C.blu3, accentHi: C.blu5 };
  */
 type BannerField = 'h2' | 'v2' | 'd2' | 'wave' | 'band' | 'chevron' | 'hoist';
 
-/** Emblems as tiny pixel grids: 'x' = the emblem colour, 'w' = white. */
+/**
+ * Where each emblem sits on the banner's 8×5 design grid ('x' = the emblem colour, 'w' = white): the cells it
+ * covers, for `blocBannerAt` (a coarse sample of a banner: the tests tell the twelve apart by it). On the cloth the
+ * emblems are smooth heraldic devices drawn over these cells (`MARK_ART` in sets/geneva/common.ts).
+ */
 const MARKS = {
   pillar: ['x', 'x', 'x'],
   ring: ['xxx', 'x.x', 'xxx'],
@@ -81,12 +85,16 @@ const MARKS = {
   dot: ['xx', 'xx'],
 } as const;
 
+export type BannerMark = keyof typeof MARKS;
+/** An emblem's size on the design grid, in cells. */
+export const markSize = (m: BannerMark): [number, number] => [MARKS[m][0].length, MARKS[m].length];
+
 interface Banner {
   field: BannerField;
   /** Main colour and the second colour of the field. */
   a: number;
   b: number;
-  mark: keyof typeof MARKS;
+  mark: BannerMark;
   /** Emblem colour and its top-left in the 8×5 banner. */
   m: number;
   at: [number, number];
@@ -127,8 +135,8 @@ export const BLOC_FRIEZE: Record<RegionId, [number, number]> = {
 export const BLOC_ORDER: RegionId[] = ['atl', 'eam', 'eur', 'sas', 'pac', 'fab', 'lat', 'seo', 'mena', 'ssa', 'stp', 'nor'];
 
 /**
- * Colour of a bloc's banner at (i, j), i = 0 at the hoist, in an 8×5 banner; 0 where the
- * swallowtail is cut out of the fly.
+ * Colour of a bloc's banner at cell (i, j) of its 8×5 design grid, i = 0 at the hoist; 0 where the swallowtail is
+ * cut out of the fly. (A coarse sample: the flags themselves are drawn smooth, see sets/geneva/common.ts.)
  */
 export function blocBannerAt(id: RegionId, i: number, j: number): number {
   if ((i === 7 && j >= 1 && j <= 3) || (i === 6 && j === 2)) return 0;

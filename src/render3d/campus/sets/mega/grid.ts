@@ -486,14 +486,18 @@ export function converter(o: Act3SetOpts): Piece {
     anim.add((e) => workCrane(crane, e, ph2, 1.0, 12));
     cabin(k, glow, -W / 2 + 4.4, D / 2 - 2.6, 6, 2.4, P.cream, acc);
     cabin(k, glow, -W / 2 + 4.4, D / 2 - 2.6, 6, 2.4, P.cream, acc, 2.85);
-    laydown(k, 3, D / 2 - 3, 7, 3.2, o.seed + 4, ['rebar', 'crate', 'pipe']);
+    // (laydown, trucks and crew keep to ground that stays clear to the end: the filter yard, the transformers and
+    // their fire wall, the DC yard and the control building all arrive where a truck could stand early on)
+    laydown(k, 3, D / 2 - 2.3, 7, 2.2, o.seed + 4, ['rebar', 'crate', 'pipe']);
     flag(g, anim, -5.4, D / 2 - 0.8, 5.5, { a: acc, b: hi }, o.seed + 1, 0, 1.8);
     flag(g, anim, 5.4, D / 2 - 0.8, 5.5, { a: acc, b: hi }, o.seed + 2, 0, 1.8);
-    vehicle(g, 'flatbed', 9, D / 2 - 6.4, 0);
-    vehicle(g, 'mixer', -1, hz1 + 3, Math.PI);
-    standing(g, -2, hz1 + 5.2, 0.4, o.seed + 6);
-    standing(g, 6.8, D / 2 - 5.2, -1.2, o.seed + 7);
-    standing(g, -W / 2 + 8, hz1 + 1.6, 2.2, o.seed + 8);
+    vehicle(g, 'flatbed', W / 2 - 5.6, 2.5, 0);
+    // the mixer pours the transformer plinths and the fire wall, then the control building's slab
+    if (p < 0.5) vehicle(g, 'mixer', -1, hz1 + 3, Math.PI);
+    else vehicle(g, 'mixer', W / 2 - 5.8, 5.5, Math.PI);
+    standing(g, p < 0.5 ? -2 : 7.3, p < 0.5 ? hz1 + 5.2 : 4.4, 0.4, o.seed + 6);
+    standing(g, 6.9, D / 2 - 5.6, -1.2, o.seed + 7);
+    standing(g, -W / 2 + 8.6, D / 2 - 2.2, 2.2, o.seed + 8);
   } else {
     fencePosts(k, W - 0.8, D - 0.8, 6);
     fenceMesh(g, W - 0.8, D - 0.8, 6);

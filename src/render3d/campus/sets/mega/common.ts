@@ -240,7 +240,12 @@ export function builderBoard(text: string, w: number, accent: Paint, hi: Paint) 
     g.font = FONT(text.length > 12 ? 74 : 96);
     g.fillText(text, 384, 114, 720);
   });
-  return new THREE.Mesh(new THREE.PlaneGeometry(w, (w * 220) / 768), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.75 }));
+  // (floodlit after dark, as a contractor's board is)
+  const m = glowMat('#ffffff', 0);
+  m.userData.nightOnly = 0.5;
+  m.map = m.emissiveMap = tex;
+  m.roughness = 0.75;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, (w * 220) / 768), m);
 }
 
 /** Big painted letters (a unit number on a wall): text only, transparent. */
@@ -563,6 +568,14 @@ export function towerCrane(h: number, jib: number, accent: Paint, hi: Paint, see
     k.beam(V(-s / 2, y, s / 2), V(-s / 2, y + 1.3, -s / 2), 0.07, hi);
   }
   g.add(k.build());
+  // the night shift's light: a bank of floods under the slewing ring on each side, the ground round the mast lit
+  for (const [x, z, ry] of [[0, 0.72, 0], [0, -0.72, 0], [0.72, 0, Math.PI / 2], [-0.72, 0, Math.PI / 2]]) {
+    const head = new THREE.Mesh(craneLampGeo, lampHead);
+    head.position.set(x, h - 0.7, z);
+    head.rotation.y = ry;
+    g.add(head);
+  }
+  lightPool(g, 0, 0, 0, Math.max(8, jib * 0.6), workPool);
   const top = new THREE.Group();
   top.position.y = h;
   const t = new Kit(rng(seed + 1));
@@ -606,6 +619,8 @@ export function towerCrane(h: number, jib: number, accent: Paint, hi: Paint, see
   g.userData.jy = jy;
   return g;
 }
+const craneLampGeo = new THREE.BoxGeometry(0.9, 0.34, 0.16);
+craneLampGeo.userData.shared = true;
 /** Slew a tower crane and work its hook (call from update). */
 export function workCrane(c: THREE.Object3D, e: Env, phase: number, swing = 1.0, drop = 8) {
   const top = c.userData.top as THREE.Object3D, hook = c.userData.hook as THREE.Object3D, cable = c.userData.cable as THREE.Object3D;

@@ -9,7 +9,7 @@ import { cow, type Piece } from '../../../pieces';
 import type { Act3SetOpts } from '../../act3sets';
 import {
   Anim, beacon, buoyLight, CHARTER, fieldOf, flag, foamRing, hcyl, lampHead, latticeBoom, P, placard, SEA, SEABED, shade, standing, TAU, track,
-  vehicle, V, wake, windows, winMat, workPool,
+  vehicle, V, wake, warmPool, windows, winMat, workPool,
 } from './common';
 
 type Win = [number, number, number, number, number, number?][];
@@ -58,6 +58,8 @@ function rotorGeo(L: number) {
 export interface Turbine { obj: THREE.Group; rotor: THREE.Object3D; speed: number }
 
 /** A big turbine: tapered tower from `y0`, nacelle and rotor at hub height H; faces +z (turn the group to yaw it). */
+const doorLampGeo = new THREE.BoxGeometry(0.34, 0.14, 0.16);
+doorLampGeo.userData.shared = true;
 export function turbine(k: Kit, parent: THREE.Object3D, x: number, z: number, H: number, L: number, yaw: number, seed: number, y0 = 0): Turbine {
   const r = rng(seed);
   const rb = 0.95 + L * 0.012, rt = 0.5 + L * 0.006;
@@ -72,6 +74,16 @@ export function turbine(k: Kit, parent: THREE.Object3D, x: number, z: number, H:
   }
   const [dx, dz] = at(0, rb - 0.05);
   k.box(0.7, 1.9, 0.2, '#9d95a6', dx, y0 + 0.2, dz, { r: 0.03, ry: yaw });
+  if (y0 < 1) {
+    // on land: a bulkhead light over the door (a field of towers was black to the ground at night)
+    const [lx, lz] = at(0, rb + 0.12);
+    const lampM = new THREE.Mesh(doorLampGeo, lampHead);
+    lampM.position.set(lx, y0 + 2.35, lz);
+    lampM.rotation.y = yaw;
+    parent.add(lampM);
+    const [px, pz] = at(0, rb + 1.6);
+    lightPool(parent, px, y0, pz, 3.4, warmPool);
+  }
   // nacelle: body, cooler on top, the hub flange at the front
   const [nx, nz] = at(0, -0.6);
   k.box(1.55, 1.6, 4.6, '#f1ece4', nx, H - 0.55, nz, { r: 0.3, ry: yaw, jitter: 0.01 });
