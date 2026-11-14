@@ -195,13 +195,15 @@ export function habPark(o: Act3SetOpts): Piece {
   strip(h.k, -3.6, 7.6, -3.6, 11.4, 1.4, H.path);
   // the pond: water, a stone edge, reeds, lily pads, a little jetty
   const pond = blobOutline(-3.8, 0.4, 6.0, 3.6, r);
-  patch(h.k, -3.8, 0.4, 11.0, 6.4, '#4c7a8a', -0.02, 0.04);
+  // (the bed is the pond's own outline: a rectangle under it showed its corners past the stones)
+  h.k.geo(new THREE.ShapeGeometry(new THREE.Shape(pond.map(([x, z]) => new THREE.Vector2(x, -z))), 4).rotateX(-Math.PI / 2).translate(0, 0.03, 0), '#3d6a70', 0.02, 0);
   water(h, pond, 0.16, pondMat);
   stoneEdge(h, pond, 0.55);
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 16; i++) {
+    // reeds in clumps along the far bank (the shared grass tufts, grown tall)
     const [px, pz] = pond[Math.floor(r() * 9) + 9];
-    const x = px + (r() - 0.5) * 0.6, z = pz + (r() - 0.5) * 0.6;
-    h.leaf.geo(new THREE.ConeGeometry(0.05, 1.1 + r() * 0.6, 3).translate(x, 0.6, z).rotateZ((r() - 0.5) * 0.02), r() < 0.5 ? '#7d8a45' : H.ivyL, 0.1);
+    const x = px + (r() - 0.5) * 0.7, z = pz + (r() - 0.5) * 0.7;
+    h.tree('tuft', x, z, 1.5 + r() * 0.9, 0.08, 0.82);
   }
   for (let i = 0; i < 6; i++) h.leaf.cyl(0.32, 0.32, 0.03, '#5a9537', -6 + r() * 6, 0.17, -0.6 + r() * 2.4, 9, { shade: 0 });
   h.k.box(1.6, 0.2, 2.4, H.deck, -3.8, 0.12, 4.6, { r: 0.03 });

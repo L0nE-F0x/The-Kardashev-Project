@@ -20,6 +20,7 @@ const STAND_IN: Partial<Record<PersonName, PersonName>> = { resident_a: 'office'
 const fig = (k: PersonName): PersonName => (hasModel(k) ? k : STAND_IN[k] ?? k);
 import { habFloor } from '../../habitatShell';
 import { plantField, type TreeKind } from '../../trees';
+import { waterMaterial } from '../../water';
 import { glassMat } from '../../plants2/parts';
 import { Anim, plantMat, V } from '../mega/common';
 
@@ -67,9 +68,20 @@ growMat.color.copy(col('#d08fdc'));
 /** Festoon bulbs. */
 export const bulbMat = glowMat('#fff1c4', 1.1);
 /** A pond. */
-export const pondMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#3f8fae'), roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.92 }));
-/** A swimming pool / reflecting pool: bright turquoise. */
-export const poolWaterMat = withClouds(new THREE.MeshStandardMaterial({ color: col('#55b6c8'), roughness: 0.1, metalness: 0.08, transparent: true, opacity: 0.94 }));
+/**
+ * Still water (ponds, channels, pools, the fountain): the scene's own water look (ripples, the sky's mirror), a
+ * little clear. `Hab.finish` gives each sheet the depth that look reads.
+ */
+function stillWater(shallow: Paint, deep: Paint, opacity: number, depth: number) {
+  const m = waterMaterial(shallow, deep);
+  m.transparent = true;
+  m.opacity = opacity;
+  m.userData.shared = true;
+  m.userData.depth = depth;
+  return m;
+}
+export const pondMat = stillWater('#5fa7a2', '#1f5876', 0.9, 4.4);
+export const poolWaterMat = stillWater('#45b4c6', '#17779c', 0.8, 3.0);
 /** Tower glass with a little sheen (vertex coloured). */
 export const towerGlass = withClouds(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.28, metalness: 0.06 }));
 
@@ -207,6 +219,9 @@ export class Hab {
     }
     for (const { m, bend: b } of this.extra) {
       if (b) bend(m.geometry);
+      // water: one depth over the whole sheet (past where the water look would draw surf)
+      const depth = (m.material as THREE.Material).userData?.depth as number | undefined;
+      if (depth && !m.geometry.attributes.aDepth) m.geometry.setAttribute('aDepth', new THREE.BufferAttribute(new Float32Array(m.geometry.attributes.position.count).fill(depth), 1));
       this.g.add(m);
     }
     this.g.add(this.crowd.group);

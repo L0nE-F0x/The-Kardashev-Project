@@ -154,9 +154,13 @@ function villa(h: Hab, x: number, z: number, w: number, d: number, flip: number,
 }
 /** A pool with white coping, loungers and an umbrella. */
 function pool(h: Hab, x: number, z: number, w: number, d: number, swimmer: boolean) {
-  h.k.box(w + 1.2, 0.2, d + 1.2, H.white, x, 0, z, { r: 0.06, jitter: 0.02, shade: 0 });
-  h.k.box(w, 0.06, d, '#2c6f86', x, 0.17, z, { r: 0, jitter: 0, shade: 0 });
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d, Math.ceil(w), 1, Math.ceil(d)).translate(x, 0.2, z), poolWaterMat);
+  // the coping is a frame, not a slab: inside it a tiled floor shows through the water
+  for (const sz of [-1, 1]) h.k.box(w + 1.2, 0.2, 0.6, H.white, x, 0, z + sz * (d / 2 + 0.3), { r: 0.05, jitter: 0.02, shade: 0 });
+  for (const sx of [-1, 1]) h.k.box(0.6, 0.2, d, H.white, x + sx * (w / 2 + 0.3), 0, z, { r: 0.05, jitter: 0.02, shade: 0 });
+  h.k.geo(new THREE.BoxGeometry(w, 0.03, d, Math.ceil(w), 1, Math.ceil(d)).translate(x, 0.025, z), '#5fb0c2', 0.02, 0);
+  for (let lx = x - w / 2 + 0.8; lx < x + w / 2 - 0.3; lx += 0.8) h.k.box(0.06, 0.012, d, '#3a8498', lx, 0.04, z, { r: 0, jitter: 0, shade: 0 });
+  for (let lz = z - d / 2 + 0.8; lz < z + d / 2 - 0.3; lz += 0.8) h.k.geo(new THREE.BoxGeometry(w, 0.012, 0.06, Math.ceil(w), 1, 1).translate(x, 0.046, lz), '#3a8498', 0, 0);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.03, d, Math.ceil(w), 1, Math.ceil(d)).translate(x, 0.15, z), poolWaterMat);
   m.receiveShadow = true;
   h.mesh(m);
   for (let i = 0; i < 2; i++) {
@@ -179,7 +183,7 @@ function pool(h: Hab, x: number, z: number, w: number, d: number, swimmer: boole
     h.anim.add((e) => {
       const t = (Math.sin(e.t * 0.25) * 0.5 + 0.5);
       const sx = x - w / 2 + 0.8 + t * (w - 1.6);
-      s.position.set(sx, 0.2 + floorY(z), z + Math.sin(e.t * 0.7) * 0.2);
+      s.position.set(sx, 0.16 + floorY(z), z + Math.sin(e.t * 0.7) * 0.2);
       s.rotation.y = Math.cos(e.t * 0.25) > 0 ? Math.PI / 2 : -Math.PI / 2;
       s.children[0].rotation.z = Math.sin(e.t * 4) * 0.25;
     });
