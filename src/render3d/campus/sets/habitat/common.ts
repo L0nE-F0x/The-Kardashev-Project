@@ -129,14 +129,14 @@ export class Hab {
   dot(x: number, y: number, z: number, s: number, c: Paint) { this.dots.push({ x, y, z, s, c }); }
   /** A mesh to add as is (bent onto the floor unless `flat`). */
   mesh(m: THREE.Mesh, flat = false) { this.extra.push({ m, bend: !flat }); return m; }
-  /** A person standing (feet-together frame). */
-  stand(x: number, z: number, ry: number, kind: PersonName = 'office', h = 1.75) {
+  /** A person standing (feet-together frame), `y` above the floor (on a terrace, a deck). */
+  stand(x: number, z: number, ry: number, kind: PersonName = 'office', h = 1.75, y = 0) {
     const p = rigged(fig(kind), h * (0.95 + this.r() * 0.1));
     if (!p) return;
     p.walk.time = 0;
     p.mixer.update(0);
     p.walk.paused = true;
-    p.obj.position.set(x, floorY(z), z);
+    p.obj.position.set(x, y + floorY(z), z);
     p.obj.rotation.y = ry;
     this.g.add(p.obj);
   }
@@ -147,9 +147,13 @@ export class Hab {
       this.stand(x + Math.cos(a) * 0.55, z + Math.sin(a) * 0.55, Math.atan2(-Math.cos(a), -Math.sin(a)), this.pick(kinds));
     }
   }
-  /** Someone walking a loop of points. */
-  walk(pts: [number, number][], kind: PersonName | null = null, o: { speed?: number; height?: number; pause?: [number, number] } = {}) {
-    this.crowd.add(fig(kind ?? this.pick(RESIDENTS)), pts, (_x, z) => floorY(z), { speed: o.speed, height: o.height, pause: o.pause ?? [1, 5] });
+  /**
+   * Someone walking a route of points, there and back the same way (the crowd closes a path from its last point
+   * straight to its first: across whatever stands between). `loop`: the points are a round already.
+   */
+  walk(pts: [number, number][], kind: PersonName | null = null, o: { speed?: number; height?: number; pause?: [number, number]; loop?: boolean } = {}) {
+    const route = o.loop || pts.length < 3 ? pts : [...pts, ...pts.slice(1, -1).reverse()];
+    this.crowd.add(fig(kind ?? this.pick(RESIDENTS)), route, (_x, z) => floorY(z), { speed: o.speed, height: o.height, pause: o.pause ?? [1, 5] });
   }
   /** A child running about a small loop round (x, z). */
   kid(x: number, z: number, r = 1.6) {

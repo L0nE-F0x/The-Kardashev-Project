@@ -109,12 +109,13 @@ export function habHouses(o: Act3SetOpts): Piece {
   h.walk([[-13.5, 10.6], [13.5, 10.0]], null, { pause: [2, 6] });
   if (n >= 1) h.chat(1.2, 7.4, 2);
   if (n >= 1) h.stand(-4.3, 1.6, 0.6, 'office');
-  if (n >= 2) h.walk([[0.2, 9.8], [0.2, -3.0], [-5.4, -3.4]], null, { pause: [3, 8] });
+  if (n >= 2) h.walk([[0.2, 9.8], [0.2, -3.0], [-3.2, -3.2]], null, { pause: [3, 8] });
   if (n >= 2) h.walk([[12.8, 9.6], [-6, 10.7]], 'engineer');
   if (n >= 3) {
-    h.kid(-1.9, 4.2, 1.6);
+    // (clear of the swing's frame and arc, the sandpit's kerb and the raised beds)
+    h.kid(0.5, 4.6, 0.8);
     h.kid(1.4, 1.8, 1.8);
-    h.kid(-2.4, 6.6, 1.2);
+    h.kid(-2.5, 10.2, 0.7);
     cat(h, -0.9, 6.0, 0.6, 0.25);
   }
   return h.finish(9.5);
@@ -214,12 +215,13 @@ export function habVilla(o: Act3SetOpts): Piece {
   h.tree('palm', 10.6, 7.0, 1.1);
   h.tree('palm', -2.6, 4.6, 1.0);
   hedge(h, 3.4, 8.8, 9.0, 8.8, 0.8, 0.6);
-  flowerBed(h, -8.6, 4.8, 3.4, 0.8);
+  flowerBed(h, -8.6, 5.7, 3.4, 0.8);
   flowerBed(h, 9.6, -0.2, 2.4, 0.8);
   // people at their leisure
-  h.stand(-4.4, 2.9, 2.8, 'office');
+  // (off the pools' coping and clear of the loungers)
+  h.stand(-4.4, 3.6, 2.8, 'office');
   if (n >= 1) h.stand(7.6, 6.2, 3.3, 'researcher');
-  if (n >= 2) h.chat(-9.2, 3.2, 2);
+  if (n >= 2) h.chat(-4.6, 5.4, 2);
   if (n >= 2) h.walk([[0.6, 11.2], [0.6, -0.8], [2.6, -2.2]], null, { pause: [3, 8] });
   if (n >= 3) festoon(h, V(-10.4, 2.6 + floorY(-1.6), -1.6), V(-2.8, 2.6 + floorY(-1.6), -1.6), 0.5, 9);
   if (n >= 3) for (const [x, z] of [[-10.4, -1.6], [-2.8, -1.6]]) h.k.box(0.1, 2.6, 0.1, H.frame, x, 0, z, { r: 0 });
@@ -318,9 +320,10 @@ export function habTower(o: Act3SetOpts): Piece {
     h.tree('broadleaf', px, pz, 0.7 + n * 0.08, 0.6);
   }
   bench(h, -4.4, 7.4, Math.PI);
-  bench(h, 3.0, 6.6, Math.PI);
+  bench(h, 3.0, 7.1, Math.PI);
   // people crossing the plaza
-  const paths: [number, number][][] = [[[-10, 9.6], [9, 10]], [[-1.2, 9.5], [-1.6, -1.4]], [[8.6, 6.2], [-8.6, 2.4]], [[2.2, 10.2], [2.0, 4.4]], [[-9.6, -2], [-0.4, 9]]];
+  // (round the reflecting pool, the planters and the bench)
+  const paths: [number, number][][] = [[[-10, 10.7], [9, 10.8]], [[0.9, 7.4], [1.0, -1.4]], [[9.6, 6.5], [5.4, 6.15], [1.4, 5.6], [1.0, 3.0], [-8.6, 2.6]], [[-7.6, 9.4], [-0.6, 8.9]], [[-8.4, 2.0], [0.6, 2.4]]];
   for (let i = 0; i < 2 + n; i++) h.walk(paths[i % paths.length], i % 2 ? 'office' : null, { pause: [1, 4] });
   if (n >= 2) h.chat(-0.2, 7.2, 2);
   return h.finish(Math.max(t1, t2, t3));
@@ -420,11 +423,12 @@ export function habDorms(o: Act3SetOpts): Piece {
   }
   hedge(h, -13.4, 10.6, -1.0, 10.6, 0.8, 0.6);
   // people: residents on their way, a chat at the canteen
-  h.walk([[-12, 1.6], [0.2, -1.2], [12, 1.4]], null, { pause: [2, 6] });
-  h.walk([[0.3, -1.0], [4, 7.0], [10, 7.4]], 'engineer');
-  h.chat(5.2, 7.0, 2);
-  if (n >= 1) h.walk([[-13, 3.4], [6, 3.2]], 'worker');
-  if (n >= 2) { h.stand(-6, 4.4, 0.4, 'worker'); h.walk([[12, 10.4], [-11, 10.0]]); }
+  // (round the bike racks, the kiosk, the planters and the tables)
+  h.walk([[-13.4, 2.3], [-8.6, 2.3], [-4.5, -0.6], [0.2, -0.7], [12, 1.4]], null, { pause: [2, 6] });
+  h.walk([[0.3, -0.6], [3.0, 6.6], [-1.0, 6.9]], 'engineer');
+  h.chat(3.6, 6.6, 2);
+  if (n >= 1) h.walk([[-13, -0.7], [6, -0.9]], 'worker');
+  if (n >= 2) { h.stand(-6, 4.4, 0.4, 'worker'); h.walk([[12, 9.9], [-11, 9.7]]); }
   if (n >= 3) h.chat(-10.4, 9.8, 3);
   return h.finish(Math.max(t1, t2) + 1.8);
 }
@@ -490,7 +494,7 @@ export function habBuild(o: Act3SetOpts): Piece {
   hoarding(k, -13.6, 13.6, 10.6, acc, hi, [[-1.6, 2.8]]);
   // the crew
   h.walk([[-10, 1.2], [-2.4, 1.0], [-2.6, 6.8]], 'worker', { pause: [2, 5] });
-  h.walk([[2.0, 0.6], [8.0, 1.4], [8.2, 3.2]], 'worker', { pause: [2, 6] });
+  h.walk([[3.4, 0.6], [8.0, 1.4], [8.2, 3.2]], 'worker', { pause: [2, 6] });
   h.stand(-7.6, -1.4, 0.4, 'engineer');
   h.stand(4.4, -2.0, -0.3, 'worker');
   if ((o.n ?? 0) >= 2) h.chat(9.4, 7.6, 2, CREW);

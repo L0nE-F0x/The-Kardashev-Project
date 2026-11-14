@@ -163,11 +163,12 @@ export function habFarm(o: Act3SetOpts): Piece {
   for (let i = 0; i < 3; i++) h.k.box(1.0, 0.9, 1.0, H.timber, 3.0, 0, 1.0 + i * 1.1, { r: 0.04 });
   h.k.cyl(0.45, 0.45, 1.0, '#4a7cb6', 3.0, 0, -0.6, 12);
   // people at work
-  h.stand(-9.4, 5.2, 0.3, 'engineer');
-  if (n >= 1) h.walk([[0.6, 11.6], [0.6, -4.0], [5.2, -2.6]], 'worker', { pause: [3, 7] });
-  if (n >= 2) h.stand(-6.0, 1.4, -0.4, 'office');
+  // (the growers stand on their terraces, not in them)
+  h.stand(-9.4, 5.2, 0.3, 'engineer', 1.75, 0.91);
+  if (n >= 1) h.walk([[0.9, 11.6], [0.9, 1.4], [1.5, 0.6], [1.5, -3.0], [2.6, -2.2]], 'worker', { pause: [3, 7] });
+  if (n >= 2) h.stand(-6.0, 1.4, -0.4, 'office', 1.75, 1.36);
   if (n >= 2) h.walk([[-15, 11.6], [-2.6, 11.2]], null);
-  if (n >= 3) { h.kid(4.2, 10.0, 1.2); h.stand(-12.6, -8.8, 0.6, 'office'); }
+  if (n >= 3) { h.kid(2.4, 11.3, 0.8); h.stand(-12.6, -8.8, 0.6, 'office'); }
   return h.finish(stations ? 6.4 : 7.4);
 }
 
@@ -231,9 +232,9 @@ export function habWorks(o: Act3SetOpts): Piece {
   h.tree('birch', 12.8, 6.4, 0.9 + n * 0.1);
   crates(h, -12.4, 2.0, 3, 0.4);
   // the crew in overalls
-  h.walk([[-8.4, -1.6], [4.4, -1.8], [8, -2.4]], 'worker', { pause: [2, 6] });
+  h.walk([[-8.4, -0.8], [4.4, -0.9], [8, -1.6]], 'worker', { pause: [2, 6] });
   h.stand(-2.2, -2.2, 0.8, 'worker');
-  if (n >= 2) h.walk([[10.6, -2.4], [10.4, 2.6], [-9, 2.2]], 'engineer', { pause: [3, 6] });
+  if (n >= 2) h.walk([[10.6, -2.4], [10.4, 0.6], [-9, 0.5]], 'engineer', { pause: [3, 6] });
   if (n >= 3) h.stand(5.4, 5.6, -2.4, 'worker');
   return h.finish(12);
 }
