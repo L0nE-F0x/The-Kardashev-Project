@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { plantOn } from '../trees';
 import { Kit, rng, type Paint } from '../../kit';
-import type { Piece } from '../../pieces';
+import { walkBlockers, walkFloor, type Piece } from '../../pieces';
 import { parkVehicle } from '../industry/common';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
@@ -78,13 +78,15 @@ export function packaging(o: PieceOpts): Piece {
   if (tier === 3) k.box(3.0, 2.4, 3.0, CLEAN, -8.0, 2.4, -7.3, { r: 0.1 });
   const H0 = halls[0];
   const front = H0.z + H0.d / 2;
-  // the office front at the left, with the logo panel and the entrance
-  const ox = -9.0, oz = front + 2.4, ow = 6.8, od = 4.0, oh = tier >= 2 ? 7.0 : 6.2;
+  // the office front at the left, with the logo panel and the entrance (set back against the hall, under a shallow
+  // canopy: at tiers 2–3 the hall stands further forward, and the canopy's posts came within 1.2 m of the parked
+  // cars' noses, too narrow a way in to the door)
+  const ox = -9.0, oz = front + 2.0, ow = 6.8, od = 4.0, oh = tier >= 2 ? 7.0 : 6.2;
   const oTop = shed(k, ox, oz, ow, od, oh, { wall: '#d7d9dc', band: ACC, ribs: 0 });
   for (let y = 1.0; y < oh - 0.8; y += 2.0) windowRow(k, lit, 'z+', oz + od / 2 + 0.02, ox - ow / 2 + 0.4, ox + ow / 2 - 0.4, y, 1.05, 1.4, 0.18, r, 0.75);
   windowRow(k, lit, 'x-', ox - ow / 2 - 0.02, oz - od / 2 + 0.4, oz + od / 2 - 0.4, oh - 2.6, 0.9, 1.3, 0.25, r, 0.6);
-  k.box(3.4, 0.22, 1.9, ACC, ox + 1.4, 2.6, oz + od / 2 + 0.85, { r: 0.04 });
-  for (const sx of [-1.4, 1.4]) k.box(0.14, 2.6, 0.14, P.steel, ox + 1.4 + sx, 0.2, oz + od / 2 + 1.6, { r: 0, jitter: 0 });
+  k.box(3.4, 0.22, 1.5, ACC, ox + 1.4, 2.6, oz + od / 2 + 0.65, { r: 0.04 });
+  for (const sx of [-1.4, 1.4]) k.box(0.14, 2.6, 0.14, P.steel, ox + 1.4 + sx, 0.2, oz + od / 2 + 1.2, { r: 0, jitter: 0 });
   cool.box(1.8, 2.1, 0.08, '#86a9b5', ox + 1.4, 0.35, oz + od / 2 + 0.03, { r: 0, jitter: 0 });
   // the logo: four dies stacked on a base, on a blue plate
   const lx = ox - 1.4, ly = oTop - 2.0, lz = oz + od / 2 + 0.1;
@@ -124,7 +126,8 @@ export function packaging(o: PieceOpts): Piece {
   poleLamp(k, lamps, g, -4.7, front + 4.6, 4.4, 1);
   for (let x = -12.6; x < -0.4; x += 1.0) plantOn(k, 'shrub', { x, y: 0.12, z: 12.6, s: 0.85, ry: x * 2.3 }, false);
   g.add(k.build(), lit.build(winMat), cool.build(coolWinMat), sky.build(skyMat), lamps.build(lampHeadMat));
-  return { obj: g, w: o.w, d: o.d, h: Math.max(top + 1.9, oTop, tier >= 2 ? 7.4 : 6.4) };
+  // (the office's entrance; people walk round what the plant is built of)
+  return { obj: g, w: o.w, d: o.d, h: Math.max(top + 1.9, oTop, tier >= 2 ? 7.4 : 6.4), doors: [{ x: ox + 1.4, z: oz + od / 2 + 0.7 }], blockers: walkBlockers(g, o.w, o.d), floor: walkFloor(g, o.w, o.d) };
 }
 
 // ── the Kestrel joint-venture fab (two plots) ───────────────────────────────────────────────
@@ -254,6 +257,10 @@ export function fab(o: PieceOpts): Piece {
   g.add(k.build(), lit.build(winMat), cool.build(coolWinMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(stackTop, towerTop, oTop + 1.4) + 0.2,
+    // the office's entrance under the canopy, from the gate past the gatehouse
+    doors: [{ x: ox + ow / 2 - 3.0, z: oz + od / 2 + 0.7 }],
+    blockers: walkBlockers(g, o.w, o.d),
+    floor: walkFloor(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };

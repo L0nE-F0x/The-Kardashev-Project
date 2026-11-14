@@ -835,6 +835,38 @@ export function plantField(kind: TreeKind, at: Placement[], o: { far?: boolean; 
 }
 
 /**
+ * Plants for a place the camera roams (the habitat), where near and far are not known when it is built: the field is
+ * cut into square patches `cell` metres a side, each a THREE.LOD that shows the full plants within `reach` metres of
+ * the patch's middle and the plain far ones beyond (casting no shadow, as on the far land). `reach` 0 = plain only.
+ * The instances keep their own coordinates (a plant's variant and green are picked from where it stands).
+ */
+export function plantPatches(kind: TreeKind, at: Placement[], reach: number, o: { cell?: number; shadow?: boolean } = {}): THREE.Group {
+  if (reach <= 0) return plantField(kind, at, { far: true, shadow: false });
+  const cell = o.cell ?? 40;
+  const g = new THREE.Group();
+  const cells = new Map<string, Placement[]>();
+  for (const p of at) {
+    const key = `${Math.floor(p.x / cell)},${Math.floor(p.z / cell)}`;
+    let l = cells.get(key);
+    if (!l) cells.set(key, (l = []));
+    l.push(p);
+  }
+  for (const list of cells.values()) {
+    const c = new THREE.Vector3();
+    for (const p of list) c.x += p.x / list.length, c.y += p.y / list.length, c.z += p.z / list.length;
+    const lod = new THREE.LOD();
+    lod.position.copy(c);
+    const near = plantField(kind, list, { shadow: o.shadow }), far = plantField(kind, list, { far: true, shadow: false });
+    near.position.copy(c).negate();
+    far.position.copy(c).negate();
+    lod.addLevel(near, 0);
+    lod.addLevel(far, reach);
+    g.add(lod);
+  }
+  return g;
+}
+
+/**
  * Instanced plants of one kind as a single mesh (its first variant): the older call, still used by pieces that plant
  * their own. The material argument is no longer used (every plant shares the foliage material).
  */

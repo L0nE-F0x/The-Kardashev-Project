@@ -28,7 +28,7 @@ import { plumeUniforms } from '../fx';
 import { campusLayout, cellRect, FRONT_Z, HIGHWAY_Z, PD, rectCenter, type CampusLayout, type PlotItem, type Rect } from './layout';
 import { BACKDROPS, buildGround, type Backdrop, type Ground, type GroundModels } from './ground';
 import { habFloor, habitatShell, HAB_LAND_Z, HAB_R } from './habitatShell';
-import { plantField, treeUniforms, type Placement, type TreeKind } from './trees';
+import { plantField, plantPatches, treeUniforms, type Placement, type TreeKind } from './trees';
 import { quality } from '../quality';
 import { isPlanSite, planLayout, planSpecs, setLayout, setPiecesFor, type SetItem } from './viewOnly';
 import { act3Key } from './plan';
@@ -1230,6 +1230,13 @@ export class CampusScene implements Scene3D {
       // a floor, not a ledge: nothing more than a tall step above the ground counts
       if (v !== null && v > y && v - g < 1.4) y = v;
     }
+    // a piece's own paving, slabs and roads (the Act II plants: pieces.ts `walkFloor`), unless it is still going up
+    for (const e of this.entries.values()) {
+      const r = e.item.rect;
+      if (!e.piece.floor || e.site || x < r.x0 || x > r.x1 || z < r.z0 || z > r.z1) continue;
+      const v = e.piece.floor(x - e.root.position.x, z - e.root.position.z);
+      if (v !== null && e.root.position.y + v > y && e.root.position.y + v - g < 0.6) y = e.root.position.y + v;
+    }
     return y;
   };
 
@@ -1752,7 +1759,13 @@ function habitatMeadow(seed: number, b: Rect, rects: Rect[]): THREE.Group {
     const s = kind === 'tuft' ? 0.7 + r() * 0.5 : kind === 'shrub' ? 0.8 + r() * 0.5 : 0.9 + r() * 0.6;
     kinds[kind].push({ x, y: habFloor(z) - 0.05, z, s, ry: r() * Math.PI * 2, rx: -Math.asin(Math.max(-0.98, Math.min(0.98, z / HAB_R))), tint: 0.88 + r() * 0.24 });
   }
-  for (const [k, at] of Object.entries(kinds)) if (at.length && k !== 'tuft') g.add(plantField(k as TreeKind, at, { shadow: k !== 'shrub' }));
+  // (the camera roams the whole floor, so the plain far ones take over patch by patch with distance, as on a
+  // campus's land: full trees within 210 m at High, shrubs within 120, all plain on Low)
+  for (const [k, at] of Object.entries(kinds)) {
+    if (!at.length || k === 'tuft') continue;
+    const reach = quality.plants < 0.5 ? 0 : (k === 'shrub' ? 120 : 210) * Math.min(1, 0.6 + quality.plants * 0.4);
+    g.add(plantPatches(k as TreeKind, at, reach, { shadow: k !== 'shrub' }));
+  }
   // the meadow's grass: clumps of blades, swaying, in the land's own greens
   const tufts = kinds.tuft;
   if (tufts.length) {

@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { Kit, rng, type Paint } from '../../kit';
-import type { Piece } from '../../pieces';
+import { walkBlockers, walkFloor, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
@@ -136,8 +136,11 @@ export function geothermal(o: PieceOpts): Piece {
   wallLamp(lamps, g, cbx + 1.6, 2.7, cbz + 1.85);
   if (tier < 3) {
     paving(k, cbx, 10.6, 9.6, 3.6);
-    bayLines(k, cbx - 4.6, 10.6, 4, 2.3, 3.0);
-    parkedCars(g, cbx - 3.45, 10.6, 4, 2.3, o.seed + 9, Math.PI / 2);
+    // (two bays west of the door and one east: the third stood across the control building's door)
+    bayLines(k, cbx - 4.6, 10.6, 2, 2.3, 3.0);
+    bayLines(k, cbx + 2.6, 10.6, 1, 2.3, 3.0);
+    parkedCars(g, cbx - 3.45, 10.6, 2, 2.3, o.seed + 9, Math.PI / 2);
+    parkedCars(g, cbx + 3.75, 10.6, 1, 2.3, o.seed + 10, Math.PI / 2);
   }
   // an access road from the front, lamps along it
   paving(k, -5.4, 6.5, 2.4, 13, '#8c8478');
@@ -198,6 +201,10 @@ export function geothermal(o: PieceOpts): Piece {
   const h = Math.max(towerTop, sepTop + 0.9, Math.max(...houses.map((x) => x.h)) + 3.9);
   return {
     obj: g, w: o.w, d: o.d, h,
+    // the control building's door
+    doors: [{ x: cbx + 1.6, z: cbz + 1.72 + 0.65 }],
+    blockers: walkBlockers(g, o.w, o.d),
+    floor: walkFloor(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };

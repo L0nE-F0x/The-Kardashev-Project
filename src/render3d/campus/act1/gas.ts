@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { col, glowMat, Kit, lightPool, rng } from '../../kit';
-import { model } from '../../models';
+import { cutOutOfModel, model } from '../../models';
 import type { Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import {
@@ -314,9 +314,11 @@ export function gas(o: { seed: number; tier: number }): Piece {
   k.box(0.08, 2.5, 0.08, P.steelDark, X(10.01) - 0.2, deck, sz + 0.95, { r: 0, jitter: 0 });
   lamps.box(0.34, 0.14, 0.2, '#e9e1d2', X(10.01) - 0.05, deck + 2.42, sz + 0.95, { r: 0, jitter: 0 });
   lightPool(g, sx1 + 0.3, 0, sz, 2.4, warmPool);
-  // the control house, at the back between the halls (it takes the model's hut inside it)
+  // the control house, at the back between the halls, where the model has its hut (taken out of the model: it
+  // stood inside the new walls and showed through them while they went up)
   const ctrl = new Kit(rng(o.seed + 9));
   const ctrlTop = controlHouse(k, ctrl, lamps, g, X(-3.02), X(1.27), Z(-11.45), Z(-6.55), deck, 4.2 * s + 0.1);
+  cutOutOfModel(m, new THREE.Box3(new THREE.Vector3(X(-3.02) - 0.05, deck + 0.03, Z(-11.45) - 0.05), new THREE.Vector3(X(1.27) + 0.05, ctrlTop - 1.0, Z(-6.55) + 0.05)));
 
   let top = Math.max(12.4 * s, ctrlTop);
   if (!big) {
@@ -393,7 +395,7 @@ export function gas(o: { seed: number; tier: number }): Piece {
     obj: g, w: 26, d: 24, h: top + 0.5,
     // the platform leaves no room to walk between it and the yard's fence, so the operators come and go at the
     // gate (the middle of the fence's front, 12.4 from the plot's centre: a step in ends between its posts)
-    doors: [{ x: 0, z: 12.85 }],
+    doors: [{ x: 0, z: 12.85, gate: true }],
     blockers,
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },

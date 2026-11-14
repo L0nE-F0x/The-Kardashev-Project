@@ -2730,4 +2730,65 @@ headless Hyprland): 112 poses in 14 places, day and night, no non-finite pixel, 
 **Still open after it (smaller):** cut walls during construction have no thickness (a bare inside, seen from
 above); Aurora's broadleaf trees are 470k of its 1.12M triangles (fine on the Intel card at Medium in one
 measurement, but the habitat uses no far level of detail); the reactor and the fab were only seen in the lab,
-never on a real campus plot; the gas plant's control house keeps the model's hut inside the new building.
+never on a real campus plot; the gas plant's control house keeps the model's hut inside the new building. All four done in v0.15.2 (§37).
+
+## 37. v0.15.2 "Way In": §36's last four, and the plants' doors (built 2026-11-14)
+
+**The ask (the user, 2026-11-14):** "time to finish SPEC §36", its "Still open after it". Built and committed;
+shipping was not mentioned.
+
+**What each became:**
+- **Cut walls had no thickness** → a cut is drawn as one (`cutShader` in pieces.ts replaces three's clipping chunk
+  on a clipped copy of a material; shadows keep the plain clip, which is right for them). The view ray through a
+  pixel crosses the cut somewhere; where that crossing lies within a wall's thickness (0.35) of the surface the pixel
+  shows, the pixel is the wall's top: on the near wall, its face just above the cut is kept and drawn as the top; on
+  the far wall, its inside just below the cut. The top is lit as a level surface, in the wall's colour greyed; the
+  rest of the inside is bare and unlit at night. Faces seen edge-on and the shoulders of pipes give no top (a rib's
+  side capped a metre up). Every value is defined for every pixel (the derivatives first, guarded divisions):
+  checked in WebKit. The data hall's cladding ribs stood 4 cm into the hall and showed on its inside: now clear.
+- **Aurora's trees had no far level of detail** → `plantPatches(kind, at, reach)` (trees.ts): the field is cut into
+  40 m patches, each a THREE.LOD with the full plants within `reach` and the plain ones beyond (210 m for trees and
+  120 for shrubs at High, as on a campus's land; all plain on Low). Aurora's meadow and its pieces plant with it. The
+  tour's Aurora shot: 1.10M → 0.83M triangles (broadleaf 470k → 286k), the picture the same.
+- **The reactor and the fab, only seen in the lab** → put on a real double plot (the Columbia Gorge, beside a data
+  hall) and looked at from the street, from behind and at a doorway: they sit inside their plots and clear of their
+  neighbours. But nobody ever went in at their doors, nor at any other Act II plant's (below).
+- **The gas plant's control house kept the model's hut inside** → `cutOutOfModel(copy, box)` (models.ts) takes every
+  triangle wholly inside a box out of a model copy (its own geometry; the template is untouched); the gas plant
+  takes its hut out (its windows showed through the control house's walls while they went up).
+
+**The plants' doors (found on the real plot):** no Act II plant (SMR, restart, reactor, hydro, geothermal,
+packaging, fab) nor the gigawatt campus said where its entrance was, so their staff walked to the middle of the
+footprint's front edge (the kerb in front of the fab's car park, the gap between the reactor's office and its
+switchyard) and vanished there. Each now names its door (the admin block's, the lobby's, the control building's, the
+tower's), and people walk round what the plant is built of: `walkBlockers` (pieces.ts) reads it off the geometry
+(every surface between knee and head height, marked on a 25 cm grid, joined into boxes, the biggest first: a
+building site's crew works round the first), and `walkFloor` reads the floor underfoot (the highest surface facing
+up within a step: paving, slabs, the hydro's road on its embankment), which `walkH` stands people on: the plants'
+paving tops out at 0.18–0.22, so feet sank 6–22 cm once anyone walked there. The floor is exact (each 50 cm cell keeps the surfaces over it and
+a point takes the one it lies on): sampled on a grid, an edge was off by up to 12 cm; read with a margin, people
+hovered a paving's height over the grass beside it. Neither reader counts a lamp's light pool (a disc on the lamp
+field's layer, out past the plot: it put people on the verge 12 cm in the air). Both cost 3–18 ms a plant, about a
+tenth of building it. Two car parks had a car across the door: the SMR's fourth bay ran through its lobby (two
+bays now, the rest its forecourt) and the geothermal plant's third stood at its control building's door (two bays
+west of it, one east). At tiers 2–3 the packaging plant's hall stands further forward and its entrance canopy's
+posts came within 1.2 m of the parked cars' noses, too narrow a way in: the office stands back against the hall
+under a shallower canopy. The gas plant's door stays its yard's gate (v0.13.2: no room to walk between its deck and the
+fence), now said so (`gate: true`).
+A new check, `tools/qa/doorcheck.mjs <sites>`: every door people use has a wall behind it (a doorway that opens) and
+a way in from its gate. The menu's world has none of these plants, so the door, feet and bump checks take
+`SETUP=<file.js>`, a company set up in the page first (`game.startNew({ act2: true, … })`, facilities pushed onto
+sites). Also learnt: a script that only disconnects from the headless Chrome leaves its game running there (thirty
+of them and it stopped answering); the tools close their page.
+
+**Checked:** `npm test` (88 passed), both builds, `floorcheck` 0; on three campuses with every Act II plant (the
+Columbia Gorge: reactor, fab, hydro; West Texas: SMR, restart, packaging, geothermal; the Mojave: the gigawatt campus,
+the gas plant) at tiers 1, 2 and 3: `doorcheck` every door, `bumpcheck` 0 at 08:12 and 12:36, `feetcheck` 0 but one
+sample (a pad's bevelled edge at the restart's street-side step, 8 cm, one in about 1,300). In WebKit (the debug
+app on the dev server, in a headless Hyprland): 48 poses of eight buildings going up on two campuses, day and night,
+no non-finite pixel, no shader error. The build-menu pictures of the SMR, geothermal and packaging plants re-shot.
+
+**Still open after it:** the view-only places' staff vanish the same way: no set piece but Geneva's council names a
+door (`KINDS=set node tools/qa/doorcheck.mjs lumen-hsinchu,…`: all 17 pieces on six suppliers' sites, and the
+Act III–V places are built the same way). The fix is the plants' recipe, piece by piece (`doors`, then
+`walkBlockers`/`walkFloor`). The gas plant's operators still go in at its yard's gate.

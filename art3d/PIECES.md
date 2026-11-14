@@ -29,6 +29,12 @@ forms, matte hand-painted colour, the game's palette, soft light). Its rules are
   moves: fans, rotors, water, plumes, vehicles, rockets.
 - `ground(x, z)` (optional): reshape the terrain under the piece (a pit, a reservoir basin, a mountain): return a height
   in the piece's own coordinates, or null to leave the land as it is.
+- `doors`, `blockers`, `floor` (optional; facilities people work in): where people go in (piece-local, a step out from
+  each door), what they walk round, and the floor underfoot. Without `doors` they go in at the middle of the
+  footprint's front edge: a piece whose entrance is anywhere else must name it, or its staff vanish on open ground. A
+  busy piece reads the other two off its own geometry at the end of its builder: `blockers: walkBlockers(g, o.w, o.d),
+  floor: walkFloor(g, o.w, o.d)` (the Act II plants do). Keep a walkway clear in front of a door (no parked car in it).
+  Check with `tools/qa/doorcheck.mjs`, then `feetcheck` and `bumpcheck` (CLAUDE.md: "Automatic visual checks").
 - Colours: the game palette (`src/render/palette.ts`) or muted hex in its spirit; matte (roughness 0.8–1); bevelled
   boxes (Kit's default), never sharp raw primitives; `rng(seed)` for variety.
 - Scale: a person is ~1.75 units; a data hall 21×11×5.2; a pickup ~4.4 long; a campus plot 28×26.

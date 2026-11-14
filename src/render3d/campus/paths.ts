@@ -12,7 +12,8 @@ export interface Rect { x0: number; z0: number; x1: number; z1: number }
 export interface P2 { x: number; z: number }
 /** A door: the spot just outside it, and the way out (unit normal). */
 /** A way in: where one stands on the step, which way the door faces, and (once the scene has found the wall) how far in to walk to be through it. */
-export interface Door { x: number; z: number; nx: number; nz: number; in?: number }
+/** `gate`: a gate in a fence, not a door in a wall (people go in between its posts: no doorway is hung there). */
+export interface Door { x: number; z: number; nx: number; nz: number; in?: number; gate?: boolean }
 /** A parked car's bay: its centre, its heading (rotation about y), its length and width. */
 export interface Bay { x: number; z: number; ry: number; len: number; wid: number }
 
@@ -352,7 +353,7 @@ export const FENCED = new Set(['datacenter', 'battery', 'gas']);
 export interface PieceShape {
   w: number;
   d: number;
-  doors?: { x: number; z: number; nx?: number; nz?: number }[];
+  doors?: { x: number; z: number; nx?: number; nz?: number; gate?: boolean }[];
   blockers?: Rect[];
   bays?: Bay[];
   /** Whole car parks (a row of bays as one box, empty bays included). */
@@ -367,7 +368,7 @@ export function placeOf(id: string, kind: Place['kind'], rect: Rect, shape: Piec
   // doors: as given, else the middle of the front face (+z), a step out
   const doors: Door[] = (shape.doors?.length ? shape.doors : [{ x: 0, z: shape.d / 2 + 0.7, nx: 0, nz: 1 }]).map((d) => {
     const nx = d.nx ?? 0, nz = d.nz ?? 1, l = Math.hypot(nx, nz) || 1;
-    return { x: d.x + cx, z: d.z + cz, nx: nx / l, nz: nz / l };
+    return { x: d.x + cx, z: d.z + cz, nx: nx / l, nz: nz / l, gate: d.gate };
   });
   const bays = (shape.bays ?? []).map((b) => ({ ...b, x: b.x + cx, z: b.z + cz }));
   const lots = (shape.lots ?? []).map((b) => ({ ...b, x: b.x + cx, z: b.z + cz }));

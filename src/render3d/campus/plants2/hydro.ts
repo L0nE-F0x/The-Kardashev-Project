@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { Kit, lightPool, noise, rng, withClouds } from '../../kit';
-import { pylon, type Piece } from '../../pieces';
+import { pylon, walkBlockers, walkFloor, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
@@ -557,9 +557,14 @@ export function hydro(o: PieceOpts): Piece {
     for (const [i, b] of boils.entries()) b.scale.set(1 + Math.sin(e.t * 2.1 + i) * 0.06, 1, 1 + Math.cos(e.t * 1.7 + i) * 0.08);
   });
   const water = [sheet, churn, tail, ripple, ...boils, ...inflow];
+  const land = (x: number, z: number) => (Math.abs(x) > 14.2 || Math.abs(z) > 13.2 ? 0 : H(x, z));
   return {
     obj: g, w: o.w, d: o.d, h: 12,
     ground: (x, z) => (Math.abs(x) > 14.2 || Math.abs(z) > 13.2 ? null : H(x, z)),
+    // the control building's door; what stands in the way is measured from the reshaped land
+    doors: [{ x: cbx - cbw / 2 + 0.8, z: cbz + 1.63 + 0.65 }],
+    blockers: walkBlockers(g, o.w, o.d, 0.25, land),
+    floor: walkFloor(g, o.w, o.d, 0.25, land),
     progress(p) {
       anim.done = p;
       damG.scale.y = Math.max(0.03, sstep(0.04, 0.72, p));

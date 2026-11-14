@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { Kit, rng, type Paint } from '../../kit';
-import { scaffold, type Piece } from '../../pieces';
+import { scaffold, walkBlockers, walkFloor, type Piece } from '../../pieces';
 import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
@@ -188,6 +188,10 @@ export function restart(o: PieceOpts): Piece {
   g.add(k.build(), tk.build(washMat.mid), ck.build(washMat.low), lit.build(winMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(22, cTop, hallTop) + 0.4,
+    // the admin block's door, on the street side (staff went in through the plot's edge, where nothing stood)
+    doors: [{ x: -9.2 + 3.5 - 1.3, z: 11.1 + 1.0 + 0.7 }],
+    blockers: walkBlockers(g, o.w, o.d),
+    floor: walkFloor(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };
@@ -271,8 +275,10 @@ export function smr(o: PieceOpts): Piece {
   k.box(5.0, 1.0, 0.2, P.roof, cbx - 1.2, cTop - 0.05, cf - 0.44, { r: 0.02 });
   const lines = switchyard(k, g, 7.6, 8.8, 10.2, 6.4, { bays: T2 ? 2 : 1, gantryH: 4.8, xfmrs: T2 ? 2 : 1 });
   paving(k, cbx, 10.2, 9.6, 4.0);
-  bayLines(k, cbx - 4.6, 10.2, 4, 2.3, 3.0);
-  parkedCars(g, cbx - 3.45, 10.2, 4, 2.3, o.seed + 9, Math.PI / 2);
+  // (two bays from the paving's west edge: the lobby stands forward into the row, and the cars beside it stood
+  // in its corner, one through its door; the rest of the paving is its forecourt)
+  bayLines(k, cbx - 4.8, 10.2, 2, 2.3, 3.0);
+  parkedCars(g, cbx - 3.65, 10.2, 2, 2.3, o.seed + 9, Math.PI / 2);
   // line from the turbine building out to the yard
   const tb = [V(4.6, tTop + 0.8, tbz), V(4.8, tTop + 0.8, tbz + 1)];
   k.box(0.3, 1.0, 0.3, P.galv, 4.6, tTop - 0.2, tbz, { r: 0 });
@@ -283,6 +289,10 @@ export function smr(o: PieceOpts): Piece {
   g.add(k.build(), lit.build(winMat), coolLit.build(coolWinMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(modTop, towerTop, cTop + 1.4, tTop) + 0.3,
+    // the lobby's glass doors
+    doors: [{ x: cbx + 2.9, z: cf + 2.0 }],
+    blockers: walkBlockers(g, o.w, o.d),
+    floor: walkFloor(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };
@@ -366,6 +376,10 @@ export function reactor(o: PieceOpts): Piece {
   g.add(k.build(), tk.build(washMat.tall), ck.build(washMat.mid), lit.build(winMat), lamps.build(lampHeadMat));
   return {
     obj: g, w: o.w, d: o.d, h: Math.max(TH, cTop) + 0.4,
+    // the admin block's door, in the gap in the fence
+    doors: [{ x: -7.4 + 10.6 / 2 - 1.3, z: D - 2.3 + 2.6 / 2 + 0.7 }],
+    blockers: walkBlockers(g, o.w, o.d),
+    floor: walkFloor(g, o.w, o.d),
     progress(p) { anim.done = p; },
     update(e) { anim.update(e); },
   };

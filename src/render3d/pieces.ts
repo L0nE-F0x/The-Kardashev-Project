@@ -33,13 +33,19 @@ export interface Piece {
    * the piece's own coordinates, or null to leave the ground as it is.
    */
   ground?(x: number, z: number): number | null;
+  /**
+   * The piece's own floor underfoot (piece-local; null where it lays none): `walkFloor` reads it off the paving,
+   * slabs, roads and doorsteps of a piece that doesn't keep to the 0.14–0.15 tops, and `walkH` stands people on it.
+   */
+  floor?(x: number, z: number): number | null;
   /** A brownout at the site: halls flicker and show red. */
   setAlert?(on: boolean): void;
   /**
    * Where people go in and out (piece-local: the spot a step outside each door, and the way out, default +z). Without
-   * it, the middle of the front face.
+   * it, the middle of the front face. `gate`: a gate in the yard's fence where there is no door to use (the gas
+   * plant's), so no doorway is looked for. `tools/qa/doorcheck.mjs` checks that every door has a wall and a way in.
    */
-  doors?: { x: number; z: number; nx?: number; nz?: number }[];
+  doors?: { x: number; z: number; nx?: number; nz?: number; gate?: boolean }[];
   /**
    * What people walk round (piece-local boxes: walls, plant, yards, clutter). Without it, the whole w × d. Cars
    * placed with `parkedCars` count by themselves.
@@ -187,6 +193,62 @@ export function siteClutter(w: number, d: number, seed = 1) {
   return kit.build();
 }
 
+// A building cut at the height it has reached. Cut by a plain clip plane, a wall has no thickness: seen from above,
+// a half-built hall was a paper box. So the cut is drawn here (it replaces three's clipping chunk; shadows keep
+// the plain clip, which is right for them). The view ray through a pixel crosses the cut somewhere; where that
+// crossing lies within a wall's thickness of the surface the pixel shows, the pixel is the wall's top:
+// - the near wall: its face just above the cut is kept, as cap, where the ray goes on into the wall below the cut;
+// - the far wall: its inside below the cut is cap where the ray entered the cut just inside its outer face.
+// Everything else seen from inside is bare structure, and the cap is lit as a level surface. Every value is
+// defined for every pixel (WebKit turns undefined GLSL into NaN): the derivatives come first, before any discard;
+// the divisions are guarded.
+const CUT_T = 0.35;
+const CUT_GLSL = /* glsl */ `
+bool cutCap = false, cutBare = false;
+#if NUM_CLIPPING_PLANES > 0
+{
+  vec3 cutP = - vClipPosition;
+  vec3 cutN = cross( dFdx( cutP ), dFdy( cutP ) );
+  float cutL = length( cutN );
+  cutN = cutL > 1e-12 ? cutN / cutL : vec3( 0.0, 0.0, 1.0 );
+  vec4 cutPl = clippingPlanes[ 0 ];
+  float cutD = dot( cutPl.xyz, cutP ) + cutPl.w;
+  vec3 cutRay = isOrthographic ? vec3( 0.0, 0.0, - 1.0 ) : cutP / max( length( cutP ), 1e-6 );
+  float cutDen = dot( cutPl.xyz, cutRay );
+  cutDen = abs( cutDen ) > 1e-4 ? cutDen : 1e-4;
+  float cutDepth = ( gl_FrontFacing ? 1.0 : - 1.0 ) * dot( cutRay, cutN ) * cutD / cutDen;
+  // (and not too far along the face: a face seen edge-on, a rib's side, would otherwise cap a long way up)
+  float cutAlong = abs( cutD / cutDen ) * sqrt( max( 1.0 - cutDen * cutDen, 0.0 ) );
+  bool cutEye = cutPl.w < 0.0;
+  float cutTilt = abs( dot( cutN, cutPl.xyz ) );
+  bool cutTop = cutEye && cutTilt < 0.6 && cutDepth > 0.0 && cutDepth < ${CUT_T.toFixed(2)} && cutAlong < ${(CUT_T * 1.6).toFixed(2)};
+  if ( cutD < 0.0 ) {
+    // (only an upright face: a pipe's shoulder above the cut is not a wall standing on it)
+    if ( ! ( gl_FrontFacing && cutTop && cutTilt < 0.25 ) ) discard;
+    cutCap = true;
+  } else if ( ! gl_FrontFacing ) {
+    if ( cutTop ) cutCap = true; else cutBare = true;
+  }
+}
+#endif
+`;
+
+function cutShader(fs: string): string {
+  if (!fs.includes('#include <clipping_planes_fragment>')) return fs;
+  return fs
+    .replace('#include <clipping_planes_fragment>', CUT_GLSL)
+    .replace('#include <color_fragment>', `#include <color_fragment>
+	if ( cutCap ) diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.40, 0.39, 0.36 ), 0.55 );
+	else if ( cutBare ) diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.22, 0.215, 0.21 ), 0.82 );`)
+    .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n\tif ( cutCap || cutBare ) roughnessFactor = 0.92;')
+    .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n\tif ( cutCap || cutBare ) metalnessFactor = 0.0;')
+    .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+	#if NUM_CLIPPING_PLANES > 0
+	if ( cutCap ) normal = - clippingPlanes[ 0 ].xyz;
+	#endif`)
+    .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\tif ( cutCap || cutBare ) totalEmissiveRadiance = vec3( 0.0 );');
+}
+
 /**
  * Clip everything in obj above world height y (null = no clip). Gives the meshes their own materials.
  * `below`: cut away what is under y instead (an old building while its replacement rises through it).
@@ -207,15 +269,14 @@ export function clipAbove(obj: THREE.Object3D, y: number | null, below = false) 
         if (!m.userData.ownMat) {
           const orig = m.material as THREE.Material;
           const c = orig.clone();
-          // keep the material's own shader hooks (the palette on Meshy models, grain, clouds), and show the cut
-          // shell's inside as bare structure: seen from above, a half-built hall was a box lined with its own
-          // finished paint
+          // keep the material's own shader hooks (the palette on Meshy models, grain, clouds), and draw the cut as
+          // a real one (CUT_GLSL): walls with a top as thick as a wall, the inside bare
           const hook = orig.onBeforeCompile;
           c.onBeforeCompile = (sh, r) => {
             hook.call(orig, sh, r);
-            sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n\tif (!gl_FrontFacing) diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.22, 0.215, 0.21), 0.82);');
+            sh.fragmentShader = cutShader(sh.fragmentShader);
           };
-          c.customProgramCacheKey = () => orig.customProgramCacheKey() + '|cut';
+          c.customProgramCacheKey = () => orig.customProgramCacheKey() + '|cut2';
           const plane = below ? new THREE.Plane(new THREE.Vector3(0, 1, 0), -y) : new THREE.Plane(new THREE.Vector3(0, -1, 0), y);
           c.clippingPlanes = [plane];
           c.clipShadows = true;
@@ -229,6 +290,159 @@ export function clipAbove(obj: THREE.Object3D, y: number | null, below = false) 
     for (const c of o.children) walk(c);
   };
   walk(obj);
+}
+
+/**
+ * What people walk round on a piece's plot (`Piece.blockers`), read off what the piece is built of: every surface in
+ * a body's way, between knee and head height (0.3–1.9 m over the ground), marked on a grid of `cell` metres, the
+ * marked cells joined into boxes, the biggest first (construction crews work round the first one). Slabs and paving
+ * underfoot, canopies, crowns and wires overhead don't count; parked cars count by themselves (`userData.bay`). For
+ * pieces too busy to list their blockers by hand: the Act II plants, with buildings, yards, tanks and fences all
+ * over their plots. Call it on the finished piece's group (its own frame, the plot's ground at y 0).
+ */
+export function walkBlockers(obj: THREE.Object3D, w: number, d: number, cell = 0.25, groundAt?: (x: number, z: number) => number): { x0: number; z0: number; x1: number; z1: number }[] {
+  const LO = 0.3, HI = 1.9;
+  const nx = Math.ceil(w / cell), nz = Math.ceil(d / cell);
+  const grid = new Uint8Array(nx * nz);
+  obj.updateMatrixWorld(true);
+  const inv = obj.matrixWorld.clone().invert();
+  const mw = new THREE.Matrix4(), mi = new THREE.Matrix4(), mm = new THREE.Matrix4();
+  const p = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  // a triangle's part inside the height band: its corners and where its edges cross the band's floor and ceiling
+  const box = { x0: 0, z0: 0, x1: 0, z1: 0, any: false };
+  const take = (x: number, z: number) => {
+    if (!box.any) { box.x0 = box.x1 = x; box.z0 = box.z1 = z; box.any = true; return; }
+    box.x0 = Math.min(box.x0, x); box.x1 = Math.max(box.x1, x); box.z0 = Math.min(box.z0, z); box.z1 = Math.max(box.z1, z);
+  };
+  const mark = () => {
+    box.any = false;
+    for (let i = 0; i < 3; i++) {
+      const a = p[i], b = p[(i + 1) % 3];
+      if (a.y >= LO && a.y <= HI) take(a.x, a.z);
+      for (const y of [LO, HI]) {
+        if ((a.y - y) * (b.y - y) < 0) {
+          const t = (y - a.y) / (b.y - a.y);
+          take(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t);
+        }
+      }
+    }
+    if (!box.any) return;
+    const i0 = Math.max(0, Math.floor((box.x0 + w / 2) / cell + 0.02)), i1 = Math.min(nx - 1, Math.floor((box.x1 + w / 2) / cell - 0.02));
+    const j0 = Math.max(0, Math.floor((box.z0 + d / 2) / cell + 0.02)), j1 = Math.min(nz - 1, Math.floor((box.z1 + d / 2) / cell - 0.02));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) grid[j * nx + i] = 1;
+  };
+  const walk = (o: THREE.Object3D) => {
+    if (o.userData.bay || o.userData.lot || !o.layers.isEnabled(0)) return;
+    const m = o as THREE.Mesh;
+    if (m.isMesh && m.geometry && !(m as THREE.SkinnedMesh).isSkinnedMesh) {
+      const pos = m.geometry.getAttribute('position'), idx = m.geometry.getIndex();
+      const inst = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh) : null;
+      const tris = pos ? Math.floor((idx ? idx.count : pos.count) / 3) : 0;
+      mw.multiplyMatrices(inv, m.matrixWorld);
+      for (let k = 0; k < (inst ? inst.count : 1); k++) {
+        if (inst) { inst.getMatrixAt(k, mi); mm.multiplyMatrices(mw, mi); } else mm.copy(mw);
+        for (let t = 0; t < tris; t++) {
+          for (let c = 0; c < 3; c++) {
+            p[c].fromBufferAttribute(pos, idx ? idx.getX(t * 3 + c) : t * 3 + c).applyMatrix4(mm);
+            if (groundAt) p[c].y -= groundAt(p[c].x, p[c].z);
+          }
+          if (Math.max(p[0].y, p[1].y, p[2].y) < LO || Math.min(p[0].y, p[1].y, p[2].y) > HI) continue;
+          mark();
+        }
+      }
+    }
+    for (const ch of o.children) walk(ch);
+  };
+  walk(obj);
+  // join the marked cells: runs along x, a run carried on down the rows while the next row has the same run
+  const out: { x0: number; z0: number; x1: number; z1: number }[] = [];
+  let open = new Map<string, { x0: number; z0: number; x1: number; z1: number }>();
+  for (let j = 0; j <= nz; j++) {
+    const next = new Map<string, { x0: number; z0: number; x1: number; z1: number }>();
+    for (let i = 0; j < nz && i < nx; i++) {
+      if (!grid[j * nx + i]) continue;
+      const i0 = i;
+      while (i + 1 < nx && grid[j * nx + i + 1]) i++;
+      const key = `${i0},${i}`;
+      const r = open.get(key);
+      if (r) { r.z1 = -d / 2 + (j + 1) * cell; open.delete(key); next.set(key, r); }
+      else next.set(key, { x0: -w / 2 + i0 * cell, z0: -d / 2 + j * cell, x1: -w / 2 + (i + 1) * cell, z1: -d / 2 + (j + 1) * cell });
+    }
+    for (const r of open.values()) out.push(r);
+    open = next;
+  }
+  return out.sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0));
+}
+
+/**
+ * A piece's own floor (`Piece.floor`), read off what it is built of: the highest surface that faces up within a
+ * step of the ground (0.6 m: paving, slabs, a road on its embankment, a doorstep, a building's plinth), exactly as
+ * it lies (a grid of `cell` metres only says which surfaces to try at a point). `groundAt`: the land under a piece
+ * that reshapes it.
+ */
+export function walkFloor(obj: THREE.Object3D, w: number, d: number, cell = 0.5, groundAt?: (x: number, z: number) => number): (x: number, z: number) => number | null {
+  const STEP = 0.6;
+  const nx = Math.ceil(w / cell), nz = Math.ceil(d / cell);
+  const cells: number[][] = Array.from({ length: nx * nz }, () => []);
+  const tris: number[] = [];
+  obj.updateMatrixWorld(true);
+  const inv = obj.matrixWorld.clone().invert();
+  const mw = new THREE.Matrix4(), mi = new THREE.Matrix4(), mm = new THREE.Matrix4();
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const tri = () => {
+    // facing up (a box's top, a ramp), within a step of the land under it
+    const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+    const ny = uz * vx - ux * vz, nl = Math.hypot(uy * vz - uz * vy, ny, ux * vy - uy * vx);
+    if (nl < 1e-9 || ny / nl < 0.7) return;
+    const g = (p: THREE.Vector3) => p.y - (groundAt ? groundAt(p.x, p.z) : 0);
+    const top = Math.max(g(a), g(b), g(c));
+    if (top > STEP || top < -0.05) return;
+    const t = tris.length / 9;
+    tris.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+    const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x, c.x) + w / 2) / cell)), i1 = Math.min(nx - 1, Math.floor((Math.max(a.x, b.x, c.x) + w / 2) / cell));
+    const j0 = Math.max(0, Math.floor((Math.min(a.z, b.z, c.z) + d / 2) / cell)), j1 = Math.min(nz - 1, Math.floor((Math.max(a.z, b.z, c.z) + d / 2) / cell));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) cells[j * nx + i].push(t);
+  };
+  const walk = (o: THREE.Object3D) => {
+    // (not parked cars, planting, or a lamp's light pool: a disc on the lamp field's layer, out past the plot)
+    if (o.userData.bay || o.userData.lot || o.userData.plant || !o.layers.isEnabled(0)) return;
+    const m = o as THREE.Mesh;
+    if (m.isMesh && m.geometry && !(m as THREE.SkinnedMesh).isSkinnedMesh) {
+      const pos = m.geometry.getAttribute('position'), idx = m.geometry.getIndex();
+      const inst = (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh) : null;
+      const n = pos ? Math.floor((idx ? idx.count : pos.count) / 3) : 0;
+      mw.multiplyMatrices(inv, m.matrixWorld);
+      for (let k = 0; k < (inst ? inst.count : 1); k++) {
+        if (inst) { inst.getMatrixAt(k, mi); mm.multiplyMatrices(mw, mi); } else mm.copy(mw);
+        for (let t = 0; t < n; t++) {
+          a.fromBufferAttribute(pos, idx ? idx.getX(t * 3) : t * 3).applyMatrix4(mm);
+          b.fromBufferAttribute(pos, idx ? idx.getX(t * 3 + 1) : t * 3 + 1).applyMatrix4(mm);
+          c.fromBufferAttribute(pos, idx ? idx.getX(t * 3 + 2) : t * 3 + 2).applyMatrix4(mm);
+          if (Math.min(a.y, b.y, c.y) > STEP + 2) continue;
+          tri();
+        }
+      }
+    }
+    for (const ch of o.children) walk(ch);
+  };
+  walk(obj);
+  const T = new Float32Array(tris);
+  // the highest of the surfaces in the point's cell that the point lies on (seen from above)
+  return (x, z) => {
+    const i = Math.floor((x + w / 2) / cell), j = Math.floor((z + d / 2) / cell);
+    if (i < 0 || j < 0 || i >= nx || j >= nz) return null;
+    let h = -Infinity;
+    for (const t of cells[j * nx + i]) {
+      const o = t * 9, ax = T[o], az = T[o + 2], bx = T[o + 3], bz = T[o + 5], cx = T[o + 6], cz = T[o + 8];
+      const det = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+      if (Math.abs(det) < 1e-12) continue;
+      const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / det, l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / det, l3 = 1 - l1 - l2;
+      if (l1 < -1e-5 || l2 < -1e-5 || l3 < -1e-5) continue;
+      const y = l1 * T[o + 1] + l2 * T[o + 4] + l3 * T[o + 7];
+      if (y > h) h = y;
+    }
+    return h > -Infinity ? h : null;
+  };
 }
 
 // A piece under construction goes up at the pace of the work in it, not of a ruler: a plant is mostly low
@@ -326,8 +540,8 @@ export function dataHall(seed: number, o: HallOpts = {}): Piece & { setLoad(f: n
   kit.box(W + 0.6, 0.5, D + 0.6, '#a39a91', 0, 0, 0, { r: 0.08 });
   kit.box(W, H, D, wall, 0, 0.4, 0, { r: 0.18, jitter: 0.02, shade: 0.18 });
   for (let x = -W / 2 + 0.9; x < W / 2 - 0.5; x += 1.15) {
-    kit.box(0.22, H - 1.2, 0.12, '#c9c1b6', x, 0.9, D / 2 + 0.02, { r: 0.04, jitter: 0.01, shade: 0 });
-    kit.box(0.22, H - 1.2, 0.12, '#c9c1b6', x, 0.9, -D / 2 - 0.02, { r: 0.04, jitter: 0.01, shade: 0 });
+    kit.box(0.22, H - 1.2, 0.12, '#c9c1b6', x, 0.9, D / 2 + 0.065, { r: 0.04, jitter: 0.01, shade: 0 });
+    kit.box(0.22, H - 1.2, 0.12, '#c9c1b6', x, 0.9, -D / 2 - 0.065, { r: 0.04, jitter: 0.01, shade: 0 });
   }
   kit.box(W + 0.3, 0.5, D + 0.3, '#5b5562', 0, H + 0.35, 0, { r: 0.1, shade: 0 }); // parapet
   kit.box(W - 0.4, 0.1, D - 0.4, '#6f6878', 0, H + 0.6, 0, { r: 0, shade: 0 }); // roof membrane

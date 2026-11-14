@@ -9,7 +9,10 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.15.1 "Loose Ends"** (what the realism pass saw and left, finished: wheels that turn, buildings that go up at the pace of the work, expansions that rise through the old building, the Act II plants, the suppliers' sites and the later places gone over at close range: SPEC §36) on top of **v0.15.0 "True to Life"** (the realism pass on the 3D world: glass and paint on the cars, a real turning circle, trees rebuilt, doors that open, the facility pieces and the later places gone over one by one: SPEC §35) on top of **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
+Current build: **v0.15.2 "Way In"** (SPEC §36's last four done: cut walls with a top, Aurora's far trees, the
+reactor and the fab seen on a real plot, the gas plant's hut gone; and found there: the Act II plants' staff vanished
+at the edge of the plot, so every plant names its door and people walk round and on what it is built of: SPEC §37)
+on top of **v0.15.1 "Loose Ends"** (what the realism pass saw and left, finished: wheels that turn, buildings that go up at the pace of the work, expansions that rise through the old building, the Act II plants, the suppliers' sites and the later places gone over at close range: SPEC §36) on top of **v0.15.0 "True to Life"** (the realism pass on the 3D world: glass and paint on the cars, a real turning circle, trees rebuilt, doors that open, the facility pieces and the later places gone over one by one: SPEC §35) on top of **v0.14.2 "Clear View"** (the globe's strobing square fixed at its cause, see "Shaders must stay defined" below, and a polish pass: shortcuts, skip-ahead, double clicks, settings that do what they say) on top of **v0.14.1 "Distinct"** (colour-blind safe colours reach every look, the Charter's sticky notes included, and they still win with high contrast on) on top of **v0.14.0 "Mission Control"** (the interface grows with the acts: five looks on one layout, from
 plywood and paper in the garage to nothing but light at Type I, the title and loading screens included: SPEC §34;
 on the first pass of the overhaul: a display typeface, panels that lead with tiles, a build menu with pictures:
 SPEC §33) on top of v0.13.3 "Steady Hand" (the Linux app no longer crashes at the first click on the stronger
@@ -84,7 +87,11 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   slabs, asphalt and aprons with their tops at 0.14–0.15 (lower is buried) and markings a centimetre above. People
   stand on `walkH` (campusScene: ground, pads and pavements, a building model's low decks: `deckOf` in models.ts);
   parked cars are stood on whatever is under them by `settleCars` (life.ts). Paved paths: routed round car parks on
-  their own map, or laid by the piece itself (`Piece.walks`).
+  their own map, or laid by the piece itself (`Piece.walks`). **Doors (v0.15.2):** a piece names where people go in
+  (`Piece.doors`; without it, the middle of its footprint's front edge, where staff vanished on open ground at every
+  Act II plant); a busy piece reads what people walk round and the floor underfoot off its own geometry
+  (`walkBlockers`, `walkFloor` in pieces.ts: the Act II plants, whose paving tops out at 0.18–0.22, so `walkH`
+  stands people on it). A door with no wall to hang a doorway in is a `gate` (the gas plant's yard).
 - **Plants (v0.15):** every tree, bush, cactus and tuft is built in code in `campus/trees.ts`, as a model-maker
   builds them: a trunk and limbs (`tube`), a dark heart of foliage (`blob`), a shell of leaf sprays (`card`: quads
   cut out by one painted leaf sheet's alpha, drawn in `leafTexture`, lit by the whole crown's roundness, not the
@@ -94,8 +101,9 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   the campus, the plain ones beyond (v0.15.1 added `blossom`, `cypress` and `flower`, a flower head planted in its own colour:
   `Placement.c`), sagebrush instead of leafy bushes in dry country, and no tall kind in the
   meadow south of the highway (the low views of a campus are taken from there). A piece that wants a plant calls
-  `plantField` (the older `treeField(kind, at)` still works). The Meshy trees are gone; rocks and cows are still
-  models. Measured on the Intel card at Medium: 3.5 ms a frame for the plants, against 4.7 for the old ones.
+  `plantField` (the older `treeField(kind, at)` still works). A place the camera roams (Aurora) plants with
+  `plantPatches(kind, at, reach)` (v0.15.2): 40 m patches, each a THREE.LOD, full plants within `reach`, the plain
+  ones beyond. The Meshy trees are gone; rocks and cows are still models. Measured on the Intel card at Medium: 3.5 ms a frame for the plants, against 4.7 for the old ones.
 - **Vehicles (v0.15):** `models.ts` gives everything on wheels its own material (`carMaterial`): glass (the
   texture's dark, cool texels above the wheels, never a level roof: thresholds per model in `CAR_GLASS`) goes
   smooth and near-black so it mirrors the sky, and `paintCar(obj, pick)` turns the body colour to one of
@@ -117,7 +125,10 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   on; `below` cuts away what is under y. An expansion (`f.upgrade`) keeps the old tier's piece (`Entry.old`) and
   cuts it away from the ground up as the new one rises through it; solar, battery and wind add rows through
   their own `progress` (0.55 → 1). The reactor restart is never clipped (an old plant, cold until it opens).
-  The lab page's `progress=` does the same. A clipped material greys its back faces (a cut wall's bare inside).
+  The lab page's `progress=` does the same. The cut is drawn as one (v0.15.2, `cutShader` in pieces.ts, replacing
+  three's clipping chunk; shadows keep the plain clip): where the view ray crosses the cut within a wall's thickness
+  (0.35) of the surface a pixel shows, the pixel is the wall's top, lit level; the rest of the inside is bare. A part
+  a piece rebuilds round a model is taken out of the model copy with `cutOutOfModel` (models.ts: the gas plant's hut).
 - **The road's end, doors, the yard (v0.15):** the frontage road ends in a turning circle (`roads.ts`: `bulbAt`,
   `bulbMesh`, `bulbHalf`; the island, the barrier and its planting in `buildRoads`); deliveries drive round the
   island (`RoadNet.turn`). Doors open: `campusScene.buildDoorways` puts a leaf (the wall's own colour, read
@@ -150,8 +161,13 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
 - **Automatic visual checks** (`tools/qa/`, with the dev server and the headless Chrome below running; `PLAYWRIGHT=`
   as for gen:assets, `CDP=` / `BASE=` to point elsewhere): `feetcheck.mjs <sites> [hour]` (feet and wheels on the
   surface), `bumpcheck.mjs <sites>` (nobody inside something solid), `floorcheck.mjs [filter]` (no floor buried
-  under a pad, no car off its surface, across every facility tier and set piece). All read zero in v0.13.2: run
-  them after touching people, paths, pads or a piece's ground-level parts.
+  under a pad, no car off its surface, across every facility tier and set piece), `doorcheck.mjs <sites>` (v0.15.2:
+  every door people use has a wall behind it and a way in from the gate). All read zero: run them after touching
+  people, paths, pads, doors or a piece's ground-level parts. The menu's world has few of the buildings: `SETUP=<file.js>`
+  (feet, bump and door checks) runs an async function body in the page first, say `game.startNew({ act2: true, … })`
+  and facilities pushed onto sites with `status: 'online'` and a `tier`, and the campuses are then that company's.
+  The tools close their page when done; a script that only disconnects leaves a running game in Chrome (thirty of
+  them stopped it answering).
 - **QA:** headless Chrome on the dev laptop's RTX is far faster than SwiftShader and shows the high preset as players see
   it: `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
   google-chrome-stable --headless=new --remote-debugging-port=9222 --use-angle=gl-egl --ignore-gpu-blocklist` and
@@ -580,7 +596,10 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, in three rounds on 2026-11-14 ("finish up everything that was left", then "finish those up first before we ship everything in one go"). v0.15.0's draft was never published, so v0.15.1 is the one release carrying both; publishing its draft is the user's step. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Still open after it" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
+**Next:** v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36"): built and committed
+locally, not pushed or tagged; shipping is the user's call. Its "Still open after it" is the next thing to offer: the
+view-only places' pieces (suppliers, megaprojects, Acts III–V) don't name their doors either (`KINDS=set` in
+doorcheck). Before it, v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, in three rounds on 2026-11-14 ("finish up everything that was left", then "finish those up first before we ship everything in one go"). v0.15.0's draft was never published, so v0.15.1 is the one release carrying both; publishing its draft is the user's step. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Still open after it" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after
 rounds of concept pictures they chose an interface that grows with the acts (SPEC §34: their own idea, with "one
 clear change per act", the sticky note kept to the end, a setting to stay on an earlier look, the menu and

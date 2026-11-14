@@ -8,6 +8,9 @@ await page.goto((process.env.BASE ?? 'http://127.0.0.1:5317') + '/play/', { wait
 await page.waitForFunction(() => window.game && !document.getElementById('boot'), null, { timeout: 180000 });
 await page.waitForTimeout(2500);
 await page.evaluate(() => { game.tour.running = false; });
+// SETUP=<file.js>: the body of an async function run in the page first (say, a company with the buildings to check:
+// `game.startNew(…)` and facilities pushed onto a site); the campuses are then the state's, not the menu's world
+if (process.env.SETUP) console.log(JSON.stringify(await page.evaluate(`(async () => { ${(await import('node:fs')).readFileSync(process.env.SETUP, 'utf8')} })()`)));
 for (const site of sites) {
   await page.evaluate(([site, hour]) => { const sc = game.makeDioramaScene(site); game.stage.setScene(sc, 2); game.stage.fade = 0; sc.setHour(hour); }, [site, hour]);
   await page.waitForTimeout(3500);

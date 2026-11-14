@@ -661,6 +661,38 @@ export function model(n: ModelName, size: number): THREE.Object3D {
   return o;
 }
 
+/**
+ * Take out of a model copy every triangle that lies wholly inside a box (in the coordinates of the copy's
+ * parent): a part the piece builds again round it, which would otherwise stand inside the new walls (and show
+ * when a cut wall is seen into). The copy's meshes get geometries of their own; the template is untouched.
+ */
+export function cutOutOfModel(obj: THREE.Object3D, box: THREE.Box3) {
+  obj.updateMatrixWorld(true);
+  const toParent = obj.parent ? obj.parent.matrixWorld.clone().invert() : new THREE.Matrix4();
+  const m4 = new THREE.Matrix4(), v = new THREE.Vector3();
+  obj.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || (mesh as THREE.SkinnedMesh).isSkinnedMesh) return;
+    const geo = mesh.geometry, pos = geo.getAttribute('position');
+    if (!pos || geo.groups.length > 1) return;
+    m4.multiplyMatrices(toParent, mesh.matrixWorld);
+    const inside = new Uint8Array(pos.count);
+    for (let i = 0; i < pos.count; i++) inside[i] = box.containsPoint(v.fromBufferAttribute(pos, i).applyMatrix4(m4)) ? 1 : 0;
+    const idx = geo.getIndex(), n = idx ? idx.count : pos.count;
+    const keep: number[] = [];
+    for (let t = 0; t + 2 < n; t += 3) {
+      const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
+      if (!(inside[a] && inside[b] && inside[c])) keep.push(a, b, c);
+    }
+    if (keep.length === n) return;
+    const out = geo.clone();
+    out.userData = {};
+    out.setIndex(keep);
+    out.clearGroups();
+    mesh.geometry = out;
+  });
+}
+
 /** What a figure can be doing (the clips' names, as tools/glb-anim.mjs names them). */
 export type Act = 'walk' | 'idle' | 'chat' | 'listen' | 'talk' | 'phone' | 'drink' | 'walkphone' | 'sit' | 'inspect' | 'look'
   | 'hammer' | 'carry' | 'collect' | 'pickup';

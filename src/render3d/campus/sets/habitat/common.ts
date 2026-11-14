@@ -19,7 +19,8 @@ import { hasModel, person as rigged, type PersonName } from '../../../models';
 const STAND_IN: Partial<Record<PersonName, PersonName>> = { resident_a: 'office', resident_b: 'engineer', kid_a: 'office', kid_b: 'researcher' };
 const fig = (k: PersonName): PersonName => (hasModel(k) ? k : STAND_IN[k] ?? k);
 import { habFloor } from '../../habitatShell';
-import { plantField, type TreeKind } from '../../trees';
+import { plantField, plantPatches, type TreeKind } from '../../trees';
+import { quality } from '../../../quality';
 import { waterMaterial } from '../../water';
 import { glassMat } from '../../plants2/parts';
 import { Anim, plantMat, V } from '../mega/common';
@@ -193,8 +194,14 @@ export class Hab {
     add(this.glass, glassMat);
     add(this.lit, litMat, false);
     add(this.leaf, plantMat);
-    // every tree is one of the shared plants (trees.ts), a mix of its variants, standing on the curved floor
-    for (const [kind, at] of this.trees) this.g.add(plantField(kind === 'fruit' ? 'blob' : kind, at.map((p) => ({ x: p.x, y: p.y + floorY(p.z), z: p.z, s: p.s, ry: p.ry, tint: p.tint }))));
+    // every tree is one of the shared plants (trees.ts), a mix of its variants, standing on the curved floor; the
+    // camera roams the place, so the plain far ones take over patch by patch with distance (as on a campus's land:
+    // full trees within 210 m at High, hedges and shrubs within 120, everything plain on Low)
+    for (const [kind, at] of this.trees) {
+      const cover = kind === 'shrub' || kind === 'tuft';
+      const reach = quality.plants < 0.5 ? 0 : (cover ? 120 : 210) * Math.min(1, 0.6 + quality.plants * 0.4);
+      this.g.add(plantPatches(kind === 'fruit' ? 'blob' : kind, at.map((p) => ({ x: p.x, y: p.y + floorY(p.z), z: p.z, s: p.s, ry: p.ry, tint: p.tint })), reach, { shadow: !cover || kind === 'shrub' }));
+    }
     if (this.heads.length) this.g.add(plantField('flower', this.heads.map((d) => ({ x: d.x, y: d.y + floorY(d.z), z: d.z, s: d.s * 1.15, ry: d.x * 3.7 + d.z * 1.3, c: col(d.c).getStyle() })), { shadow: false }));
     if (this.dots.length) {
       const im = new THREE.InstancedMesh(dotGeo, plantMat, this.dots.length);
