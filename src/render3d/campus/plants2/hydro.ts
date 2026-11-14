@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { Kit, lightPool, noise, rng, withClouds } from '../../kit';
 import { pylon, type Piece } from '../../pieces';
-import { model } from '../../models';
+import { parkedCars } from '../life';
 import type { PieceOpts } from '../registry';
 import {
   Anim, At, beacon, lakeMat, lampHeadMat, P, pipeRun, plants, poleLamp, riverMat, sagWires, shed, sstep, transformer, V,
@@ -89,7 +89,49 @@ function rippleTexture() {
   rippleTex.colorSpace = THREE.SRGBColorSpace;
   return rippleTex;
 }
-let foamMats: { spill: THREE.MeshStandardMaterial; churn: THREE.MeshStandardMaterial; ripple: THREE.MeshStandardMaterial } | null = null;
+/** A boil of white water seen from above: foam thick in the middle, thinning out to nothing at the rim. */
+function boilTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const r = rng(53);
+  const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(244,250,250,0.95)');
+  grad.addColorStop(0.45, 'rgba(214,236,238,0.7)');
+  grad.addColorStop(0.8, 'rgba(190,222,228,0.28)');
+  grad.addColorStop(1, 'rgba(190,222,228,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  // broken rings of foam carried outwards
+  g.lineCap = 'round';
+  for (let i = 0; i < 46; i++) {
+    const rad = 8 + r() * 46, a0 = r() * 6.3, len = 0.3 + r() * 0.9;
+    g.strokeStyle = `rgba(255,255,255,${(0.75 * (1 - rad / 60)).toFixed(2)})`;
+    g.lineWidth = 1 + r() * 2.2;
+    g.beginPath();
+    g.arc(64, 64, rad, a0, a0 + len);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.center.set(0.5, 0.5);
+  return t;
+}
+/** Opaque upstream, fading out over the downstream third (the churn dies away into the tailrace). */
+function fadeTexture() {
+  const c = document.createElement('canvas');
+  c.width = 4;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  const grad = g.createLinearGradient(0, 0, 0, 64);
+  grad.addColorStop(0, '#fff');
+  grad.addColorStop(0.55, '#fff');
+  grad.addColorStop(1, '#000');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 4, 64);
+  return new THREE.CanvasTexture(c);
+}
+let foamMats: { spill: THREE.MeshStandardMaterial; churn: THREE.MeshStandardMaterial; basin: THREE.MeshStandardMaterial; boil: THREE.MeshStandardMaterial; ripple: THREE.MeshStandardMaterial } | null = null;
 function waterFx() {
   if (foamMats) return foamMats;
   const spillT = foamTexture();
@@ -99,6 +141,8 @@ function waterFx() {
   foamMats = {
     spill: withClouds(new THREE.MeshStandardMaterial({ map: spillT, transparent: true, roughness: 0.55, depthWrite: false })),
     churn: withClouds(new THREE.MeshStandardMaterial({ map: churnT, transparent: true, opacity: 0.9, roughness: 0.6, depthWrite: false })),
+    basin: withClouds(new THREE.MeshStandardMaterial({ map: churnT, alphaMap: fadeTexture(), transparent: true, opacity: 0.9, roughness: 0.6, depthWrite: false })),
+    boil: withClouds(new THREE.MeshStandardMaterial({ map: boilTexture(), transparent: true, roughness: 0.6, depthWrite: false })),
     ripple: withClouds(new THREE.MeshStandardMaterial({ map: rippleTexture(), transparent: true, opacity: 0.8, roughness: 0.3, depthWrite: false })),
   };
   return foamMats;
@@ -108,6 +152,7 @@ function animateWater(t: number) {
   m.spill.map!.offset.y = -(t * 0.9) % 1;
   m.churn.map!.offset.set((Math.sin(t * 0.7) * 0.08) % 1, -(t * 0.35) % 1);
   m.ripple.map!.offset.y = -(t * 0.05) % 1;
+  m.boil.map!.rotation = t * 0.5;
 }
 
 /** A strip following a (z, y) path across x0..x1 (water sheets); uv v = distance along it. */
@@ -291,7 +336,7 @@ export function hydro(o: PieceOpts): Piece {
     }
   }
   crest.add(ck.build());
-  crest.add(lamps.build(lampHeadMat));
+  crest.add(lamps.build(lampHeadMat), lit.build(winMat));
 
   // ── penstocks down the face ──────────────────────────────────────────────────────────────
   const penK = new Kit(rng(o.seed + 5));
@@ -326,7 +371,7 @@ export function hydro(o: PieceOpts): Piece {
     phK.box(hs.w + 0.1, 0.2, zf - zb + 0.1, '#b5ac9e', hs.x, deckY - 0.2, (zb + zf) / 2, { r: 0.03, shade: 0 });
     for (const sx of [-1.45, 1.45]) {
       phK.box(1.5, 0.9, 0.08, '#2a2630', hs.x + sx, TW - 0.3, zf + 0.02, { r: 0, jitter: 0 });
-      const b = new THREE.Mesh(new THREE.CircleGeometry(0.85, 18).rotateX(-Math.PI / 2).scale(1, 1, 1.25), fx.churn);
+      const b = new THREE.Mesh(new THREE.CircleGeometry(1.15, 20).rotateX(-Math.PI / 2).scale(1, 1, 1.25), fx.boil);
       b.position.set(hs.x + sx, TW + 0.04, zf + 0.95);
       b.renderOrder = 1;
       boils.push(b);
@@ -367,7 +412,7 @@ export function hydro(o: PieceOpts): Piece {
   const sheet = new THREE.Mesh(strip(sPath, spill.x0 + 0.05, spill.x1 - 0.05, 3), fx.spill);
   sheet.renderOrder = 1;
   g.add(sheet);
-  const churn = waterPlane(spill.x0, spill.x1, bz0, bz1 + 1.6, TW + 0.05, fx.churn);
+  const churn = waterPlane(spill.x0, spill.x1, bz0, bz1 + 2.4, TW + 0.05, fx.basin);
   churn.renderOrder = 1;
   g.add(churn);
   anim.plume(g, sMid, TW + 0.2, TOE + 0.9, { count: 18, life: 3.4, rise: 0.8, spread: 0.7, size0: 1.4, size1: 4.4, color: '#f4f7f7', opacity: 0.5, radius: sW * 0.35, wind: 0.35 }, o.seed + 40);
@@ -397,10 +442,10 @@ export function hydro(o: PieceOpts): Piece {
   // a kiosk and a parked truck at the front-right
   lk.box(1.6, 1.8, 1.2, '#e7dfd2', 9.2, 0.1, 8.9, { r: 0.08 });
   lk.box(1.7, 0.15, 1.3, P.roof, 9.2, 1.9, 8.9, { r: 0.03, shade: 0 });
-  const truck = model('pickup', 4.4);
-  truck.rotation.y = -Math.PI / 2 + 0.04;
-  truck.position.set(7.4, 0.18, 11.25);
-  g.add(truck);
+  lk.box(0.72, 1.5, 0.06, '#4a5a66', 8.85, 0.12, 9.52, { r: 0, jitter: 0 });
+  for (let y = 1.25; y < 1.62; y += 0.12) lk.box(0.5, 0.05, 0.05, '#8a8490', 9.65, y, 9.52, { r: 0, jitter: 0 });
+  paving(lk, 11.7, 8.9, 2.9, 5.0, '#8f8892', 0.1);
+  parkedCars(g, 11.7, 8.7, 1, 3, o.seed + 60, Math.PI / 2, ['pickup']);
   // pylon(s) on the abutments, the lines down to the transformers
   const wires: THREE.Vector3[][] = [];
   pylons.forEach((pp, i) => {
@@ -427,7 +472,7 @@ export function hydro(o: PieceOpts): Piece {
   sagWires(wk, shortWires, 0.12, '#4a4452', 0.03);
   const wireMesh = wk.build();
   g.add(wireMesh);
-  g.add(lk.build(), lLit.build(winMat), lLamps.build(lampHeadMat), crestLit(lit));
+  g.add(lk.build(), lLit.build(winMat), lLamps.build(lampHeadMat));
 
   // trees on the ridges, boulders on the gorge walls, scrub round the shore
   const pines: Placement[] = [], rocks: Placement[] = [], scrub: Placement[] = [];
@@ -486,6 +531,3 @@ function gantryPts(a: At, x: number, z: number, w: number, h: number) {
     return a.pt(x + i * w * 0.3, h - 0.8, z);
   });
 }
-
-/** The crest's lit windows (one mesh). */
-function crestLit(k: Kit) { return k.build(winMat); }
