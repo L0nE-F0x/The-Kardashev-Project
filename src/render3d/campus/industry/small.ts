@@ -58,9 +58,10 @@ const admin: SetPieceFactory = (o) => {
   k.box(4.2, 0.06, 10.5, P.asphalt, 6.4, G, -0.6, { r: 0.03, shade: 0 });
   for (let z = -5.6; z <= 4.6; z += 2.3) k.box(1.9, 0.02, 0.1, '#e6e0e3', 7.6, G + 0.06, z, { r: 0, jitter: 0 });
   const cars = new THREE.Group();
-  parkedCars(cars, -4.5, 0, 4, 2.3, o.seed + 3, 0);
+  // (the bays are 4.2 m deep: saloons and hatchbacks, nothing whose tail would stand out in the lane)
+  parkedCars(cars, -4.5, 0, 4, 2.3, o.seed + 3, 0, ['sedan', 'hatchback']);
   cars.rotation.y = -Math.PI / 2;
-  cars.position.set(6.6, 0, -0.6);
+  cars.position.set(6.4, 0, -0.6);
   g.add(cars);
   fans.build(g, k);
   g.add(k.build());
