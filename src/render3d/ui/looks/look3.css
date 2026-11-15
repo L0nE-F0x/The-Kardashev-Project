@@ -23,6 +23,17 @@ html.edition-3d:not(.ui-classic)[data-look='3'] {
   --foot-when: #5cc0ff;
   --pin: radial-gradient(circle at 35% 30%, #ff9d92, #d6392a 50%, #8a1c14);
 
+  /* the accent fill is a bright sky blue: what is written on it is dark (white was 1.3–2.7:1) */
+  .btn.primary,
+  .btn.primary:hover:not(:disabled) {
+    color: #04121f;
+    text-shadow: none;
+  }
+  .choice.primary .d,
+  .btn.primary .c2 {
+    color: rgb(4 18 31 / 0.78);
+  }
+
   /* ── the top rail: one slab of glass ── */
   .topbar {
     padding: 0 28px 0 26px;
@@ -215,17 +226,18 @@ html.edition-3d:not(.ui-classic)[data-look='3'] {
   .objectives .btn.ghost {
     color: #1f2a44;
   }
-  .objective {
+  /* the goals on the sticky note only: the Goals panel's rows are on the black glass (ink there was unreadable) */
+  .objectives .objective {
     border-top: 1.5px dashed rgb(31 42 68 / 0.3);
   }
-  .objective .t {
+  .objectives .objective .t {
     font-family: var(--font-hand);
     font-weight: 700;
     font-size: 21px;
     line-height: 1.05;
     color: #1f2a44;
   }
-  .objective .h {
+  .objectives .objective .h {
     color: #5a4f1c;
   }
   .objectives .bar {
@@ -275,6 +287,7 @@ html.edition-3d:not(.ui-classic)[data-look='3'] {
 
   /* ── a decision: a message on the glass ── */
   .modal.event {
+    --card-bg: #10121a;
     border: 11px solid #191b23;
     border-radius: 28px;
     background: #10121a;

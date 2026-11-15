@@ -447,11 +447,11 @@ function AsteroidsTab() {
           const why = canClaim(s, a.id);
           return (
             <div key={a.id} class="row small" style={{ gap: '8px', alignItems: 'center', opacity: st.status === 0 ? 0.5 : 1 }} data-tip={st.status ? `${a.blurb}\n${TYPE_INFO[a.type].name}: ${TYPE_INFO[a.type].blurb}` : 'Not surveyed yet.'}>
-              <span style={{ width: '96px', flex: 'none' }}>{st.status ? a.name : '???'}</span>
+              <span style={{ width: '96px', flex: 'none' }}>{st.status ? a.name : 'Unmapped body'}</span>
               <span class="muted" style={{ width: '216px', flex: 'none' }}>
                 {st.status ? `${a.type} · ${a.km >= 10 ? Math.round(a.km) : a.km} km · ${a.belt === 'nea' ? 'near-Earth' : 'main belt'}` : a.belt === 'nea' ? 'near-Earth' : 'main belt'}
               </span>
-              <span class="grow">{st.status === 0 ? 'unknown' : st.status === 1 ? 'surveyed' : st.status === 2 ? `claimed by ${ownerLabel(st.owner ?? 'charter')}` : `worked: ${cap.toFixed(cap < 10 ? 2 : 0)} Mt/yr (${ownerLabel(st.owner ?? 'charter')})`}</span>
+              <span class="grow">{st.status === 0 ? 'awaiting a survey' : st.status === 1 ? 'surveyed' : st.status === 2 ? `claimed by ${ownerLabel(st.owner ?? 'charter')}` : `worked: ${cap.toFixed(cap < 10 ? 2 : 0)} Mt/yr (${ownerLabel(st.owner ?? 'charter')})`}</span>
               {st.status === 1 && (
                 <button class="btn small" disabled={!!why} onClick={() => game.claimAsteroid(a.id)} data-tip={why ?? `Claim it for the Charter (${claimCost(s)} political capital).`}>
                   Claim
@@ -502,7 +502,7 @@ function SwarmTab() {
               ['Habitats & industry', fmtTW(sy.habitat), 'The people’s share: towns in space, goods for Earth.'],
               ['Beams home', fmtTW(beamsUsed(s))],
               ['Idle', fmtTW(idleTW(s)), 'Collected but nothing to plug it into yet.'],
-              ['Mass per TW', `collectors ${(m.collectors * 1000).toFixed(0)} kt · rings ${(m.rings * 1000).toFixed(0)} kt · habitats ${(m.habitat * 1000).toFixed(0)} kt`],
+              ['Mass per TW', `collectors ${(m.collectors * 1000).toFixed(0)}\u00a0kt · rings ${(m.rings * 1000).toFixed(0)}\u00a0kt · habitats ${(m.habitat * 1000).toFixed(0)}\u00a0kt`],
               ['Storm hardening', pctTxt(sy.hardening)],
             ]}
           />
@@ -944,7 +944,7 @@ export function EndingOverlay() {
           <div class="big">{s.stats.K.toFixed(4)}</div>
           <div class="sub">Type I · {fmtDate(s.system?.typeI ?? s.day, true)}</div>
         </div>
-        <div class="ending-hint small muted">tap to continue</div>
+        <div class="ending-hint small muted">click to continue</div>
       </div>
     );
   }
@@ -968,7 +968,7 @@ export function EndingOverlay() {
             <div class="story">{card.body(s)}</div>
             <div class="choices">
               <button class="btn primary choice" onClick={() => game.endingNext()}>
-                <span class="t">{e.index + 1 < epilogues.length ? 'Next' : 'The credits'} ▸</span>
+                <span class="t">{e.index + 1 < epilogues.length ? 'Next' : 'The credits'}</span>
               </button>
             </div>
           </div>
@@ -1011,10 +1011,11 @@ function Credits({ onDone }: { onDone: () => void }) {
         ))}
         <p class="small">…with Ade Bello, Tobias Lund, Marisol “Dusty” Vega, Chorus, Apex, Weft, Sapling, and every partner CEO and delegate who argued with you.</p>
         <h4>Thanks to</h4>
-        <p class="small">Natural Earth for the map data · Atkinson Hyperlegible Next and Inter, the typefaces · three.js, Preact, Vite and Tauri · Nikolai Kardashev and Carl Sagan, for the scale.</p>
+        <p class="small">Natural Earth for the map data · the typefaces Atkinson Hyperlegible Next, Saira, Inter, Caveat, Permanent Marker, Special Elite, Share Tech Mono and Playfair Display · three.js, Preact, Vite and Tauri · Nikolai Kardashev and Carl Sagan, for the scale.</p>
         <p class="small muted">The people, trees and rocks were modelled with Meshy; the rest of the world, the interface art and the sound are generated in code. Companies, people and events are fictional; the geography and physics are real.</p>
         <h2 style={{ marginTop: '40px' }}>Thank you for playing.</h2>
       </div>
+      <div class="ending-hint small muted">click to continue</div>
     </div>
   );
 }
@@ -1067,7 +1068,7 @@ function Stats({ year }: { year: number }) {
           )}
           <div class="choices">
             <button class="btn primary choice" onClick={() => game.endingNext()}>
-              <span class="t">Your end card ▸</span>
+              <span class="t">Your end card</span>
             </button>
           </div>
         </div>

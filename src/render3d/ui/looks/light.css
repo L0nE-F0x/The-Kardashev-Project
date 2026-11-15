@@ -74,6 +74,11 @@ html.edition-3d:not(.ui-classic):is([data-look='4'], [data-look='5']) {
     color: #032824;
     text-shadow: none;
   }
+  /* the line under a primary choice's title is dark on the bright fill too (the glass looks' pale one vanished) */
+  .choice.primary .d,
+  .btn.primary .c2 {
+    color: rgb(3 40 36 / 0.8);
+  }
   .tile,
   .kcard,
   :is(.panel.wide, .modal) .row.wrap > .grow:has(> h4:first-child) {
@@ -160,8 +165,12 @@ html.edition-3d:not(.ui-classic):is([data-look='4'], [data-look='5']) {
   .dock .btn.active::before {
     content: none;
   }
+  /* the picked key's picture keeps its colours on a dark plate (darkened, the globe went a plain black disc) */
   .dock .btn.active img {
-    filter: brightness(0.25) saturate(0.6);
+    filter: none;
+    border-radius: 50%;
+    background: rgb(3 40 36 / 0.88);
+    box-shadow: 0 0 0 3px rgb(3 40 36 / 0.88);
   }
   .dk-l {
     font-family: var(--font-display);
@@ -312,4 +321,9 @@ html.edition-3d.reduce-motion .modal.event::before {
 }
 #ui:has(> .photo-open) .keepsake {
   bottom: calc(var(--e-foot, 90px) + 104px);
+}
+/* the title screen's menu glows: behind a window it needs a deeper shade, or it reads through (at 960×540, under the
+   window's edge) */
+html.edition-3d:not(.ui-classic):is([data-look='4'], [data-look='5']) .menu-scrim {
+  background: radial-gradient(ellipse at 50% 45%, rgb(2 8 12 / 0.74), rgb(2 8 12 / 0.92));
 }

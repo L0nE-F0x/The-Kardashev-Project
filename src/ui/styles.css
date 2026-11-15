@@ -560,6 +560,18 @@ select:focus {
   display: inline-flex;
   gap: 2px;
 }
+/* an option with many long choices (the Era palette): its words above, the choices on a line of their own (beside
+   them its words were squeezed to one a line) */
+.setting.opt.stack {
+  flex-wrap: wrap;
+}
+.setting.opt.stack > .txt {
+  flex: 1 1 100%;
+}
+.setting.opt.stack > .seg {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
 
 /* tech tree */
 .techgrid {
@@ -1371,7 +1383,8 @@ kbd {
 .slotcard .n {
   font-size: 16px;
 }
-.slotcard.over {
+/* a bankrupt company: its words faded, its buttons not (Delete still works) */
+.slotcard.over > :not(:last-child) {
   opacity: 0.7;
 }
 
@@ -2242,18 +2255,19 @@ kbd {
   color: var(--muted);
   line-height: 1.25;
 }
+/* between two cards, at their middle: the way the loop runs */
 .ht-arrow {
   position: absolute;
-  right: -10px;
-  top: 14px;
+  right: -12px;
+  top: calc(50% - 9px);
   z-index: 1;
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
   font-style: normal;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
   color: #0b0a12;
   background: var(--cyan);
@@ -2704,11 +2718,19 @@ kbd {
   width: 28px;
   height: 28px;
 }
+/* one column for the face (a framed portrait is wider than its 28 px), so the dates and the text line up */
+.msg.row {
+  display: grid;
+  grid-template-columns: 44px 84px minmax(0, 1fr) auto;
+}
+.msg.row > :first-child {
+  justify-self: center;
+}
 .msg.bad .grow {
   color: var(--warn);
 }
 .msg.good .grow {
-  color: var(--c-grn7, #a6c751);
+  color: var(--good);
 }
 .msgday {
   min-width: 84px;

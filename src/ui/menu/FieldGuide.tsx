@@ -26,7 +26,7 @@ export function FieldGuideBody() {
               const has = unlocked.has(g.id);
               return (
                 <button key={g.id} class={`btn small guide-item ${sel === g.id ? 'active' : ''} ${has ? '' : 'locked'}`} onClick={() => setSel(g.id)}>
-                  {has ? <Icon name={g.icon} size="sm" /> : <span class="lock">?</span>}
+                  <Icon name={has ? g.icon : 'lock'} size="sm" />
                   <span class="grow">{has ? g.title : '???'}</span>
                   {has && !isGuideSeen(g.id) && <span class="dot" />}
                 </button>

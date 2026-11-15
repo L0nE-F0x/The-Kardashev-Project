@@ -119,7 +119,7 @@ export function CharterPanel() {
   ];
   const next = nextPhaseText(s);
   return (
-    <Panel title="The Kardashev Project" icon="charter" class="wide research" onClose={() => game.openPanel(null)} extra={<span class="small muted" data-tip={next?.tip}>Phase {Math.min(5, c.phase)} · {CHARTER_PHASES[c.phase]}</span>}>
+    <Panel title="The Kardashev Project" icon="charter" class="wide research" onClose={() => game.openPanel(null)} extra={<span class="small muted" data-tip={s.planet ? undefined : next?.tip}>{s.system ? 'Act V · Type I' : s.planet ? 'Act IV · Planetary' : `Phase ${Math.min(5, c.phase)} · ${CHARTER_PHASES[c.phase]}`}</span>}>
       <div class="tabs" role="tablist">
         {tabs.map(([id, name]) => (
           <button key={id} role="tab" aria-selected={tab === id} class={`btn small ${tab === id ? 'active' : ''}`} onClick={() => game.setCharterTab(id)} data-tut={`charter-${id}`}>
@@ -220,28 +220,31 @@ function OverviewTab() {
           <div class="small muted">Rises with delivered projects, fair awards, missions and the blind trust. Falls with self-dealing, arrears, late projects, scandals, walkouts — and a Charter that sits on its money and builds nothing.</div>
         </Card>
       </Cols>
-      <Card title="The Charter Mandate" icon="goals" tut="mandate">
-        <div class="small muted" style={{ marginBottom: '4px' }}>
-          When it is met, The Threshold begins — or on {fmtDate(THRESHOLD_DEADLINE, true)} at the latest. A goal still unmet then leaves its front of the Threshold weaker.
-        </div>
-        <div class="cardgrid">
-          {MANDATE_GOALS.map((id) => {
-            const o = OBJECTIVE_BY_ID[id];
-            const done = s.objectives.done.includes(id) || o.done(s);
-            return (
-              <div key={id} class="small mandate" data-tip={`${o.hint}${MANDATE_FRONT[id] ? `\nStill unmet when the Threshold comes, it adds pressure to ${FRONT3_NAMES[MANDATE_FRONT[id]]}.` : ''}`}>
-                <span class={done ? 'good' : 'muted'}>{done ? '✓' : '○'}</span> {o.title}
-              </div>
-            );
-          })}
-        </div>
-        {fc && (
-          <div class="small" style={{ marginTop: '6px' }} data-tip={fcTip}>
-            <Icon name="vote" size="sm" /> If the Council voted on renewal today: <b>{fc.yes}–{fc.no}</b> ({Math.round(fc.share * 100)}%) ·{' '}
-            <span class={fc.outcome === 'planetary' ? 'good' : fc.outcome === 'limited' ? 'warn' : 'bad'}>{RENEWAL_NAMES[fc.outcome]}</span>
+      {/* Act III's mandate: history once the planet is the work (Acts IV–V) */}
+      {!s.planet && (
+        <Card title="The Charter Mandate" icon="goals" tut="mandate">
+          <div class="small muted" style={{ marginBottom: '4px' }}>
+            When it is met, The Threshold begins — or on {fmtDate(THRESHOLD_DEADLINE, true)} at the latest. A goal still unmet then leaves its front of the Threshold weaker.
           </div>
-        )}
-      </Card>
+          <div class="cardgrid">
+            {MANDATE_GOALS.map((id) => {
+              const o = OBJECTIVE_BY_ID[id];
+              const done = s.objectives.done.includes(id) || o.done(s);
+              return (
+                <div key={id} class="small mandate" data-tip={`${o.hint}${MANDATE_FRONT[id] ? `\nStill unmet when the Threshold comes, it adds pressure to ${FRONT3_NAMES[MANDATE_FRONT[id]]}.` : ''}`}>
+                  <span class={done ? 'good' : 'muted'}>{done ? '✓' : '○'}</span> {o.title}
+                </div>
+              );
+            })}
+          </div>
+          {fc && (
+            <div class="small" style={{ marginTop: '6px' }} data-tip={fcTip}>
+              <Icon name="vote" size="sm" /> If the Council voted on renewal today: <b>{fc.yes}–{fc.no}</b> ({Math.round(fc.share * 100)}%) ·{' '}
+              <span class={fc.outcome === 'planetary' ? 'good' : fc.outcome === 'limited' ? 'warn' : 'bad'}>{RENEWAL_NAMES[fc.outcome]}</span>
+            </div>
+          )}
+        </Card>
+      )}
       <Cols class="even">
         <Card title="Two hats" icon="lock" tut="blind-trust">
           <Toggle
@@ -1160,7 +1163,7 @@ export function CharterHqInspector({ id }: { id: string }) {
   const c = s.charter;
   const site = SITE_BY_ID[id];
   return (
-    <Panel title="Charter HQ · Geneva" icon="charter" onClose={() => game.select(null)} extra={<button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button>}>
+    <Panel title="Charter HQ · Geneva" icon="charter" onClose={() => game.select(null)} extra={game.mode === 'diorama' && game.dioramaSite === id ? undefined : <button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button>}>
       <p class="small" style={{ margin: '6px 0' }}>
         {site.blurb}
       </p>
@@ -1199,7 +1202,7 @@ export function MegaInspector({ id }: { id: string }) {
   const next = MEGA_STAGES[v.stage];
   const projects = (s.charter?.projects ?? []).filter((p) => p.where === id && p.status !== 'cancelled');
   return (
-    <Panel title={site.name} icon="mega" onClose={() => game.select(null)} extra={<button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button>}>
+    <Panel title={site.name} icon="mega" onClose={() => game.select(null)} extra={game.mode === 'diorama' && game.dioramaSite === id ? undefined : <button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button>}>
       <div class="small muted">
         Megaproject site · {REGIONS[site.region].name}
       </div>
@@ -1241,7 +1244,7 @@ export function LaunchInspector({ id }: { id: string }) {
   const p = s.charter?.projects.find((x) => x.kind === 'launch' && x.status !== 'cancelled');
   const here = p?.where === id;
   return (
-    <Panel title={site.name} icon="launch" onClose={() => game.select(null)} extra={<button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button>}>
+    <Panel title={site.name} icon="launch" onClose={() => game.select(null)} extra={game.mode === 'diorama' && game.dioramaSite === id ? undefined : <button class="btn small primary" onClick={() => game.enterDiorama(id)}>View</button>}>
       <div class="small muted">Launch-complex candidate · {REGIONS[site.region].name}</div>
       <p class="small" style={{ margin: '6px 0' }}>
         {site.blurb}

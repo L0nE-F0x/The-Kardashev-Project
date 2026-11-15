@@ -328,8 +328,10 @@ html.edition-3d:not(.ui-classic)[data-look='1'] {
   .side > .panel {
     position: relative;
   }
+  /* isolate: the tape and the clip stay with their sheet (z-index 3 inside it), never over a card's scrim */
   .side > .panel,
   .panel.wide {
+    isolation: isolate;
     overflow: visible;
     border-radius: 2px;
     background: #fbf7ee var(--tx-paper);
@@ -363,6 +365,11 @@ html.edition-3d:not(.ui-classic)[data-look='1'] {
   }
   .panel.wide {
     rotate: -0.25deg;
+  }
+  /* the close cross sits on top of the corner's tape */
+  .panel > .head > .btn.ghost.small:last-child {
+    position: relative;
+    z-index: 4;
   }
 }
 /* in a small window the tape measure gives its room to the figures */

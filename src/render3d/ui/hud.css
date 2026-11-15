@@ -935,11 +935,13 @@ html.edition-3d:not(.ui-classic) {
     }
     .panel.wide {
       top: var(--e-top);
-      width: min(780px, calc(100% - 2 * (var(--e-goals) + 100px)));
+      /* centred, clear of the goal card on both sides (it ends at --e-left + --e-goals: the old 100 px ran 10–26 px
+         into it) */
+      width: min(780px, calc(100% - 2 * (var(--e-left, 84px) + var(--e-goals) + 20px)));
       max-height: calc(100% - var(--e-top) - var(--e-foot));
     }
     .panel.wide.research {
-      width: min(1000px, calc(100% - 2 * (var(--e-goals) + 100px)));
+      width: min(1000px, calc(100% - 2 * (var(--e-left, 84px) + var(--e-goals) + 20px)));
     }
     .panel.wide > .head {
       padding: 14px 12px 13px 20px;

@@ -2,6 +2,8 @@
 
 declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
+/** Whether public/audio/theme.mp3 was there at build time. */
+declare const __HAS_THEME__: boolean;
 
 interface ImportMetaEnv {
   /** Public site origin, e.g. https://thekardashevproject.netlify.app (no trailing slash). */

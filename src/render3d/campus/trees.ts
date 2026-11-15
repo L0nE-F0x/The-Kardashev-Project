@@ -685,7 +685,8 @@ function rock(v: number, big: boolean): THREE.BufferGeometry {
     const q = Math.round(k * 5) / 5 * 0.6 + k * 0.4;
     p.setXYZ(i, x * q * sx, Math.max((big ? -0.25 : -0.1), y * q * sy) + (big ? 0.4 : 0.18), z * q * sz);
   }
-  const ng = g.toNonIndexed();
+  // an icosahedron is already non-indexed (three warned on every new game)
+  const ng = g.index ? g.toNonIndexed() : g;
   const np = ng.attributes.position;
   for (let i = 0; i < np.count; i += 3) {
     const k = 0.84 + r() * 0.3, top = (np.getY(i) + np.getY(i + 1) + np.getY(i + 2)) / 3;

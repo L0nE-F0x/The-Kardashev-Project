@@ -31,7 +31,7 @@ import { buildCost, landCost, linkCost, upgradeCost } from '../sim/model';
 import { OWN_CABLE_COST } from '../content/network';
 import { LOBBY, RULE_BY_ID } from '../content/politics';
 import { DEAL_BY_ID } from '../content/stack';
-import { siteDistanceKm } from '../content/sites';
+import { SITE_BY_ID, siteDistanceKm } from '../content/sites';
 import { fmtMoney } from '../sim/core';
 import { getEra, onEraChange, setEra, syncCssVars, type Era } from '../render/palette';
 import { deleteSlot, listSlots, loadSlot, migrateLegacySave, newSlotId, writeSlot, MAX_SLOTS, type SlotInfo } from '../save/save';
@@ -106,6 +106,9 @@ const JUMP_DAYS_PER_FRAME = 7;
 
 const SPEEDS = [0, 1, 2, 4, 8] as const;
 export type Speed = (typeof SPEEDS)[number];
+
+/** Site kinds that are places in space (the orbit and solar-system views may keep them picked). */
+const SPACE_KINDS = new Set(['moon', 'yards', 'ring', 'habitat', 'asteroid']);
 
 /** Owns the simulation, the clock, the scenes, saves and the UI-facing state. */
 export class Game {
@@ -454,6 +457,8 @@ export class Game {
     if (!this.scenes.orbit || !this.state?.planet) return;
     this.mode = 'orbit';
     this.dioramaSite = null;
+    // a place on the ground has no business over the orbit view (its inspector stayed up there)
+    if (this.selection?.kind === 'site' && !SPACE_KINDS.has(SITE_BY_ID[this.selection.id]?.kind ?? '')) this.selection = null;
     setAmbience('space');
     this.hover = null;
     this.stage.setScene(this.scenes.orbit(this), 1);
@@ -494,6 +499,11 @@ export class Game {
     this.togglePhoto(false);
     this.mode = 'diorama';
     this.dioramaSite = siteId;
+    // the inspector describes the place on screen (a moment's "Take a look" or a panel's button kept the old one);
+    // the Moon before Act V has no inspector of its own, so it shows none
+    const def = SITE_BY_ID[siteId];
+    if (def?.kind === 'moon' && !this.state?.system) this.selection = null;
+    else if (def && !(this.selection?.kind === 'site' && this.selection.id === siteId)) this.selection = { kind: 'site', id: siteId };
     // ten different places seen up close: a world tour
     const st = achievements();
     if (this.state && !st.places.includes(siteId)) {

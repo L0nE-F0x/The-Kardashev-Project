@@ -52,7 +52,12 @@ export const TUTORIAL: TutorialStep[] = [
   {
     id: 'hud',
     target: () => 'stats',
-    text: () => 'Up here: cash (and which way it’s heading each month), power served vs needed, compute, our best model and the safety margin. Red or orange means trouble. Hover (or long-press) any of it for the details.',
+    text: () => {
+      // a small window drops the safety margin from the bar (its panel shows it): say where it is instead
+      const margin = document.querySelector<HTMLElement>('.topbar .stat[data-hue="blue"]');
+      const onBar = !!margin && margin.offsetParent !== null;
+      return `Up here: cash (and which way it’s heading each month), power served vs needed, compute, our best model${onBar ? ' and the safety margin' : ' (in a window this size the safety margin is in Compute)'}. Red or orange means trouble. Hover (or long-press) any of it for the details.`;
+    },
     next: 'Next',
   },
   {

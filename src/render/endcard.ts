@@ -16,7 +16,10 @@ import { bitForm } from '../sim/systemView';
 export const END_W = 1920;
 export const END_H = 1080;
 
-const FONT = '"Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif';
+/** Running text: Atkinson, its figures in the display face (as the interface's --font does). */
+const FONT = '"KP Figures", "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif';
+/** Figures and labels: the interface's display face (Atkinson's zero is slashed: "2Ø72"). */
+const FIG = '"Saira", "Atkinson Hyperlegible Next", system-ui, sans-serif';
 
 /** The run in a line: what Earth became, who owns the sky, what became of Bit. */
 function identity(s: GameState): string {
@@ -47,7 +50,7 @@ export function endCardFacts(s: GameState): EndCardFacts {
     ['Warming', `${warming(s).toFixed(2)} °C`],
     ['Solar Maximum', `${sy?.solarmax?.held ?? 0}/3 held`],
   ];
-  if (sy) stats.push(['Healthy years', sy.lifeExp.toFixed(0)], ['Living in space', `${sy.spacePop.toFixed(0)}M`]);
+  if (sy) stats.push(['Healthy years', sy.lifeExp.toFixed(0)], ['Living in space', sy.spacePop < 0.5 ? 'none' : `${sy.spacePop.toFixed(0)}M`]);
   const difficulty = s.meta.difficulty.charAt(0).toUpperCase() + s.meta.difficulty.slice(1);
   stats.push(['Models', `${s.models.length} · Bit-${bitForm(s)}`], ['Difficulty', difficulty]);
   return {
@@ -245,7 +248,7 @@ export async function drawEndCard({ s, backdrop, logo }: EndCardInput): Promise<
   const [shot, mark] = await Promise.all([backdrop ? loadImage(backdrop.url) : null, loadImage(logo)]);
   // the interface's typeface, in the weights the card uses
   try {
-    await Promise.all(['500', '700', '800'].map((w) => document.fonts.load(`${w} 40px "Atkinson Hyperlegible Next"`)));
+    await Promise.all([...['500', '700', '800'].map((w) => document.fonts.load(`${w} 40px "Atkinson Hyperlegible Next"`)), ...['600', '700', '800'].map((w) => document.fonts.load(`${w} 40px "Saira"`)), document.fonts.load('500 40px "KP Figures"', '0123456789')]);
   } catch {
     /* the fallback faces will do */
   }
@@ -294,10 +297,10 @@ export async function drawEndCard({ s, backdrop, logo }: EndCardInput): Promise<
   }
 
   // Type I, the year, the company
-  ctx.font = `700 27px ${FONT}`;
+  ctx.font = `700 27px ${FIG}`;
   ctx.fillStyle = PALETTE.yel0;
   spaced(ctx, 'TYPE I CIVILISATION', X, 244, 8.5);
-  ctx.font = `800 170px ${FONT}`;
+  ctx.font = `800 170px ${FIG}`;
   ctx.fillStyle = text;
   ctx.fillText(String(f.year), X - 8, 396);
   ctx.font = `700 46px ${FONT}`;
@@ -314,10 +317,10 @@ export async function drawEndCard({ s, backdrop, logo }: EndCardInput): Promise<
   ctx.shadowColor = 'rgb(0 0 0 / 0.6)';
   const COL = 318;
   const cell = (label: string, value: string, x: number, y: number, big = false) => {
-    ctx.font = `700 18px ${FONT}`;
+    ctx.font = `700 18px ${FIG}`;
     ctx.fillStyle = muted;
     spaced(ctx, label.toUpperCase(), x, y, 3.6);
-    ctx.font = `800 ${big ? 78 : 36}px ${FONT}`;
+    ctx.font = `800 ${big ? 78 : 36}px ${FIG}`;
     ctx.fillStyle = big ? PALETTE.yel0 : text;
     ctx.fillText(value, x - (big ? 3 : 0), y + (big ? 76 : 42));
   };
@@ -325,7 +328,7 @@ export async function drawEndCard({ s, backdrop, logo }: EndCardInput): Promise<
   const [first, second, ...rest] = f.stats;
   // beside the big number: the world's power and how much of it is in space
   cell(first[0], first[1], X + COL, 556);
-  cell(second[0], second[1], X + COL, 556 + 78);
+  cell(second[0], second[1], X + COL, 556 + 84);
   rest.forEach(([label, value], i) => cell(label, value, X + (i % 2) * COL, 722 + Math.floor(i / 2) * 82));
   const foot = 722 + Math.ceil(rest.length / 2) * 82;
 

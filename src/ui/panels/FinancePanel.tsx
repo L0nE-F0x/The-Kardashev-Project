@@ -28,6 +28,8 @@ export function FinancePanel() {
   const spent = COST_KEYS.reduce((a, [k]) => a + ((m[k] as number) || 0), 0);
   const net = s.stats.revenueMonth - s.stats.costMonth;
   const runway = net < 0 ? f.cash / -net : Infinity;
+  // day one: nothing in, nothing out (not "growing")
+  const idle = Math.abs(s.stats.revenueMonth) < 1 && Math.abs(s.stats.costMonth) < 1;
   const costs = COST_KEYS.filter(([k]) => Math.abs(m[k] as number) > 1);
   return (
     <Panel title="Finance" icon="finance" class="wide" onClose={() => game.openPanel(null)}>
@@ -36,16 +38,22 @@ export function FinancePanel() {
         <Tile
           label="Net a month"
           icon="chart"
-          tone={net >= 0 ? 'good' : 'bad'}
-          value={`${net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(net))}`}
+          tone={idle ? 'plain' : net >= 0 ? 'good' : 'bad'}
+          value={idle ? fmtMoney(0) : `${net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(net))}`}
           sub={`${fmtMoney(s.stats.revenueMonth)} in · ${fmtMoney(s.stats.costMonth)} out`}
           tip="Revenue run-rate minus running costs. Construction and chip orders come on top: they are one-off spending."
         />
-        <Tile label="Runway" icon="clock" tone={runway < 6 ? 'bad' : runway < 14 ? 'warn' : 'plain'} value={Number.isFinite(runway) ? `${runway < 10 ? runway.toFixed(1) : Math.round(runway)} mo` : 'Growing'} sub={Number.isFinite(runway) ? 'until the cash runs out' : 'in profit every month'} />
+        <Tile
+          label="Runway"
+          icon="clock"
+          tone={runway < 6 ? 'bad' : runway < 14 ? 'warn' : 'plain'}
+          value={Number.isFinite(runway) ? `${runway < 10 ? runway.toFixed(1) : Math.round(runway)} mo` : idle ? '—' : 'Growing'}
+          sub={Number.isFinite(runway) ? 'until the cash runs out' : idle ? 'nothing coming in or going out yet' : 'in profit every month'}
+        />
         <Tile label="Valuation" icon="finance" value={fmtMoney(f.valuation)} sub={f.bridgeLoans ? `${f.bridgeLoans} bridge loan${f.bridgeLoans > 1 ? 's' : ''} taken` : 'no bridge loans'} />
       </Tiles>
       <Cols>
-        <Card title={`Cash, last ${points.length} months`} icon="chart">
+        <Card title={points.length === 1 ? 'Cash, this month' : `Cash, last ${points.length} months`} icon="chart">
           {points.length > 1 ? (
             <>
               <Spark points={points} class="cashchart" height={96} />

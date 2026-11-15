@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { BuiltBy, Icon, Window, fmtPlaytime, useGame } from '../components';
 import { rich } from '../emoji';
 import { logoUrl } from '../logo';
@@ -53,6 +53,54 @@ export function MainMenu() {
   const newVersion = game.settings.lastSeenVersion !== APP_VERSION;
   // the arrow keys (and a controller's d-pad, which Steam sends as arrows) walk the menu; Enter presses as usual
   const col = useRef<HTMLDivElement>(null);
+  // a window that closes hands the focus back to the item that opened it (the window can't: the menu turned inert
+  // under it, and Chrome took the focus off the button then)
+  const lastItem = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    const el = col.current;
+    if (!el) return;
+    const onFocus = (e: FocusEvent) => {
+      if (e.target instanceof HTMLButtonElement) lastItem.current = e.target;
+    };
+    el.addEventListener('focusin', onFocus);
+    return () => el.removeEventListener('focusin', onFocus);
+  }, []);
+  useEffect(() => {
+    if (screen === 'main' && lastItem.current?.isConnected) lastItem.current.focus({ preventScroll: true });
+  }, [screen]);
+  // the menu never runs off the window: the CSS steps by window height (looks/menus.css) cover the default size; a
+  // bigger Interface size (or anything else that makes it taller) shrinks the column's own zoom until it fits
+  useLayoutEffect(() => {
+    const el = col.current;
+    if (!el) return;
+    let raf = 0;
+    const fit = () => {
+      raf = 0;
+      el.style.removeProperty('--menu-fit');
+      let f = 1;
+      for (let i = 0; i < 3; i++) {
+        const over = el.scrollHeight / Math.max(1, el.clientHeight);
+        if (over <= 1.002) break;
+        f = Math.max(0.5, (f / over) * 0.99);
+        el.style.setProperty('--menu-fit', f.toFixed(4));
+      }
+    };
+    const soon = () => {
+      if (!raf) raf = requestAnimationFrame(fit);
+    };
+    fit();
+    window.addEventListener('resize', soon);
+    // the look and the Interface size are on <html>; Continue and Load come and go with the saves
+    const mo = new MutationObserver(soon);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-look', 'style', 'class'] });
+    mo.observe(el, { childList: true });
+    void document.fonts?.ready.then(soon);
+    return () => {
+      window.removeEventListener('resize', soon);
+      mo.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
   useEffect(() => {
     if (screen !== 'main') return;
     const onKey = (e: KeyboardEvent) => {
@@ -75,7 +123,8 @@ export function MainMenu() {
   );
   return (
     <div class="menu">
-      <div class="menu-col frame interactive" ref={col}>
+      {/* while a window is open the menu behind it is out of reach (Tab and Enter went through to it) */}
+      <div class="menu-col frame interactive" ref={col} inert={screen !== 'main'}>
         <img class="menu-logo" src={logoUrl()} alt="The Kardashev Project" draggable={false} />
         <div class="menu-tag">From a garage to a Type I civilisation</div>
         {latest && !latest.gameOver && (
@@ -160,9 +209,13 @@ function LoadGame() {
       <div class="slots">
         {slots.map((sl) => (
           <div class={`slotcard frame ${sl.gameOver ? 'over' : ''}`} key={sl.id}>
-            <div class="row between">
-              <b class="n">{sl.name}</b>
-              <span class="small muted">{ago(sl.savedAt)}</span>
+            <div class="row between" style={{ gap: '10px', alignItems: 'baseline' }}>
+              <b class="n" style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                {sl.name}
+              </b>
+              <span class="small muted" style={{ flex: 'none', whiteSpace: 'nowrap' }}>
+                {ago(sl.savedAt)}
+              </span>
             </div>
             <div class="small">
               {SITE_BY_ID[sl.home]?.name} · {sl.dateLabel} · {sl.model}
@@ -189,6 +242,11 @@ function LoadGame() {
                   }}
                 >
                   Really delete
+                </button>
+              ) : null}
+              {confirm === sl.id ? (
+                <button class="btn small" onClick={() => setConfirm(null)}>
+                  Cancel
                 </button>
               ) : (
                 <button class="btn small" onClick={() => setConfirm(sl.id)}>

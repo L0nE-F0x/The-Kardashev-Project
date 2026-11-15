@@ -96,8 +96,9 @@ export function TopBar() {
             <span class="v gold">
               <Eased value={s.finance.cash} format={fmtMoney} />
             </span>
-            <span class={`s ${net >= 0 ? 'good' : 'bad'}`}>
-              {net >= 0 ? '▲' : '▼'} {fmtMoney(Math.abs(net))}/mo
+            <span class={`s ${Math.abs(net) < 1 ? '' : net > 0 ? 'good' : 'bad'}`}>
+              {Math.abs(net) < 1 ? '' : net > 0 ? '▲ ' : '▼ '}
+              {fmtMoney(Math.abs(net))}/mo
             </span>
           </div>
         </div>

@@ -24,3 +24,8 @@ html.photo-mode #ui > :not(.photobar) { display: none !important; }
 /* the bar put away for a clean screenshot: a faint handle in the corner brings it back */
 .photobar-bare { left: auto; right: 16px; bottom: 16px; transform: none; opacity: 0.25; }
 .photobar-bare:hover { opacity: 1; }
+/* a small window: shorter sliders, so the whole bar (Done included) stays on one line */
+@media (max-width: 1199px) {
+  .photobar input[type='range'] { width: 104px; }
+  .photobar { gap: 8px 10px; max-width: 96%; }
+}

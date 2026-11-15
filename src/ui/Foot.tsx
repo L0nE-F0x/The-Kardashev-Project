@@ -26,7 +26,7 @@ export function FootStrip() {
           <Icon name="news" size="sm" /> News
         </span>
         <span class={`ft ${news?.kind ?? ''}`} key={news ? `${news.day}:${news.text}` : 'none'}>
-          {news ? rich(news.text) : 'The world waits. Click a site on the map to begin.'}
+          {news ? rich(news.text) : 'No news yet. It lands here as it happens.'}
         </span>
       </button>
       <div class="foot-line" data-tut="comingup">

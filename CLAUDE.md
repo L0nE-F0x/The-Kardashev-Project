@@ -9,7 +9,11 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.15.2 "Way In"** (SPEC §36's last four done: cut walls with a top, Aurora's far trees, the
+Current build: **v0.15.3 "Fine Print"** (the interface combed for 1.0 by three surveyors: no bar down the title
+screen's side in any look and the menu fits any window and interface size, a card's choices pinned at its foot,
+readable colour on paper and on bright fills, a small-window layout under 1200 px, the finale trackers out of the way,
+a bar on the orbit and solar-system views, menu windows that hold still and take the keyboard: SPEC §38)
+on top of **v0.15.2 "Way In"** (SPEC §36's last four done: cut walls with a top, Aurora's far trees, the
 reactor and the fab seen on a real plot, the gas plant's hut gone; and found there: staff vanished at the edge of
 every Act II plant's plot, every view-only place's and at the gas plant's gate, so every building people work in names
 its door and they walk round and on what it is built of: SPEC §37)
@@ -449,6 +453,10 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   five: a fresh company per act (`startNew({ act3: true })` …) or `game.updateSettings({ interfaceLook: n })`.
   Paper looks invert the tokens (dark ink on light): never hard-code a light text colour in a component. Running
   text stays Atkinson in every look. Float things by `--e-top` / `--e-left` / `--e-foot`, never literal pixels.
+- **Small windows (v0.15.3):** under 1200 px wide an open wide panel takes the width and the inspector steps aside, the
+  finale tracker joins the goal column, Coming up shows three (`layout.css`, the 821–1199 block). A card's `.choices`
+  is sticky at its body's foot on `--card-bg` (a look whose card has its own surface sets it). The title menu fits by
+  window-height steps plus `--menu-fit` (MainMenu). Check a new HUD part at 960×540 and 1280×800 too.
 - **Windows, not phones:** the app's window is at least 960×540; the HUD also has to hold up on big and high-DPI
   screens and on a Steam Deck (1280×800, touch). **Zoomed HUD boxes** (the `zoom: …--ui-zoom…` list in styles.css):
   size them in % of the screen, never `vh`/`vw` (zoom multiplies those; divide by `--z` if you must). Spotlight bubbles
@@ -599,7 +607,9 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
-**Next:** v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36", then "Keep going, we only
+**Next:** v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
+sure it's ready to be played by users that are paying"): built and checked, waiting for the user's word to ship. §38
+ends with the low items left. Before it, v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36", then "Keep going, we only
 push when everything is done!"): pushed and tagged when done; publishing the draft is the user's step. Then ask how it
 looks in their app. Before it, v0.15.1 "Loose Ends" (SPEC §36) finishes what v0.15.0's realism pass saw and left, in three rounds on 2026-11-14 ("finish up everything that was left", then "finish those up first before we ship everything in one go"). v0.15.0's draft was never published, so v0.15.1 is the one release carrying both; publishing its draft is the user's step. Then ask how it looks in their app (the cars, the trees, the doors, upgrades), and pick from §36's "Still open after it" when they ask for more. v0.15.0 "True to Life" (SPEC §35) was the realism pass itself, asked for on 2026-11-14 and shipped as a draft while they slept. Before it: v0.14.0 "Mission Control" is the interface overhaul the user asked for on 2026-11-13 ("this isn't
 triple A yet ... I want people to pay for it"). Its first pass (SPEC §33) they called "barely noticeable"; after

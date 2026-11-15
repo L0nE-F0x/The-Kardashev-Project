@@ -26,7 +26,7 @@ interface ChartDef {
   optional?: boolean;
 }
 
-const fmtEF = (v: number) => (v >= 100 ? `${v.toFixed(0)} EF` : v >= 1 ? `${v.toFixed(1)} EF` : `${v.toFixed(2)} EF`);
+const fmtEF = (v: number) => (v >= 100 ? `${Math.round(v).toLocaleString('en-US')} EF` : v >= 1 ? `${v.toFixed(1)} EF` : `${v.toFixed(2)} EF`);
 const fmtNum = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}k` : v.toFixed(0));
 
 const CHARTS: ChartDef[] = [
@@ -48,7 +48,7 @@ const CHARTS: ChartDef[] = [
     fmt: (v) => fmtMW(v),
     log: true,
     series: [
-      { label: 'Served', color: 'var(--c-yel1, #f2c14e)', get: (p) => p.mw },
+      { label: 'Served', color: 'var(--gold)', get: (p) => p.mw },
       { label: 'Needed', color: 'var(--muted)', get: (p) => p.load },
     ],
   },

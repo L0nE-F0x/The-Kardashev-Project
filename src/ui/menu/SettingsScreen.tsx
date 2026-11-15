@@ -69,7 +69,7 @@ function Gameplay() {
           hint="Game months per real hour away (max one year)."
           value={st.offlineRate}
           options={[
-            [0.5, '½ month'],
+            [0.5, '2 weeks'],
             [1, '1 month'],
             [2, '2 months'],
           ]}
@@ -180,12 +180,12 @@ function Display() {
         />
       )}
       <Toggle label="FPS counter" value={st.fps} onChange={(v) => game.updateSettings({ fps: v })} />
-      <div class="setting opt">
+      <div class="setting opt stack">
         <span class="txt">
           <span class="l">Era palette</span>
           <span class="h">The world re-grades as civilisation climbs the scale. Preview the later looks.</span>
         </span>
-        <div class="seg wrap">
+        <div class="seg">
           <button class={`btn small ${eraValue === 'auto' ? 'active' : ''}`} onClick={() => game.setEraOverride(null)}>
             Auto
           </button>
@@ -374,6 +374,11 @@ function Data() {
             >
               Really delete
             </button>
+          ) : null}
+          {confirmDel === sl.id ? (
+            <button class="btn small" onClick={() => setConfirmDel(null)}>
+              Cancel
+            </button>
           ) : (
             <button class="btn small" onClick={() => setConfirmDel(sl.id)} disabled={game.slotId === sl.id}>
               Delete
@@ -428,6 +433,11 @@ function Data() {
             }}
           >
             Yes, delete every company and setting
+          </button>
+        )}
+        {confirmWipe && (
+          <button class="btn" onClick={() => setConfirmWipe(false)}>
+            Cancel
           </button>
         )}
       </div>

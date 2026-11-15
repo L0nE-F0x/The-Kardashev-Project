@@ -187,9 +187,20 @@ export function Choice<T extends string | number>({ label, hint, value, options,
 
 /** A centred modal window used by the menu screens. */
 export function Window({ title, icon, onClose, children, wide }: { title: string; icon?: IconName; onClose: () => void; children: ComponentChildren; wide?: boolean }) {
+  // keys and a controller: the window takes the focus (its first control) and gives it back when it closes, so Tab
+  // walks the window, not the menu behind it
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const back = document.activeElement as HTMLElement | null;
+    const el = ref.current;
+    const first = el?.querySelector<HTMLElement>('.body :is(button, input, select, textarea, [tabindex]):not(:disabled, [tabindex="-1"])');
+    (first ?? el)?.focus({ preventScroll: true });
+    // after the commit: the menu behind is inert until then, and an inert button takes no focus
+    return () => queueMicrotask(() => back && back !== document.body && back.isConnected && back.focus({ preventScroll: true }));
+  }, []);
   return (
     <div class="scrim menu-scrim" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div class={`modal frame window ${wide ? 'wide' : ''}`} role="dialog" aria-label={title}>
+      <div class={`modal frame window ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref}>
         <div class="head">
           {icon && <Icon name={icon} size="lg" />}
           <h2 class="grow">{title}</h2>
@@ -207,6 +218,14 @@ export function fmtPlaytime(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** A real-world date the way the game writes its own ("14 Nov 2026"): from a timestamp or "2026-11-14". */
+export function fmtRealDate(at: number | string): string {
+  const d = typeof at === 'number' ? new Date(at) : new Date(`${at}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return String(at);
+  return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** A link to a page outside the game: it opens in the system browser. */

@@ -28,8 +28,12 @@ html.edition-3d:not(.ui-classic)[data-look='4'] {
       inset 0 -2px 0 rgb(0 0 0 / 0.5),
       0 8px 20px rgb(0 0 0 / 0.5);
   }
-  /* the strip's own things: the date on a readout, the clock's keys */
+  /* the strip's own things: the date on a readout, the clock's keys (out of the row of figures under the strip,
+     where it kept an empty band its width and pushed the figures under the gauge in a small window) */
   .topbar > .clock {
+    position: absolute;
+    left: 12px;
+    top: 0;
     align-self: flex-start;
     height: var(--strip);
     padding: 4px 0;

@@ -8,6 +8,7 @@ import type { FacilityType } from '../sim/types';
 import { fmtDays, fmtMoney, fmtMW, fmtNum } from '../sim/core';
 import { buildCost, buildDays, chipSpec, dcCapacityUnits, facilityIT, facilityMW, facilityPkgUnits, tierMult, gridHeadroomLeft, gridLeadDays, gridPrice, GRID_FEE_PER_MW, landCost, nextTier, pueAt, rentalPrice, siteSlots, supplierDailyRate, upgradeCost, upgradeDays } from '../sim/model';
 import { canBuild, canBuyLand, canUpgrade, gridOptions, slotsUsed, stakePrice } from '../sim/actions';
+import { runsCompany } from '../sim/events';
 import { CABLES } from '../content/network';
 import { MINE_BY_ID, MATERIALS } from '../content/stack';
 import { RULE_BY_ID } from '../content/politics';
@@ -54,6 +55,8 @@ export function Inspector() {
   if (site.kind === 'mega') return <MegaInspector id={sel.id} />;
   if (site.kind === 'launch') return <LaunchInspector id={sel.id} />;
   if (site.kind === 'yards' || site.kind === 'ring' || site.kind === 'habitat' || site.kind === 'asteroid' || (site.kind === 'moon' && game.state?.system)) return <SpaceInspector id={sel.id} />;
+  // the Moon before Act V has no inspector (it fell through to a chip supplier's)
+  if (site.kind === 'moon') return null;
   return <SupplierInspector id={sel.id} />;
 }
 
@@ -85,9 +88,11 @@ function SiteInspector({ id }: { id: string }) {
       icon={s.company.homeSite === id ? 'hq' : 'map'}
       onClose={() => game.select(null)}
       extra={
-        <button class="btn small primary" onClick={() => game.enterDiorama(id)} data-tip="View this campus up close (or double-click the site)">
-          View
-        </button>
+        game.mode === 'diorama' && game.dioramaSite === id ? undefined : (
+          <button class="btn small primary" onClick={() => game.enterDiorama(id)} data-tip="View this campus up close (or double-click the site)">
+            View
+          </button>
+        )
       }
     >
       <div class="row between small">
@@ -278,53 +283,61 @@ ${fmtMoney(upgradeCost(s, f))} · ${fmtDays(upgradeDays(s, f))}. Keeps running m
         </div>
       </div>
 
-      <div class="section">
-        <h4>Build</h4>
-        <div class="buildgrid">
-          {BUILDABLE.filter((type) => (FACILITIES[type].act ?? 1) <= (s.act ?? 1) && !impossibleHere(type, id)).map((type) => {
-            const def = FACILITIES[type];
-            const why = canBuild(s, id, type);
-            return (
-              <button
-                key={type}
-                data-tut={`build-${type}`}
-                class="btn buildcard pic"
-                disabled={!!why}
-                onClick={() => game.build(id, type)}
-                data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}\nRunning cost: ${fmtMoney(def.opex)} a month${type === 'lab' ? ' (researchers’ salaries)' : ''}.${exportBlocked && (type === 'datacenter' || type === 'campus') ? `\n⛔ ${exportBlocked}` : ''}${why ? `\n✗ ${why}` : ''}`}
-              >
-                <span class="art">
-                  {buildArtUrl(type) && <img src={buildArtUrl(type)!} alt="" draggable={false} loading="lazy" />}
-                  <span class="ic">
-                    <Icon name={why ? 'lock' : FAC_ICON[type]} size="sm" />
-                  </span>
-                </span>
-                <span class="t">{def.name}</span>
-                <span class="m">
-                  <b>{fmtMoney(buildCost(s, type))}</b> · {fmtDays(buildDays(s, id, type))}
-                  {def.opex >= 1e6 ? ` · ${fmtMoney(def.opex)}/mo` : ''}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* a company the player no longer runs (sold, handed to the Charter, in the blind trust) shows no build menu:
+          every button refused with a toast */}
+      {runsCompany(s) ? (
+        <>
+          <div class="section">
+            <h4>Build</h4>
+            <div class="buildgrid">
+              {BUILDABLE.filter((type) => (FACILITIES[type].act ?? 1) <= (s.act ?? 1) && !impossibleHere(type, id)).map((type) => {
+                const def = FACILITIES[type];
+                const why = canBuild(s, id, type);
+                return (
+                  <button
+                    key={type}
+                    data-tut={`build-${type}`}
+                    class="btn buildcard pic"
+                    disabled={!!why}
+                    onClick={() => game.build(id, type)}
+                    data-tip={`${def.blurb}${def.leadNote ? `\n⏳ ${def.leadNote}` : ''}\nRunning cost: ${fmtMoney(def.opex)} a month${type === 'lab' ? ' (researchers’ salaries)' : ''}.${exportBlocked && (type === 'datacenter' || type === 'campus') ? `\n⛔ ${exportBlocked}` : ''}${why ? `\n✗ ${why}` : ''}`}
+                  >
+                    <span class="art">
+                      {buildArtUrl(type) && <img src={buildArtUrl(type)!} alt="" draggable={false} loading="lazy" />}
+                      <span class="ic">
+                        <Icon name={why ? 'lock' : FAC_ICON[type]} size="sm" />
+                      </span>
+                    </span>
+                    <span class="t">{def.name}</span>
+                    <span class="m">
+                      <b>{fmtMoney(buildCost(s, type))}</b> · {fmtDays(buildDays(s, id, type))}
+                      {def.opex >= 1e6 ? ` · ${fmtMoney(def.opex)}/mo` : ''}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-      <div class="section row wrap">
-        <button class="btn small" onClick={() => game.setTool({ kind: 'link', from: id })} disabled={!facs.length} data-tip="Draw a transmission line from here to another of your sites.">
-          <Icon name="link" size="sm" /> Power line from here
-        </button>
-        {act2 && (
-          <button class="btn small" onClick={() => game.setTool({ kind: 'fiber', from: id })} disabled={!facs.length} data-tut="fiber-from" data-tip="Lay fiber from here to another of your sites (max 5,000 km). Lets this region's halls sell into the other's market at low latency.">
-            <Icon name="fiber" size="sm" /> Fiber from here
-          </button>
-        )}
-        {hasDC && (
-          <button class="btn small" onClick={() => game.openPanel('orders')}>
-            <Icon name="orders" size="sm" /> Order chips
-          </button>
-        )}
-      </div>
+          <div class="section row wrap">
+            <button class="btn small" onClick={() => game.setTool({ kind: 'link', from: id })} disabled={!facs.length} data-tip="Draw a transmission line from here to another of your sites.">
+              <Icon name="link" size="sm" /> Power line from here
+            </button>
+            {act2 && (
+              <button class="btn small" onClick={() => game.setTool({ kind: 'fiber', from: id })} disabled={!facs.length} data-tut="fiber-from" data-tip="Lay fiber from here to another of your sites (max 5,000 km). Lets this region's halls sell into the other's market at low latency.">
+                <Icon name="fiber" size="sm" /> Fiber from here
+              </button>
+            )}
+            {hasDC && (
+              <button class="btn small" onClick={() => game.openPanel('orders')}>
+                <Icon name="orders" size="sm" /> Order chips
+              </button>
+            )}
+          </div>
+        </>
+      ) : (
+        <p class="small muted section">{s.company.name} is run by its advisors now: building here is theirs to decide.</p>
+      )}
     </Panel>
   );
 }
@@ -406,6 +419,7 @@ function SupplierInspector({ id }: { id: string }) {
 
 function ViewButton({ id }: { id: string }) {
   const game = useGame();
+  if (game.mode === 'diorama' && game.dioramaSite === id) return null;
   return (
     <button class="btn small primary" onClick={() => game.enterDiorama(id)} data-tip="Visit this site up close">
       View

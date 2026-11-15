@@ -105,12 +105,15 @@ export function WorldNotes() {
         } else {
           n.style.translate = `${Math.round(box.left + a.x)}px ${Math.round(box.top + a.y)}px`;
           // the card stands to the right of its building unless the site panel (or the window's edge) is in the
-          // way there and there is room for it on the left
+          // way there and there is room for it on the left, clear of the dock; with room on neither side (a small
+          // window) it takes the side with more
           if (n.classList.contains('wn-call')) {
             const w = (n.firstElementChild as HTMLElement | null)?.getBoundingClientRect().width ?? 300;
             const wall = document.querySelector('#ui > .side > .panel')?.getBoundingClientRect().left ?? window.innerWidth;
+            const dock = document.querySelector('#ui > .dock')?.getBoundingClientRect().right ?? 0;
             const x = box.left + a.x;
-            n.classList.toggle('flip', x + 60 + w > wall && x - 60 - w > 0);
+            const right = wall - (x + 60), left = x - 60 - dock;
+            n.classList.toggle('flip', right < w && (left >= w || left > right));
           }
         }
       }

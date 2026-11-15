@@ -310,6 +310,35 @@
 }
 
 html.edition-3d:not(.ui-classic) {
+  /* MainMenu sets --menu-fit below 1 when the column would run off the window (a big Interface size) */
+  .menu-col {
+    zoom: calc(var(--ui-zoom, 1) * var(--ui-auto, 1) * var(--menu-fit, 1));
+  }
+  /* the windows whose content changes under the pointer (Settings' tabs, How to Play's topics, the Field Guide's
+     entries) keep one height, so the tabs and the list stay put as you switch; in the two-pane ones the list and
+     the page scroll, the window does not */
+  .modal.window:has(> .body > :is(.settings, .guide)) {
+    height: min(780px, 100%);
+  }
+  .modal.window > .body:has(> :is(.settings, .guide)) {
+    flex: 1;
+    min-height: 0;
+  }
+  .modal.window > .body:has(> .guide) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .modal.window > .body > .guide {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .modal.window > .body > .guide > :is(.guide-list, .guide-entry) {
+    max-height: none;
+    min-height: 0;
+    overflow-y: auto;
+  }
   /* the tagline belongs to the desktop title screen (a phone's two-column menu has no room for it) */
   .menu-tag {
     display: none;
@@ -320,6 +349,7 @@ html.edition-3d:not(.ui-classic) {
     background: radial-gradient(ellipse at 50% 45%, rgb(6 6 14 / 0.55), rgb(6 6 14 / 0.86));
   }
   .pickcard .n {
+    text-wrap: balance;
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: 0.01em;
@@ -609,8 +639,14 @@ html.edition-3d:not(.ui-classic) {
       min-width: 52px;
       white-space: nowrap;
     }
+    /* in a narrow card the slider gives way, not its label (Finance's "Borrow" ran under the track) */
     .setting.slider input {
-      width: 200px;
+      width: auto;
+      flex: 0 1 200px;
+      min-width: 90px;
+    }
+    .setting.slider .txt {
+      min-width: min(110px, 30%);
     }
     .slots {
       gap: 10px;

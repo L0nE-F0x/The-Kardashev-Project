@@ -86,12 +86,15 @@ html.edition-3d:not(.ui-classic) {
     color: var(--muted);
     margin-left: 0.25em;
   }
+  /* two lines before it is cut (a goal's hint was cut to "Expand a data center to a 50 …") */
   .tile-s {
     position: relative;
     color: var(--muted);
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
   .tile-chart {
     position: absolute;
@@ -361,8 +364,8 @@ html.edition-3d:not(.ui-classic) {
   .cashchart {
     color: var(--gold);
   }
-  /* a legend's swatch in front of a row's label */
-  .sw::before {
+  /* a legend's swatch in front of a row's label (only in a row: a Toggle's switch is a .sw too) */
+  .lrow .sw::before {
     content: '';
     display: inline-block;
     width: 9px;

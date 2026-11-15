@@ -98,10 +98,10 @@ Your compute is split four ways in the Compute panel: **training** (the next mod
 2. **Scan the top bar.** Red or orange text is trouble: power short of what your sites need, cash falling, safety margin below zero. Hover any number for the breakdown.
 3. **Look for badges** on the dock buttons: a red number means something there is waiting for you (research idle, a run to start, an offer).
 4. **Queue the next thing before the last one finishes:** research, the next training run, chips for a hall that’s still being built, power for a hall you’re about to build.
-5. **Speed up.** Press [3] or [4] (or the ▶▶ buttons), or click the first thing in **Coming up** along the bottom to jump straight to it. The game stops the clock by itself when an event card needs you, so you won’t miss anything.
+5. **Speed up.** Press [3] or [4] (or the fast-forward buttons), or click the first thing in **Coming up** along the bottom to jump straight to it. The game stops the clock by itself when an event card needs you, so you won’t miss anything.
 6. **Answer event cards** (the pop-ups with choices). Each one is a trade-off; the advisors’ lines hint at the angle. The highlighted choice is the safe default.
 
-> If nothing on screen needs you, ▶▶▶ is the right speed. Most of the waiting is concrete setting and chips at sea.`,
+> If nothing on screen needs you, the fastest speed [4] is the right one. Most of the waiting is concrete setting and chips at sea.`,
   },
   {
     id: 'screen',

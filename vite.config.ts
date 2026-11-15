@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import preact from '@preact/preset-vite';
@@ -64,6 +64,8 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
+    // the menu's own theme song is optional: without the file the game never asks for it (a 404 on every launch)
+    __HAS_THEME__: JSON.stringify(existsSync(new URL('./public/audio/theme.mp3', import.meta.url))),
   },
   plugins: [
     preact(),

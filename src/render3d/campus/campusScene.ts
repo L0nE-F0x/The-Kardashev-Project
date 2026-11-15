@@ -1398,6 +1398,7 @@ export class CampusScene implements Scene3D {
   }
 
   update(dt: number) {
+    if (this.game.photo && this.hoverRing.visible) this.setHoverRing(null);
     this.time += dt;
     if (this.scenery === 'moon' || this.scenery === 'space' || this.scenery === 'asteroid') {
       const a = (Date.now() / 3_600_000) * 0.26 + 0.6;
@@ -1601,6 +1602,11 @@ export class CampusScene implements Scene3D {
 
   private hoverAt(p: PixelPointer) {
     const g = this.game;
+    // photo mode: nothing under the pointer is outlined (it would be in the picture)
+    if (g.photo) {
+      this.setHoverRing(null);
+      return g.setHover(null);
+    }
     const who = this.advisorAt(p.x, p.y);
     if (who) {
       this.setHoverRing(null);

@@ -17,7 +17,7 @@ let mood: Mood = REST;
 /** What is sounding: the track and its player (null while the MP3 theme plays). */
 let now: { track: Track; player: Cinematic | null } = { track: null, player: null };
 let themeEl: HTMLAudioElement | null = null;
-let themeMissing = false;
+let themeMissing = typeof __HAS_THEME__ !== 'undefined' && !__HAS_THEME__;
 let themeGain: GainNode | null = null;
 
 export function musicUnlocked(): void {

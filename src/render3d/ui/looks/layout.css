@@ -63,7 +63,8 @@
       padding: 12px 9px 10px;
       gap: 6px;
       align-items: stretch;
-      --dock-b: clamp(30px, calc((100dvh / var(--z) - var(--rail) - 50px) / var(--dock-n, 10) - 6px), 70px);
+      /* the keys share what the rail leaves, less its padding and separators (50 px left Acts IV–V 5 px over) */
+      --dock-b: clamp(30px, calc((100dvh / var(--z) - var(--rail) - 62px) / var(--dock-n, 10) - 6px), 70px);
     }
     .dock .btn {
       width: auto;
@@ -105,6 +106,19 @@
     .objectives {
       left: var(--e-left);
       top: var(--e-top);
+      /* never under the foot strip (a long list in a small window scrolls) */
+      max-height: calc(100% - var(--e-top) - var(--e-foot) - 8px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+    /* a finale's tracker (the Crunch, the Threshold, the Heat Wall, Solar Maximum) is for the map: under a card or an
+       open panel it waits (it was drawn over both) */
+    #ui:has(> .scrim, > .panel.wide) > .crunch {
+      display: none;
+    }
+    /* the space views' bar steps aside while a plan or an era jumps */
+    #ui:has(> .jump) > .viewbar {
+      display: none;
     }
     .side {
       right: 16px;
@@ -121,6 +135,10 @@
     }
     .toasts {
       right: calc(var(--e-side) + 30px);
+    }
+    /* no inspector open: the toasts keep no room for it (in a small window they landed on the goal card) */
+    #ui:not(:has(> .side > .panel)) > .toasts {
+      right: 16px;
     }
 
     /* ── foot: the news, and what is coming ── */
@@ -266,6 +284,63 @@
     .panel.wide.research {
       left: var(--e-left);
       right: calc(var(--e-side) + 26px);
+    }
+    /* no inspector open (nothing picked, as at the start of Acts III–V): no room kept for it */
+    #ui:not(:has(> .side > .panel)) > .panel.wide {
+      right: max(12px, calc(100% - var(--e-left) - 1120px));
+    }
+  }
+}
+/* the narrowest windows (960 to 1199 wide): beside the inspector a panel was ~500 px (Research's columns, the guides'
+   text and Settings broke), so an open panel takes the width and the inspector steps aside until it closes */
+@media (min-width: 821px) and (max-width: 1199px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) {
+    #ui:has(> .panel.wide) > .side {
+      display: none;
+    }
+    .panel.wide,
+    .panel.wide.research {
+      right: 12px;
+    }
+    /* no room between the goals and the inspector: a finale's tracker joins the goals' column, at its foot, and the
+       goal card above it gives it room (and scrolls) */
+    .crunch {
+      left: var(--e-left);
+      top: auto;
+      bottom: var(--e-foot);
+      transform: none;
+      width: var(--e-goals, 308px);
+    }
+    #ui:has(> .crunch) > .objectives {
+      max-height: calc(100% - var(--e-top) - var(--e-foot) - 150px);
+    }
+    /* the campus bar stands between the photo key (just its icon here) and the inspector, its region left out
+       (centred on the window it ran under the inspector) */
+    .photo-open {
+      font-size: 0;
+      gap: 0;
+      padding-inline: 8px;
+    }
+    .dioramabar {
+      left: calc(var(--e-left) + 50px);
+      transform: none;
+      max-width: calc(100% - var(--e-left) - 50px - var(--e-side) - 36px);
+    }
+    .dioramabar > span > .muted {
+      display: none;
+    }
+    /* what is coming: the three soonest, each with room to be read (five were cut to "Res…", "Bit…") */
+    .foot-line .track > .fe:nth-child(n + 4) {
+      display: none;
+    }
+    /* a waiting decision's pill: in the gap between the goal card and the inspector (centred, it lay on the card) */
+    .decision {
+      left: calc((var(--e-left) + 100% - var(--e-side) - 16px) / 2);
+      max-width: calc(100% - var(--e-left) - var(--e-side) - 40px);
+    }
+    #ui:has(> .objectives) > .decision {
+      left: calc((var(--e-left) + var(--e-goals, 308px) + 100% - var(--e-side) - 16px) / 2);
+      max-width: calc(100% - var(--e-left) - var(--e-goals, 308px) - var(--e-side) - 40px);
     }
   }
 }

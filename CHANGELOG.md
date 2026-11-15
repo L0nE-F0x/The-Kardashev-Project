@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.15.3 — Fine Print (2026-11-15)
+A comb through every screen for the small things: what you couldn't read, what ran off the window, what sat on top of something else.
+
+- **The title screen has no bar down the side any more.** The garage's plywood plank, the scale-up's metal panel and the Charter's slab of glass are gone: the logo and the menu stand on the film, as paper, keys or glass. The whole menu fits in any window, a Steam Deck's and the smallest included, at any interface size, with Continue, Load and Quit. In the planetary look, "New company" was dark on dark: it is bright again.
+- **Choices stay in sight.** On a long card or in a small window the buttons stay at the card's foot and the story scrolls above them: decisions, story cards, the five-year and era plans, the reports, and "Found the company".
+- **Easier to read in the garage and the scale-up:** the colour-blind colours (on the Charter's sticky notes too), the suggested answer on every card (its second line was white on paper), How to Play's numbered steps and loop arrows, the close cross, the windows' pictures, a card's category line, the colours of bars (a front about to be lost looked like a calm one), good news in Messages, and Stats' power line.
+- **Easier to read from the Charter on:** the suggested answer's line on the bright buttons, and the Goals panel (dark ink on black glass).
+- **The finale trackers** (the Crunch, the Threshold, the Heat Wall, Solar Maximum) no longer sit on top of cards and open panels. In a small window they join the goal card's column.
+- **Small windows:** an open panel takes the window's width and the site panel steps aside until it closes; the campus bar, a waiting decision, Coming up (the three soonest), the photo bar and the notes find room of their own; a building's card stays clear of the dock; the top bar's figures fit in the scale-up and the planetary looks; the tutorial says where the safety margin went.
+- **Panels use the room** when no site is picked, and no longer overlap the goal card in a full-HD window.
+- **The orbit and solar-system views** have a bar: where you are, and the way back to the world map.
+- **The site panel always describes the place on screen**, has no View button for the campus you are already on, and no longer shows a chip supplier's page for the Moon or stays over the orbit view.
+- **Windows from the title screen** hold still while you switch tabs and topics, and scroll in one place. With keys or a controller they take the focus, Tab stays inside, and Esc gives it back to the menu.
+- **What's New** shows the latest three releases (older ones a click away), with the game's icons instead of emoji.
+- **Smaller things:** a stray blue square in every switch; dates read "14 Nov 2026"; the credits name every typeface; "No news yet" instead of a line from before the game began; day one's Finance says nothing is coming in or going out yet, and the top bar a plain $0/mo; tiles give their hints two lines; the Borrow slider leaves its label alone; photo mode no longer outlines the plot under the pointer; offline speed's "2 weeks"; Delete has a Cancel; a bankrupt company's Delete looks like it works; the planetary starts say what the difficulty changes; long waits read in years; Act V's chip counts are short; the ending says "click to continue" (the credits too); the end card's figures are in the game's typeface; the Charter panel in the later acts no longer shows the old mandate; the picked dock key keeps its picture in the last two looks; no error when there is no theme song; a key in How to Play keeps its bracket; locked Field Guide entries carry a lock.
+
 ## 0.15.2 — Way In (2026-11-14)
 The last of the realism pass's leftovers, and everyone who works on a campus now goes in at a door.
 

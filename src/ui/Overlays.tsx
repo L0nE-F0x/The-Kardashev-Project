@@ -224,6 +224,33 @@ export function DioramaBar() {
   );
 }
 
+/** The orbit and solar-system views: where you are and the way back (before, only the keys or a panel led out). */
+export function ViewBar() {
+  const game = useGame();
+  if (game.mode !== 'orbit' && game.mode !== 'system') return null;
+  const orbit = game.mode === 'orbit';
+  return (
+    <div class="dioramabar viewbar frame interactive">
+      <button class="btn small" onClick={() => game.enterMap()} data-tip="Back to the world map (M / Esc)">
+        <Icon name="globe" size="sm" /> World map
+      </button>
+      <span>
+        <b>{orbit ? 'Earth orbit' : 'The solar system'}</b>
+      </span>
+      {orbit && game.hasSystemView && (
+        <button class="btn small" onClick={() => game.enterSystem()} data-tip="Out to the solar system (V)">
+          <Icon name="swarm" size="sm" /> Solar system
+        </button>
+      )}
+      {!orbit && game.hasOrbitView && (
+        <button class="btn small" onClick={() => game.enterOrbit()} data-tip="In to Earth orbit">
+          <Icon name="orbit" size="sm" /> Orbit
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function LinkHint() {
   const game = useGame();
   if (!game.tool || game.mode !== 'map') return null;

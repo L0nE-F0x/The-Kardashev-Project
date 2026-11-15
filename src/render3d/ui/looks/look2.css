@@ -274,8 +274,10 @@ html.edition-3d:not(.ui-classic)[data-look='2'] {
   .side > .panel {
     position: relative;
   }
+  /* isolate: the tape and the clip stay with their sheet (z-index 3 inside it), never over a card's scrim */
   .side > .panel,
   .panel.wide {
+    isolation: isolate;
     overflow: visible;
     border: 12px solid transparent;
     border-radius: 16px;
@@ -310,5 +312,25 @@ html.edition-3d:not(.ui-classic)[data-look='2'] {
   .side > .panel > .head,
   .panel.wide > .head {
     padding-top: 24px;
+  }
+}
+/* a small window: a smaller brass gauge, so the figures beside it are not cut off under it */
+@media (max-width: 1340px) {
+  html.edition-3d:not(.ui-classic)[data-look='2'] {
+    .topbar > .kmeter {
+      gap: 6px;
+    }
+    .kring {
+      width: 44px;
+      height: 44px;
+    }
+    .kring svg {
+      inset: 7px;
+      width: calc(100% - 14px);
+      height: calc(100% - 14px);
+    }
+    .kmeter .col {
+      padding: 0 10px;
+    }
   }
 }

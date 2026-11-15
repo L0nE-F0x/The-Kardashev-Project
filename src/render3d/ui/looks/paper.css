@@ -88,13 +88,13 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
     background: none;
     border-bottom: 2px solid var(--ink);
   }
-  /* a title is underlined by hand, in red */
+  /* a title is underlined by hand, in red (across the rule, not below it, where it crossed text scrolling under) */
   .panel > .head::after,
   .modal .head::after {
     left: 14px;
     width: min(54%, 280px);
     height: 9px;
-    bottom: -7px;
+    bottom: -3px;
     opacity: 1;
     box-shadow: none;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='9' preserveAspectRatio='none' viewBox='0 0 280 9'%3E%3Cpath d='M2 5 C 45 1, 90 8, 146 4 S 240 2, 278 6' stroke='%23cf3a26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") left / 100% 100% no-repeat;
@@ -109,6 +109,22 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
   }
   :is(.panel > .head, .modal .head) > .btn.ghost.small:last-child {
     color: var(--ink);
+  }
+  /* the close cross is drawn light, for glass: on paper it is inked */
+  :is(.panel > .head, .modal .head) > .btn.ghost.small:last-child > img.px {
+    filter: brightness(0.28);
+  }
+  /* a card's category line in its colour, inked: the glass looks' light tints are pale on paper */
+  .modal .head .label {
+    color: color-mix(in srgb, var(--cat, var(--ink)) 45%, var(--ink));
+  }
+  /* a menu window's picture: a sticker in ink (its icons are drawn light, for glass, and washed out on a pale plate) */
+  .modal.window .head > img.px.lg {
+    border-radius: 50%;
+    background: var(--ink);
+    box-shadow:
+      0 0 0 9px var(--ink),
+      0 2px 0 9px rgb(0 0 0 / 0.18);
   }
   ::-webkit-scrollbar-thumb {
     background-color: rgb(31 42 68 / 0.35);
@@ -248,6 +264,16 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
     background: rgb(255 244 170 / 0.75);
     box-shadow: inset 0 0 0 2px var(--ink);
   }
+  /* the suggested choice on a card: highlighted and outlined in ink (the rule above outweighs .btn.primary, so the
+     glass looks' pale line under its title would be white on paper) */
+  .choice.primary,
+  .choice.primary:hover:not(:disabled) {
+    background: rgb(255 238 140 / 0.7);
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+  .choice.primary .d {
+    color: color-mix(in srgb, var(--muted) 70%, var(--text));
+  }
   :is(.buildcard, .pickcard, .tech, .guide-item).active,
   :is(.buildcard, .pickcard, .tech, .guide-item).active:hover:not(:disabled) {
     color: var(--ink);
@@ -380,26 +406,32 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
     background: rgb(255 255 255 / 0.45);
     box-shadow: inset 0 0 0 2px var(--ink);
   }
+  /* --hatch is redefined on the fill itself, so it is drawn with the fill's own --pen (defined on <html> only, the
+     pen was resolved there once and every bar came out navy, a warning included) */
   .bar > i,
   .kbar i,
   .meter-bar i {
+    --hatch: repeating-linear-gradient(-45deg, var(--pen) 0 2.5px, transparent 2.5px 5px);
     border-radius: 0;
     box-shadow: none;
     background: var(--hatch);
   }
   .bar.gold > i {
-    --pen: #9a5a00;
-    background: var(--hatch);
+    --pen: var(--gold);
     box-shadow: none;
   }
   .bar.violet > i {
-    --pen: #7a3fa8;
-    background: var(--hatch);
+    --pen: var(--violet);
     box-shadow: none;
   }
   .bar.warn > i {
-    --pen: #c2311d;
-    background: var(--hatch);
+    --pen: var(--warn);
+  }
+  .bar.bad > i {
+    --pen: var(--bad);
+  }
+  .bar.good > i {
+    --pen: var(--good);
   }
   .meter-bar i {
     --pen: var(--tone);
@@ -478,6 +510,11 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
     font-weight: 700;
     color: var(--pen);
   }
+  /* a word beside a card's title (a bloc's stance): handwriting, so not at the small size meant for running text */
+  .buildcard .t .small {
+    font-size: 0.92em;
+    font-weight: 700;
+  }
   .kcard,
   :is(.panel.wide, .modal) .row.wrap > .grow:has(> h4:first-child) {
     background: rgb(255 255 255 / 0.4);
@@ -534,6 +571,18 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
     background: rgb(255 255 255 / 0.5);
     border: 0;
     box-shadow: inset 0 0 0 1.5px var(--e-line);
+  }
+  /* achievements: the ones still to win fade, the won ones are highlighted (paper had drawn both alike) */
+  .achievement:not(.got) {
+    opacity: 0.62;
+  }
+  .achievement.got {
+    background: rgb(255 238 140 / 0.55);
+  }
+  /* How to Play's step numbers and the loop's arrows sit on --cyan, which paper turns to dark ink */
+  .ht-steps .n,
+  .ht-arrow {
+    color: #fffdf6;
   }
 
   /* ── research: index cards ── */

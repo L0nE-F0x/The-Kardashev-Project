@@ -11,12 +11,22 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 /** **bold** and [Key] inside a line of handbook text. */
 function inline(text: string): ComponentChildren[] {
   const out: ComponentChildren[] = [];
-  const re = /\*\*(.+?)\*\*|\[([^\]]{1,8})\]/g;
+  // a key keeps the punctuation after it on its line ("(or press [V])" left the bracket alone on the next)
+  const re = /\*\*(.+?)\*\*|\[([^\]]{1,8})\]([).,;:!?]*)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(rich(text.slice(last, m.index)));
-    out.push(m[1] !== undefined ? <b key={m.index}>{rich(m[1])}</b> : <kbd key={m.index}>{m[2]}</kbd>);
+    out.push(
+      m[1] !== undefined ? (
+        <b key={m.index}>{rich(m[1])}</b>
+      ) : (
+        <span key={m.index} style={{ whiteSpace: 'nowrap' }}>
+          <kbd>{m[2]}</kbd>
+          {m[3]}
+        </span>
+      ),
+    );
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push(rich(text.slice(last)));

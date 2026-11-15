@@ -72,31 +72,31 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
       <div class="cardgrid five">
         <button class={`btn pickcard ${start === 1 ? 'active' : ''}`} onClick={() => setStart(1)} aria-pressed={start === 1}>
           <span class="n">
-            <Icon name="hq" size="sm" /> Act I · The Garage
+            <Icon name="hq" size="sm" /> Act I · The Garage
           </span>
           <span class="b">2027. Three desks, a rented rack and a seed round. The full story.</span>
         </button>
         <button class={`btn pickcard ${start === 2 ? 'active' : ''}`} onClick={() => setStart(2)} aria-pressed={start === 2} data-tut="start-act2">
           <span class="n">
-            <Icon name="campus" size="sm" /> Act II · The Scale-Up
+            <Icon name="campus" size="sm" /> Act II · The <span style={{ whiteSpace: 'nowrap' }}>Scale-Up</span>
           </span>
           <span class="b">Spring 2029. Series A closed, a campus with two data halls, Bit-2 shipping. Straight to gigawatts.</span>
         </button>
         <button class={`btn pickcard ${start === 3 ? 'active' : ''}`} onClick={() => setStart(3)} aria-pressed={start === 3} data-tut="start-act3">
           <span class="n">
-            <Icon name="charter" size="sm" /> Act III · The Charter
+            <Icon name="charter" size="sm" /> Act III · The Charter
           </span>
           <span class="b">January 2035. A listed company with a gigawatt campus — and twelve blocs asking you to run the Kardashev Project.</span>
         </button>
         <button class={`btn pickcard ${start === 4 ? 'active' : ''}`} onClick={() => setStart(4)} aria-pressed={start === 4} data-tut="start-act4">
           <span class="n">
-            <Icon name="globe" size="sm" /> Act IV · Planetary
+            <Icon name="globe" size="sm" /> Act IV · Planetary
           </span>
           <span class="b">January 2045. A renewed Planetary Charter, fusion lit in a pilot plant, a launch pad — and a whole planet to run.</span>
         </button>
         <button class={`btn pickcard ${start === 5 ? 'active' : ''}`} onClick={() => setStart(5)} aria-pressed={start === 5} data-tut="start-act5">
           <span class="n">
-            <Icon name="swarm" size="sm" /> Act V · Type I
+            <Icon name="swarm" size="sm" /> Act V · Type I
           </span>
           <span class="b">January 2068. A hundred terawatts, the Heat Wall behind you, a mass driver on the Moon — and a hundredfold climb to go.</span>
         </button>
@@ -140,7 +140,8 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
                     ? `${fmtMoney({ relaxed: 2.6e9, standard: 2e9, hard: 1.5e9 }[id] ?? 2e9, 0)} after the Series A`
                     : start === 3
                       ? `${fmtMoney({ relaxed: 32e9, standard: 25e9, hard: 18e9 }[id] ?? 25e9, 0)} after the IPO`
-                      : 'a listed giant and the Charter’s treasury'}
+                      : // from Act IV the money is the Charter's: what the difficulty still changes is the crises
+                        ({ relaxed: 'gentler crises, and fewer', standard: 'crises as designed', hard: 'crises half as dear again, and more often' }[id] ?? 'crises as designed')}
               </span>
             </button>
           );
@@ -198,7 +199,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
         </div>
       )}
 
-      <div class="row between wrap section" style={{ gap: '8px' }}>
+      <div class="row between wrap section found-row" style={{ gap: '8px' }}>
         <span class="small muted">
           {sb ? 'Sandbox · ' : ''}
           {start === 2 ? 'Act II · ' : start === 3 ? 'Act III · ' : start === 4 ? 'Act IV · ' : start === 5 ? 'Act V · ' : ''}

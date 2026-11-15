@@ -1,4 +1,4 @@
-import { Icon, Window, useGame } from '../components';
+import { Icon, Window, fmtRealDate, useGame } from '../components';
 import { ACHIEVEMENTS, type AchievementDef } from '../../content/achievements';
 import { achievements } from '../../save/achievements';
 import { medalUrl } from '../medals';
@@ -47,7 +47,7 @@ export function AchievementsScreen() {
                   <span class="txt">
                     <span class="n">{hidden ? 'A secret' : a.name}</span>
                     <span class="d">{hidden ? 'Keep playing.' : a.desc}</span>
-                    {at && <span class="d gold">{new Date(at).toLocaleDateString()}</span>}
+                    {at && <span class="d gold">{fmtRealDate(at)}</span>}
                   </span>
                 </div>
               );

@@ -127,6 +127,9 @@ export function fmtSci(v: number, digits = 1): string {
 }
 
 export function fmtDays(d: number): string {
+  // Act V's rates run to absurd waits: years past two, and a word past a century
+  if (d >= 36500) return 'centuries';
+  if (d >= 730) return `${Math.round(d / 365)} yr`;
   if (d >= 60) return `${Math.round(d / 30.4)} mo`;
   if (d >= 14) return `${Math.round(d / 7)} wk`;
   return `${Math.max(0, Math.round(d))} d`;

@@ -2835,3 +2835,66 @@ and the lab re-shot.
 through whoever is on the pavement (its own animation, a few seconds a cycle); a few staff at the megaprojects stand on
 the pavement's edge where `walkH` and the mesh disagree by a few centimetres. Not checked: the habitat, the Moon,
 space and offshore places (their own crowds, not the working day).
+
+## 38. v0.15.3 "Fine Print": the interface combed for 1.0 (built 2026-11-15)
+
+The player, on the Act I title screen: "I don't like this massive bar taking up the whole left side of the screen
+that looks like a pinboard", then: "fix everything ... these are all the little tiny things that we need to comb
+through the game to make sure it's ready to be played by users that are paying." Three surveyors (Claude helpers,
+look-only, on a frozen production build in headless Chrome on the RTX) went through the title screen's windows in all
+five looks, Acts I–II and Acts III–V at 1920×1080 and 960×540 with 1280×800 and 2560×1440 spot checks, and reported 81
+findings; the lead verified and fixed them on the dev server.
+
+**The title screen (looks/menus.css, MainMenu.tsx).** No look has a panel down the left any more: look 1's plank,
+look 2's metal panel and look 3's full-height glass slab are gone (look 3's keys are separate glass touch keys); every
+look stands its menu on the film's shade. Look 4's first key had lost its fill to the keys' glass rule (equal
+specificity, later file): dark text on dark glass; looks 3 and 4 now restate the first key's fill, hover included.
+The menu fits the window: steps by window height (≤900 for the paper looks, ≤760 and ≤620 for every look: smaller
+logo, tighter keys, at 620 no tagline) and, for a big Interface size, `--menu-fit` (MainMenu measures the column and
+shrinks its own zoom until it fits; resize, look, size, saves and fonts re-measure). Measured with Continue, Load and a
+stand-in Quit at 960×540, 1280×720, 1280×800, 1920×1080, 2560×1440 and Interface size 100–150%: nothing overflows.
+
+**Layout in small windows (looks/layout.css).** Under 1200 px wide an open wide panel takes the window's width and the
+inspector steps aside (`#ui:has(> .panel.wide) > .side`); the finale tracker (`.crunch`, all four finales) joins the
+goal column at its foot and the goal card above it scrolls; the campus bar (and the line tool's hint, the same class)
+stands between the photo key (icon only there) and the inspector; the decision pill stands between the goal card and
+the inspector; Coming up shows three. At every size: the goal card never runs under the foot strip; the tracker hides
+under a card's scrim or a wide panel (it was z-index 6 over both); with no inspector open (Acts III–V start with
+nothing picked) wide panels and toasts keep no room for it; the centred panels at ≥1700 clear the goal card
+(`--e-left` + `--e-goals`, not `--e-goals` + 100). Look 4's clock is out of the figures' row (it stood in the strip
+but kept its width); look 2's gauge is smaller under 1340. The dock's key formula allows for its separators (Acts IV–V
+overflowed 5 px at 1080).
+
+**Cards.** A card's `.choices` (and New Company's `.found-row`) is sticky at the body's foot, on `--card-bg` (the
+event cards of looks 1–3 set theirs): the buttons are always in sight (Act III's opening card was 377 px over at
+960×540, 117 at 1280×800). Sticky counts from inside the body's padding, hence `bottom: -20px`. The choice's arrow
+keeps its 44 px (a later shorthand had taken it to 16).
+
+**Colour on paper and on bright fills.** Colour-blind tones in ink for looks 1–2 and look 3's notes
+(looks/contrast.css). The paper card rule's `:is(…, .tile.press)` weighs as much as `.btn.primary` and comes later,
+so the suggested choice was a plain card with the glass looks' white line: it is highlighted now, its line in ink. On
+paper: How to Play's numbers and arrows, the close cross (a filter: an `<img>` takes no `color`), window pictures (an
+ink sticker), category lines, the hatch of every bar (`--hatch` is redefined on the fill: defined on `<html>`, its
+`var(--pen)` was resolved there once), Messages' good news, Stats' Served line. Looks 3–5: dark text on the bright
+primary fill. Look 3's note ink no longer reaches the Goals panel. `.lrow .sw::before` (Finance's legend) no longer
+paints a square into every Toggle.
+
+**Elsewhere.** Orbit and solar-system views have a bar (`ViewBar`, Overlays.tsx). `enterDiorama` selects the place
+shown (none for the Moon before Act V, which now has no inspector instead of a supplier's), `enterOrbit` drops a
+ground site; no View button on the campus you're on. Menu windows hold one height (Settings, How to Play, Field Guide:
+780 px; their lists and pages scroll inside), take the focus, the title menu is `inert` behind them, and the item that
+opened one gets the focus back. What's New: icons through `rich()`, three releases then "Older versions". `fmtDays`
+reads years past 730 days and "centuries" past 100 years; Compute shortens counts past 100,000. The theme song is
+requested only if `public/audio/theme.mp3` exists at build time (`__HAS_THEME__`). The end card draws figures in Saira.
+Smaller fixes are in the changelog.
+
+**Checked:** `npm test` (88 passed), `npm run build`; every fix seen in a screenshot in its look and size; the keyboard
+path (menu → window → Tab → Esc → back on the item).
+
+**Left (low):** Deals' clipboard changes height with its tab; look 5's arc crosses globe labels; Charter → World's
+empty slabs (look 3); the Planet's tender buttons and the Charter's project icons shift with the cost's width; the
+solar system's L5 and Ring One labels overlap; a jump report pads its headlines with finance lines; partner and faction
+cards' rows don't line up; looks 1↔2 and 4↔5 dress their menu windows alike; at 960×540 Act V's top bar and the dock
+of Acts III–V still scroll (by design: there is no room). One surveyor saw look 3's top bar painted blank a few times
+in headless Chrome and could not repeat it (DOM correct): worth a look in the app. Not checked: WebKitGTK (the app's
+engine), Windows.

@@ -136,7 +136,7 @@ export const ACT5_EVENTS: EventDef[] = [
     category: 'story',
     icon: '☀',
     title: () => 'Stage 2 · The Swarm',
-    body: (s) => `${segmentsLit(sys(s).collectors)} of twelve arcs are lit: ${fmtTW(sys(s).collectors)} of collectors, ${fmtTW(spaceTW(s))} in use. On clear nights you can see the swarm from the ground, a thread of gold along the path the planets take.\n\nCompute rings trail Earth around the Sun, full of minds that want a say. The main belt is open to surveys.`,
+    body: (s) => `${segmentsLit(sys(s).collectors) === 1 ? 'One of twelve arcs is lit' : `${segmentsLit(sys(s).collectors)} of twelve arcs are lit`}: ${fmtTW(sys(s).collectors)} of collectors, ${fmtTW(spaceTW(s))} in use. On clear nights you can see the swarm from the ground, a thread of gold along the path the planets take.\n\nCompute rings trail Earth around the Sun, full of minds that want a say. The main belt is open to surveys.`,
     advisors: (s) => [
       { id: 'iris', text: 'They are going to ask for something. Better we offer first.', mood: 'worried' },
       { id: desk(s, 'juno'), text: 'Ring One is the biggest thing anyone has ever built. Next year it won’t be.', mood: 'excited' },

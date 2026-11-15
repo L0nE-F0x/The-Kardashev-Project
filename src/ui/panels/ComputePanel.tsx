@@ -2,7 +2,7 @@ import { Icon, KV, Panel, pct, useGame } from '../components';
 import { Card, Cols, Gauge, Meter, SplitBar, Tile, Tiles, type Tone } from '../kit';
 import { OwnLicenceBox } from './Act3Panels';
 import { RENTAL } from '../../content/companies';
-import { fmtDate, fmtDays, fmtMoney, fmtSci } from '../../sim/core';
+import { fmtDate, fmtDays, fmtMoney, fmtNum, fmtSci } from '../../sim/core';
 import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, inferPriceTrend, openBest, rentalMax, rentalPrice, tierOf, MFU } from '../../sim/model';
 import { DIFFICULTIES } from '../../content/difficulty';
 import { modMult } from '../../sim/effects';
@@ -16,6 +16,11 @@ const ALLOC: [AllocKey, IconName, string, string, Tone][] = [
   ['research', 'research', 'Research', 'Boosts research output (diminishing returns).', 'cyan'],
   ['safety', 'shield', 'Safety', 'Raises alignment. Keep ~10% as much as training to hold the margin.', 'blue'],
 ];
+
+/** A count of chips: in full while it reads at a glance, then short ("66.3B"; Act V's ran to fifteen digits). */
+function count(n: number): string {
+  return n < 1e5 ? Math.round(n).toLocaleString('en-US') : fmtNum(n, 1);
+}
 
 export function ComputePanel() {
   const game = useGame();
@@ -37,7 +42,7 @@ export function ComputePanel() {
   return (
     <Panel title="Compute & models" icon="compute" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
-        <Tile label="Compute" icon="compute" tone="cyan" value={<>{st.computeEF < 100 ? st.computeEF.toFixed(2) : Math.round(st.computeEF).toLocaleString('en-US')}<small>EF/s</small></>} sub={`${(st.installedAccel + st.rentedAccel).toLocaleString()} chips at work`} tip="Everything your halls and your rented chips can compute, at peak." />
+        <Tile label="Compute" icon="compute" tone="cyan" value={<>{st.computeEF < 100 ? st.computeEF.toFixed(2) : Math.round(st.computeEF).toLocaleString('en-US')}<small>EF/s</small></>} sub={`${count(st.installedAccel + st.rentedAccel)} chips at work`} tip="Everything your halls and your rented chips can compute, at peak." />
         <Tile label="Best model" icon="brain" tone="violet" value={model ? model.name : 'None yet'} sub={model ? `${st.capability.toFixed(2)} · ${CAPABILITY_TIERS[tierOf(st.capability)]}` : 'Train Bit-1 below'} tip={`The frontier (the best closed model from Meridian or Lattice) stands at ${st.frontier.toFixed(2)}.`} />
         <Tile label="Revenue" icon="cash" tone="gold" value={<>{fmtMoney(st.revenueMonth)}<small>/mo</small></>} sub={`quality ×${st.inferQuality.toFixed(2)} of the frontier`} tip="What customers pay for inference each month. It scales with how good your best model is against the frontier." />
         <Tile label="Safety margin" icon="shield" tone={marginTone} value={`${st.margin >= 0 ? '+' : ''}${st.margin.toFixed(2)}`} sub={st.capability > 0 ? `${pct(risk, 1)} incident risk a month` : 'no model yet'} tip="Alignment minus capability. Below zero, safety incidents become likely." />
@@ -106,7 +111,7 @@ export function ComputePanel() {
           {safetyCapped && <div class="small warn">Investor terms cap safety at {pct(Number(s.flags.safetyCapValue ?? 0.05))} until {fmtDate(Number(s.flags.safetyCapUntil))}.</div>}
           {!run && s.alloc.train > 0 && <div class="small warn" style={{ marginTop: '6px' }}>No training run active: the training share is serving inference for now.</div>}
           <div class="small muted" style={{ marginTop: '6px' }}>
-            Training {fmtSci(trainPerDay * 30.4)} FLOP/mo · inference ~{Math.round(inferChips).toLocaleString()} chips · research {st.rpPerDay.toFixed(1)}/day
+            Training {fmtSci(trainPerDay * 30.4)} FLOP/mo · inference ~{count(inferChips)} chips · research {st.rpPerDay.toFixed(1)}/day
           </div>
         </Card>
         <Card title="Chips" icon="compute">
@@ -123,7 +128,7 @@ export function ComputePanel() {
               −{RENTAL.step}
             </button>
             <div class="grow">
-              <b class="num">{s.rental.units.toLocaleString()}</b> <span class="muted small">/ {rentalMax(s).toLocaleString()}</span>
+              <b class="num">{count(s.rental.units)}</b> <span class="muted small">/ {count(rentalMax(s))}</span>
             </div>
             <button class="btn small" data-tut="rent-plus" onClick={() => game.setRental(s.rental.units + RENTAL.step)} disabled={s.rental.units >= rentalMax(s)}>
               +{RENTAL.step}
@@ -141,8 +146,8 @@ export function ComputePanel() {
             rows={[
               ['Frontier capability', st.frontier.toFixed(2), 'Best closed model from Meridian or Lattice'],
               ['Your quality vs frontier', `×${st.inferQuality.toFixed(2)}`, `Revenue per chip scales with this${st.capability > 0 && st.capability < openBest(s) ? '. Your best model trails the free open-weights one, which costs you a further 25%.' : ''}`],
-              ...((s.act ?? 1) >= 2 ? ([['Market price', `×${inferPriceTrend(s).toFixed(2)}`, 'AI prices fall about 20% a year as everyone builds out: the same chips earn less each year unless your models get better.']] as [string, string, string][]) : []),
-              ['Demand for your models', `~${Math.round(st.inferDemand / RENTAL.perf).toLocaleString()} chips`, 'Inference beyond demand earns 15%'],
+              ...((s.act ?? 1) >= 2 ? ([['Market price', inferPriceTrend(s) < 0.01 ? '×<0.01' : `×${inferPriceTrend(s).toFixed(2)}`, 'AI prices fall about 20% a year as everyone builds out: the same chips earn less each year unless your models get better.']] as [string, string, string][]) : []),
+              ['Demand for your models', `~${count(Math.max(0, st.inferDemand / RENTAL.perf))} chips`, 'Inference beyond demand earns 15%'],
             ]}
           />
           <div class="small muted" style={{ marginTop: '6px' }}>
