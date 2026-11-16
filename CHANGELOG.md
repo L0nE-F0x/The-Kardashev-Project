@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.15.4 — Five Ages (2026-11-16)
+A new soundtrack that grows with your civilisation, the way the interface does: every act its own sunny genre, one theme through all of them.
+
+- **The garage** grooves: Act I is feel-good funk, with a Rhodes, a clavinet, a fingered bass, a dusty kit and the theme whistled over it.
+- **The scale-up** shines: Act II is 1980s city pop, with a DX piano, punchy FM brass, slap bass, claps and a wind-synth lead, lifting a key for the last chorus.
+- **The Charter** travels: Act III is bossa nova, with a nylon guitar, an upright bass and brushes, and flute and vibraphone trading the tune.
+- **The planet** pulses: Act IV is interlocking marimbas, a kalimba, steel pan and hand drums, building up layer by layer.
+- **Type I** floats: Act V is a cosmic waltz, with celesta, harp, glass and a gliding ondes singing the theme.
+- **The title screen** has its own anthem of the theme, and **the ending** walks it through every era's colours, a step higher each time, to the light.
+- **New instruments throughout**, modelled the way the real ones work: struck bars and tines, plucked strings, real drum kits and percussion, breathy flutes and whistles, string sections and choirs.
+- **The music still follows the game:** the beat rests while you pause, extra percussion joins when the clock runs fast, and the finales bring in a tense layer of their own.
+- **The sounds match the music:** chimes, completions, discoveries and fanfares now ring on the same instruments as the score, in its key.
+- **No stutter when the music starts:** the instruments are made in the background while the game loads, and on Linux the sound starts behind the loading screen instead of freezing the title screen for a second at your first click.
+
 ## 0.15.3 — Fine Print (2026-11-15)
 A comb through every screen for the small things: what you couldn't read, what ran off the window, what sat on top of something else.
 

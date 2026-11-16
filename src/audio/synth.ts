@@ -99,7 +99,7 @@ export function wave(ctx: BaseAudioContext, name: Wave): PeriodicWave {
   return w;
 }
 
-function osc(ctx: BaseAudioContext, w: Wave | 'sine', freq: number, detune = 0): OscillatorNode {
+export function osc(ctx: BaseAudioContext, w: Wave | 'sine', freq: number, detune = 0): OscillatorNode {
   const o = ctx.createOscillator();
   if (w !== 'sine') o.setPeriodicWave(wave(ctx, w));
   o.frequency.value = freq;
@@ -107,7 +107,7 @@ function osc(ctx: BaseAudioContext, w: Wave | 'sine', freq: number, detune = 0):
   return o;
 }
 
-function pan(ctx: BaseAudioContext, p: number): AudioNode {
+export function pan(ctx: BaseAudioContext, p: number): AudioNode {
   if (!ctx.createStereoPanner) return ctx.createGain();
   const n = ctx.createStereoPanner();
   n.pan.value = Math.max(-1, Math.min(1, p));
@@ -119,7 +119,7 @@ function pan(ctx: BaseAudioContext, p: number): AudioNode {
  * (Envelopes set the gain to zero at once, not only from `t`: a GainNode is born at 1, and a source that starts a
  * sample before its envelope would let one full-level sample through.)
  */
-function struck(g: AudioParam, t: number, a: number, peak: number, d: number): number {
+export function struck(g: AudioParam, t: number, a: number, peak: number, d: number): number {
   g.value = 0;
   g.setValueAtTime(0, t);
   g.linearRampToValueAtTime(peak, t + a);
@@ -129,7 +129,7 @@ function struck(g: AudioParam, t: number, a: number, peak: number, d: number): n
 }
 
 /** Held: a linear swell in, held to the note's end, a linear fade out (pads cross-fade seamlessly). Returns the end time. */
-function held(g: AudioParam, t: number, a: number, peak: number, dur: number, r: number): number {
+export function held(g: AudioParam, t: number, a: number, peak: number, dur: number, r: number): number {
   const off = t + Math.max(a, dur);
   g.value = 0;
   g.setValueAtTime(0, t);
@@ -139,7 +139,7 @@ function held(g: AudioParam, t: number, a: number, peak: number, dur: number, r:
   return off + r;
 }
 
-function run(end: number, sources: AudioScheduledSourceNode[], t: number, nodes: AudioNode[]) {
+export function run(end: number, sources: AudioScheduledSourceNode[], t: number, nodes: AudioNode[]) {
   for (const s of sources) {
     s.start(t);
     s.stop(end + 0.02);
@@ -147,7 +147,7 @@ function run(end: number, sources: AudioScheduledSourceNode[], t: number, nodes:
   freeWhenDone(sources[0], ...sources.slice(1), ...nodes);
 }
 
-type Rnd = () => number;
+export type Rnd = () => number;
 
 // ── sustained instruments ───────────────────────────────────────────────────────────────────
 export interface PadOpts {
@@ -440,7 +440,7 @@ export function makeBass(ctx: BaseAudioContext, s: Strip, o: { cut?: number; gri
 }
 
 // ── the kit ─────────────────────────────────────────────────────────────────────────────────
-function burst(ctx: BaseAudioContext, r: Rnd, kind: 'white' | 'pink' = 'white'): AudioBufferSourceNode {
+export function burst(ctx: BaseAudioContext, r: Rnd, kind: 'white' | 'pink' = 'white'): AudioBufferSourceNode {
   const src = ctx.createBufferSource();
   const buf = noiseBuffer(kind);
   src.buffer = buf;
@@ -576,3 +576,272 @@ export function crackle(ctx: BaseAudioContext, s: Strip, r: Rnd): AudioScheduled
   src.start();
   return src;
 }
+
+// ── the grid: analogue-synth voices for the electronic score (v0.15.4) ──────────────────────
+// The sound of an electronic-orchestral film score: saw stacks whose filter blooms open like brass, a pulsing
+// octave bass, a resonant square arpeggiator, a detuned saw lead with a vibrato that arrives late, a gated kit.
+
+/** A soft tanh curve for a shared drive stage (one per instrument, not per voice). */
+function driveCurve(amount: number): Float32Array {
+  const n = 1024, out = new Float32Array(n), k = Math.max(0.01, amount);
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    out[i] = Math.tanh(x * k) / Math.tanh(k);
+  }
+  return out;
+}
+
+/** A shared drive into the strip: voices connect to the returned node. */
+function driven(ctx: BaseAudioContext, s: Strip, amount: number): AudioNode {
+  if (amount <= 0) return s.in;
+  const ws = ctx.createWaveShaper();
+  ws.curve = driveCurve(amount) as Float32Array<ArrayBuffer>;
+  ws.oversample = '2x';
+  const trim = ctx.createGain();
+  trim.gain.value = 1 / Math.max(1, amount * 0.6);
+  ws.connect(trim);
+  trim.connect(s.in);
+  s.nodes.push(ws, trim);
+  return ws;
+}
+
+/**
+ * Saw stack: three detuned saws a note (left, centre, right) and a sub an octave down, through a resonant low-pass
+ * that blooms from `cut × 0.25` to `cut × bloom` over the attack and settles: brass chords, string machines, the
+ * big held chords. `pump` ducks it on every beat (the kick pushing it aside).
+ */
+export function makeSaws(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { cut?: number; q?: number; attack?: number; release?: number; detune?: number; bloom?: number; sub?: number; width?: number } = {}) {
+  const { cut = 1800, q = 1.2, attack = 0.08, release = 0.5, detune = 11, bloom = 1.6, sub = 0.25, width = 0.7 } = o;
+  return (t: number, notes: number[], dur: number, vel: number, bright = 1, pump?: { every: number; depth: number }) => {
+    const f = voiceFilter(ctx);
+    f.type = 'lowpass';
+    f.Q.value = q;
+    const c = Math.min(14000, cut * bright);
+    f.frequency.setValueAtTime(c * 0.25, t);
+    f.frequency.exponentialRampToValueAtTime(Math.min(16000, c * bloom), t + attack + 0.04);
+    f.frequency.exponentialRampToValueAtTime(c, t + attack + 0.04 + Math.min(1.2, dur * 0.5));
+    f.frequency.setValueAtTime(c, t + Math.max(attack, dur));
+    f.frequency.exponentialRampToValueAtTime(Math.max(120, c * 0.35), t + Math.max(attack, dur) + release);
+    const vca = ctx.createGain();
+    const end = held(vca.gain, t, attack, (vel * 0.34) / Math.sqrt(notes.length), dur, release);
+    const banks = [pan(ctx, -width), pan(ctx, 0), pan(ctx, width)];
+    const oscs: OscillatorNode[] = [];
+    for (const m of notes)
+      for (let k = 0; k < 3; k++) {
+        const x = ctx.createOscillator();
+        x.type = 'sawtooth';
+        x.frequency.value = mtof(m);
+        x.detune.value = (k - 1) * detune * (0.7 + r() * 0.6);
+        x.connect(banks[k]);
+        oscs.push(x);
+      }
+    if (sub > 0) {
+      const lowest = Math.min(...notes) - 12;
+      const so = osc(ctx, 'sine', mtof(lowest));
+      const sg = ctx.createGain();
+      sg.gain.value = sub;
+      so.connect(sg);
+      sg.connect(vca);
+      oscs.push(so);
+      banks.push(sg);
+    }
+    for (const b of banks.slice(0, 3)) b.connect(f);
+    f.connect(vca);
+    const nodes: AudioNode[] = [...banks, f, vca];
+    if (pump) {
+      const pg = ctx.createGain();
+      for (let tb = t; tb < end; tb += pump.every) {
+        pg.gain.setValueAtTime(1, tb);
+        pg.gain.linearRampToValueAtTime(1 - pump.depth, tb + 0.012);
+        pg.gain.linearRampToValueAtTime(1, tb + pump.every * 0.85);
+      }
+      vca.connect(pg);
+      pg.connect(s.in);
+      nodes.push(pg);
+    } else vca.connect(s.in);
+    run(end, oscs, t, nodes);
+  };
+}
+
+/**
+ * The pulse: a saw and a square an octave apart through a resonant low-pass that snaps shut, a sine under it, all
+ * through a little drive. Played as sixteenths, the engine that runs under the whole score.
+ */
+export function makePulse(ctx: BaseAudioContext, s: Strip, o: { cut?: number; q?: number; decay?: number; drive?: number; sub?: number } = {}) {
+  const { cut = 900, q = 5, decay = 0.16, drive = 1.6, sub = 0.6 } = o;
+  const into = driven(ctx, s, drive);
+  return (t: number, m: number, len: number, vel: number, bright = 1) => {
+    const f = mtof(m);
+    const a = ctx.createOscillator(), b = ctx.createOscillator();
+    a.type = 'sawtooth';
+    b.type = 'square';
+    a.frequency.value = f;
+    b.frequency.value = f / 2;
+    const bg = ctx.createGain();
+    bg.gain.value = 0.35;
+    const lp = voiceFilter(ctx);
+    lp.type = 'lowpass';
+    lp.Q.value = q;
+    const top = Math.min(9000, cut * bright * (0.7 + vel * 0.9));
+    lp.frequency.setValueAtTime(top, t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(90, f * 1.5), t + decay);
+    const so = osc(ctx, 'sine', f / (f > 110 ? 2 : 1));
+    const sg = ctx.createGain();
+    sg.gain.value = sub;
+    const vca = ctx.createGain();
+    const hold = Math.max(0.03, len * 0.82);
+    const end = held(vca.gain, t, 0.004, vel * 0.26, hold, 0.035);
+    a.connect(lp);
+    b.connect(bg);
+    bg.connect(lp);
+    lp.connect(vca);
+    so.connect(sg);
+    sg.connect(vca);
+    vca.connect(into);
+    run(end, [a, b, so], t, [bg, lp, sg, vca]);
+  };
+}
+
+/** The arpeggiator: a square and a saw a fifth-cent apart, a resonant filter that pings and decays, panned per note. */
+export function makeArp(ctx: BaseAudioContext, s: Strip, o: { cut?: number; q?: number; decay?: number; square?: number } = {}) {
+  const { cut = 3200, q = 6, decay = 0.18, square = 0.6 } = o;
+  return (t: number, m: number, vel: number, p = 0, bright = 1, len = 1) => {
+    const f = mtof(m);
+    const a = ctx.createOscillator(), b = ctx.createOscillator();
+    a.type = 'square';
+    b.type = 'sawtooth';
+    a.frequency.value = f;
+    b.frequency.value = f;
+    b.detune.value = 7;
+    const ag = ctx.createGain();
+    ag.gain.value = square;
+    const lp = voiceFilter(ctx);
+    lp.type = 'lowpass';
+    lp.Q.value = q;
+    const top = Math.min(12000, cut * bright * (0.6 + vel * 0.8));
+    lp.frequency.setValueAtTime(top, t);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(200, Math.min(top, f * 1.4)), t + decay * len);
+    const vca = ctx.createGain();
+    const end = struck(vca.gain, t, 0.003, vel * 0.2, decay * len * 1.6);
+    const out = pan(ctx, p);
+    a.connect(ag);
+    ag.connect(lp);
+    b.connect(lp);
+    lp.connect(vca);
+    vca.connect(out);
+    out.connect(s.in);
+    run(end, [a, b], t, [ag, lp, vca, out]);
+  };
+}
+
+/**
+ * The lead: four detuned saws, a filter that follows the note, a vibrato that arrives after the note has settled,
+ * and a short glide up into every note: the voice that sings the theme over the grid.
+ */
+export function makeSawLead(ctx: BaseAudioContext, s: Strip, r: Rnd, o: { cut?: number; q?: number; attack?: number; release?: number; detune?: number; vibrato?: number } = {}) {
+  const { cut = 2600, q = 2, attack = 0.02, release = 0.4, detune = 9, vibrato = 18 } = o;
+  return (t: number, m: number, dur: number, vel: number) => {
+    const f = mtof(m);
+    const lfo = osc(ctx, 'sine', 5.2 + r() * 0.6);
+    const depth = ctx.createGain();
+    depth.gain.setValueAtTime(0, t);
+    depth.gain.setValueAtTime(0, t + Math.min(0.35, dur * 0.5));
+    depth.gain.linearRampToValueAtTime(vibrato, t + Math.min(0.8, dur * 0.9) + 0.01);
+    lfo.connect(depth);
+    const oscs: OscillatorNode[] = [lfo];
+    const mix = ctx.createGain();
+    for (let k = 0; k < 4; k++) {
+      const x = ctx.createOscillator();
+      x.type = 'sawtooth';
+      x.frequency.setValueAtTime(f * 0.985, t);
+      x.frequency.exponentialRampToValueAtTime(f, t + 0.045);
+      x.detune.value = (k - 1.5) * detune * (0.6 + r() * 0.5);
+      depth.connect(x.detune);
+      x.connect(mix);
+      oscs.push(x);
+    }
+    const lp = voiceFilter(ctx);
+    lp.type = 'lowpass';
+    lp.Q.value = q;
+    const top = Math.min(10000, cut * (0.7 + vel * 0.6));
+    lp.frequency.setValueAtTime(top * 0.4, t);
+    lp.frequency.exponentialRampToValueAtTime(top, t + 0.06);
+    lp.frequency.setValueAtTime(top, t + dur);
+    lp.frequency.exponentialRampToValueAtTime(Math.max(300, top * 0.4), t + dur + release);
+    const vca = ctx.createGain();
+    const end = held(vca.gain, t, attack, vel * 0.14, dur, release);
+    mix.connect(lp);
+    lp.connect(vca);
+    vca.connect(s.in);
+    run(end, oscs, t, [depth, mix, lp, vca]);
+  };
+}
+
+/**
+ * The gated kit for the electronic score, on top of the soft kit: a punchy kick with a beater, a big snare whose
+ * room is cut short, a clap, tight and open hats, and the impact that lands on a section's first bar.
+ */
+export function makeGridKit(ctx: BaseAudioContext, s: Strip, r: Rnd) {
+  const base = makeKit(ctx, s, r);
+  const noise = (t: number, type: BiquadFilterType, freq: number, q: number, peak: number, d: number, gate = 0) => {
+    const src = burst(ctx, r);
+    const f = voiceFilter(ctx);
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = ctx.createGain();
+    let end: number;
+    if (gate) {
+      // a gated tail: full for `gate` seconds, then shut
+      g.gain.value = 0;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(peak, t + 0.002);
+      g.gain.exponentialRampToValueAtTime(peak * 0.45, t + gate);
+      g.gain.linearRampToValueAtTime(0, t + gate + 0.025);
+      end = t + gate + 0.03;
+    } else end = struck(g.gain, t, 0.002, peak, d);
+    src.connect(f);
+    f.connect(g);
+    g.connect(s.in);
+    src.start(t, src.loopStart);
+    src.stop(end + 0.02);
+    freeWhenDone(src, f, g);
+  };
+  const tone = (t: number, f0: number, f1: number, drop: number, peak: number, d: number) => {
+    const x = osc(ctx, 'sine', f0);
+    x.frequency.setValueAtTime(f0, t);
+    x.frequency.exponentialRampToValueAtTime(f1, t + drop);
+    const g = ctx.createGain();
+    const end = struck(g.gain, t, 0.002, peak, d);
+    x.connect(g);
+    g.connect(s.in);
+    run(end, [x], t, [g]);
+  };
+  return {
+    ...base,
+    /** A machine kick: a fast pitch drop, a beater click, a short body. */
+    punch(t: number, vel: number, o: { tail?: number } = {}) {
+      tone(t, 160, 48, 0.06, vel * 1.0, o.tail ?? 0.34);
+      tone(t, 300, 120, 0.012, vel * 0.25, 0.02);
+      noise(t, 'highpass', 3200, 0.7, vel * 0.16, 0.012);
+    },
+    /** The big snare: a noise body with its room gated short, a tuned crack under it. */
+    gated(t: number, vel: number, gate = 0.16) {
+      noise(t, 'bandpass', 2100, 0.6, vel * 0.42, 0, gate);
+      noise(t, 'highpass', 5500, 0.6, vel * 0.18, 0.08);
+      tone(t, 240, 180, 0.04, vel * 0.32, 0.1);
+    },
+    /** A tight closed hat and a sizzling open one. */
+    tick(t: number, vel: number, open = false) {
+      noise(t, 'highpass', 8200, 0.9, vel * 0.5, open ? 0.2 : 0.03);
+    },
+    /** A section's landing: a low boom, a burst of noise and a swell's tail. */
+    impact(t: number, vel: number) {
+      base.boom(t, vel);
+      noise(t, 'lowpass', 1800, 0.5, vel * 0.35, 0.9);
+      tone(t, 55, 30, 0.6, vel * 0.7, 1.6);
+    },
+  };
+}
+
+export type GridKit = ReturnType<typeof makeGridKit>;

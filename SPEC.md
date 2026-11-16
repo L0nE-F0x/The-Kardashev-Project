@@ -2898,3 +2898,68 @@ cards' rows don't line up; looks 1↔2 and 4↔5 dress their menu windows alike;
 of Acts III–V still scroll (by design: there is no room). One surveyor saw look 3's top bar painted blank a few times
 in headless Chrome and could not repeat it (DOM correct): worth a look in the app. Not checked: WebKitGTK (the app's
 engine), Windows.
+
+## 39. v0.15.4 "Five Ages": a new soundtrack (built 2026-11-16)
+
+The player, after showing the trailer to friends ("everything looks amazing, the only issue is the music"), asked for
+an overhaul of the music, in game first. A first attempt (an analogue, Tron-like score in minor keys, never shipped)
+was "too melancholic … try even harder to do something out of the box". This is the second.
+
+**The idea:** the music grows with the civilisation the way the interface does (SPEC §34): every act its own warm,
+upbeat genre, all in major keys, one theme through all of them. Act I garage funk / neo-soul (F, 94, swung); Act II
+1980s city pop (D, lifting to Eb, 116); Act III bossa nova (G, 132); Act IV interlocking marimbas and hand drums,
+Reich meets West African polyrhythm (A, 112), built up and taken apart layer by layer; Act V a cosmic waltz in 3/4
+(E, lifting to F#, 138); the title screen an anthem of the theme (Bb, lifting to C); the ending a medley through
+every era's colours, a step higher each time.
+
+**The theme (theme.ts):** so–do–re–mi kept from the old one (the stings quote it), now on a 3+3+2 beat, rising and
+falling home, higher again, to the top at bar six: `THEME`, `THEME_HOME`, `THEME_OPEN`, `BRIDGE`, `HOOK`, `SIGNAL`,
+with their chords, and `roman()` to write a progression in any key.
+
+**The instruments (voices/, ~600 kB of code):** keys.ts (Rhodes, Wurlitzer and DX7 electric pianos as FM laid out
+like the instruments, through modelled pickups; clavinet; tonewheel organ with a Leslie), mallets.ts (vibraphone,
+marimba, xylophone, kalimba, steel pan, celesta, glockenspiel by modal synthesis), plucked.ts (nylon guitar, funk
+guitar, harp, upright and electric bass by Karplus–Strong in cached buffers), drums.ts (funk, brushes, eighties and
+world percussion kits from modelled hits), winds.ts (flute, whistle, ondes, lyricon), synths.ts (FM brass, poly
+synth, FM and analogue basses, plucks, sparkle), pads.ts (string machine, strings, choir, glass and warm pads).
+Shared: buffers.ts (a cache of computed notes), fx.ts (chorus, rotary speaker, tremolo, made once per instrument).
+Each family was built by one helper with demos, reviewed by another, and revised (the revisions were cut short).
+
+**The pieces:** tracks/*.ts, one file each (`export const track`), tracks.ts the index. The finale layer
+(cinematic.ts `tension`) is a marimba ostinato on the dominant, a heartbeat kick and a high suspended string chord.
+sfx.ts's tonal sounds moved onto the new instruments.
+
+**Tools (tools/audio/):** `render.mjs` (a track, an instrument demo or the effects reel to WAV/MP3 offline through
+the game's mix, measured: loudness, true peak, clicks, centroid, octave bands, a 3-second loudness curve),
+`stems.mjs` (each strip's loudness against the mix), `analyze.mjs`; `tests/music-theory.test.ts` (chords parse,
+tunes fit their bars, the forms are valid, no held melody note a semitone above a chord tone).
+
+**Measured:** every piece −21.8 to −22.5 LUFS at the default sliders (the old score's level), true peaks under −7
+dBFS, no NaN; the lint passes; `npm test` and the build pass. Previews: `~/Music/The Kardashev Project - sound
+renders/2026-11-16 new score (second try)/` (rendered from the code as it ships).
+
+**Wired in for play (2026-11-16, the second session):** the "1.4–3.4× realtime" first measured was taken with the
+machine flooded by helpers' Chromes; on a quiet machine the pieces render at 8–14× realtime (6× at worst: a finale at
+speed), against the old score's 12–19×. What did cost was the first time a piece played: the modelled instruments
+computed their notes on the main thread, 20–100 ms at a time (the title screen's first half-minute: ~1 s of stutter,
+mostly the drum kits). Now:
+- **A worker makes them** (`voices/offthread.ts` + `voices/audioWorker.ts`): drum takes, rings and rooms, plucked
+  strings and their touch noises, the engine's noise beds, the bass's clicks, the winds' air, drift and growl, with the
+  same code (`drumSamples`, `pluckedSamples`, `noiseSamples`, the makers that go through `cachedBuffer`), handed back as
+  AudioBuffers; `cachedBuffer` and the kits take the worker's copy first. Identical samples (checked). Without a worker
+  (tests, offline renders) everything is made as before.
+- **It starts while the game loads** (`prewarmMusic` in main.ts, the title screen's instruments first): ~4 s of the
+  worker's time on the dev laptop, ~58 MB of buffers, all in hand before the first click. The rate is the one the audio
+  last ran at (`kardashev.audioRate`), on a first run 44.1 kHz in WebKit and 48 in Chromium; buffers made at a rate that
+  turned out wrong are dropped (`keepRate`).
+- **The mallets** (whose recipes are closures) make their warm-up while the page is idle, one buffer a slice, ≤ 8 ms.
+- **The Linux app opens its audio behind the loading screen** (`openAudioEarly`): WebKitGTK holds the page ~1.1 s while
+  its GStreamer pipeline starts (a freeze at the title screen's first click, the old score's too). It allows audio
+  without a gesture; the music still waits for the first click.
+- Result (Chrome, the probe in the session's scratchpad): every piece's main-thread work 0.1–0.6% after it starts, no
+  slice over ~10 ms; a piece's own start 3–30 ms (was up to 75). In the Linux app (WebKitGTK, Intel card, production
+  build, a clean first launch): 60 frames/s steady through the first click (the click itself 81 ms, was 1.24 s); the
+  web process 51% of a core on the title screen without sound, 62% with the music and the ambience.
+- **Still open:** nobody has listened in the game (only the previews); the Windows (WebView2) and macOS apps untested;
+  the instruments' revisions were cut short in the first session (the user's ears decide what gets another pass); the
+  marketing score (`tools/trailer/score/`) is still the old one, on the old instruments: the new trailer needs its own.

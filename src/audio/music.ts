@@ -6,6 +6,13 @@
 import { audioCtx, glide, musicBus } from './engine';
 import { Cinematic, type Mood } from './cinematic';
 import { TRACKS } from './tracks';
+import { LYDIAN, MINOR } from './score';
+import { prewarmDrums } from './voices/drums';
+import { keepRate } from './voices/offthread';
+import { prewarmPlucked } from './voices/plucked';
+import { prewarmSynths } from './voices/synths';
+import { prewarmWinds } from './voices/winds';
+import { prewarmNoise } from './engine';
 
 export type Track = 'menu' | 'era0' | 'era1' | 'era2' | 'era3' | 'era4' | 'ending' | null;
 
@@ -20,8 +27,50 @@ let themeEl: HTMLAudioElement | null = null;
 let themeMissing = typeof __HAS_THEME__ !== 'undefined' && !__HAS_THEME__;
 let themeGain: GainNode | null = null;
 
+/** The rate the game's audio last ran at: the drum kits are made at it before there is a context to ask. */
+const RATE_KEY = 'kardashev.audioRate';
+
+/** Everything the worker makes ahead (voices/offthread.ts), at `sr`: the noise beds, the kits, the plucked strings. */
+function prewarmAt(sr: number): void {
+  // the title screen's first: its music starts at the first click
+  prewarmNoise(sr);
+  prewarmDrums(sr, 'title');
+  prewarmPlucked(sr, 'title');
+  prewarmSynths(sr);
+  prewarmWinds(sr);
+  prewarmDrums(sr, 'rest');
+  prewarmPlucked(sr, 'rest');
+}
+
+/**
+ * Start making the instruments' notes in a worker while the game loads (at the rate the audio last ran at), so the
+ * title screen's music and every act's start without a stutter. Safe to call before any gesture: no audio is opened.
+ */
+export function prewarmMusic(): void {
+  // before the first run has told us: Chromium (WebView2, the dev browser) runs at the device's rate, nearly always
+  // 48 kHz; WebKit (the Linux and macOS apps) at 44.1 kHz
+  let sr = /Chrome\//.test(navigator.userAgent) ? 48000 : 44100;
+  try {
+    sr = Number(localStorage.getItem(RATE_KEY)) || sr;
+  } catch {
+    // private storage: the usual rate
+  }
+  prewarmAt(sr);
+}
+
 export function musicUnlocked(): void {
   unlocked = true;
+  const ctx = audioCtx();
+  if (ctx) {
+    try {
+      localStorage.setItem(RATE_KEY, String(ctx.sampleRate));
+    } catch {
+      // nothing kept: the next start warms at the usual rate
+    }
+    // already under way at this rate since the load, unless the device runs at another one (whose buffers go)
+    keepRate(ctx.sampleRate);
+    prewarmAt(ctx.sampleRate);
+  }
   if (want) switchTo(want);
 }
 
@@ -44,7 +93,11 @@ export function setMusicMood(m: { paused: boolean; fast: boolean; tension: boole
 /** The tonic (pitch class, 0 = C) of the music that is on, so the sound effects can chime in key. D when unsure. */
 export function musicKey(): number {
   if (!now.track || !now.player) return 2;
-  return TRACKS[now.track].tonic % 12;
+  // the stings are written in a major key: give them the major scale that shares this piece's notes (a minor
+  // piece's relative major, a Lydian one's dominant), so so–do–re–mi never brings a note the score doesn't have
+  const def = TRACKS[now.track];
+  const shift = def.mode === MINOR ? 3 : def.mode === LYDIAN ? 7 : 0;
+  return (def.tonic + shift) % 12;
 }
 
 function switchTo(track: Track) {

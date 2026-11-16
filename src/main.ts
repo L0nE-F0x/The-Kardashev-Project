@@ -23,8 +23,10 @@ import { SystemScene3D } from './render3d/system/systemScene';
 import { loadModels, PEOPLE, SCENERY } from './render3d/models';
 import { loadSettings } from './save/settings';
 import { quality, resolveQuality, setOnStrongGpu, setQuality } from './render3d/quality';
-import { gpuStatus } from './platform/platform';
+import { gpuStatus, isDesktopApp } from './platform/platform';
 import { warmPortraits } from './render3d/portraits/portraits';
+import { prewarmMusic } from './audio/music';
+import { openAudioEarly } from './audio/engine';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
 const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
@@ -35,6 +37,8 @@ async function boot() {
   const host = document.getElementById('game')!;
   const status = document.getElementById('boot');
   if (status) status.textContent = 'BUILDING THE WORLD…';
+  // the drum kits are made in a worker on another core while the world builds (no audio is opened yet)
+  prewarmMusic();
   // the app may have been started on the stronger graphics card: Auto detail then means High
   setOnStrongGpu(!!(await gpuStatus())?.active);
   const q0 = loadSettings().quality3d;
@@ -65,6 +69,9 @@ async function boot() {
   render(h(App, { game }), document.getElementById('ui')!);
   // the portrait studio compiles its shaders once (about half a second): pay that while the loading screen is up
   warmPortraits();
+  // the Linux app's engine (WebKitGTK) holds the page about a second while its audio starts, and lets it start
+  // without a click: do that behind the loading screen too (the music still waits for the first click)
+  if (isDesktopApp && /Linux/.test(navigator.userAgent) && !/Chrome\//.test(navigator.userAgent)) await openAudioEarly();
   status?.remove();
   startShell(game);
 }

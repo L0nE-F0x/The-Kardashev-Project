@@ -11,6 +11,7 @@
  * One timer (`onPump`) drives every sequencer in small look-ahead windows; voices free their nodes when they end.
  */
 import { seeded } from './score';
+import { askWorker, workerMade } from './voices/offthread';
 
 export interface Volumes {
   master: number;
@@ -249,6 +250,18 @@ export function audioCtx(): AudioContext | null {
   }
 }
 
+/**
+ * Open the audio now, before any gesture, where the engine allows it: WebKitGTK (the Linux app) takes about a second
+ * to start its audio pipeline and holds the page while it does, which was a freeze at the title screen's first click.
+ * Called behind the loading screen; resolves when the audio runs, or after `waitMs` if the engine wants a gesture
+ * first (the context then waits for one, as before).
+ */
+export async function openAudioEarly(waitMs = 1500): Promise<void> {
+  const ctx = audioCtx();
+  if (!ctx || ctx.state === 'running') return;
+  await Promise.race([ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, waitMs))]);
+}
+
 /** True when sound scheduled now will be heard (the context runs, or an offline render is being set up). */
 export function audioRunning(): boolean {
   return offline || audioCtx()?.state === 'running';
@@ -407,10 +420,24 @@ const noiseBufs = new Map<string, AudioBuffer>();
 export function noiseBuffer(kind: 'white' | 'pink' | 'brown'): AudioBuffer {
   const ctx = g!.ctx;
   const key = `${kind}@${ctx.sampleRate}`;
-  let buf = noiseBufs.get(key);
-  if (buf) return buf;
-  const len = ctx.sampleRate * 6, fold = Math.floor(ctx.sampleRate * 0.06);
-  buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  let buf = noiseBufs.get(key) ?? workerMade(ctx.sampleRate, `noise|${kind}`);
+  if (buf) return noiseBufs.set(key, buf), buf;
+  const [L, R] = noiseSamples(kind, ctx.sampleRate);
+  buf = ctx.createBuffer(2, L.length, ctx.sampleRate);
+  buf.copyToChannel(L, 0);
+  buf.copyToChannel(R, 1);
+  noiseBufs.set(key, buf);
+  return buf;
+}
+
+/** Make the three noises in the worker at `sr` while the game loads (nothing happens without one). */
+export function prewarmNoise(sr: number): void {
+  for (const kind of ['pink', 'white', 'brown']) askWorker(sr, `noise|${kind}`);
+}
+
+/** The samples of a noise bed at `sr` (left, right): `noiseBuffer`'s, and the worker's job. */
+export function noiseSamples(kind: 'white' | 'pink' | 'brown', sr: number): [Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>] {
+  const len = sr * 6, fold = Math.floor(sr * 0.06);
   const r = seeded(kind.length * 7919);
   const colour = () => {
     // Paul Kellet's pink filter; brown is a leaky integrator
@@ -437,10 +464,7 @@ export function noiseBuffer(kind: 'white' | 'pink' | 'brown'): AudioBuffer {
       const k = i / fold;
       d[i] = d[i] * Math.sqrt(k) + d[len + i] * Math.sqrt(1 - k);
     }
-  buf.copyToChannel(L.subarray(0, len), 0);
-  buf.copyToChannel(R.subarray(0, len), 1);
-  noiseBufs.set(key, buf);
-  return buf;
+  return [L.slice(0, len), R.slice(0, len)];
 }
 
 // ── offline rendering (the QA harness measures the real mix with it) ────────────────────────

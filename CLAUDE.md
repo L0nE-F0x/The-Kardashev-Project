@@ -9,7 +9,8 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.15.3 "Fine Print"** (the interface combed for 1.0 by three surveyors: no bar down the title
+Current build: **v0.15.4 "Five Ages"** (a new soundtrack that grows with the civilisation like the interface: garage
+funk, city pop, bossa nova, interlocking mallets, a cosmic waltz, on new modelled instruments: SPEC §39) on top of **v0.15.3 "Fine Print"** (the interface combed for 1.0 by three surveyors: no bar down the title
 screen's side in any look and the menu fits any window and interface size, a card's choices pinned at its foot,
 readable colour on paper and on bright fills, a small-window layout under 1200 px, the finale trackers out of the way,
 a bar on the orbit and solar-system views, menu windows that hold still and take the keyboard: SPEC §38)
@@ -373,9 +374,14 @@ src/
   audio/      All synthesised in WebAudio (v0.11: SPEC §29). engine.ts (the mix: sfx / music / ambience buses, each
               with a dry path and two shared sends (a generated hall, a tempo-synced echo), then sub filter → glue
               compressor → limiter → ceiling; one look-ahead timer for every sequencer; `renderOffline` for
-              measurements), music.ts (which track plays; `setMusicMood`; the menu's theme.mp3 override), the score = score.ts
-              (sequencer, voice-leading) + synth.ts (instruments) + cinematic.ts + tracks.ts (seven pieces on one
-              theme: menu, era0–4, ending), sfx.ts (layered effects in the
+              measurements), music.ts (which track plays; `setMusicMood`; the menu's theme.mp3 override; `musicKey`
+              hands the stings a minor piece's relative major), the score = score.ts (sequencer, voice-leading) +
+              synth.ts (the old instruments and the helpers) + voices/ (since v0.15.4 the modelled instruments:
+              keys, mallets, plucked, drums, winds, synths, pads; buffers.ts, fx.ts; offthread.ts + audioWorker.ts =
+              the worker that makes their notes off the main thread, warmed while the game loads: `prewarmMusic`;
+              a new buffer-made voice belongs there) + cinematic.ts + theme.ts (the
+              theme, `roman()`) + arrange.ts + tracks.ts (the index of tracks/*.ts: menu, era0–4, ending; one genre
+              per act), sfx.ts (layered effects in the
               music's key) + ui.ts (clicks and hover ticks on every button), ambience.ts (a living bed per place: map,
               campus, night, rain, coast, lake, Moon, space, habitat; the 3D campus says which through `ambience()`).
               Nobody can listen in QA: measure instead (the harness and rendered WAVs lived in the session's scratchpad;

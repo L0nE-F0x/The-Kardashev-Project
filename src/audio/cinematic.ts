@@ -5,7 +5,10 @@
  */
 import { glide, mixBus, onPump, setDelayTime } from './engine';
 import { bassNote, chords, drop2, melody, seeded, voice, MAJOR, type Chord, type MelNote } from './score';
-import { makeKit, makePad, makePluck, strip, type Group, type Outs, type Strip } from './synth';
+import { strip, type Group, type Outs, type Strip } from './synth';
+import { makeFunkKit } from './voices/drums';
+import { makeMarimba } from './voices/mallets';
+import { makeStrings } from './voices/pads';
 
 export interface Mood {
   /** The game is paused or waiting on the player: the rhythm section rests, the rest softens. */
@@ -284,25 +287,26 @@ export class Cinematic {
   }
 
   /**
-   * The finale layer, the same in every key: a low ostinato on the dominant, a heartbeat, a thin high line that
-   * never resolves. All diatonic, so it shades whatever the track is playing instead of fighting it.
+   * The finale layer, the same in every era and key (v0.15.4): a low marimba ostinato on the dominant in eighths, a
+   * soft heartbeat on the kick, a high string chord on the dominant and its ninth that never resolves. All inside the
+   * key, so it darkens whatever the era is playing instead of fighting it; it counts in sixteenths, so it fits a 3/4
+   * waltz as well as 4/4.
    */
   private tension(): (c: Bar) => void {
-    const ost = makePluck(this.ctx, this.addStrip('tension', { gain: 0.5, group: 'tension', rev: 0.3, del: 0.15 }), { wave: 'warm', cut: 700, q: 2.2, decay: 0.3 });
-    const high = makePad(this.ctx, this.addStrip('tension-high', { gain: 0.16, group: 'tension', rev: 0.7 }), this.r, { wave: 'glass', cut: 3000, attack: 1.5, release: 2.5, detune: 14 });
-    const kit = makeKit(this.ctx, this.addStrip('tension-kit', { gain: 0.5, group: 'tension', rev: 0.3 }), this.r);
+    const ost = makeMarimba(this.ctx, this.addStrip('tension', { gain: 0.55, group: 'tension', rev: 0.2, del: 0.1 }), this.r, { mallet: 0.75 });
+    const high = makeStrings(this.ctx, this.addStrip('tension-high', { gain: 0.3, group: 'tension', rev: 0.6 }), this.r, { attack: 1.2, release: 2 });
+    const kit = makeFunkKit(this.ctx, this.addStrip('tension-kit', { gain: 0.45, group: 'tension', rev: 0.2 }), this.r);
     return (c) => {
       const fifth = 76 + ((c.tonic + 7 - 76) % 12 + 12) % 12;
-      const low = 36 + ((fifth - 36) % 12 + 12) % 12;
-      const eighth = c.steps === 12 ? 1 : 2;
-      for (let s = 0; s < c.steps; s += eighth) {
-        const accent = s % (c.steps / 4) === 0;
-        c.at(s, (t) => ost(t, low + (accent ? 0 : 12), accent ? 0.8 : 0.4, 0, 0.8 + 0.4 * Math.sin(c.n * 0.4)));
+      const low = 43 + ((fifth - 43) % 12 + 12) % 12;
+      for (let s = 0; s < c.steps; s += 2) {
+        const accent = s % 4 === 0;
+        c.at(s, (t) => ost(t, low + (accent ? 0 : 12), c.dur(2) * 0.9, accent ? 0.75 : 0.45));
       }
-      c.at(0, (t) => kit.kick(t, 0.5, { f0: 74, f1: 42, decay: 0.35 }));
-      c.at(c.steps === 12 ? 2 : 3, (t) => kit.kick(t, 0.32, { f0: 68, f1: 41, decay: 0.3 }));
-      if (c.n % 2 === 0) c.at(0, (t) => high(t, [fifth, fifth + 2], c.dur(c.steps * 2), 0.5));
-      if (c.n % 8 === 4) c.at(0, (t) => kit.boom(t, 0.6));
+      c.at(0, (t) => kit.kick(t, 0.5));
+      c.at(3, (t) => kit.kick(t, 0.3));
+      if (c.n % 2 === 0) c.at(0, (t) => high(t, [fifth, fifth + 2], c.dur(c.steps * 2), 0.4));
+      if (c.n % 8 === 4) c.at(0, (t) => kit.tom(t, 0.5, 'floor'));
     };
   }
 }
