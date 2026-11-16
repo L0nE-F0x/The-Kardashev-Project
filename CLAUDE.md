@@ -622,9 +622,11 @@ speed of the stuff that's going on on the screen, the tempo of the cuts ... this
 away", so everything was recorded again from v0.15.4 and cut again: `tools/trailer/README.md`, "The third cut", says
 what changed and the rules the cut follows. `~/Videos/The Kardashev Project - Marketing/` now holds only the new
 pieces (trailer 1:28, teaser, three shorts, 38 stills, key art, music); the older ones went to the desktop's trash
-with the user's leave. Open: the user's verdict (nobody could listen here, and motion was judged from sheets of
-frames); the end card's words ("WISHLIST ON STEAM", no web address, "free while it's in development" dropped) were my
-call for a Steam trailer and are theirs to confirm; the post texts in the kit's `POSTS.md` still say the old thing.
+with the user's leave. The user's verdict the same day: "so much better ... blown away ... the timing, the tempo, the cuts, everything
+is literally just perfect". They come back to the trailer once the Steam page is approved, to refine it if needed:
+until then leave the kit alone. The end card's words ("WISHLIST ON STEAM", no web address, "free while it's in
+development" dropped) were my call and they did not object: check them against the Steam page when it exists. The
+post texts in the kit's `POSTS.md` still say the old thing.
 `steam/` is the user's own untracked folder: leave it out of commits unless they say.
 
 **Next:** v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
