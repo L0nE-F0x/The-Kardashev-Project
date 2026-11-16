@@ -5,102 +5,103 @@
 //   k:      the Kardashev read-out, top right: [time, value] keys (hidden over interface shots, which show their own)
 const B = (n) => n * 2;
 
-const LOGO = { tag: 'FROM A GARAGE TO A STAR', cta: 'COMING TO STEAM', sub: 'Free while it’s in development · Windows · macOS · Linux', url: 'thekardashevproject.netlify.app' };
+const LOGO = { tag: 'FROM A GARAGE TO A STAR', cta: 'WISHLIST ON STEAM', sub: 'A management sim about the AI boom', url: '' };
 
 export const EDITS = {
-  // ── the trailer: 1:32 ───────────────────────────────────────────────────────────────────────────────────────────
+  // ── the trailer: 1:28 ───────────────────────────────────────────────────────────────────────────────────────────
+  // The third cut (2026-11-17). What the second one got wrong: the long holds were on the opening and the logo while
+  // the game itself went by in one- and two-second flashes; the time-lapses and a sped-up rocket were the only fast
+  // things and they were too fast. Here every clean shot gets at least a bar, every interface shot three seconds
+  // (long enough to read a panel and see one click), the rocket goes in real time, and the long takes are the ones
+  // that earn them: the first build, the liftoff, the swarm, the pull-back.
   trailer: {
-    music: 'trailer', length: 92, view: 'wide',
+    music: 'trailer', length: 88, view: 'wide',
     clips: [
-      ['earth-night', B(0), B(4), 1.2],
-      ['garage', B(4), B(6), 0.9, { x: 1.0 }],
-      ['hud-build', B(6), B(8), 0.3, { x: 0.4 }],
-      // Act II
-      ['timelapse', B(8), B(10), 0.9],
+      ['earth-night', B(0), B(2), 1.0],
+      // where it is going, for one bar: the star with its swarm
+      ['star', B(2), B(3), 0.8],
+      // Act I: the garage in the quiet of the count-in (the band comes in at bar 4), then the first build
+      ['garage', B(3), B(5), 0.6],
+      ['hud-build', B(5), B(8), 0.25],
+      // Act II: the same view four years on (the interface lifts away on the drop), the power, the map, a decision
+      ['timelapse', B(8), B(10), 0.2],
       ['lulea-night', B(10), B(11), 1.5],
-      ['lakeshore', B(11), B(11.5), 2.2],
-      ['wind', B(11.5), B(12), 0.6],
-      ['hud-map', B(12), B(13), 1.6],
-      ['fab', B(13), B(13.5), 2.0],
-      ['mine', B(13.5), B(14), 1.4],
-      ['hud-event', B(14), B(15), 1.7],
+      ['lakeshore', B(11), B(12), 2.2],
+      ['hud-map', B(12), B(13.5), 1.0],
+      ['hud-event', B(13.5), B(15), 0],
       ['globe-cables', B(15), B(16), 2.2],
-      // Act III
-      ['geneva', B(16), B(18), 1.6, { x: 0.5 }],
-      ['sahara', B(18), B(18.5), 1.3],
-      ['northsea', B(18.5), B(19), 2.2],
-      // the Charter's own interface (every act's look is in the cut: I hud-build, II hud-map + hud-event, III here, IV hud-planet, V hud-system)
-      ['hud-charter', B(19), B(20), 0.3],
+      // Act III: Geneva, the Charter's desk, the megaprojects
+      ['geneva', B(16), B(17.5), 1.6, { x: 0.5 }],
+      ['hud-charter', B(17.5), B(19), 0.15],
+      ['sahara', B(19), B(20), 1.3],
       // Act IV
-      ['fusion', B(20), B(21), 1.6],
-      ['supergrid', B(21), B(22), 2.6],
-      ['liftoff', B(22), B(24), 2.45, { speed: 1.5 }],
-      ['orbit', B(24), B(25), 2.6],
-      ['hud-planet', B(25), B(26), 1.0],
+      ['northsea', B(20), B(21), 2.2],
+      ['fusion', B(21), B(22), 1.6],
+      ['hud-planet', B(22), B(23.5), 0.5],
+      // the rocket in real time: a second on the pad, ignition on bar 24
+      ['liftoff', B(23.5), B(26), 0],
       ['moon', B(26), B(28), 1.2, { x: 0.3 }],
       // Act V
       ['yards', B(28), B(29), 1.4],
       ['eros', B(29), B(30), 1.8],
       ['ring', B(30), B(31), 2.6],
       ['habitat', B(31), B(32), 2.4],
-      ['hud-system', B(32), B(33), 1.4],
-      ['swarm', B(33), B(35.5), 0.9, { speed: 1.2 }],
+      ['hud-system', B(32), B(33.5), 1.0],
+      ['swarm', B(33.5), B(36), 1.6],
       // the pull-back: the two fronts of light meet (11.3 s into the clip) on bar 38
-      ['type1', B(35.5), 92, 11.3 - (B(38) - B(35.5))],
+      ['type1', B(36), 88, 11.3 - (B(38) - B(36))],
     ],
     titles: [
-      { kind: 'fade', t0: 0, t1: 1.6, from: 1, to: 0 },
-      { kind: 'line', t0: 0.9, t1: 3.7, kicker: 'HUMANITY RUNS ON', head: '19.6 TERAWATTS' },
-      { kind: 'line', t0: 4.3, t1: 7.7, kicker: 'A TYPE I CIVILIZATION COMMANDS', head: '10,000 TERAWATTS' },
-      { kind: 'chip', t0: 8.4, t1: 11.7, text: 'ACT I', name: 'THE GARAGE', year: '2026' },
-      { kind: 'line', t0: 8.7, t1: 11.7, kicker: 'IT STARTS WITH', head: 'ONE GARAGE' },
+      { kind: 'fade', t0: 0, t1: 1.4, from: 1, to: 0 },
+      { kind: 'line', t0: 0.8, t1: 3.8, kicker: 'TODAY, HUMANITY RUNS ON', head: '19.6 TERAWATTS' },
+      { kind: 'flash', t: B(2), a: 0.5 },
+      { kind: 'line', t0: 4.08, t1: 5.9, kicker: 'A TYPE I CIVILIZATION COMMANDS', head: '10,000 TERAWATTS', quick: true },
+      { kind: 'chip', t0: 6.4, t1: 9.8, text: 'ACT I', name: 'THE GARAGE', year: '2026' },
+      { kind: 'line', t0: 6.6, t1: 9.8, kicker: 'IT STARTS WITH', head: 'ONE GARAGE' },
       { kind: 'flash', t: B(8), a: 0.55 },
       { kind: 'chip', t0: 16.3, t1: 19.8, text: 'ACT II', name: 'THE SCALE-UP', year: '2029' },
-      { kind: 'line', t0: 16.35, t1: 19.7, head: 'BUILD THE COMPUTE' },
+      { kind: 'line', t0: 16.4, t1: 19.7, head: 'BUILD THE COMPUTE' },
       { kind: 'line', t0: 20.3, t1: 23.7, head: 'FIND THE POWER' },
-      { kind: 'line', t0: 26.25, t1: 27.8, head: 'SHIP THE CHIPS' },
-      { kind: 'line', t0: 30.25, t1: 31.8, head: 'WIRE THE WORLD' },
-      { kind: 'chip', t0: 32.4, t1: 35.8, text: 'ACT III', name: 'THE CHARTER', year: '2035' },
-      { kind: 'line', t0: 32.6, t1: 35.7, kicker: 'THEN THE WORLD HANDS YOU', head: 'THE PLANET' },
-      { kind: 'flash', t: B(18), a: 0.5 },
-      { kind: 'line', t0: 36.25, t1: 37.85, head: 'BUILD AT PLANET SCALE' },
+      { kind: 'line', t0: 30.25, t1: 31.85, head: 'WIRE THE WORLD' },
+      { kind: 'chip', t0: 32.4, t1: 34.8, text: 'ACT III', name: 'THE CHARTER', year: '2035' },
+      { kind: 'line', t0: 32.5, t1: 34.8, kicker: 'THEN THE WORLD HANDS YOU', head: 'THE PLANET' },
+      { kind: 'line', t0: 38.25, t1: 41.7, head: 'BUILD AT PLANET SCALE' },
+      { kind: 'flash', t: B(20), a: 0.4 },
       { kind: 'chip', t0: 40.2, t1: 43.8, text: 'ACT IV', name: 'PLANETARY', year: '2045' },
-      { kind: 'line', t0: 40.25, t1: 41.8, head: 'IGNITE FUSION' },
-      { kind: 'flash', t: B(22), a: 0.45 },
-      { kind: 'line', t0: 45.6, t1: 47.8, head: 'LEAVE THE CRADLE' },
+      { kind: 'line', t0: 42.25, t1: 43.85, head: 'IGNITE FUSION' },
+      { kind: 'flash', t: B(24), a: 0.4 },
+      { kind: 'line', t0: 48.5, t1: 51.7, head: 'LEAVE THE CRADLE' },
       { kind: 'line', t0: 52.6, t1: 55.7, kicker: 'AND THEN', head: 'REACH FOR THE SUN' },
       { kind: 'flash', t: B(28), a: 0.5 },
       { kind: 'chip', t0: 56.2, t1: 59.8, text: 'ACT V', name: 'TYPE I', year: '2068' },
       { kind: 'line', t0: 56.3, t1: 59.7, head: 'MINE THE SKY' },
       { kind: 'line', t0: 60.3, t1: 63.7, head: 'SETTLE THE SYSTEM' },
-      { kind: 'line', t0: 66.3, t1: 70.4, head: 'BUILD THE SWARM' },
+      { kind: 'line', t0: 67.4, t1: 71.6, head: 'BUILD THE SWARM' },
       { kind: 'flash', t: B(38), a: 0.9 },
       { kind: 'big', t0: B(38) + 0.05, t1: B(40) - 0.15, kicker: 'THE KARDASHEV SCALE', head: 'K 1.0000' },
-      { kind: 'dim', t0: B(40) - 0.3, t1: 92, a: 0.5, ramp: 0.8 },
-      { kind: 'logo', t0: B(40), t1: 92, ...LOGO },
-      { kind: 'fade', t0: 90, t1: 92, from: 0, to: 1 },
+      { kind: 'dim', t0: B(40) - 0.3, t1: 88, a: 0.5, ramp: 0.8 },
+      { kind: 'logo', t0: B(40), t1: 88, ...LOGO },
+      { kind: 'fade', t0: 86.4, t1: 88, from: 0, to: 1 },
     ],
-    k: { keys: [[0, 0.729], [8, 0.729], [16, 0.7296], [32, 0.7334], [36, 0.7412], [44, 0.7603], [52, 0.8002], [56, 0.8002], [66, 0.842], [71, 0.94], [B(38) - 0.05, 0.9998], [B(38), 1]], from: 1.2, to: B(38) - 0.02 },
+    // (for the bar the star is on screen the read-out shows where it stands: 1.0000; then back to today)
+    k: { keys: [[0, 0.729], [3.98, 0.729], [4, 1], [5.98, 1], [6, 0.729], [16, 0.7297], [32, 0.7334], [40, 0.7412], [47, 0.76], [52, 0.8002], [56, 0.8002], [67, 0.842], [72, 0.94], [B(38) - 0.05, 0.9998], [B(38), 1]], from: 1.0, to: B(38) - 0.02 },
     blurFrom: B(40) - 0.3,
   },
 
   // ── the teaser: 0:27 ────────────────────────────────────────────────────────────────────────────────────────────
+  // (the same lesson: six shots of a bar each between the garage and the pull-back, where there were twelve)
   teaser: {
     music: 'teaser', length: 27, view: 'wide',
     clips: [
-      ['earth-night', B(0), B(1), 7.4],
-      ['garage', B(1), B(2), 2.2, { x: 0.5 }],
-      ['timelapse', B(2), B(2.5), 3.4],
-      ['lulea-night', B(2.5), B(3), 2.0],
-      ['hud-map', B(3), B(3.5), 2.0],
-      ['fusion', B(3.5), B(4), 2.0],
-      ['northsea', B(4), B(4.5), 2.2],
-      ['supergrid', B(4.5), B(5), 3.0],
-      ['liftoff', B(5), B(6), 2.45, { speed: 1.6 }],
-      ['moon', B(6), B(6.5), 2.6],
-      ['yards', B(6.5), B(7), 2.0],
-      ['habitat', B(7), B(7.5), 3.0],
-      ['swarm', B(7.5), B(8), 4.6, { speed: 1.4 }],
+      ['earth-night', B(0), B(1), 2.0],
+      ['garage', B(1), B(2), 1.6, { x: 0.4 }],
+      ['timelapse', B(2), B(3), 2.2],
+      ['lulea-night', B(3), B(4), 1.5],
+      ['hud-build', B(4), B(5), 3.6],
+      // ignition on bar 5
+      ['liftoff', B(5), B(6), 1.0],
+      ['habitat', B(6), B(7), 2.4],
+      ['swarm', B(7), B(8), 4.4],
       ['type1', B(8), 27, 11.3 - 4],
     ],
     titles: [
@@ -165,8 +166,8 @@ export const EDITS = {
   },
 };
 
-/** The vertical teaser: the same cut, the two interface shots swapped for clean ones (the game has no portrait layout). */
-EDITS['teaser-tall'] = { ...EDITS.teaser, view: 'tall', clips: EDITS.teaser.clips.map((c) => (c[0] === 'hud-map' ? ['wind', c[1], c[2], 1.2] : c)) };
+/** The vertical teaser: the same cut, the interface shot swapped for a clean one (the game has no portrait layout). */
+EDITS['teaser-tall'] = { ...EDITS.teaser, view: 'tall', clips: EDITS.teaser.clips.map((c) => (c[0] === 'hud-build' ? ['fusion', c[1], c[2], 1.6] : c)) };
 for (const id of ['day', 'liftoff', 'type1']) {
   EDITS[id + '-tall'] = { ...EDITS[id], view: 'tall' };
   EDITS[id] = { ...EDITS[id], view: 'wide' };

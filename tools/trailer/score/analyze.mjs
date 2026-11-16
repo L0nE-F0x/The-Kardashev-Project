@@ -10,7 +10,7 @@ const db10 = (x) => 10 * Math.log10(Math.max(x, 1e-14));
 const DEFAULT_BANDS = [['sub', 30, 80], ['low', 80, 300], ['mid', 300, 4000], ['high', 4000, 8000], ['air', 8000, 20000]];
 const TARGET = { trailer: [-14, 0.7], teaser: [-14, 0.7], calm: [-15, 0.7], rise: [-15, 0.7] };
 /** Cues that are a pad and a few notes. */
-const QUIET = new Set(['intro', 'moon', 'resolve', 'land']);
+const QUIET = new Set(['intro', 'star', 'moon', 'resolve', 'land']);
 
 function fft(re, im) {
   const n = re.length;

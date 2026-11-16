@@ -28,7 +28,7 @@ export const STILLS = [
   ['north-sea-wind', 'northsea'], ['fusion-at-dusk', 'fusion'], ['supergrid', 'supergrid'], ['on-the-pad', 'liftoff-long-1'],
   ['liftoff', 'liftoff-2'], ['orbit', 'orbit'], ['planet-panel', 'hud-planet'], ['moon-base', 'moon'],
   ['orbital-foundries', 'yards'], ['asteroid-mining', 'eros'], ['ring-one', 'ring'], ['habitat', 'habitat'],
-  ['system-interface', 'hud-system'], ['the-swarm', 'swarm-2'], ['sunrise', 'type1-2'], ['ignition', 'type1-3'], ['type-one', 'type1-5'],
+  ['system-interface', 'hud-system'], ['the-swarm', 'swarm-2'], ['across-the-rings', 'star'], ['sunrise', 'type1-2'], ['ignition', 'type1-3'], ['type-one', 'type1-5'],
 ];
 const TALL_STILLS = [['aurora-over-lulea', 'lulea-night'], ['north-sea-wind', 'northsea'], ['on-the-pad', 'liftoff-long-1'], ['liftoff', 'liftoff-long-2'],
   ['habitat', 'habitat'], ['sunrise', 'type1-2'], ['ignition', 'type1-3'], ['type-one', 'type1-5']];

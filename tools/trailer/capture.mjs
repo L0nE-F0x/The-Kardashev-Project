@@ -47,6 +47,8 @@ for (const shot of todo) {
   const kind = shot.kind ?? 'clean';
   const page = await pageFor(kind);
   const { js, cdp } = page;
+  // (two tabs are open once an interface shot has run: the one not in front has its timers throttled to a crawl)
+  await cdp('Page.bringToFront');
   const ms = 1000 / FPS;
   await js(`D.ui(${kind === 'hud'}); D.keys = null; D.each = null; D.post = null; D.cards = false; D.shot = {};`);
   await js(`(async () => { ${shot.setup} })()`);

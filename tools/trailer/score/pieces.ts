@@ -42,15 +42,16 @@ const C = 48, D = 50, E = 52, F = 53, G = 55;
 /** What each piece plays, section by section (also what `sanity` checks on paper). */
 export const FORMS: Record<string, SecDef[]> = {
   trailer: [
-    // 0–4 Earth at night: the four notes
-    { sec: 'intro', tonic: C, ch: roman('Imaj9 | IVmaj9 | vi9 | V9sus4', 'C'), mel: SIGNAL },
+    // 0–4 Earth at night, two notes; bar 2 the star we are heading for, the other two over a bloom; bar 3 the count-in
+    { sec: 'intro', tonic: C, ch: roman('Imaj9 | vi7 | IVmaj9 | V9sus4', 'C'), mel: "5:16 | 1':16 | 2':8 3':8" },
     // 4–8 Act I: the theme's first four bars, the last half bar on A7sus4 (D major's dominant)
     { sec: 'garage', tonic: C, ch: roman('Imaj9 | IVmaj9 | vi9 | V VI7sus4', 'C'), mel: bars(...TH.slice(0, 4)) },
     // 8–16 Act II: the whole theme, home on D, then B9sus4 (E's dominant) while the band drops out
     { sec: 'citypop', tonic: D, ch: roman('Imaj9 | IVmaj9 | vi9 | V9sus4 V | IVmaj9 | vi9 | ii9 V | Imaj9 VI9sus4', 'D'), mel: THEME + "1':8 -:8" },
     // 16–20 Act III: the bridge's first three bars, the last turned to C7sus4 (F's dominant)
     { sec: 'bossa', tonic: E, ch: roman('Imaj7 | V7 | iii7 | V bVI7sus4', 'E'), mel: bars(BR[0], BR[1], BR[2], "2':4 5:4 4':8") },
-    // 20–26 Act IV: the theme's first six bars (its climb to the top), the last half bar on D7sus4 (G's dominant)
+    // 20–26 Act IV: the theme's first six bars (its climb to the top, where the rocket lifts off: bar 24), the last
+    // half bar on D7sus4 (G's dominant)
     { sec: 'planet', tonic: F, ch: roman('I | IVmaj7 | vi7 | V | IVmaj7 | vi9 VI7sus4', 'F'), mel: bars(...TH.slice(0, 6)) },
     // 26–28 the Moon: two of the four notes, held
     { sec: 'hush', tonic: G, ch: roman('Imaj9 | V9sus4', 'G'), mel: "5:16 | 1':16" },
@@ -58,8 +59,8 @@ export const FORMS: Record<string, SecDef[]> = {
     { sec: 'light', tonic: G, ch: roman('I | IVmaj7 | vi7 | V | IVmaj7 | vi9 | ii7 V | V', 'G'), mel: THEME + "2':12 -:4" },
     // 36–38 the pull-back from the Sun
     { sec: 'swell', tonic: G, ch: roman('IVmaj7 | V9sus4 V', 'G'), mel: CLIMB },
-    // 38–44 K 1.0000, then the logo: home, the four notes a bar each
-    { sec: 'coda', tonic: G, ch: roman('I69 | . | . | . | . | .', 'G'), mel: SIGNAL },
+    // 38–43 K 1.0000, then the logo: home, the four notes a bar each
+    { sec: 'coda', tonic: G, ch: roman('I69 | . | . | . | .', 'G'), mel: SIGNAL },
   ],
   teaser: [
     // (a 6/9 chord under the first two: the tonic would rub against a major seventh)
@@ -196,9 +197,16 @@ function band(k: Session) {
   };
 
   // ── the four notes on the celesta, the glass blooming under them ─────────────────────────
-  const intro = (c: TBar) => {
+  /** `bloom` = the bar that opens out (the trailer's first sight of the star): strings, a choir, a harp's chord. */
+  const intro = (c: TBar, bloom = -1) => {
     const up = c.tonic >= 53 ? 12 : 24;
     chordsOn(c, (t, v, d) => glass(t, v.map((m) => m + 12), d * 1.08, 0.3 + 0.1 * c.i));
+    if (c.i === bloom) {
+      c.at(0, (t) => strings(t, [c.v[0] - 12, ...c.v, c.v[c.v.length - 1] + 12], c.dur(22), 0.66, -0.5));
+      c.at(0, (t) => choir(t, c.v, c.dur(22), 0.56, 'ah', 'oo'));
+      c.at(0, (t) => harp.chord(t, [bassIn(c, 0, 36), ...c.v, c.v[1] + 12, c.v[3] + 12], c.dur(24), 0.6, 0.045));
+      c.at(0, (t) => bass(t, bassIn(c, 0, 28), c.dur(20), 0.8));
+    }
     for (const n of c.mel) {
       const m = c.tonic + n.semi + up;
       // each note answered an octave up, five eighths of the way through it
@@ -562,22 +570,23 @@ function sweep(k: Session, B: Band, bar: number, vel: number, side = 0.5): void 
 
 // ── the pieces ──────────────────────────────────────────────────────────────────────────────
 const trailer: PieceDef = {
-  bars: 44, tail: 4, seed: 2026, level: { music: 0.87, fx: 0.5 },
+  bars: 43, tail: 2, seed: 2026, level: { music: 0.87, fx: 0.5 },
   build(k) {
     const B = band(k);
     const ARR: Record<string, (c: TBar) => void> = {
-      intro: B.intro, hush: B.intro, garage: B.garage, citypop: B.citypop,
+      intro: (c) => B.intro(c, 2), hush: (c) => B.intro(c), garage: B.garage, citypop: B.citypop,
       // Geneva at dusk: flute, guitar and bass alone for two bars, the brushes and the shaker in on bar 18
       bossa: (c) => B.bossa(c, { drums: 2, shaker: 2, out: 'planet' }),
       // the marimbas stop dead on the Moon: no lift out of Act IV
       planet: (c) => B.planet(c, { low: 0 }),
-      light: B.light, swell: B.swell, coda: (c) => B.coda(c, 6),
+      light: B.light, swell: B.swell, coda: (c) => B.coda(c, 5),
     };
     k.play(FORMS.trailer, VOICING, (c) => ARR[c.sec](c));
 
     // the shape of the whole: small in the garage, a step up with every act, the last hit the top
     k.ride(0, 0.85, 0.01);
-    k.ride(4 * BAR - 0.05, 0.7, 0.05);
+    k.ride(2 * BAR - 0.04, 1.05, 0.03);
+    k.ride(3 * BAR, 0.7, 1.5);
     k.ride(8 * BAR - 0.04, 1.12, 0.03);
     k.ride(16 * BAR - 0.04, 0.85, 0.03);
     k.ride(18 * BAR - 0.04, 1, 0.03);
@@ -595,6 +604,9 @@ const trailer: PieceDef = {
       B.fx.boom(t, 0.3, { f0: 72, f1: boomHz(C), drop: 0.5, decay: 3.2, bright: 0 });
       B.fx.air(t, 9, 0.035);
     });
+    // the star, seen for a moment: a whoosh into it, a soft deep hit
+    sweep(k, B, 2, 0.4, 0.5);
+    k.at(2, 0, (t) => (B.fx.boom(t, 0.62, { bright: 0.35, decay: 2.6, f1: boomHz(F) }), B.fx.crash(t, 0.4, 2.4)));
     impact(k, B, 8, 0.75, D);
     k.at(12, 0, (t) => B.fx.boom(t, 0.4, { bright: 0.5, decay: 1.2, f1: boomHz(D) }));
     sweep(k, B, 16, 0.3, -0.5);
@@ -602,10 +614,9 @@ const trailer: PieceDef = {
     k.at(18, 0, (t) => (B.fx.boom(t, 0.4, { bright: 0.3, decay: 1.4, f1: boomHz(E) }), B.fx.crash(t, 0.3, 1.6)));
     impact(k, B, 20, 0.8, F);
     // liftoff: the hit and the rocket under two bars of music
-    sweep(k, B, 22, 0.5, 0.6);
-    impact(k, B, 22, 0.95, F);
-    k.at(22, 0, (t) => B.fx.rumble(t, 2.4 * BAR, 0.9));
-    sweep(k, B, 24, 0.3, -0.5);
+    sweep(k, B, 22, 0.3, -0.5);
+    impact(k, B, 24, 0.95, F);
+    k.at(24, 0, (t) => B.fx.rumble(t, 2.05 * BAR, 0.9));
     // the Moon: the floor drops away
     k.at(26, 0, (t) => (B.fx.subdrop(t, 1.5, 0.4), B.fx.air(t, 4.5, 0.05)));
     k.at(27, 0, (t) => B.fx.riser(t, BAR, 0.6, { note: G - 17 + 12, octs: 1, pow: 3.2 }));
@@ -628,7 +639,7 @@ const teaser: PieceDef = {
   bars: 12, tail: 3, seed: 2027, level: { music: 0.87, fx: 0.5 },
   build(k) {
     const B = band(k);
-    const ARR: Record<string, (c: TBar) => void> = { intro: B.intro, light: B.light, swell: B.swell, coda: (c) => B.coda(c, 3.5) };
+    const ARR: Record<string, (c: TBar) => void> = { intro: (c) => B.intro(c), light: B.light, swell: B.swell, coda: (c) => B.coda(c, 3.5) };
     k.play(FORMS.teaser, VOICING, (c) => ARR[c.sec](c));
     k.ride(0, 0.8, 0.01);
     k.ride(2 * BAR - 0.04, 0.95, 0.03);

@@ -8,7 +8,7 @@ these scripts from the running game. Nothing here is part of the game or its bui
 | File | Job |
 |---|---|
 | `music-map.mjs` | the one clock picture and sound share: 120 BPM, a bar = 2 s; what each piece does bar by bar |
-| `score/` | the music: the game's own soundtrack cut to the picture (`pieces.ts`: the Type I medley's band and arranging, a genre and a key per act; `kit.ts` walks it bar by bar on the picture's clock through the game's mix; `fx.ts` = the hits, risers and the rocket). `render.mjs` renders and measures it (its header says how), `sanity.mjs` checks the notes on paper, `balance.mjs` measures an instrument at a time |
+| `score/` | the music: the game's own soundtrack cut to the picture (`pieces.ts`: the Type I medley's band and arranging, a genre and a key per act; `kit.ts` walks it bar by bar on the picture's clock through the game's mix; `fx.ts` = the hits, risers and the rocket). `render.mjs` renders and measures it (its header says how), `check.mjs` prints the on-paper check of the notes (`sanity.ts`), `balance.mjs` measures an instrument at a time |
 | `shots.mjs` | every shot: the scene, the light, the camera move, what happens each frame |
 | `director.js` | runs in the game's page: builds the worlds and scenes, a free camera, a pointer for interface shots, the test bots at the controls for time-lapses |
 | `cdp.mjs` | the Chrome DevTools client; puts the page on a virtual clock so every frame is exactly 1/60 s of game time |
@@ -25,13 +25,15 @@ these scripts from the running game. Nothing here is part of the game or its bui
 
 With the dev server running (`npm run dev`) and a headless Chrome on the real GPU on port 9333 (the command in
 CLAUDE.md under "QA", with `--remote-debugging-port=9333 --user-data-dir=$HOME/.cache/kardashev-marketing/chrome
---window-size=1920,1080 --mute-audio`):
+--window-size=1920,1080 --mute-audio --disable-background-timer-throttling --disable-renderer-backgrounding
+--disable-backgrounding-occluded-windows`: without the last three a tab that is not in front crawls):
 
 ```bash
 node tools/trailer/capture.mjs all --preview          # look at ~/.cache/kardashev-marketing/x/preview-wide-*.jpg first
 node tools/trailer/capture.mjs all                    # every shot, 2560×1440 at 60 fps (about 40 minutes)
-node tools/trailer/capture.mjs earth-night,garage,timelapse,lulea-night,wind,fusion,northsea,supergrid,liftoff,moon,yards,habitat,swarm,type1,day,liftoff-long --view tall
-node tools/trailer/capture.mjs all --still            # 4K stills (and `type1 --still --view tall` for the poster)
+node tools/trailer/capture.mjs earth-night,garage,timelapse,lulea-night,fusion,liftoff,habitat,swarm,type1,day,liftoff-long --view tall
+node tools/trailer/capture.mjs all --still            # 4K stills
+node tools/trailer/capture.mjs lulea-night,northsea,liftoff-long,habitat,type1 --still --view tall   # the upright stills and the poster
 node tools/trailer/score/render.mjs all               # the music (needs its own Vite on 5318 and Chrome on 9334: see the file)
 node tools/trailer/titles.mjs all                     # don't edit titles.html while this runs (Vite reloads the page)
 for e in trailer teaser teaser-tall day day-tall liftoff liftoff-tall type1 type1-tall; do node tools/trailer/edit.mjs $e; done
@@ -54,11 +56,29 @@ node tools/trailer/kit.mjs stills trailer teaser --shots $H --keep "Previous (v0
 recorded or cut again. The score's own Vite and Chrome (see `score/render.mjs`), then:
 
 ```bash
-node tools/trailer/score/sanity.mjs                   # the notes on paper: every tune note against its chord
+node tools/trailer/score/check.mjs                    # the notes on paper: every tune note against its chord
 node tools/trailer/score/render.mjs all               # the four pieces, mastered and measured (all checks should pass)
 node tools/trailer/resound.mjs all --keep "Previous (first score)"   # the new sound under the eleven videos
 node tools/trailer/kit.mjs music --keep "Previous (first score)"     # the WAVs
 ```
+
+(The score's own Vite matters: a module the game's dev server has already resolved under another name stays
+resolved until it is restarted, and restarting it reloads a page that is recording.)
+
+**The third cut (2026-11-17)**, after "it could definitely be better ... the speed of the stuff on the screen, the
+tempo of the cuts": everything was recorded again from v0.15.4 and cut again. What the second cut got wrong, and the
+rules this one follows (keep them when changing it):
+
+- The long holds were on the opening and the logo while the game went by in one- and two-second flashes. Now a clean
+  shot gets at least a bar (2 s), an interface shot three seconds (time to read a panel and see one click), and the
+  long takes are the ones that earn them: the first build (6 s), the liftoff (5 s), the swarm (5 s), the pull-back.
+- The only fast things were time-lapses and a rocket at 1.5×. The rocket now goes in real time (ignition on a bar
+  line, the camera shaking); the first build rises by hand (`hud-build` sets each building's `progress` on a smooth
+  curve while the calendar turns a month at a time: a day a frame is a flicker); a time-lapse keeps the camera slow.
+- It opens on a promise: Earth at night, then two seconds of the star with its swarm (the read-out jumps to 1.0000),
+  then the garage in the quiet of the music's count-in. The interface lifts away on the drop (`timelapse` starts on
+  the frame `hud-build` ends on). The Planet panel's click to its Space tab comes just before the liftoff.
+- The end card is seven seconds, says "WISHLIST ON STEAM" and what the game is, and carries no web address.
 
 `edit.mjs <edit> --draft` cuts a half-size draft in a minute; look at it as a sheet of frames:
 `ffmpeg -i out/trailer-draft.mp4 -vf "fps=1,scale=426:240,tile=6x8" -frames:v 1 sheet.jpg`.

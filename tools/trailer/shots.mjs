@@ -27,45 +27,63 @@ export const SHOTS = [
     { lon: -76, lat: 24, dist: 250, hour: 1.15, season: -22 },
     { lon: 2, lat: 30, dist: 205, hour: 2.08, season: -22 },
   ], { bare: true, still: [0.55, 0.97] }),
+  // where it is all going, for two seconds: the star with its swarm, seen low across the plane of the rings
+  {
+    id: 'star', secs: 4, warm: 40,
+    setup: `const s = D.world(5, { stage: 4, collectors: 9360, flash: 1 }); const sy = s.system; sy.collectors = 9360; sy.rings = 4680; sy.habitat = 3276;
+      D.system(); D.scene.labels.show([]); D.scene.labels.show = () => {}; await D.runAsync(20); await D.loaded();
+      D.move([{ az: -1.02, el: 0.17, dist: 455 }, { az: -0.88, el: 0.2, dist: 405 }], 'soft');`,
+    still: [0.5],
+  },
 
   // ── Act I: the garage ─────────────────────────────────────────────────────────────────────────────────────────
+  // low, by the garden fence, walking in towards the people at the door
   campus('garage', 'garage', 'bay-area', { hour: 8.9, month: 11, day: 12 }, 6,
-    `[{ pos: [-33, 22, 50], look: [-15, 1.5, 15], fov: 24 }, { pos: [-25, 10, 32], look: [-15.5, 1.9, 15.5], fov: 24 }]`,
-    { warm: 300, ease: 'out', still: [0.9] }),
+    `[{ pos: [-3, 3.5, 37], look: [-15, 2.2, 15], fov: 30 }, { pos: [-9.5, 2.8, 27.5], look: [-14.2, 2.3, 14.6], fov: 30 }]`,
+    { warm: 300, ease: 'soft', still: [0.6] }),
   // the first campus going up next to the garage, the real interface on screen, the game's own bot playing
   {
-    id: 'hud-build', kind: 'hud', secs: 8, warm: 30, preview: [0.2, 0.5, 1],
-    setup: `await D.bots(); D.start('', 'west-texas'); game.select?.({ kind: 'site', id: 'west-texas' }); game.enterDiorama('west-texas');
+    id: 'hud-build', kind: 'hud', secs: 7, warm: 30, preview: [0.25, 0.6, 1],
+    setup: `D.start('', 'west-texas'); game.select?.({ kind: 'site', id: 'west-texas' }); game.enterDiorama('west-texas');
       D.clockAt(-102, 8.5, 4, 10); await D.runAsync(40); await D.loaded(); D.own(); D.scene.setWeather('clear'); D.pointer();
-      D.move([{ pos: [-52, 58, 104], look: [4, 0, 6], fov: 30 }, { pos: [-30, 46, 96], look: [12, 0, 4], fov: 30 }], 'soft');
-      D.shot.on = 0;
+      D.move([{ pos: [-52, 58, 104], look: [4, 0, 6], fov: 30 }, { pos: [-40, 52, 100], look: [8, 0, 5], fov: 30 }], 'soft');
       D.each = (u, f) => {
-        // the player's two clicks (the real buttons), then the clock at full speed with the game's test bot playing on
-        D.ptrMove(f, 14, 46, '[data-tut="build-datacenter"]');
-        D.ptrMove(f, 58, 84, '[data-tut="build-solar"]');
-        D.ptrMove(f, 96, 130, [innerWidth * 0.42, innerHeight * 0.7], () => {});
-        if (f === 100) game.setSpeed(8);
-        if (f >= 100) { D.days(f < 250 ? 2 : 1, D.bot.b1); window.__dateBase += 70000; }
-        const on = game.state.facilities ? Object.values(game.state.facilities).filter((x) => x.status === 'online').length : 0;
-        if (on !== D.shot.on) { D.shot.on = on; (D.shot.log ??= []).push('online ' + on + ' @ frame ' + f + ' day ' + game.state.day); } };
+        // the player's two clicks (the real buttons), unhurried; then the months of building pass in four seconds:
+        // the work itself rises smoothly, the calendar turns a month at a time (a day a frame is a flicker)
+        D.ptrMove(f, 24, 68, '[data-tut="build-datacenter"]');
+        D.ptrMove(f, 86, 122, '[data-tut="build-solar"]');
+        D.ptrMove(f, 136, 176, [innerWidth * 0.4, innerHeight * 0.72], () => {});
+        if (f === 132) game.setSpeed(4);
+        if (f >= 132) {
+          const k = Math.min(1, (f - 132) / 236), e = k * k * (3 - 2 * k);
+          const site = game.state.facilities.filter((x) => x.status === 'building');
+          // (the sim's own days would finish the work early: they start from nothing, then our hand sets the height)
+          if (f % 24 === 12 && k < 1) { for (const x of site) x.progress = 0; D.days(30); }
+          for (const x of site) x.progress = Math.min(x.buildDays - 0.6, (x.buildDays - 0.6) * e);
+          if (k >= 1 && f % 6 === 0) D.days(1);
+          window.__dateBase += 24000;
+        } };
       D.post = () => { D.calm(); };`,
-    still: [0.5],
+    still: [0.55],
   },
 
   // ── Act II: the scale-up ──────────────────────────────────────────────────────────────────────────────────────
   // four years of the company's home campus in five seconds (the Act II bot at the controls)
+  // (it starts on the frame the first build ends on, so the cut is the interface lifting away; then a crane up and
+  // back to the whole campus as it fills its plots: four years in under five seconds, four days a frame)
   {
-    id: 'timelapse', secs: 6, warm: 30,
+    id: 'timelapse', secs: 4.8, warm: 30,
     setup: `await D.bots(); D.start('act2', 'west-texas'); D.days(1, D.bot.b2); game.enterDiorama('west-texas');
-      D.clockAt(-102, 7.6, 5, 21); await D.runAsync(40); await D.loaded(); D.own(); D.scene.setWeather('clear'); D.ui(false);
-      D.move([{ pos: [-64, 46, 118], look: [6, 3, 2], fov: 30 }, { pos: [-10, 60, 150], look: [22, 3, 0], fov: 30 }, { pos: [62, 52, 150], look: [20, 4, 0], fov: 30 }], 'soft');
-      D.each = (u, f) => { D.days(4, D.bot.b2); window.__dateBase += 95000; };`,
+      D.clockAt(-102, 8.5, 5, 21); await D.runAsync(40); await D.loaded(); D.own(); D.scene.setWeather('clear'); D.ui(false);
+      D.move([{ pos: [-40, 52, 100], look: [8, 0, 5], fov: 30 }, { pos: [-22, 60, 128], look: [16, 2, 2], fov: 30 }, { pos: [6, 66, 156], look: [22, 4, 0], fov: 30 }], 'soft');
+      D.each = (u, f) => { D.days(4, D.bot.b2); window.__dateBase += 60000; };`,
     still: [0.8],
   },
   campus('lulea-night', 2, 'lulea', { light: 'night' }, 6,
     `[D.at(-D.W() * 0.14, 20, 0.36, -0.42, 1.52, 9, 34), D.at(D.W() * 0.02, 18, 0.33, -0.05, 1.52, 11, 34)]`, { still: [0.5] }),
-  campus('lakeshore', 2, 'lakeshore', { light: 'morning' }, 6,
-    `[D.at(-6, 4, 0.42, -0.95, 1.47, 14, 32), D.at(-2, 4, 0.4, -0.35, 1.45, 16, 32)]`, { still: [0.6] }),
+  // the reactor at sunset: the tower glowing, its plume, the lake behind
+  campus('lakeshore', 2, 'lakeshore', { light: 'sunset' }, 6,
+    `[D.at(-12, 10, 0.52, -0.72, 1.5, 15, 34), D.at(-4, 10, 0.46, -0.3, 1.5, 17, 34)]`, { still: [0.6] }),
   campus('fab', 2, 'lumen-hsinchu', { light: 'golden' }, 5,
     `[D.at(-6, 6, 0.6, 0.75, 1.36, 6, 30), D.at(-12, 6, 0.5, 0.3, 1.4, 7, 30)]`, { still: [0.6] }),
   campus('mine', 2, 'mine-pilbara', { light: 'golden' }, 5,
@@ -84,7 +102,7 @@ export const SHOTS = [
     setup: `await D.bots(); D.start('act2', 'west-texas'); D.days(520, D.bot.b2); game.enterMap(); await D.runAsync(30); await D.loaded();
       D.scene = game.stage.getScene(); D.kind = 'globe'; D.scene.clampView = function () {}; game.select?.(null); game.setSpeed(8);
       D.move([{ lon: -128, lat: 30, dist: 150, hour: 14.5 }, { lon: -92, lat: 30, dist: 128, hour: 16.5 }], 'soft');
-      D.each = () => { D.days(1, D.bot.b2); }; D.post = () => { D.calm(); };`,
+      D.each = (u, f) => { if (f % 2 === 0) D.days(1, D.bot.b2); }; D.post = () => { D.calm(); };`,
     still: [0.7],
   },
   {
@@ -97,17 +115,17 @@ export const SHOTS = [
   },
   // a card: the fabs have stopped; two advisors, two ways out; the player picks one
   {
-    id: 'hud-event', kind: 'hud', secs: 6, warm: 30, preview: [0.3, 0.6, 0.95],
+    id: 'hud-event', kind: 'hud', secs: 5, warm: 30, preview: [0.25, 0.5, 0.8],
     setup: `await D.bots(); D.start('act2', 'west-texas'); D.days(300, D.bot.b2); game.enterDiorama('west-texas'); D.clockAt(-102, 16.8, 5, 21);
       await D.runAsync(40); await D.loaded(); D.own(); D.scene.setWeather('clear'); game.setSpeed(2); game.select?.(null); D.pointer();
       const ev = await import('/src/sim/events.ts');
       D.move([{ pos: [-58, 42, 112], look: [12, 3, 2], fov: 30 }, { pos: [-36, 40, 118], look: [18, 3, 2], fov: 30 }], 'soft');
       D.each = (u, f) => {
-        if (f === 24) { ev.queueEvent(game.state, 'fab-quake'); D.M.tk.tick(game.state, game.ctx); game.notify(); }
-        D.ptrMove(f, 150, 200, '.btn.choice.primary');
-        D.ptrMove(f, 230, 270, [innerWidth * 0.5, innerHeight * 0.75], () => {});
+        if (f === 8) { ev.queueEvent(game.state, 'fab-quake'); D.M.tk.tick(game.state, game.ctx); game.notify(); }
+        D.ptrMove(f, 96, 140, '.btn.choice.primary');
+        D.ptrMove(f, 170, 215, [innerWidth * 0.5, innerHeight * 0.75], () => {});
       };`,
-    still: [0.6],
+    still: [0.3],
   },
   {
     id: 'hud-campus', kind: 'hud', secs: 5, warm: 30,
@@ -157,7 +175,7 @@ export const SHOTS = [
   ], { still: [0.5] }),
   // the rocket on the middle pad lifts off `lift` seconds into the shot (the pads cycle every 28 s: see sets/launch/pad.ts)
   // (the long one stands west of the pad, so the rocket on the pad behind is beside ours, not a ghost through it)
-  ...[['liftoff', 9, 3.0, 44], ['liftoff-long', 15, 8.0, 0]].map(([id, secs, lift, cx]) => ({
+  ...[['liftoff', 7, 1.0, 44], ['liftoff-long', 15, 8.0, 0]].map(([id, secs, lift, cx]) => ({
     id, secs, warm: 200,
     setup: `D.world(4); D.campus('launch-guiana', { light: 'sunset', weather: 'clear' }); await D.runAsync(30); await D.loaded();
       D.shot.lift = ${lift}; D.shot.secs = ${secs};
@@ -168,10 +186,13 @@ export const SHOTS = [
         const k = Math.min(1, t / D.shot.secs), e = k * k * (3 - 2 * k);
         // the camera waits low by the road, then tilts up after the rocket (a little behind it) and widens
         const up = Math.min(climb, 300) * (0.86 - 0.22 * Math.min(1, s / 5));
-        D.cam({ pos: [D.shot.cx - e * 5, 3.2 + e * 2.5, 70 + e * 6], look: [18, 20 + up, 6.5 - Math.max(0, climb - 60) * 0.12], fov: 34 + Math.min(1, s / 4) * 10 });
+        // the ground shakes from ignition on, and settles as the rocket goes
+        const sh = t < D.shot.lift ? 0 : 0.5 * Math.min(1, s / 0.25) * Math.exp(-s / 3.2);
+        const jx = (Math.sin(f * 1.93) + Math.sin(f * 3.31 + 1.2)) * 0.5 * sh, jy = (Math.sin(f * 2.47 + 0.6) + Math.sin(f * 4.13)) * 0.5 * sh;
+        D.cam({ pos: [D.shot.cx - e * 5, 3.2 + e * 2.5, 70 + e * 6], look: [18 + jx, 20 + up + jy, 6.5 - Math.max(0, climb - 60) * 0.12], fov: 34 + Math.min(1, s / 4) * 10 });
       };`,
     after: `D.scene.time = 28 + 12 - ${lift};`,
-    still: [0.2, lift / secs + 0.19], preview: [0.3, 0.6, 0.8],
+    still: [id === 'liftoff' ? 0.05 : 0.2, lift / secs + (id === 'liftoff' ? 0.3 : 0.19)], preview: [0.1, 0.5, 0.95],
   })),
   {
     id: 'orbit', secs: 7, warm: 60,
@@ -180,10 +201,12 @@ export const SHOTS = [
     still: [0.5],
   },
   {
-    id: 'hud-planet', kind: 'hud', secs: 4, warm: 30,
+    id: 'hud-planet', kind: 'hud', secs: 4.5, warm: 30, preview: [0.2, 0.5, 0.9],
     setup: `D.start('act4', 'west-texas'); game.state = D.M.a4.act4PreviewState({ stage: 3, moon: 3 }); game.state.company.name = 'Kardashev Labs'; D.M.tk.refreshStats(game.state);
       game.enterOrbit(); await D.runAsync(30); await D.loaded(); D.clockAt(70, 18.2, 5, 21); D.scene = game.stage.getScene(); D.kind = 'orbit'; game.openPanel('planet'); D.calm();
-      D.move([{ az: -0.75, el: 0.2, dist: 420 }, { az: -0.6, el: 0.2, dist: 400 }], 'soft'); D.each = () => { ${CALM} };`,
+      D.move([{ az: -0.75, el: 0.2, dist: 420 }, { az: -0.6, el: 0.2, dist: 400 }], 'soft'); D.pointer();
+      // the player turns to the Space tab (what is in orbit, what flies next), a second and a half in
+      D.each = (u, f) => { ${CALM} D.ptrMove(f, 46, 92, '[data-tut="planet-space"]'); D.ptrMove(f, 122, 165, [innerWidth * 0.66, innerHeight * 0.62], () => {}); };`,
     still: [0.5],
   },
   campus('moon', 4, 'moon', {}, 7,
@@ -192,8 +215,9 @@ export const SHOTS = [
   // ── Act V: Type I ─────────────────────────────────────────────────────────────────────────────────────────────
   campus('yards', 5, 'l4', {}, 6,
     `[D.at(-90, 20, 0.2, -1.0, 1.42, 6, 34), D.at(-30, 16, 0.2, -0.55, 1.42, 6, 34)]`, { still: [0.6] }),
+  // close on the miners: the wheels biting rock, the sparks, someone walking the line
   campus('eros', 5, 'eros', {}, 6,
-    `[D.at(-30, 20, 0.34, -0.7, 1.4, 6, 30), D.at(20, 20, 0.3, -0.2, 1.36, 6, 30)]`, { still: [0.5] }),
+    `[D.at(-16, 10, 0.21, -0.62, 1.46, 6, 34), D.at(6, 10, 0.19, -0.2, 1.46, 6, 34)]`, { still: [0.5] }),
   campus('ring', 5, 'ring', {}, 6,
     `[D.at(-70, 20, 0.26, -1.0, 1.36, 6, 34), D.at(-10, 16, 0.24, -0.5, 1.36, 8, 34)]`, { still: [0.6] }),
   // the habitat: the game's own film move (a slow turn toward the axis, the land curving overhead)
@@ -210,7 +234,7 @@ export const SHOTS = [
   // the swarm filling in round the Sun: forty years in six seconds
   {
     id: 'swarm', secs: 7, warm: 40,
-    setup: `const s = D.world(5, { stage: 4, collectors: 60 }); D.system(); await D.runAsync(20); await D.loaded();
+    setup: `const s = D.world(5, { stage: 4, collectors: 60 }); D.system(); D.scene.labels.show([]); D.scene.labels.show = () => {}; await D.runAsync(20); await D.loaded();
       D.move([{ az: -1.25, el: 0.2, dist: 470 }, { az: -0.7, el: 0.3, dist: 640 }], 'soft');
       D.each = (u) => { const sy = s.system; sy.collectors = 60 + 9300 * Math.pow(u, 1.6); sy.rings = sy.collectors * 0.5; sy.habitat = sy.collectors * 0.35; };`,
     still: [0.45, 0.95],

@@ -52,14 +52,14 @@ body.tall .big .kicker { font-size: 26px; }
 .logo img { width: 1060px; height: auto; filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 50px rgba(251, 212, 110, 0.18)); }
 .logo .tag { margin-top: 26px; font-weight: 800; font-size: 44px; letter-spacing: 0.2em; padding-left: 0.2em; color: var(--gold); text-shadow: 0 3px 0 rgba(60, 34, 6, 0.6), 0 0 36px rgba(251, 212, 110, 0.45), 0 6px 24px rgba(0, 0, 0, 0.7); }
 .logo .cta { margin-top: 54px; padding: 15px 34px 15px 40px; border: 2px solid rgba(246, 239, 224, 0.85); border-radius: 999px; font-weight: 800; font-size: 28px; letter-spacing: 0.3em; color: var(--cream); background: rgba(8, 7, 16, 0.45); }
-.logo .sub { margin-top: 26px; font-weight: 600; font-size: 24px; letter-spacing: 0.06em; color: rgba(246, 239, 224, 0.86); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8); }
+.logo .sub { margin-top: 28px; font-weight: 700; font-size: 29px; letter-spacing: 0.08em; color: rgba(246, 239, 224, 0.9); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8); }
 .logo .url { margin-top: 12px; font-weight: 700; font-size: 27px; letter-spacing: 0.05em; color: var(--cyan); text-shadow: 0 0 20px rgba(95, 211, 181, 0.5), 0 2px 10px rgba(0, 0, 0, 0.8); }
 .logo.small img { width: 880px; }
 .logo.small .tag { font-size: 36px; }
 body.tall .logo img { width: 940px; }
 body.tall .logo .tag { font-size: 37px; letter-spacing: 0.14em; margin-top: 30px; }
 body.tall .logo .cta { font-size: 30px; margin-top: 64px; }
-body.tall .logo .sub { font-size: 25px; max-width: 800px; text-align: center; line-height: 1.5; }
+body.tall .logo .sub { font-size: 29px; max-width: 800px; text-align: center; line-height: 1.5; }
 body.tall .logo .url { font-size: 29px; margin-top: 16px; }
 /* the time of day, for the day-in-sixteen-seconds clip */
 .clock { left: 64px; bottom: 60px; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8); }
@@ -91,7 +91,7 @@ window.setup = (edit, tall) => {
     if (it.kind === 'line') add('line', (it.kicker ? `<div class="kicker">${esc(it.kicker)}</div><div class="rule"></div>` : '') + `<div class="head">${esc(it.head)}</div>`, it);
     else if (it.kind === 'big') add('big', `<div class="kicker">${esc(it.kicker)}</div><div class="rule"></div><div class="head">${esc(it.head)}</div>`, it);
     else if (it.kind === 'chip') add('chip', `<i></i><b>${esc(it.text)}</b><span>${esc(it.name)}</span>${it.year ? `<em>· ${esc(it.year)}</em>` : ''}`, it);
-    else if (it.kind === 'logo') add('logo' + (it.small ? ' small' : ''), `<img src="/logo.png"><div class="tag">${esc(it.tag)}</div><div class="cta">${esc(it.cta)}</div><div class="sub">${esc(it.sub)}</div><div class="url">${esc(it.url)}</div>`, it);
+    else if (it.kind === 'logo') add('logo' + (it.small ? ' small' : ''), `<img src="/logo.png"><div class="tag">${esc(it.tag)}</div><div class="cta">${esc(it.cta)}</div><div class="sub">${esc(it.sub)}</div>${it.url ? `<div class="url">${esc(it.url)}</div>` : ''}`, it);
     else if (it.kind === 'clock') add('clock', `<b></b><small>${esc(it.place)}</small>`, it);
     else if (it.kind === 'flash' || it.kind === 'fade' || it.kind === 'dim') add('full', '', it);
   }
@@ -109,7 +109,7 @@ window.draw = (t) => {
       const a = t - it.t0, b = it.t1 - t;
       on = a >= 0 && b > 0;
       if (on) {
-        const i = ease(a / 0.5), o = smooth(b / 0.32), k = i * o;
+        const i = ease(a / (it.quick ? 0.26 : 0.5)), o = smooth(b / (it.quick ? 0.2 : 0.32)), k = i * o;
         s.opacity = k.toFixed(3);
         s.filter = i < 1 ? `blur(${((1 - i) * 12).toFixed(2)}px)` : o < 1 ? `blur(${((1 - o) * 6).toFixed(2)}px)` : 'none';
         s.transform = `translateY(${((1 - i) * 22).toFixed(2)}px) scale(${(1 + a * 0.006).toFixed(4)})`;
@@ -144,7 +144,7 @@ window.draw = (t) => {
         const img = el.querySelector('img'), k0 = ease(a / 1.0);
         img.style.opacity = k0.toFixed(3);
         img.style.transform = `scale(${(0.93 + 0.07 * k0 + a * 0.0025).toFixed(4)})`;
-        key = [k0.toFixed(3), img.style.transform, part('.tag', 0.45), part('.cta', 0.95), part('.sub', 1.25), part('.url', 1.4)].join('|');
+        key = [k0.toFixed(3), img.style.transform, part('.tag', 0.45), part('.cta', 0.95), part('.sub', 1.25), el.querySelector('.url') ? part('.url', 1.4) : ''].join('|');
       }
     } else if (it.kind === 'flash') {
       const a = t - it.t;

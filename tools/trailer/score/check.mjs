@@ -1,4 +1,4 @@
-// The check on paper (sanity.ts), printed:  node tools/trailer/score/sanity.mjs      (same servers as render.mjs)
+// The check on paper (sanity.ts), printed:  node tools/trailer/score/check.mjs      (same servers as render.mjs)
 process.env.CDP ??= 'http://127.0.0.1:9334';
 process.env.BASE ??= 'http://127.0.0.1:5318';
 const { openPage, sleep, BASE } = await import('../cdp.mjs');
