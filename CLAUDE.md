@@ -613,6 +613,17 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
+**Handoff (2026-11-17), the marketing kit's second score:** friends and beta testers all said "change the music"
+about the trailer, so after v0.15.4's soundtrack the user asked for the kit's videos with the new sound ("everything
+else from the trailer is great"). Done on 2026-11-16 as a re-score only: the eleven videos and four WAVs in
+`~/Videos/The Kardashev Project - Marketing/` carry the new music, the picture streams untouched (`resound.mjs`), the
+old files set aside in that folder's `Previous (first score)/` for the user to delete. The work is one commit on
+`main`, **local only, not pushed** ("the marketing kit's second score"): the user said a later session pushes it.
+Pushing `main` redeploys the website only, and this commit touches no website or game file. Open: the user's
+verdict on how it sounds (nobody could listen here); a change to a section is `tools/trailer/score/pieces.ts`, then
+the four commands under "When only the music changed" in `tools/trailer/README.md` (about a minute). `steam/` is
+the user's own untracked folder: leave it out of commits unless they say.
+
 **Next:** v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
 sure it's ready to be played by users that are paying"): built and checked, waiting for the user's word to ship. §38
 ends with the low items left. Before it, v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36", then "Keep going, we only
@@ -644,7 +655,9 @@ Electron/Steamworks wrapper if Tauri can't do the overlay). Later: Type II as an
 - The website's other fifteen screenshots show no interface, so they are current; `ui-campus.webp` was re-shot for
   v0.13. The marketing kit (`~/Videos/The Kardashev Project - Marketing`: trailer, teaser, vertical cuts, shorts,
   stills, key art, post copy) was re-made from v0.13.2 on 2026-11-11; `tools/trailer/` re-makes it (README there).
-  Nobody has listened to its music: it was checked by loudness and spectrogram only.
+  Its music was written again on 2026-11-16 from the v0.15.4 soundtrack (the Type I medley cut to the picture, a
+  genre per act: `tools/trailer/score/pieces.ts`) and put under the finished videos with `resound.mjs` (picture
+  untouched). Checked by loudness and spectrogram only: nobody has listened to it here.
 - From SPEC §29: Act III's satellite, beam and liftoff on the globe were not
   exercised; power beams in the ending only show with beam capacity; the cinematic is capped at 16 s by `tickEnding`;
   the 4K-at-150% interface survey was partial.

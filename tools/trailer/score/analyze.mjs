@@ -8,7 +8,9 @@ import { integrated, kWeight, loudnessOf, readWav24, shortTerm, truePeakDb, wind
 
 const db10 = (x) => 10 * Math.log10(Math.max(x, 1e-14));
 const DEFAULT_BANDS = [['sub', 30, 80], ['low', 80, 300], ['mid', 300, 4000], ['high', 4000, 8000], ['air', 8000, 20000]];
-const TARGET = { trailer: [-14, 0.7], teaser: [-14, 0.7], calm: [-15, 0.7], rise: [-14, 0.7] };
+const TARGET = { trailer: [-14, 0.7], teaser: [-14, 0.7], calm: [-15, 0.7], rise: [-15, 0.7] };
+/** Cues that are a pad and a few notes. */
+const QUIET = new Set(['intro', 'moon', 'resolve', 'land']);
 
 function fft(re, im) {
   const n = re.length;
@@ -148,7 +150,8 @@ export async function analyze(file, piece, { png } = {}) {
   // whistles: a narrow line above 3 kHz that is loud (within 30 dB of the cue's strongest band), far above its
   // neighbourhood, and there for most of the cue (in three of its quarters: a bell's partial rings and is gone, a
   // whistle stays). Lower down, narrow lines are simply the notes.
-  for (const [name, from, to] of map.cues) {
+  // (only where the band is full: in the quiet cues a glass pad's own partials are alone up there, by design)
+  for (const [name, from, to] of map.cues.filter((c) => !QUIET.has(c[0]))) {
     const bands = [];
     for (let f = 200; f < 12000; f *= 2 ** (1 / 24)) bands.push(['', f, f * 2 ** (1 / 24)]);
     const stands = bands.map(() => 0), most = bands.map(() => 0);
@@ -212,29 +215,30 @@ export async function analyze(file, piece, { png } = {}) {
     check(s[0] - 1.5 >= bar * 2 - 1.01 && s[0] - 1.5 <= bar * 2 + 0.01, `the loudest 3 s window starts on the bar-${bar} hit (found ${(s[0] - 1.5).toFixed(0)}–${(s[0] + 1.5).toFixed(0)} s, ${s[1].toFixed(1)} LUFS)`);
   };
   if (piece === 'trailer') {
-    for (const q of ['intro', 'break1', 'break2']) quiet(q, 'groove1');
-    quiet('break1', 'groove2');
-    quiet('break2', 'groove3');
-    louder('garage', 'groove1');
-    louder('groove1', 'groove2');
-    louder('groove2', 'groove3');
+    for (const q of ['intro', 'moon']) quiet(q, 'citypop');
+    quiet('moon', 'light');
+    louder('garage', 'citypop');
+    louder('geneva', 'planet');
+    louder('citypop', 'light');
+    louder('planet', 'light');
     topAt(38);
   } else if (piece === 'teaser') {
-    quiet('intro', 'groove');
+    quiet('intro', 'light');
     topAt(10);
   } else if (piece === 'rise') {
     louder('build', 'land');
     topAt(4);
   }
-  // the grooves: energy across the range
-  for (const r of rows.filter((r) => /^groove/.test(r.cue))) {
+  // the full-band sections: energy across the range
+  for (const r of rows.filter((r) => ['citypop', 'planet', 'light'].includes(r.cue))) {
     const [sub, low, mid, high, air] = r.bands;
     if (sub > low + 6) fails.push(`bar ${r.b}: the sub booms (${sub.toFixed(0)} against ${low.toFixed(0)} dB)`);
     if (sub < mid - 18) fails.push(`bar ${r.b}: no sub (${sub.toFixed(0)} dB)`);
     if (air < mid - 38) fails.push(`bar ${r.b}: no air above 8 kHz (${air.toFixed(0)} dB)`);
     if (high < mid - 30) fails.push(`bar ${r.b}: dull (${high.toFixed(0)} dB at 4–8 kHz)`);
   }
-  const worstLow = Math.min(...rows.filter((r) => r.lufs > -40).map((r) => r.lowKeep));
+  // (bars with something in the bass: a tail that is only the hall's ring has none to add up)
+  const worstLow = Math.min(...rows.filter((r) => r.lufs > -40 && r.bands[1] > -60).map((r) => r.lowKeep));
   check(worstLow > -1.5, `mono: the bass adds up (worst bar keeps ${worstLow.toFixed(1)} dB of it)`);
   const worstAll = Math.min(...rows.filter((r) => r.lufs > -40).map((r) => r.allKeep));
   check(worstAll > -3.5, `mono: nothing cancels (worst bar keeps ${worstAll.toFixed(1)} dB)`);

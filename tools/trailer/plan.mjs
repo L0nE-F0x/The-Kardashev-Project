@@ -171,3 +171,13 @@ for (const id of ['day', 'liftoff', 'type1']) {
   EDITS[id + '-tall'] = { ...EDITS[id], view: 'tall' };
   EDITS[id] = { ...EDITS[id], view: 'wide' };
 }
+
+/** Where each cut lives in the kit folder: edit → [the file, its 1080p copy if it has one] (kit.mjs, resound.mjs). */
+export const VIDEOS = {
+  trailer: ['Trailer/TheKardashevProject-Trailer-1440p60.mp4', 'Trailer/TheKardashevProject-Trailer-1080p60.mp4'],
+  teaser: ['Teaser/TheKardashevProject-Teaser-1440p60.mp4', 'Teaser/TheKardashevProject-Teaser-1080p60.mp4'],
+  'teaser-tall': ['Teaser/TheKardashevProject-Teaser-Vertical.mp4'],
+  day: ['Shorts/OneDay-Wide.mp4'], 'day-tall': ['Shorts/OneDay-Vertical.mp4'],
+  liftoff: ['Shorts/Liftoff-Wide.mp4'], 'liftoff-tall': ['Shorts/Liftoff-Vertical.mp4'],
+  type1: ['Shorts/TypeI-Wide.mp4'], 'type1-tall': ['Shorts/TypeI-Vertical.mp4'],
+};

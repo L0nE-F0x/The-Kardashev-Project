@@ -8,7 +8,7 @@ these scripts from the running game. Nothing here is part of the game or its bui
 | File | Job |
 |---|---|
 | `music-map.mjs` | the one clock picture and sound share: 120 BPM, a bar = 2 s; what each piece does bar by bar |
-| `score/` | the music, written with the game's own audio engine (`render.mjs` renders it; its own README comment says how) |
+| `score/` | the music: the game's own soundtrack cut to the picture (`pieces.ts`: the Type I medley's band and arranging, a genre and a key per act; `kit.ts` walks it bar by bar on the picture's clock through the game's mix; `fx.ts` = the hits, risers and the rocket). `render.mjs` renders and measures it (its header says how), `sanity.mjs` checks the notes on paper, `balance.mjs` measures an instrument at a time |
 | `shots.mjs` | every shot: the scene, the light, the camera move, what happens each frame |
 | `director.js` | runs in the game's page: builds the worlds and scenes, a free camera, a pointer for interface shots, the test bots at the controls for time-lapses |
 | `cdp.mjs` | the Chrome DevTools client; puts the page on a virtual clock so every frame is exactly 1/60 s of game time |
@@ -16,6 +16,7 @@ these scripts from the running game. Nothing here is part of the game or its bui
 | `plan.mjs` | the cuts: which shot when, the titles over it, the Kardashev read-out's numbers |
 | `titles.html` / `titles.mjs` | the animated titles, one transparent PNG a frame |
 | `edit.mjs` | cuts clips + titles + music into a video (ffmpeg) |
+| `resound.mjs` | a new score under the finished videos in the kit folder: the sound is swapped, the picture stream copied untouched (checked by its MD5) |
 | `art.html` / `art.mjs` | key art from the stills: logo over a picture at the sizes the sites ask for |
 | `kit.mjs` | the last step: files the finished pieces into the kit folder under the names people see (stills numbered in story order, a 1080p copy of the trailer and teaser); `--keep <folder>` sets aside what it replaces |
 | `x.mjs`, `shots-try/` | directing by hand: run a snippet in a tab that stays open and look at the result |
@@ -49,11 +50,28 @@ node tools/trailer/titles.mjs trailer,teaser && node tools/trailer/edit.mjs trai
 node tools/trailer/kit.mjs stills trailer teaser --shots $H --keep "Previous (v0.13.2)"
 ```
 
+**When only the music changed** (the second score, 2026-11-16, for the game's v0.15.4 soundtrack): nothing is
+recorded or cut again. The score's own Vite and Chrome (see `score/render.mjs`), then:
+
+```bash
+node tools/trailer/score/sanity.mjs                   # the notes on paper: every tune note against its chord
+node tools/trailer/score/render.mjs all               # the four pieces, mastered and measured (all checks should pass)
+node tools/trailer/resound.mjs all --keep "Previous (first score)"   # the new sound under the eleven videos
+node tools/trailer/kit.mjs music --keep "Previous (first score)"     # the WAVs
+```
+
 `edit.mjs <edit> --draft` cuts a half-size draft in a minute; look at it as a sheet of frames:
 `ffmpeg -i out/trailer-draft.mp4 -vf "fps=1,scale=426:240,tile=6x8" -frames:v 1 sheet.jpg`.
 
 ## Things worth knowing
 
+- The score follows the game's: the music changes genre where the picture changes act (the act chips in `plan.mjs`
+  sit on the same bars: 4 garage funk, 8 city pop, 16 bossa nova, 20 mallets and drums, 28 the light), a key higher
+  each time, and the arranging is the game's medley (`src/audio/tracks/ending.ts`) bar for bar where a section has
+  its length. A change to the game's instruments changes the trailer's sound at the next render; a change to the
+  medley's arranging has to be carried over by hand.
+- Nobody can listen here: the score is judged by `render.mjs`'s table (loudness per bar and per cue, each hit's onset
+  against its bar line, the last hit the loudest moment) and the spectrogram it writes next to the WAV.
 - A tight loop of frames starves the page: models and textures load between frames, so warm-ups use
   `D.runAsync` and `D.loaded()`.
 - A shot that starts a real game (`D.start`) leaves it running; `D.world()` goes back to the title first, or the

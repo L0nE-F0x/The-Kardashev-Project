@@ -1,12 +1,14 @@
 /**
- * The marketing score's own player. The game's `Cinematic` starts a beat late and loops; a trailer cue is one fixed
- * timeline, so this file keeps only what it needs: a list of events at exact times (bar N starts at N × 2 s, to the
- * sample), pumped through the game's real mix (`renderOffline` in src/audio/engine.ts: buses, hall, echo, glue
- * compressor, limiter), with the game's instruments (src/audio/synth.ts) and its chord and melody notation
- * (src/audio/score.ts). Nothing under src/ is changed.
+ * The marketing score's own player. The game's `Cinematic` starts a beat late, loops and follows the game's mood; a
+ * trailer cue is one fixed timeline, so this file walks a piece's sections once, bar by bar, exactly as the game's
+ * player does (the same voice-leading, the same `Bar` an arranger in src/audio/tracks/ receives, so arranging code
+ * moves between the two unchanged), with every bar on the picture's clock: bar N starts at N × 2 s, to the sample.
+ * It all goes through the game's real mix (`renderOffline` in src/audio/engine.ts: buses, hall, echo, glue
+ * compressor, limiter) on the game's instruments (src/audio/voices/). Nothing under src/ is changed.
  */
 import { mixBus, onPump, renderOffline, setDelayTime, setVolumes } from '../../../src/audio/engine';
-import { bassNote, chords, drop2, melody, seeded, voice, MAJOR, type Chord } from '../../../src/audio/score';
+import type { Bar, Mood } from '../../../src/audio/cinematic';
+import { bassNote, chords, drop2, melody, seeded, voice, MAJOR, type Chord, type MelNote } from '../../../src/audio/score';
 import { strip, type Outs, type Strip } from '../../../src/audio/synth';
 
 /** 120 BPM in 4/4: a bar is 2 s, a sixteenth 0.125 s (the same clock as tools/trailer/music-map.mjs). */
@@ -17,11 +19,28 @@ export type Stem = 'full' | 'music' | 'fx';
 
 type StripOpts = Parameters<typeof strip>[2];
 
+/** A bar as the game's arrangers see it, plus what a fixed timeline knows: the chord the next bar opens on. */
+export interface TBar extends Bar {
+  nextCh: Chord;
+}
+
+/** One section of a piece: who arranges it (`sec`), its key, its chords (a bar between `|`) and its tune. */
+export interface SecDef {
+  sec: string;
+  /** MIDI note of degree 1. */
+  tonic: number;
+  ch: string;
+  mel?: string;
+}
+
+const MOOD: Mood = { calm: false, drive: 1, tension: 0 };
+
 export class Session {
   readonly ctx: BaseAudioContext;
   readonly r: () => number;
   readonly events: { t: number; fn: (t: number) => void }[] = [];
   readonly strips = new Map<string, Strip>();
+  readonly stops: (() => void)[] = [];
   private groups: Record<'music' | 'fx', Outs>;
   /** In the music's dry path: `gap` closes it for the breath before a hit. */
   private breath: GainNode;
@@ -55,6 +74,11 @@ export class Session {
     if (this.solo && this.solo !== name) s.fader.gain.value = 0;
     this.strips.set(name, s);
     return s;
+  }
+
+  /** What an instrument's maker wants (the game's `Setup`). */
+  get setup() {
+    return { ctx: this.ctx, r: this.r, strip: (name: string, o: StripOpts) => this.strip(name, o), onStop: (fn: () => void) => void this.stops.push(fn) };
   }
 
   /** Schedule `fn(t)` at a sixteenth of a bar (steps past 15 run on into the next bars; fractions are fine). */
@@ -96,6 +120,65 @@ export class Session {
   }
 
   private rode = 1;
+
+  /**
+   * Walk the sections from bar 0 and hand every bar to `arrange`, as the game's player would: chords voiced with the
+   * least movement from the one before, a chord held over a bar line not struck again, the tune's notes by bar.
+   * Returns the number of bars.
+   */
+  play(form: SecDef[], v: Voicing, arrange: (c: TBar) => void): number {
+    const secs = form.map((s) => {
+      const bars = chords(s.ch);
+      const mel: MelNote[][] = bars.map(() => []);
+      for (const m of s.mel ? melody(s.mel, 16, MAJOR) : []) {
+        const b = Math.floor(m.at / 16);
+        if (b < mel.length) mel[b].push({ ...m, at: m.at - b * 16 });
+      }
+      return { ...s, bars, mel };
+    });
+    const size = v.size ?? 4;
+    let prev: number[] | null = null, held: number[] | null = null, n = 0;
+    const voiceIt = (c: Chord) => {
+      const x = voice(c, prev, v.lo, v.hi, size);
+      prev = x;
+      return v.open ? drop2(x) : x;
+    };
+    const x = Array.from({ length: 8 }, () => 0);
+    secs.forEach((sec, k) => {
+      sec.bars.forEach((bar, i) => {
+        const fresh = i === 0 || sec.bars[i - 1] !== bar;
+        const vo = fresh || !held ? voiceIt(bar[0]) : held;
+        held = vo;
+        let hold = 1;
+        while (i + hold < sec.bars.length && sec.bars[i + hold] === bar) hold++;
+        const t0 = n * BAR;
+        const after = i + 1 < sec.bars.length ? sec.bars[i + 1] : secs[k + 1]?.bars[0];
+        const c: TBar = {
+          sec: sec.sec, i, len: sec.bars.length, n, turn: 0, pass: 0,
+          next: i === sec.bars.length - 1 ? (secs[k + 1]?.sec ?? '') : sec.sec,
+          ch: bar[0], v: vo, bass: bassNote(bar[0], v.bassLo), fresh, hold,
+          v2: bar[1] ? voiceIt(bar[1]) : null, bass2: bar[1] ? bassNote(bar[1], v.bassLo) : 0,
+          mel: sec.mel[i], tonic: sec.tonic, mood: MOOD, r: this.r, x, steps: 16,
+          nextCh: after ? after[0] : bar[bar.length - 1],
+          dur: (s) => s * STEP,
+          at: (step, fn, human) => void this.events.push({ t: t0 + step * STEP + (human ? this.r() * 0.014 : 0), fn }),
+        };
+        if (bar[1]) held = c.v2;
+        arrange(c);
+        n++;
+      });
+    });
+    return n;
+  }
+}
+
+/** Where a piece's chord voicings sit (as a game track's `lo`, `hi`, `size`, `open`, `bassLo`). */
+export interface Voicing {
+  lo: number;
+  hi: number;
+  size?: number;
+  open?: boolean;
+  bassLo: number;
 }
 
 export interface PieceDef {
@@ -118,10 +201,11 @@ export const PAD = 0.25;
  */
 export async function renderPiece(def: PieceDef, stem: Stem, solo: string | null = null, names?: string[]): Promise<AudioBuffer> {
   setVolumes({ master: 1, sfx: 1, music: 1, ambience: 1 });
-  // the echo: a dotted eighth at 120 BPM
+  // the echo: a dotted eighth at 120 BPM (three steps, as the game's medley has it)
   setDelayTime(STEP * 3);
-  return renderOffline(def.bars * BAR + def.tail + PAD, () => {
-    const k = new Session(stem, def.seed, def.level, solo);
+  let session: Session | null = null;
+  const buf = await renderOffline(def.bars * BAR + def.tail + PAD, () => {
+    const k = (session = new Session(stem, def.seed, def.level, solo));
     def.build(k);
     names?.push(...k.strips.keys());
     // a stable sort: events at the same instant keep the order they were written in
@@ -134,68 +218,6 @@ export async function renderPiece(def: PieceDef, stem: Stem, solo: string | null
       }
     });
   });
-}
-
-// ── harmony and tunes ───────────────────────────────────────────────────────────────────────
-export interface HBar {
-  ch: Chord;
-  /** The chord at the top of the bar, voiced; `fresh` when newly struck; `hold` = bars until the next one. */
-  v: number[];
-  bass: number;
-  fresh: boolean;
-  hold: number;
-  /** A second chord from the middle of the bar, if any. */
-  v2: number[] | null;
-  bass2: number;
-}
-
-/** Voice a chord line the way the game's player does (close position, minimal movement between chords). */
-export function harmony(line: string, o: { lo?: number; hi?: number; size?: number; bassLo?: number; open?: boolean; prev?: number[] | null } = {}): HBar[] {
-  const { lo = 55, hi = 74, size = 4, bassLo = 33, open = false } = o;
-  let prev = o.prev ?? null;
-  const bars = chords(line);
-  const voiceIt = (c: Chord) => {
-    const v = voice(c, prev, lo, hi, size);
-    prev = v;
-    return open ? drop2(v) : v;
-  };
-  const out: HBar[] = [];
-  let held: number[] | null = null;
-  bars.forEach((bar, i) => {
-    const fresh = i === 0 || bars[i - 1] !== bar;
-    const v = fresh || !held ? voiceIt(bar[0]) : held;
-    held = v;
-    let hold = 1;
-    while (i + hold < bars.length && bars[i + hold] === bar) hold++;
-    const v2 = bar[1] ? voiceIt(bar[1]) : null;
-    if (v2) held = v2;
-    out.push({ ch: bar[0], v, bass: bassNote(bar[0], bassLo), fresh, hold, v2, bass2: bar[1] ? bassNote(bar[1], bassLo) : 0 });
-  });
-  return out;
-}
-
-/** The voicing and the bass sounding at a step of a bar. */
-export const vAt = (h: HBar, step: number) => (h.v2 && step >= 8 ? h.v2 : h.v);
-export const bassAt = (h: HBar, step: number) => (h.v2 && step >= 8 ? h.bass2 : h.bass);
-
-export interface TuneNote {
-  /** Steps from the start of the tune, the length in steps, the MIDI note. */
-  at: number;
-  len: number;
-  m: number;
-}
-
-/** A tune in scale degrees (score.ts `melody`) as MIDI notes in a key. */
-export function tune(line: string, tonic: number, mode = MAJOR): TuneNote[] {
-  return melody(line, 16, mode).map((n) => ({ at: n.at, len: n.len, m: tonic + n.semi }));
-}
-
-export type Note = (t: number, m: number, dur: number, vel: number) => void;
-
-/** Play a tune on an instrument from a bar on, the downbeats leaning in a little. */
-export function sing(k: Session, bar0: number, notes: TuneNote[], play: Note, vel: number, oct = 0, legato = 0.96): void {
-  for (const n of notes) {
-    const v = vel * (n.at % 16 === 0 ? 1 : 0.9) * (0.95 + k.r() * 0.1);
-    k.at(bar0, n.at, (t) => play(t, n.m + oct, n.len * STEP * legato, v));
-  }
+  for (const fn of (session as Session | null)?.stops ?? []) fn();
+  return buf;
 }

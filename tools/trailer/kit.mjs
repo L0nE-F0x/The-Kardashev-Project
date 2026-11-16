@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { VIDEOS } from './plan.mjs';
 
 const args = process.argv.slice(2);
 const flag = (f) => { const i = args.indexOf(f); if (i < 0) return null; const v = args[i + 1]; args.splice(i, 2); return v; };
@@ -31,15 +32,6 @@ export const STILLS = [
 ];
 const TALL_STILLS = [['aurora-over-lulea', 'lulea-night'], ['north-sea-wind', 'northsea'], ['on-the-pad', 'liftoff-long-1'], ['liftoff', 'liftoff-long-2'],
   ['habitat', 'habitat'], ['sunrise', 'type1-2'], ['ignition', 'type1-3'], ['type-one', 'type1-5']];
-/** The cut videos: edit (plan.mjs) → [file in the kit, also a 1080p copy?]. */
-const VIDEOS = {
-  trailer: ['Trailer/TheKardashevProject-Trailer-1440p60.mp4', 'Trailer/TheKardashevProject-Trailer-1080p60.mp4'],
-  teaser: ['Teaser/TheKardashevProject-Teaser-1440p60.mp4', 'Teaser/TheKardashevProject-Teaser-1080p60.mp4'],
-  'teaser-tall': ['Teaser/TheKardashevProject-Teaser-Vertical.mp4'],
-  day: ['Shorts/OneDay-Wide.mp4'], 'day-tall': ['Shorts/OneDay-Vertical.mp4'],
-  liftoff: ['Shorts/Liftoff-Wide.mp4'], 'liftoff-tall': ['Shorts/Liftoff-Vertical.mp4'],
-  type1: ['Shorts/TypeI-Wide.mp4'], 'type1-tall': ['Shorts/TypeI-Vertical.mp4'],
-};
 
 const run = (cmd, a) => { const r = spawnSync(cmd, a, { stdio: ['ignore', 'ignore', 'pipe'] }); if (r.status) { console.error(`${cmd} failed:`, String(r.stderr).slice(-600)); process.exit(1); } };
 /** The place a file goes; whatever is there now is set aside first (or simply replaced without --keep). */

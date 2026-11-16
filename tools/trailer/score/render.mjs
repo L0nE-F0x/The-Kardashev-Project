@@ -27,7 +27,7 @@ const { openPage, sleep, BASE } = await import('../cdp.mjs');
 const { MAP } = await import('../music-map.mjs');
 
 /** Integrated loudness targets (LUFS). */
-const TARGET = { trailer: -14, teaser: -14, calm: -15, rise: -14 };
+const TARGET = { trailer: -14, teaser: -14, calm: -15, rise: -15 };
 /** The game's mix delays everything by its two compressors' look-ahead: 2 × 6 ms (measured with an impulse). */
 const LATENCY = 576;
 
