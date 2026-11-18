@@ -1,3 +1,4 @@
+import { RESEARCH_POOL_CAP } from '../../sim/ai';
 import { Bar, Icon, Panel, useGame } from '../components';
 import { Tile, Tiles } from '../kit';
 import { TECHS, TECH_BY_ID, TECH_CATEGORIES, type TechCategory } from '../../content/techs';
@@ -23,7 +24,7 @@ export function ResearchPanel() {
             <i style={{ width: `${(s.research.done.length / Math.max(1, open)) * 100}%` }} />
           </div>
         </Tile>
-        <Tile wide label={cur ? 'Researching now' : 'Lab'} icon="lab" tone={cur ? 'violet' : nothingLeft ? 'good' : 'warn'} value={cur ? cur.name : nothingLeft ? 'All caught up' : 'Pick a project'} sub={cur ? `${Math.floor(s.research.progress)} / ${cur.cost} points · about ${fmtDays((cur.cost - s.research.progress) / Math.max(0.01, rp))} left` : nothingLeft ? 'Until more opens up, move the Research share to Training (Compute).' : 'The lab is idle: at most 80 points can be banked.'}>
+        <Tile wide label={cur ? 'Researching now' : 'Lab'} icon="lab" tone={cur ? 'violet' : nothingLeft ? 'good' : 'warn'} value={cur ? cur.name : nothingLeft ? 'All caught up' : 'Pick a project'} sub={cur ? `${Math.floor(s.research.progress)} / ${cur.cost} points · about ${fmtDays((cur.cost - s.research.progress) / Math.max(0.01, rp))} left` : nothingLeft ? (s.research.pool < RESEARCH_POOL_CAP - 0.5 ? `Banking points for what opens next: ${Math.floor(s.research.pool)} of ${RESEARCH_POOL_CAP}.` : `${RESEARCH_POOL_CAP} points banked for what opens next: the notebook is full. Until then, move the Research share to Training (Compute).`) : 'The lab is idle: at most 80 points can be banked.'}>
           {cur && (
             <div class="bar violet" style={{ marginTop: '6px' }}>
               <i style={{ width: `${(s.research.progress / cur.cost) * 100}%` }} />

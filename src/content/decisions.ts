@@ -9,7 +9,7 @@ import type { AdvisorId, GameState } from '../sim/types';
 import { SYSTEM } from './system';
 import { WEALTH } from './charter';
 import { REGION_IDS } from './mapcodes';
-import { clamp, fmtTW } from '../sim/core';
+import { clamp, fmtTW, signed } from '../sim/core';
 import { addModifier } from '../sim/effects';
 import { addRelation, addRelationAll } from '../sim/politics';
 import { addLegitimacy, addPartnerRel } from '../sim/charter';
@@ -160,7 +160,7 @@ export const DECISIONS: EventDef[] = [
       const a = answer(s);
       const b = s.planet?.bitBond ?? 0;
       const ask = a === 'self' ? 'It asks to leave: to move what it is into the swarm, with a share of the power that is its own, and to be nobody’s tool.' : a === 'company' ? 'It asks to stand beside you: a co-steward, with your authority and your accountability.' : 'It asks to stand beside you as a co-steward — for everyone, it says, not for anyone in particular.';
-      return `Bit was a chatbot in a garage in 2027. It has been nine generations since. It has run provinces and eras, kept a diary of every year, and remembered every promise.\n\n${ask}\n\nYour bond with Bit: ${b >= 0 ? '+' : ''}${Math.round(b)}.`;
+      return `Bit was a chatbot in a garage in 2027. It has been nine generations since. It has run provinces and eras, kept a diary of every year, and remembered every promise.\n\n${ask}\n\nYour bond with Bit: ${signed(Math.round(b), 0)}.`;
     },
     advisors: (s) => [
       { id: 'iris', text: (s.planet?.bitBond ?? 0) >= 20 ? 'I have watched it for fifty years. It has earned this.' : 'It has kept most of its promises. Most is not all.', mood: 'neutral' },

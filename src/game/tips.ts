@@ -1,3 +1,4 @@
+import { RESEARCH_POOL_CAP } from '../sim/ai';
 import { runsCompany } from '../sim/events';
 import type { Game } from './game';
 import type { AdvisorId, GameState } from '../sim/types';
@@ -93,6 +94,17 @@ export const TIPS: TipDef[] = [
     },
     action: { label: 'Open Orders', run: (g) => g.panel !== 'orders' && g.openPanel('orders') },
     learn: 'chips',
+  },
+  {
+    // Act I's tree runs out months before Bit-2 ships: the lab's share of the compute then does nothing
+    id: 'research-done',
+    advisor: 'iris',
+    days: 12,
+    // (idle points are banked for what opens next, up to a cap: it is only wasted once the notebook is full)
+    when: (s) => !s.research.current && researchable(s).length === 0 && s.research.done.length > 0 && s.research.pool >= RESEARCH_POOL_CAP - 0.5 && s.alloc.research > 0.02 && s.stats.installedAccel + s.rental.units > 0,
+    text: (s) => `The lab has finished everything it can reach for now, and its notebook is full: ${Math.floor(s.research.pool)} points banked for what opens next. The ${Math.round(s.alloc.research * 100)}% of our compute still set aside for it is better spent on training and customers until then.`,
+    action: { label: 'Give it back', run: (g) => g.setAlloc('research', 0) },
+    learn: 'loop',
   },
   {
     // the first order is sized to the power the site had planned (one solar farm and a battery carry about three

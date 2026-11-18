@@ -440,7 +440,7 @@ function ProvincesTab() {
                 </div>
                 <div class="small muted" style={{ marginTop: '2px' }}>
                   Runs: {regionsOf(s, a).map((r) => REGIONS[r].short).join(', ') || 'nothing yet'} · incidents {st.incidents}
-                  {a === 'bit' ? ` · your bond ${pl.bitBond >= 0 ? '+' : ''}${Math.round(pl.bitBond)}` : ''}
+                  {a === 'bit' ? ` · your bond ${signed(Math.round(pl.bitBond), 0)}` : ''}
                 </div>
               </div>
             );
@@ -1016,7 +1016,7 @@ export function Act4CompleteModal() {
             <div class="delta">
               <div class="label">AI provinces</div>
               <div class="v">{aiRegionCount(s)}</div>
-              <div class="small muted">Bit’s bond {pl.bitBond >= 0 ? '+' : ''}{Math.round(pl.bitBond)}</div>
+              <div class="small muted">Bit’s bond {signed(Math.round(pl.bitBond), 0)}</div>
             </div>
           </div>
           <div class="quote">

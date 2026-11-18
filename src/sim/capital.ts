@@ -7,7 +7,7 @@ import { FACILITIES } from '../content/facilities';
 import { REGIONS } from '../content/regions';
 import { siteDef } from '../content/sites';
 import type { Board, ComputeContract, GameState } from './types';
-import { clamp, fmtMoney, news, nextId, pick, rand, randInt, yearsElapsed } from './core';
+import { clamp, fmtMoney, news, nextId, pick, rand, randInt, yearsElapsed, signed } from './core';
 import { spend } from './economy';
 import { queueEvent } from './events';
 import { buildCost, currentCapability, DAYS_PER_MONTH, facilitySlots, frontier, INFER_REV_PER_ACCEL_MONTH, inferPriceTrend, tierMult } from './model';
@@ -87,7 +87,7 @@ export function ipoBreakdown(s: GameState): IpoBreakdown {
     [`Board confidence ${Math.round(conf)}`, clamp(conf / 60, 0.6, 1.4)],
     [m >= 0 ? 'A positive safety margin' : m >= -0.25 ? 'A thin safety margin' : 'A negative safety margin', m >= 0 ? 1.1 : m >= -0.25 ? 1 : 0.85],
     [`The Crunch: ${standing} of 3 fronts held`, 0.8 + 0.15 * standing],
-    [`Growth this quarter (${growth >= 0 ? '+' : ''}${Math.round(growth * 100)}% in volume)`, clamp(1 + growth, 0.8, 1.5)],
+    [`Growth this quarter (${signed(Math.round(growth * 100), 0)}% in volume)`, clamp(1 + growth, 0.8, 1.5)],
   ];
   const raw = parts.reduce((a, [, k]) => a * k, base);
   return { value: Math.max(IPO_FLOOR, raw), base, parts, floor: raw < IPO_FLOOR };

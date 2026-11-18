@@ -75,7 +75,7 @@ import type { IconName } from '../icons';
 
 export type CharterTab = 'overview' | 'contracts' | 'missions' | 'partners' | 'world';
 
-const sign = (v: number, d = 2) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
+const sign = (v: number, d = 2) => signed(v, d);
 const pips = (n: number) => '●'.repeat(Math.max(0, Math.min(5, n))) + '○'.repeat(Math.max(0, 5 - n));
 
 /** CEO or delegate portrait. */
@@ -673,10 +673,10 @@ function WorldTab() {
           <KV
             rows={[
               ['Kardashev', `K ${s.stats.K.toFixed(4)}`],
-              ['World power', `${s.stats.worldTW.toFixed(2)} TW of ${act4 ? PLANET.targetTW : '31.62'}`],
+              ['World power', `${s.stats.worldTW.toFixed(2)} / ${act4 ? PLANET.targetTW : '31.62'} TW`, 'What the world uses today, and what the next Kardashev goal takes.'],
               ['Built by the Charter', `${(w.charterTW * 1000).toFixed(0)} GW average`],
               ['Your own plants', fmtMW(s.stats.playerGenMW)],
-              ['World clean share', `${Math.round(worldClean(s) * 100)}% · new builds ${Math.round(w.newClean * 100)}%`],
+              ['World clean share', `${Math.round(worldClean(s) * 100)}% (new ${Math.round(w.newClean * 100)}%)`, 'The share of the world’s power that is clean, and the share of what is being built now.'],
             ]}
           />
         </div>

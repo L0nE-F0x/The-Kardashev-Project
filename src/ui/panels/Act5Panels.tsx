@@ -584,7 +584,7 @@ function MindsTab() {
         </div>
         <KV
           rows={[
-            ['Bond', `${pl.bitBond >= 0 ? '+' : ''}${Math.round(pl.bitBond)}`],
+            ['Bond', `${signed(Math.round(pl.bitBond), 0)}`],
             ['Trust', `${Math.round(pl.ais.bit.trust)}`],
             ['Fate', sy.bitFate ?? <span class="muted">undecided (stage 3)</span>],
           ]}

@@ -114,7 +114,7 @@ export function AwayModal() {
               ? d('Charter treasury', `${after.treasury - before.treasury >= 0 ? '+' : ''}${fmtMoney(after.treasury - before.treasury)}`, after.treasury >= before.treasury ? 'good' : 'bad')
               : d('Revenue', `${fmtMoney(after.revenueMonth)}/mo`)}
             {after.legitimacy !== undefined && before.legitimacy !== undefined
-              ? d('Legitimacy', `${Math.round(after.legitimacy)} (${after.legitimacy - before.legitimacy >= 0 ? '+' : ''}${Math.round(after.legitimacy - before.legitimacy)})`, after.legitimacy >= before.legitimacy ? 'good' : 'bad')
+              ? d('Legitimacy', `${Math.round(after.legitimacy)} (${signed(Math.round(after.legitimacy - before.legitimacy), 0)})`, after.legitimacy >= before.legitimacy ? 'good' : 'bad')
               : d('Chips installed', `${after.installed.toLocaleString()}`)}
             {d('Models', `${after.models}${after.models > before.models ? ' (new!)' : ''}`)}
             {d('Techs', `${after.techs}${after.techs > before.techs ? ` (+${after.techs - before.techs})` : ''}`)}
