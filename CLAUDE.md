@@ -654,14 +654,17 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **Handoff (2026-11-18), v1.0.0 "One Point Oh" (SPEC §40):** the user asked for the final pass ("we are going now ... to
 version 1.0.0 ... what is going to be going out to the users when my Steam page is ready ... it has to be perfect. I
-have not been able to do a full playthrough, so I want you to do that for me ... virtually"; not the sound). Built,
-tested and committed on `main` **locally: not pushed, not tagged** (pushing redeploys the website with the 1.0.0
-What's New; the tag makes CI build the draft installers; both wait for the user's word, and the three marketing-kit
-commits below go out with the same push). **The packaged app was not run**: this session was on the desktop machine
-(ApexForgeDesktop, RTX 3050 + AMD iGPU, the repo synced there by VibeForge/Syncthing, no Rust, no updater key, no
-`node_modules` until `npm ci`), so only the production build in WebKitGTK's test browser was checked. Before the
-draft is published: launch CI's AppImage (the dev laptop, or `gh release download` here), start a company, click
-something, and run the ending once (`game.startNew({ act5: true })`, the bots, then the credits by hand).
+have not been able to do a full playthrough, so I want you to do that for me ... virtually"; not the sound). Built and tested, then shipped the same day at the user's word ("it's time to ship it"):
+`main` pushed (the website), `v1.0.0` tagged; the first build was cancelled and its unpublished draft deleted so the
+audio fix below went into 1.0.0 itself. The desktop machine (ApexForgeDesktop: RTX 3050 + AMD Radeon 610M, Omarchy,
+the repo synced there by VibeForge/Syncthing, no updater key) now has Rust (rustup in `~/.cargo`, stable 1.100, no
+sudo) and builds the app: `npx tauri build --no-bundle` needs no extra system packages. **It has no
+`gst-plugins-good`**: the system's WebKit then has no `autoaudiosink` and every audio start is refused. That is how
+the no-sound message (engine.ts `onAudioFailure`) was found: an AppImage on the stronger card runs the system's
+WebKit, and on such a system was silent; the message names the package. The user was asked to install it there. The
+app was run headless: a `cage` of its own (`~/.cache/kardashev-qa/wk/app/run.sh <binary>`: scratch XDG dirs, the
+WebKit inspector on 9340; `WK=ws://127.0.0.1:9340/socket/1/1/WebPage node ~/.cache/kardashev-qa/wk/wk.mjs eval '…'`).
+Stop it by pid (`pgrep -x kardashev-proje`): a `pkill -f` with the path in it matches its own shell.
 What a next session should know:
 - The rig the session used is outside the repo and survives: `~/.cache/kardashev-qa/` on the desktop machine
   (Playwright in `pw/`, a WebKitGTK rig in `wk/`: `start.sh` runs `cage` headless with MiniBrowser and the inspector on
