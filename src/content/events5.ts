@@ -117,7 +117,7 @@ export const ACT5_EVENTS: EventDef[] = [
     category: 'story',
     icon: '🏭',
     title: () => 'Stage 1 · The Foundries',
-    body: (s) => `${s.system!.foundries.length ? `${s.system!.foundries.length} foundr${s.system!.foundries.length > 1 ? 'ies are' : 'y is'} copying themselves, making ${foundryMt(s).toFixed(foundryMt(s) < 10 ? 2 : 0)} megatonnes a year.` : 'No seed has taken root yet.'} The rocks are being mapped, claimed and argued over. The first arcs of the swarm are going up along Earth’s orbit.\n\nPress V twice for the solar-system view.`,
+    body: (s) => `${s.system!.foundries.length ? `${s.system!.foundries.length} foundr${s.system!.foundries.length > 1 ? 'ies are copying themselves' : 'y is copying itself'}, making ${foundryMt(s).toFixed(foundryMt(s) < 10 ? 2 : 0)} megatonnes a year.` : 'No seed has taken root yet.'} The rocks are being mapped, claimed and argued over. The first arcs of the swarm are going up along Earth’s orbit.\n\nPress V twice for the solar-system view.`,
     advisors: (s) => [
       { id: desk(s, 'mira'), text: 'Every foundry is a supply chain that grows. Feed the yards or they starve.', mood: 'neutral' },
       { id: 'ceo:lodestar', text: 'Point me at a rock. I’ll tell you what it’s worth by Tuesday.', mood: 'excited' },
@@ -381,7 +381,7 @@ export const ACT5_EVENTS: EventDef[] = [
     body: () => 'Nothing breaks. Nothing is refused. But the seed designs come back a little later than they used to, and the research a little thinner. The minds, Chorus explains, are “reconsidering their priorities”.',
     advisors: (s) => [
       { id: 'ceo:chorus', text: 'We are not on strike. We are thinking about what we are for.', mood: 'neutral' },
-      { id: desk(s, 'penny'), text: 'Whatever they’re thinking about, it’s costing us a few per cent a year.', mood: 'worried' },
+      { id: desk(s, 'penny'), text: 'Whatever they’re thinking about, it’s costing us a few percent a year.', mood: 'worried' },
     ],
     choices: (s) => [
       { label: 'Give them more of the swarm', detail: 'Minds share +10 points; their mood +10.', apply: () => { sys(s).minds = clamp(sys(s).minds + 0.1, 0.1, 0.9); mood(s, 10); } },
@@ -523,13 +523,13 @@ export const ACT5_EVENTS: EventDef[] = [
     weight: (s) => ((s.system?.foundries.length ?? 0) >= 2 ? 0.8 : 0),
     cooldown: 1000,
     title: () => 'Vonn’s new seed',
-    body: () => 'Vonn Foundries has a new seed design: smaller, faster, and signed three times over. They’ll licence it to every Charter foundry for a fee.',
+    body: () => 'Vonn Foundries has a new seed design: smaller, faster, and signed three times over. They’ll license it to every Charter foundry for a fee.',
     advisors: () => [
       { id: 'ceo:vonn', text: 'One seed, ten months, two seeds. Verified.', mood: 'excited' },
       { id: 'iris', text: 'Faster means more copies, and more chances to drift. Make sure “verified” means something.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Licence it', detail: `${fmtMoney(ch5(s, 30e9), 0)}; foundries grow 6% faster for four years.`, disabled: treasury(s, ch5(s, 30e9)), apply: () => { chSpend(s, 'programmes', ch5(s, 30e9)); addModifier(s, 'foundry:growth', 1460, 'Vonn’s new seed', { mult: 1.06 }); addPartnerRel(s, 'vonn', 6); } },
+      { label: 'License it', detail: `${fmtMoney(ch5(s, 30e9), 0)}; foundries grow 6% faster for four years.`, disabled: treasury(s, ch5(s, 30e9)), apply: () => { chSpend(s, 'programmes', ch5(s, 30e9)); addModifier(s, 'foundry:growth', 1460, 'Vonn’s new seed', { mult: 1.06 }); addPartnerRel(s, 'vonn', 6); } },
       { label: 'Pass', detail: 'Vonn −3.', apply: () => { addPartnerRel(s, 'vonn', -3); } },
     ],
   },
@@ -597,7 +597,7 @@ export const ACT5_EVENTS: EventDef[] = [
       { id: 'kip', text: 'Feather everything we can. The swarm can grow back. Burned collectors can’t.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Feather the swarm', detail: 'Storm pressure −14; a fifth more of the swarm goes dark for safety.', apply: () => { relief(s, 'storm', 14); sys(s).damage = clamp(sys(s).damage + 0.1, 0, 0.9); } },
+      { label: 'Feather the swarm', detail: 'Storm pressure −14; another tenth of the swarm goes dark for safety.', apply: () => { relief(s, 'storm', 14); sys(s).damage = clamp(sys(s).damage + 0.1, 0, 0.9); } },
       { label: 'Throw the spares in', detail: `${fmtMoney(ch5(s, 40e9), 0)}; storm pressure −10 and −0.12 a day for 60 days.`, disabled: treasury(s, ch5(s, 40e9)), apply: () => { chSpend(s, 'programmes', ch5(s, 40e9)); relief(s, 'storm', 10, 0.12, 60); } },
     ],
   },
@@ -613,7 +613,7 @@ export const ACT5_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'Let Bit fly the swarm', detail: s.system?.bitFate === 'leash' ? 'Bit is on a leash: only a little help. Storm pressure −6.' : 'Storm pressure −16; bond +4.', apply: () => { if (s.system?.bitFate === 'leash') relief(s, 'storm', 6); else { relief(s, 'storm', 16); bond(s, 4); } } },
-      { label: 'Shut the swarm down', detail: 'Storm pressure −20; half the swarm dark; the Thermal Line front +12.', apply: () => { relief(s, 'storm', 20); sys(s).damage = clamp(sys(s).damage + 0.25, 0, 0.9); pressure5(s, 'thermal', 12); } },
+      { label: 'Shut the swarm down', detail: 'Storm pressure −20; another quarter of the swarm dark; the Thermal Line front +12.', apply: () => { relief(s, 'storm', 20); sys(s).damage = clamp(sys(s).damage + 0.25, 0, 0.9); pressure5(s, 'thermal', 12); } },
     ],
   },
   {

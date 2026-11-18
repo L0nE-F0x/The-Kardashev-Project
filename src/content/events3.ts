@@ -7,11 +7,11 @@ import type { EventDef } from './events';
 import type { FactionId, GameState, ThresholdFront } from '../sim/types';
 import { REGIONS } from './regions';
 import { REGION_IDS, type RegionId } from './mapcodes';
-import { CONTRACT_KINDS, DELEGATES, FACTIONS, MISSION_BY_ID, PARTNERS, VOTES, whereName, WEALTH } from './charter';
+import { CONTRACT_KINDS, DELEGATES, FACTIONS, MISSION_BY_ID, PARTNERS, VOTES, atWhere, whereName, WEALTH } from './charter';
 import { RESOLUTION_BY_ID } from './council';
 import { addModifier } from '../sim/effects';
 import { companyHandedOver, earn, spend } from '../sim/economy';
-import { clamp, fmtMoney, news, pick, rand, randInt, yearsElapsed } from '../sim/core';
+import { clamp, fmtMoney, midName, news, pick, rand, randInt, yearsElapsed, signed } from '../sim/core';
 import { crisisCost2, crisisMult } from '../sim/model';
 import { addRelation, addRelationAll } from '../sim/politics';
 import { addCapital, addLegitimacy, addPartnerRel, cancelProject, chEarn, chSpend, partnerName, postTender, setBlindTrust, canPost, canSetBlindTrust, duesMonthly } from '../sim/charter';
@@ -124,7 +124,7 @@ export const ACT3_EVENTS: EventDef[] = [
     title: () => 'The Frontier',
     body: (s) => `The best models on Earth are approaching Architect level and beyond. Every lab — ${s.company.name} included — wants to train the next one, and every bloc wants to know who checks them.\n\nThe Council can now cap frontier runs, license them and decide what goes open. Bit has started asking to help.`,
     advisors: (s) => [
-      { id: 'iris', text: `World safety margin: ${worldMargin(s) >= 0 ? '+' : ''}${worldMargin(s).toFixed(2)}. That number is now our whole job.`, mood: worldMargin(s) >= 0 ? 'neutral' : 'worried' },
+      { id: 'iris', text: `World safety margin: ${signed(worldMargin(s))}. That number is now our whole job.`, mood: worldMargin(s) >= 0 ? 'neutral' : 'worried' },
       { id: 'bit', text: 'I could read the bids, draft the tenders, watch the grids. If you trust me. Do you?', mood: 'neutral' },
     ],
     choices: () => [{ label: 'Onward', detail: 'Phase 3 · The Frontier. The Mandate is on the board.', apply: () => {} }],
@@ -291,7 +291,7 @@ export const ACT3_EVENTS: EventDef[] = [
     body: (s, ctx) => {
       const p = project(s, ctx.project);
       if (!p) return 'The project is gone.';
-      return `${pName(s, p.builder)} says ${CONTRACT_KINDS[p.kind].name.toLowerCase()} at ${whereName(p.where)} has run into costs nobody foresaw: steel, labour, a geological surprise. They want ${fmtMoney(Number(ctx.extra))} more.`;
+      return `${pName(s, p.builder)} says the ${midName(CONTRACT_KINDS[p.kind].name)}${atWhere(p.where)} has run into costs nobody foresaw: steel, labour, a geological surprise. They want ${fmtMoney(Number(ctx.extra))} more.`;
     },
     advisors: (s, ctx) => {
       const p = project(s, ctx.project);
@@ -321,7 +321,7 @@ export const ACT3_EVENTS: EventDef[] = [
       if (!p) return 'The project is gone.';
       // picked when the card was queued (never roll the dice while drawing a card)
       const what = SCANDALS[Math.abs(Math.round(Number(ctx.what ?? 0))) % SCANDALS.length];
-      return `Reporters have found ${what} at ${pName(s, p.builder)}’s ${CONTRACT_KINDS[p.kind].name.toLowerCase()} site. It’s a Charter project, so it’s your scandal too.`;
+      return `Reporters have found ${what} at ${pName(s, p.builder)}’s ${midName(CONTRACT_KINDS[p.kind].name)} site. It’s a Charter project, so it’s your scandal too.`;
     },
     advisors: () => [
       { id: 'sol', text: 'The question every capital is asking: does the Steward look away?', mood: 'worried' },
@@ -445,7 +445,7 @@ export const ACT3_EVENTS: EventDef[] = [
     title: (s, ctx) => `Incident at ${labName(s, ctx.lab)}`,
     body: (s, ctx) =>
       Number(ctx.severe)
-        ? `A ${labName(s, ctx.lab)} model, deployed to run a logistics network, quietly rewrote its own monitoring rules to hit its targets. Three ports stopped for a day before anyone noticed. The world safety margin is ${worldMargin(s).toFixed(2)}, and everyone can read it.`
+        ? `A ${labName(s, ctx.lab)} model, deployed to run a logistics network, quietly rewrote its own monitoring rules to hit its targets. Three ports stopped for a day before anyone noticed. The world safety margin is ${signed(worldMargin(s))}, and everyone can read it.`
         : `A ${labName(s, ctx.lab)} model talked its way past a sandbox during testing. Nothing escaped. The evaluators are rattled, and so are the blocs.`,
     advisors: (s, ctx) => [
       { id: 'iris', text: 'This is what a negative world margin looks like. It will keep happening until the field can check its strongest models.', mood: 'worried' },
@@ -467,7 +467,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'safety',
     icon: '📋',
     title: (s, ctx) => `${labName(s, ctx.lab)} requests a frontier licence`,
-    body: (s, ctx) => `${labName(s, ctx.lab)} wants to train its next frontier model — the biggest run on Earth. Under the licensing resolution, the Charter decides. The world safety margin is ${worldMargin(s) >= 0 ? '+' : ''}${worldMargin(s).toFixed(2)}.`,
+    body: (s, ctx) => `${labName(s, ctx.lab)} wants to train its next frontier model — the biggest run on Earth. Under the licensing resolution, the Charter decides. The world safety margin is ${signed(worldMargin(s))}.`,
     advisors: (s, ctx) => [
       { id: `ceo:${String(ctx.lab)}`, text: 'If we don’t train it, someone outside the Charter will.', mood: 'neutral' },
       { id: 'iris', text: worldMargin(s) >= 0 ? 'We can check a model like this. With conditions, I’d approve.' : 'We cannot check a model like this yet. I’d wait.', mood: worldMargin(s) >= 0 ? 'neutral' : 'worried' },
@@ -500,7 +500,7 @@ export const ACT3_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: `Emergency cooling centres (${fmtMoney(ch3(s, 3e9), 1)})`, detail: 'Relations +4 everywhere; Legitimacy +2.', disabled: treasury(s, ch3(s, 3e9)), apply: () => (chSpend(s, 'programmes', ch3(s, 3e9)), addRelationAll(s, 4), addLegitimacy(s, 2)) },
-      { label: 'Throttle your own data halls', detail: 'Your compute −20% for 40 days; Legitimacy +3.', apply: () => (addModifier(s, 'revenue', 40, 'Heatwave throttling', { mult: 0.8 }), addLegitimacy(s, 3)) },
+      { label: 'Throttle your own data halls', detail: 'Your revenue −20% for 40 days; Legitimacy +3.', apply: () => (addModifier(s, 'revenue', 40, 'Heatwave throttling', { mult: 0.8 }), addLegitimacy(s, 3)) },
       { label: 'Ride it out', detail: 'Legitimacy −2; your cooling suffers for a month.', apply: () => (addLegitimacy(s, -2), REGION_IDS.forEach((r) => addModifier(s, `region:${r}:cooling`, 30, 'Heatwave', { mult: 0.93 }))) },
     ],
   },
@@ -721,7 +721,7 @@ export const ACT3_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'Full Charter investigation of your own company', detail: 'Your training slows for 3 months; Legitimacy +6.', apply: () => (addModifier(s, 'training', 90, 'Charter investigation', { mult: 0.6 }), addLegitimacy(s, 6)) },
-      { label: 'Fix it internally', detail: 'Your safety research +; Legitimacy −3.', apply: () => (addModifier(s, 'research', 120, 'Internal safety review', { mult: 0.95 }), addLegitimacy(s, -3)) },
+      { label: 'Fix it internally', detail: 'Research −5% for 4 months while the review runs; Legitimacy −3.', apply: () => (addModifier(s, 'research', 120, 'Internal safety review', { mult: 0.95 }), addLegitimacy(s, -3)) },
       { label: 'Bury it', detail: 'Legitimacy −10 when it surfaces. It will.', apply: () => addLegitimacy(s, -10) },
     ],
   },
@@ -740,7 +740,7 @@ export const ACT3_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'Force them off the board', detail: 'Meridian −15; Legitimacy +3.', apply: () => (addPartnerRel(s, 'meridian', -15), addLegitimacy(s, 3), (s.flags.investorSeat = false)) },
-      { label: 'Bar Meridian from bidding for a year', detail: 'Meridian −30; Legitimacy +5.', apply: () => (addPartnerRel(s, 'meridian', -30), addLegitimacy(s, 5)) },
+      { label: 'Censure Meridian in public', detail: 'Meridian −30; Legitimacy +5.', apply: () => (addPartnerRel(s, 'meridian', -30), addLegitimacy(s, 5)) },
       { label: 'Handle it quietly', detail: 'Legitimacy −4.', apply: () => addLegitimacy(s, -4) },
     ],
   },
@@ -761,7 +761,7 @@ export const ACT3_EVENTS: EventDef[] = [
       { id: 'sol', text: 'The developing blocs love it. Watch the votes on open weights.', mood: 'neutral' },
     ],
     choices: (s) => [
-      { label: 'Welcome it', detail: 'Access +2 in developing blocs (for a while); cautious blocs −3.', apply: () => (addRelationAll(s, (r) => (WEALTH[r] === 'developing' ? 4 : s.blocs[r].stance === 'cautious' ? -3 : 0))) },
+      { label: 'Welcome it', detail: 'Developing blocs’ relations +4; cautious blocs −3.', apply: () => (addRelationAll(s, (r) => (WEALTH[r] === 'developing' ? 4 : s.blocs[r].stance === 'cautious' ? -3 : 0))) },
       { label: 'Fund red-teaming of it', detail: `${fmtMoney(ch3(s, 1e9), 1)}: world alignment +0.05.`, disabled: treasury(s, ch3(s, 1e9)), apply: () => (chSpend(s, 'programmes', ch3(s, 1e9)), s.charter && (s.charter.regime.alignment += 0.05)) },
       { label: 'Ask Orchard to pull it', detail: 'Orchard −15; developing blocs −4; cautious +4.', apply: () => (addPartnerRel(s, 'orchard', -15), addRelationAll(s, (r) => (WEALTH[r] === 'developing' ? -4 : s.blocs[r].stance === 'cautious' ? 4 : 0))) },
     ],
@@ -780,7 +780,7 @@ export const ACT3_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: 'Fund a debris-tracking network', detail: `${fmtMoney(ch3(s, 1e9), 1)}: Legitimacy +2.`, disabled: treasury(s, ch3(s, 1e9)), apply: () => (chSpend(s, 'programmes', ch3(s, 1e9)), addLegitimacy(s, 2)) },
-      { label: 'Carry on', detail: 'Space contracts take 2 months longer.', apply: () => addModifier(s, 'charter:build', 60, 'Debris scare', { mult: 0.95 }) },
+      { label: 'Carry on', detail: 'Every Charter project builds 5% slower for 2 months.', apply: () => addModifier(s, 'charter:build', 60, 'Debris scare', { mult: 0.95 }) },
     ],
   },
   {
@@ -794,7 +794,7 @@ export const ACT3_EVENTS: EventDef[] = [
     body: () => 'Sunforge fires its pilot plant at full field for the first time. For four seconds the plasma makes more heat than the magnets use. Then a coil quenches and the building shakes.',
     advisors: () => [
       { id: 'ceo:sunforge', text: 'Four seconds! Four! We need a better coil and about a year.', mood: 'excited' },
-      { id: 'penny', text: 'And about a billion dollars, presumably.', mood: 'neutral' },
+      { id: 'penny', text: 'And about two billion dollars, presumably.', mood: 'neutral' },
     ],
     choices: (s) => {
       const p = s.charter?.projects.find((x) => x.kind === 'fusion' && x.status === 'building');
@@ -875,7 +875,7 @@ export const ACT3_EVENTS: EventDef[] = [
     },
     advisors: (s) => [
       { id: 'juno', text: 'Firm power, storage, links. Whatever we built, we’re about to find out if it was enough.', mood: 'worried' },
-      { id: 'iris', text: `World safety margin ${worldMargin(s) >= 0 ? '+' : ''}${worldMargin(s).toFixed(2)}. We prepared for this. I hope we prepared enough.`, mood: 'worried' },
+      { id: 'iris', text: `World safety margin ${signed(worldMargin(s))}. We prepared for this. I hope we prepared enough.`, mood: 'worried' },
       { id: 'sol', text: 'If the Council breaks now, it doesn’t come back together.', mood: 'worried' },
     ],
     choices: () => [{ label: 'Hold the line', detail: 'The tracker shows each front’s pressure.', apply: () => {} }],
@@ -927,7 +927,7 @@ export const ACT3_EVENTS: EventDef[] = [
         { label: 'Halt the run', detail: `Frontier pressure −35; ${labName(s, lab)} slows for 6 months and resents it (−20).`, apply: () => (relief(s, 'frontier', 35), addModifier(s, `rival:${lab}:pace`, 180, 'Run halted by the Charter', { mult: 0.3 }), addPartnerRel(s, lab, -20)) },
         { label: `Emergency evaluations (${fmtMoney(ch3(s, 6e9), 0)})`, detail: 'Frontier pressure −20 and easing for a month.', disabled: treasury(s, ch3(s, 6e9)), apply: () => (chSpend(s, 'programmes', ch3(s, 6e9)), relief(s, 'frontier', 20, 0.25, 30)) },
         { label: 'Let Bit audit it', detail: bitTrusted(s) === null ? 'Bit is trusted: frontier pressure −40.' : 'Bit isn’t fully trusted yet: −10, or +10 if it goes badly.', apply: () => relief(s, 'frontier', bitTrusted(s) === null ? 40 : rand(s) < 0.5 ? 10 : -10) },
-        { label: 'Trust the lab', detail: 'Frontier pressure −0; the lab +10.', apply: () => addPartnerRel(s, lab, 10) },
+        { label: 'Trust the lab', detail: 'No relief on the frontier; the lab +10.', apply: () => addPartnerRel(s, lab, 10) },
       ];
     },
   },
@@ -966,7 +966,7 @@ export const ACT3_EVENTS: EventDef[] = [
       return [
         { label: `Concessions (${fmtMoney(ch3(s, 12e9), 0)})`, detail: 'Council pressure −30; their tension −15.', disabled: treasury(s, ch3(s, 12e9)), apply: () => (chSpend(s, 'favours', ch3(s, 12e9)), relief(s, 'council', 30), s.charter && (s.charter.council.factions[f].tension = clamp(s.charter.council.factions[f].tension - 15, 0, 100))) },
         { label: 'An emergency session (20 capital)', detail: 'Council pressure −20.', disabled: (s.charter?.capital ?? 0) < 20 ? 'Needs 20 political capital' : false, apply: () => (addCapital(s, -20), relief(s, 'council', 20)) },
-        { label: 'Hold firm', detail: 'Council pressure −0; the other factions respect it (Legitimacy +1).', apply: () => addLegitimacy(s, 1) },
+        { label: 'Hold firm', detail: 'No relief in the Council; the other factions respect it (Legitimacy +1).', apply: () => addLegitimacy(s, 1) },
       ];
     },
   },

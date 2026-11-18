@@ -7,7 +7,7 @@
 import { PLANET, STAGE_NAMES } from '../content/planet';
 import { PARTNERS } from '../content/charter';
 import type { GameState } from './types';
-import { news } from './core';
+import { news, signed } from './core';
 import { queueEvent, scheduleEvent } from './events';
 import { createPlanet } from './planetInit';
 import { allJoined } from './supergrid';
@@ -83,7 +83,7 @@ export function planetChecklist(s: GameState): GoalCheck[] {
     { id: 'moon', label: 'A Moon base with a mass driver', done: moon >= 3, note: ['none', 'outpost', 'mine', 'mass driver'][moon] },
     { id: 'wellbeing', label: `Every province’s wellbeing ≥ ${PLANET.goalWellbeing}`, done: provincesThriving(s), note: `lowest ${Math.round(worst)}` },
     { id: 'warming', label: `Warming under ${PLANET.goalWarming.toFixed(1)} °C`, done: w < PLANET.goalWarming, note: `${w.toFixed(2)} °C` },
-    { id: 'ai', label: `${PLANET.goalAiRegions} AI provinces, safety margin ≥ 0`, done: ais >= PLANET.goalAiRegions && margin >= 0, note: `${ais} · margin ${margin >= 0 ? '+' : ''}${margin.toFixed(2)}` },
+    { id: 'ai', label: `${PLANET.goalAiRegions} AI provinces, safety margin ≥ 0`, done: ais >= PLANET.goalAiRegions && margin >= 0, note: `${ais} · margin ${signed(margin)}` },
   ];
 }
 

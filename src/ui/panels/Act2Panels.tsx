@@ -13,9 +13,9 @@ import { STARTUP_BY_ID } from '../../content/rivals';
 import { CHIP_SUPPLIERS } from '../../content/companies';
 import { ADVISORS } from '../../content/advisors';
 import { siteDef } from '../../content/sites';
-import { fmtDays, fmtMoney, fmtMW, fmtNum } from '../../sim/core';
+import { fmtDays, fmtMoney, fmtMW, fmtNum, signed } from '../../sim/core';
 import { canApplyLicence, canSignDeal, PHASE_NAMES, TREATY_REJOIN_DAYS } from '../../sim/actions';
-import { blocIT, licencePending, sovereignBuilt } from '../../sim/politics';
+import { blocIT, licencePending, sovereignBuilt, STANCE_WORD } from '../../sim/politics';
 import { CONTRACT_MIN_SIGN, CONTRACT_SLA, contractDeliverable } from '../../sim/network';
 import { boardGrowth, boardTarget, creditLeft, debtTotal, IPO_FLOOR, ipoBreakdown, ipoValuation, loanRate } from '../../sim/capital';
 import { inferPriceTrend } from '../../sim/model';
@@ -96,7 +96,7 @@ export function TeamPanel() {
           const job = s.jobs[j.advisor];
           const open = s.phase >= j.phase;
           const fmt = (v: number) =>
-            j.a.fmt === 'money' ? fmtMoney(v) : j.a.fmt === 'pct' ? `${Math.round(v * 100)}%` : j.a.fmt === 'margin' ? (v >= 0 ? '+' : '') + v.toFixed(2) : j.a.fmt === 'mw' ? fmtMW(v) : `${v}`;
+            j.a.fmt === 'money' ? fmtMoney(v) : j.a.fmt === 'pct' ? `${Math.round(v * 100)}%` : j.a.fmt === 'margin' ? signed(v) : j.a.fmt === 'mw' ? fmtMW(v) : `${v}`;
           return (
             <div class="frame" key={j.advisor} style={{ padding: '8px', opacity: open ? 1 : 0.5 }} data-tut={`job-${j.advisor}`}>
               <div class="row" style={{ gap: '8px', alignItems: 'flex-start' }}>
@@ -536,7 +536,7 @@ export function BlocsPanel() {
               <small>/ 100</small>
             </>
           }
-          sub={`${REGIONS[best].name} · ${s.blocs[best].stance}`}
+          sub={`${REGIONS[best].name} · ${STANCE_WORD[s.blocs[best].stance]}`}
           tip={`Best relations\n${REGIONS[best].name}’s government thinks the most of you. Blocs that like you (relations 40+) make sovereign offers.`}
         />
         <Tile
@@ -549,7 +549,7 @@ export function BlocsPanel() {
               <small>/ 100</small>
             </>
           }
-          sub={`${REGIONS[worst].name} · ${s.blocs[worst].stance}`}
+          sub={`${REGIONS[worst].name} · ${STANCE_WORD[s.blocs[worst].stance]}`}
           tip={`Worst relations\n${REGIONS[worst].name}’s government thinks the least of you. Lobbying, a treaty or building there raises it.`}
         />
         <Tile
@@ -606,11 +606,11 @@ export function BlocsPanel() {
           <h4>{REGIONS[sel].name}</h4>
           <KV
             rows={[
-              ['Stance', b.stance],
+              ['Stance', STANCE_WORD[b.stance]],
               ['Relations', `${Math.round(b.relation)} / 100`, 'The government’s view of you.'],
               ['Trust', `${Math.round(s.regions[sel].license)} / 100`, 'Local people’s view of you.'],
               ['Your IT here', fmtMW(blocIT(s, sel))],
-              ['Next election', `${fmtDays(b.nextElection - s.day)} · leaning ${b.poll > 0.2 ? 'accelerate' : b.poll < -0.2 ? 'cautious' : 'steady'}`],
+              ['Next election', `${fmtDays(b.nextElection - s.day)} · leaning ${b.poll > 0.2 ? 'pro-build' : b.poll < -0.2 ? 'cautious' : 'steady'}`],
             ]}
           />
           <button class="btn small" style={{ marginTop: '6px' }} disabled={s.finance.cash < LOBBY.cost} onClick={() => game.lobby(sel)} data-tut="lobby" data-tip={`Spend ${fmtMoney(LOBBY.cost)} on lobbying: relations +${LOBBY.relation} (less each time).\nLobby too often and a scandal gets likelier.`}>
@@ -783,7 +783,7 @@ export function CrunchTracker() {
         const rise = crunchRise(s, k);
         const tip = fr.lost
           ? `${FRONT_NAMES[k]}: lost.`
-          : `${FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${rise.v >= 0 ? '+' : ''}${rise.v.toFixed(2)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${v >= 0 ? '+' : ''}${v.toFixed(2)} ${l}`).join('\n')}`;
+          : `${FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${signed(rise.v)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${signed(v)} ${l}`).join('\n')}`;
         return (
           <div key={k} class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
             <Icon name={icon[k]} size="sm" />

@@ -9,7 +9,7 @@ import { RESOLUTION_BY_ID } from '../content/council';
 import { LAUNCH_SITES, MEGA_SITES } from '../content/sites';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { AdvisorId, ContractKind, ContractSize, GameState, Job } from './types';
-import { fmtMoney, news } from './core';
+import { an, fmtMoney, midName, news } from './core';
 import { affordable, awardBid, bidScore, canAward, canPost, expediteCost, expediteProject, isLate, partnerBidders, pendingAccess, postTender } from './charter';
 import { canWhip, forecast, voteScore, whipBloc } from './council';
 import { megaStage } from '../content/charter';
@@ -161,7 +161,7 @@ function oversight(s: GameState): void {
     if (s.day - (p.startDay + p.promised) < j.a * 30.4) continue;
     const cost = expediteCost(p);
     if (cost > deskBudget(s)) continue;
-    if (expediteProject(s, p.id).ok) report(s, 'juno', `put overtime crews on a late ${CONTRACT_KINDS[p.kind].name.toLowerCase()} (${fmtMoney(cost)}).`);
+    if (expediteProject(s, p.id).ok) report(s, 'juno', `put overtime crews on a late ${midName(CONTRACT_KINDS[p.kind].name)} (${fmtMoney(cost)}).`);
   }
 }
 
@@ -198,7 +198,7 @@ function space(s: GameState): void {
     if (has(k)) continue;
     if (canPost(s, k, 1, where) === null && deskBudget(s) > 5e9) {
       postTender(s, k, 1, where);
-      report(s, 'kip', `posted the ${CONTRACT_KINDS[k].name.toLowerCase()} tender. Orbit, here we come!`);
+      report(s, 'kip', `posted the ${midName(CONTRACT_KINDS[k].name)} tender. Orbit, here we come!`);
     }
     break;
   }
@@ -332,7 +332,7 @@ function copilot(s: GameState): void {
   awardBest(s, false, 12, 'bit');
   if (c.tenders.length < j.a && deskBudget(s) > 10e9) {
     const next = nextMissionContract(s);
-    if (next && postTender(s, next.kind, next.size, next.where).ok) report(s, 'bit', `posted ${CONTRACT_KINDS[next.kind].name.toLowerCase()} toward the next mission.`);
+    if (next && postTender(s, next.kind, next.size, next.where).ok) report(s, 'bit', `posted ${an(midName(CONTRACT_KINDS[next.kind].name))} tender toward the next mission.`);
   }
   // a missing piece that is a vote, not a contract: Bit can't post it, so it says so (twice a year at most)
   const res = missingResolution(s);

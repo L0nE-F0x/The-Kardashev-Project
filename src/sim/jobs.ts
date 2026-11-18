@@ -8,7 +8,7 @@ import { REGIONS } from '../content/regions';
 import { siteDef } from '../content/sites';
 import { REGION_IDS } from '../content/mapcodes';
 import type { AdvisorId, FacilityType, GameState, Job, SupplierId } from './types';
-import { fmtMoney, fmtMW, news } from './core';
+import { an, fmtMoney, fmtMW, news } from './core';
 import { spend } from './economy';
 import { buildCost, chipSpec, DAYS_PER_MONTH, facilityIT, facilityMW, gridHeadroomLeft, landCost, MFU, pueAt, supplierDailyRate } from './model';
 import { nextModelPlan } from './ai';
@@ -266,7 +266,7 @@ function sol(s: GameState): void {
     if (!s.politics.rules.includes(rule.id)) continue;
     for (const r of rule.to) {
       if (!regions.has(r)) continue;
-      if (canApplyLicence(s, rule.id, r) === null && spendable(s) > rule.licenceCost && applyLicence(s, rule.id, r).ok) bits.push(`applied for a ${rule.name} licence (${REGIONS[r].short})`);
+      if (canApplyLicence(s, rule.id, r) === null && spendable(s) > rule.licenceCost && applyLicence(s, rule.id, r).ok) bits.push(`applied for ${an(rule.name)} licence (${REGIONS[r].name})`);
     }
   }
   // small gestures where relations are slipping

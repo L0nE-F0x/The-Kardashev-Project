@@ -8,7 +8,10 @@ import { siteDef } from '../content/sites';
 import { ELECTION_DAYS, EXPORT_RULES, RULE_BY_ID, SOVEREIGN, SOVEREIGN_BY_ID, TREATY_BY_ID } from '../content/politics';
 import { HALLS } from '../content/facilities';
 import type { GameState, SovereignDeal, SupplierId } from './types';
-import { clamp, fmtMoney, news, nextId, pick, rand } from './core';
+import { an, clamp, fmtMoney, news, nextId, pick, poss, rand } from './core';
+
+/** A bloc government's stance on AI, as an adjective. */
+export const STANCE_WORD = { accelerate: 'pro-build', neutral: 'neutral', cautious: 'cautious' } as const;
 import { addModifier, techMult } from './effects';
 import { earn } from './economy';
 import { facilityIT } from './model';
@@ -156,9 +159,9 @@ export function tickPolitics(s: GameState): void {
       if (!s.charter || flips.length) queueEvent(s, 'election', { region: r, from: before, to: after, ...(flips.length ? { flips: flips.join(',') } : {}) });
       else {
         addRelation(s, r, 2);
-        news(s, `🗳 ${REGIONS[r].name} elects a ${after} government (it was ${before}). Sol sends congratulations: relations +2.`);
+        news(s, `🗳 ${REGIONS[r].name} elects ${an(STANCE_WORD[after])} government (it was ${STANCE_WORD[before]}). Sol sends congratulations: relations +2.`);
       }
-    } else news(s, `🗳 ${REGIONS[r].name} re-elects a ${after} government. Little changes.`);
+    } else news(s, `🗳 ${REGIONS[r].name} re-elects its ${STANCE_WORD[after]} government. Little changes.`);
     // a newly cautious government may tighten the rules it controls; an accelerating one may relax them
     for (const rule of EXPORT_RULES) {
       if (rule.by !== r) continue;
@@ -233,7 +236,7 @@ function tickSovereign(s: GameState): void {
     } else if (s.day > d.byDay) {
       d.status = 'failed';
       addRelation(s, d.region, -15);
-      news(s, `❌ You missed the deadline on ${REGIONS[d.region].name}'s ${def.title}. Relations sour.`, 'bad');
+      news(s, `❌ You missed the deadline on ${poss(REGIONS[d.region].name)} ${def.title}. Relations sour.`, 'bad');
     }
   }
   s.capital.sovereign = deals.filter((d) => d.status !== 'failed' || s.day - d.byDay < 365);
@@ -246,7 +249,7 @@ function tickSovereign(s: GameState): void {
   if (!options.length) return;
   const { d, r } = pick(s, options);
   s.capital.sovereign.push({ id: nextId(s, 'sv'), def: d.id, region: r, status: 'offer', needMW: d.needMW, byDay: s.day + d.days, expires: s.day + 180 });
-  news(s, `🏛 ${REGIONS[r].name} offers a ${d.title}: ${d.reward} for ${d.needMW} MW of new IT there. Details on the Blocs screen.`, 'event');
+  news(s, `🏛 ${REGIONS[r].name} offers ${an(d.title)}: ${d.reward} for ${d.needMW} MW of new IT there. Details on the Blocs screen.`, 'event');
 }
 
 /** New IT you have built in a sovereign deal's bloc since accepting it (what counts toward needMW). */

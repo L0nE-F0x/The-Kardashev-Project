@@ -155,7 +155,7 @@ const chAny = (s: GameState, kinds: string[]) => (ch(s)?.projects ?? []).some((p
 
 OBJECTIVES.push(
   // ── Phase 1 · The Founding ──
-  a3({ id: 'a3-tender', phase: 1, title: 'Post your first Charter contract', hint: 'Open the Charter (H) → Contracts. Pick what to build, where, and how big; partners bid within three weeks.', advisor: 'mira', done: (s) => (ch(s)?.projects.length ?? 0) > 0 || (ch(s)?.tenders.length ?? 0) > 0 }),
+  a3({ id: 'a3-tender', phase: 1, title: 'Post your first Charter contract', hint: 'Open the Charter (H) → Contracts. Pick what to build, where, and how big; partners bid within two weeks.', advisor: 'mira', done: (s) => (ch(s)?.projects.length ?? 0) > 0 || (ch(s)?.tenders.length ?? 0) > 0 }),
   a3({ id: 'a3-award', phase: 1, title: 'Award a contract', hint: 'When the bids are in, pick one. Cheap, fast or reliable — and think twice before picking your own company.', advisor: 'mira', after: ['a3-tender'], done: (s) => (ch(s)?.projects.length ?? 0) > 0 }),
   a3({ id: 'a3-resolution', phase: 1, title: 'Pass a resolution in the Council', hint: 'Open the Council (U). Table a resolution with political capital, check the forecast, lean on the waverers.', advisor: 'sol', done: (s) => !!ch(s)?.council.history.some((h) => h.passed) }),
   a3({ id: 'a3-trust', phase: 1, title: 'Decide what to do about your company', hint: 'Keep running it yourself, or put it in a blind trust (Charter → Overview).', advisor: 'penny', done: (s) => !!s.flags.trustDecided || !!ch(s)?.blindTrust }),

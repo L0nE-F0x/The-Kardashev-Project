@@ -66,41 +66,56 @@ export function campusLayout(s: GameState | null, siteId: string, minPlots = 2):
   const n = Math.max(minPlots, s ? siteSlots(s, siteId) : minPlots, used);
   const cols = Math.max(1, Math.ceil(n / 2));
   const cells = Array.from({ length: cols * 2 }, (_, i) => cellRect(cols, i));
-  const free = cells.map((_, i) => i < n);
-  const take = (count: number): number[] | null => {
-    if (count <= 1) {
-      const i = free.findIndex((f) => f);
-      if (i < 0) return null;
-      free[i] = false;
-      return [i];
-    }
-    // whole columns
-    const colsNeeded = Math.ceil(count / 2);
-    for (let c = 0; c + colsNeeded <= cols; c++) {
-      const ids: number[] = [];
-      for (let k = 0; k < colsNeeded; k++) ids.push((c + k) * 2, (c + k) * 2 + 1);
-      if (ids.every((i) => free[i])) {
-        for (const i of ids) free[i] = false;
-        return ids;
-      }
-    }
-    return take(1);
-  };
   const merge = (ids: number[]): Rect => ({
     x0: Math.min(...ids.map((i) => cells[i].x0)), z0: Math.min(...ids.map((i) => cells[i].z0)),
     x1: Math.max(...ids.map((i) => cells[i].x1)), z1: Math.max(...ids.map((i) => cells[i].z1)),
   });
-  const items: PlotItem[] = [];
-  // the HQ first, then the rest in the order they were built (stable as the campus grows)
-  const ordered = [...facs.filter((f) => f.type === 'hq'), ...facs.filter((f) => f.type !== 'hq')];
-  for (const f of ordered) {
-    const ids = take(slotsOf(f));
-    if (ids) items.push({ kind: 'facility', rect: merge(ids), cells: ids, facility: f });
-  }
-  for (const b of rivals) {
-    const ids = take(b.slots);
-    if (ids) items.push({ kind: 'rival', rect: merge(ids), cells: ids, rival: b });
-  }
+  type Tenant = { facility?: Facility; rival?: RivalBuild; slots: number };
+  let free: boolean[] = [];
+  /** Give each tenant its plots, in this order. `whole` is false when one that needs whole columns found none. */
+  const place = (order: Tenant[]): { items: PlotItem[]; whole: boolean } => {
+    free = cells.map((_, i) => i < n);
+    let whole = true;
+    const take = (count: number): number[] | null => {
+      if (count <= 1) {
+        const i = free.findIndex((f) => f);
+        if (i < 0) return null;
+        free[i] = false;
+        return [i];
+      }
+      // whole columns
+      const colsNeeded = Math.ceil(count / 2);
+      for (let c = 0; c + colsNeeded <= cols; c++) {
+        const ids: number[] = [];
+        for (let k = 0; k < colsNeeded; k++) ids.push((c + k) * 2, (c + k) * 2 + 1);
+        if (ids.every((i) => free[i])) {
+          for (const i of ids) free[i] = false;
+          return ids;
+        }
+      }
+      whole = false;
+      return take(1);
+    };
+    const out: PlotItem[] = [];
+    for (const t of order) {
+      const ids = take(t.slots);
+      if (!ids) continue;
+      out.push(t.rival ? { kind: 'rival', rect: merge(ids), cells: ids, rival: t.rival } : { kind: 'facility', rect: merge(ids), cells: ids, facility: t.facility });
+    }
+    return { items: out, whole };
+  };
+  // the HQ first, then the rest in the order they were built (stable as the campus grows), then the rivals
+  const ordered: Tenant[] = [
+    ...[...facs.filter((f) => f.type === 'hq'), ...facs.filter((f) => f.type !== 'hq')].map((f) => ({ facility: f, slots: slotsOf(f) })),
+    ...rivals.map((b) => ({ rival: b, slots: b.slots })),
+  ];
+  let placed = place(ordered);
+  // The sim counts plots, not columns: a nuclear plant (two plots) can be bought when the free ones are a back plot
+  // here and a front plot there. Stood on one of them, its second tower and its switchyard rose out of the
+  // neighbours and nobody could reach its door. So when a big one finds no whole column, the campus is laid out
+  // again with the big ones first (from the west, the order they were built), and everything else round them.
+  if (!placed.whole) placed = place([...ordered.filter((t) => t.slots > 1), ...ordered.filter((t) => t.slots <= 1)]);
+  const items: PlotItem[] = placed.items;
   let e = 0;
   free.forEach((f, i) => { if (f && i < n) items.push({ kind: 'empty', rect: cells[i], cells: [i], emptyIndex: e++ }); });
   const east = WEST_X + cols * (PW + GAP) - GAP;

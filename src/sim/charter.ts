@@ -14,6 +14,7 @@ import {
   missionProgress,
   PARTNERS,
   WEALTH,
+  atWhere,
   whereName,
   YOU,
   type ContractKindDef,
@@ -24,7 +25,7 @@ import { LAUNCH_SITES, SITE_BY_ID } from '../content/sites';
 import { HALLS } from '../content/facilities';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { Bid, CharterLedger, ContractKind, ContractSize, GameState, Project, Tender } from './types';
-import { clamp, fmtMoney, fmtMW, monthKey, monthLabelOfKey, news, nextId, pick, rand, randInt, yearsElapsed } from './core';
+import { clamp, count, fmtMoney, fmtMW, midName, monthKey, monthLabelOfKey, news, nextId, pick, poss, rand, randInt, yearsElapsed } from './core';
 import { addModifier, modMult, techMult } from './effects';
 import { earn, spend } from './economy';
 import { queueEvent, scheduleEvent } from './events';
@@ -338,7 +339,9 @@ export function postTender(s: GameState, kind: ContractKind, size: ContractSize,
     opt,
   };
   c.tenders.push(t);
-  news(s, `📜 Tender posted: ${def.name}${opt && FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS] ? ` (${FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS].name})` : ''} (${sizeText(def, size)}) at ${whereName(where)}. ${ranked.length} bidders interested.`, 'info');
+  const design = opt ? FUSION_DESIGNS[opt as keyof typeof FUSION_DESIGNS]?.name : undefined;
+  const details = [design, sizeText(def, size)].filter(Boolean).join(', ');
+  news(s, `📜 Tender posted: ${def.name}${details ? ` (${details})` : ''}${atWhere(where)}. ${count(ranked.length, 'bidder')} interested.`, 'info');
   return OK;
 }
 
@@ -433,7 +436,7 @@ export function awardBid(s: GameState, tenderId: string, bidIndex: number): Resu
     s.flags.selfAwards = Number(s.flags.selfAwards ?? 0) + 1;
     if (conflict >= 4 && rand(s) < 0.45 && s.day - Number(s.events.last['conflict-expose'] ?? -9999) > 540) scheduleEvent(s, 'conflict-expose', randInt(s, 30, 90), { project: p.id });
   }
-  news(s, `✍ ${partnerName(s, b.partner)} wins ${def.name} at ${whereName(t.where)}: ${fmtMoney(b.price)}, ${Math.round(b.days / 30.4)} months.${conflict > 0 ? ` Legitimacy −${conflict}.` : ''}`, conflict > 4 ? 'bad' : 'good');
+  news(s, `✍ ${partnerName(s, b.partner)} wins ${def.name}${atWhere(t.where)}: ${fmtMoney(b.price)}, ${Math.round(b.days / 30.4)} months.${conflict > 0 ? ` Legitimacy −${conflict}.` : ''}`, conflict > 4 ? 'bad' : 'good');
   return OK;
 }
 
@@ -447,7 +450,7 @@ export function cancelProject(s: GameState, projectId: string): Result {
   }
   if (p.builder !== YOU) addPartnerRel(s, p.builder, -20);
   addLegitimacy(s, -4);
-  news(s, `✗ The Charter cancels ${CONTRACT_KINDS[p.kind].name} at ${whereName(p.where)}. ${partnerName(s, p.builder)} is furious.`, 'bad');
+  news(s, `✗ The Charter cancels ${CONTRACT_KINDS[p.kind].name}${atWhere(p.where)}. ${partnerName(s, p.builder)} is furious.`, 'bad');
   return OK;
 }
 
@@ -693,7 +696,7 @@ export function tickCharter(s: GameState, revenueDay: number): void {
   if (expired.length) {
     for (const t of expired) {
       for (const b of t.bids) if (b.partner !== YOU) addPartnerRel(s, b.partner, -2);
-      news(s, `📜 The tender for ${CONTRACT_KINDS[t.kind].name} at ${whereName(t.where)} closed without an award.`);
+      news(s, `📜 The tender for ${CONTRACT_KINDS[t.kind].name}${atWhere(t.where)} closed without an award.`);
     }
     c.tenders = c.tenders.filter((t) => !expired.includes(t));
   }
@@ -830,7 +833,7 @@ function troubleRoll(s: GameState, p: Project): void {
   if (roll < 0.4) {
     const extra = Math.round(p.days * (0.08 + rand(s) * 0.14) * (tr.ambition >= 4 ? 1.3 : 1));
     p.days += extra;
-    news(s, `⏳ ${who}: ${def.name} at ${whereName(p.where)} slips ${Math.round(extra / 30.4)} months.`, 'bad');
+    news(s, `⏳ ${who}: ${def.name}${atWhere(p.where)} slips ${count(Math.max(1, Math.round(extra / 30.4)), 'month')}.`, 'bad');
   } else if (roll < 0.75) {
     // an overrun: the partner wants more money. Only a big one — more than a month of dues, or half the
     // treasury — that the treasury could actually pay is a card; routine ones are settled the sensible way
@@ -846,11 +849,11 @@ function troubleRoll(s: GameState, p: Project): void {
       p.price += extra;
       p.paid += extra;
       addPartnerRel(s, p.builder, 2);
-      news(s, `💸 ${who} ran over on the ${def.name.toLowerCase()} at ${whereName(p.where)}: the treasury paid the extra ${fmtMoney(extra)}.`, 'info');
+      news(s, `💸 ${who} ran over on the ${midName(def.name)}${atWhere(p.where)}: the treasury paid the extra ${fmtMoney(extra)}.`, 'info');
     } else {
       p.days = Math.round(p.days * 1.15);
       addPartnerRel(s, p.builder, -10);
-      news(s, `💸 ${who} ran over on the ${def.name.toLowerCase()} at ${whereName(p.where)}; held to the contract, it slips.`, 'bad');
+      news(s, `💸 ${who} ran over on the ${midName(def.name)}${atWhere(p.where)}; held to the contract, it slips.`, 'bad');
     }
   } else if (roll < 0.9 && tr.ethics <= 3) {
     // what the reporters found is picked here, so the card reads the same however often it's drawn
@@ -860,12 +863,12 @@ function troubleRoll(s: GameState, p: Project): void {
       p.days += 60;
       addPartnerRel(s, p.builder, -8);
       addLegitimacy(s, 1);
-      news(s, `📰 Irregularities at ${who}’s site in ${whereName(p.where)}: work is suspended for two months while inspectors look.`, 'bad');
+      news(s, `📰 Irregularities at ${poss(who)} ${p.where === 'global' ? 'works' : `site${atWhere(p.where)}`}: work is suspended for two months while inspectors look.`, 'bad');
     }
   } else {
     const extra = Math.round(20 + rand(s) * 40);
     p.days += extra;
-    news(s, `🪧 A strike at ${whereName(p.where)} halts ${who}’s crews for ${extra} days.`, 'bad');
+    news(s, `🪧 A strike${p.where === 'global' ? '' : atWhere(p.where)} halts ${poss(who)} crews for ${count(extra, 'day')}.`, 'bad');
   }
 }
 
@@ -994,8 +997,8 @@ function completeProject(s: GameState, p: Project): void {
       }
       break;
   }
-  const what = def.cat === 'energy' || p.kind === 'ffleet' || p.kind === 'sps' ? `${fmtMW((p.gw ?? 0) * 1000)} of clean power` : def.name.toLowerCase();
-  news(s, `🎉 ${partnerName(s, p.builder)} finishes ${def.name} at ${whereName(p.where)}: ${what} online${late ? ' (late)' : ''}.`, 'good');
+  const what = def.cat === 'energy' || p.kind === 'ffleet' || p.kind === 'sps' ? `${fmtMW((p.gw ?? 0) * 1000)} of clean power` : midName(def.name);
+  news(s, `🎉 ${partnerName(s, p.builder)} finishes ${def.name}${atWhere(p.where)}: ${what} online${late ? ' (late)' : ''}.`, 'good');
 }
 
 function checkMissions(s: GameState): void {

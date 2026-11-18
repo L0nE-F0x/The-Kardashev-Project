@@ -3,7 +3,7 @@ import { Eased, Icon, useGame } from './components';
 import { warming } from '../sim/climate';
 import { overLine, surfaceTW } from '../sim/swarm';
 import { lineTW } from '../sim/systemView';
-import { fmtTW } from '../sim/core';
+import { fmtTW, signed } from '../sim/core';
 import { avgWellbeing } from '../sim/provinces';
 import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
 import { CAPABILITY_TIERS, K_MILESTONES, tierOf } from '../sim/model';
@@ -155,7 +155,7 @@ Click to open the System (X).`}>
         <div class="stat hide-mobile" data-hue="blue" data-tip={`Safety margin = alignment − capability.\nAlignment ${st.alignment.toFixed(2)} · capability ${st.capability.toFixed(2)}.\nBelow 0, safety incidents become likely.`}>
           <Icon name="shield" />
           <div class="col">
-            <span class={`v ${marginCls}`}>{st.margin >= 0 ? '+' : ''}{st.margin.toFixed(2)}</span>
+            <span class={`v ${marginCls}`}>{signed(st.margin)}</span>
             <span class="s">safety margin</span>
           </div>
         </div>

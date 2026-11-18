@@ -11,7 +11,7 @@ import type { RegionId } from '../content/mapcodes';
 import { siteDef } from '../content/sites';
 import { HALLS } from '../content/facilities';
 import type { FinaleState, FrontId, GameState } from './types';
-import { clamp, fmtMW, fmtNum, news } from './core';
+import { clamp, fmtMW, fmtNum, news, signed } from './core';
 import { addModifier, modAdd, modMult } from './effects';
 import { queueEvent, scheduleEvent } from './events';
 import { facilityIT, facilityMW } from './model';
@@ -138,8 +138,8 @@ export function crunchRise(s: GameState, front: FrontId): { v: number; parts: [s
     // public trust: the blocs vote on a pause, and your record is the argument
     parts.push(['The pause debate', CRUNCH.safety.base]);
     const m = s.stats.margin;
-    if (m < 0) parts.push([`Negative safety margin (${m.toFixed(2)})`, -m * CRUNCH.safety.negMargin]);
-    else if (m >= 0.05) parts.push([`Safety margin ${m.toFixed(2)}`, -Math.min(0.3, m * 0.4)]);
+    if (m < 0) parts.push([`Negative safety margin (${signed(m)})`, -m * CRUNCH.safety.negMargin]);
+    else if (m >= 0.05) parts.push([`Safety margin ${signed(m)}`, -Math.min(0.3, m * 0.4)]);
     if (s.politics.treaties.includes('evals-pact')) parts.push(['Evaluations Pact member', -0.2]);
     if (s.alloc.safety >= 0.12) parts.push(['Safety compute ≥ 12%', -0.15]);
     if (s.training && s.alloc.train >= 0.3 && modMult(s, 'training') > 0.5) parts.push(['Training flat out while they debate a pause', CRUNCH.safety.training]);

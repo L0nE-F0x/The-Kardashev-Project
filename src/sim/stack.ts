@@ -19,7 +19,7 @@ export function tickStack(s: GameState): void {
   }
   const expired = s.stack.deals.filter((d) => d.endDay > 0 && s.day > d.endDay);
   if (expired.length) {
-    for (const d of expired) news(s, `📑 ${DEAL_BY_ID[d.id.split('#')[0]]?.name ?? 'A supply deal'} has expired.`, 'info');
+    for (const d of expired) news(s, `📑 A supply deal has run its term: ${DEAL_BY_ID[d.id.split('#')[0]]?.name ?? 'one of ours'}.`, 'info');
     s.stack.deals = s.stack.deals.filter((d) => !(d.endDay > 0 && s.day > d.endDay));
   }
 }

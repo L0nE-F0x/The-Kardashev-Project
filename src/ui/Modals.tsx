@@ -3,7 +3,7 @@ import { emojiIcon, rich } from './emoji';
 import type { IconName } from './icons';
 import type { EventDef } from '../content/events';
 import { EVENT_BY_ID } from '../content/events';
-import { fmtDate, fmtMoney, fmtMW } from '../sim/core';
+import { fmtDate, fmtMoney, fmtMW, signed } from '../sim/core';
 import { CAPABILITY_TIERS, tierOf } from '../sim/model';
 import { IPO_FLOOR } from '../sim/capital';
 import { Act4CompleteModal } from './panels/Act4Panels';
@@ -183,7 +183,7 @@ export function ActCompleteModal() {
             </div>
             <div class="delta">
               <div class="label">Safety margin</div>
-              <div class={`v ${st.margin >= 0 ? 'good' : 'warn'}`}>{st.margin.toFixed(2)}</div>
+              <div class={`v ${st.margin >= 0 ? 'good' : 'warn'}`}>{signed(st.margin)}</div>
             </div>
             <div class="delta">
               <div class="label">Your generation</div>

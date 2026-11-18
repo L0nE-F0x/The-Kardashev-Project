@@ -79,8 +79,14 @@ export function news(s: GameState, text: string, kind: NewsItem['kind'] = 'info'
 }
 
 // ── formatting helpers shared by sim text + UI ──────────────────────────────────────────────
+/** A figure with its sign, the minus a real one: +0.20, −0.38 (a hyphen read as a dash next to the cards' "−3"). */
+export function signed(v: number, digits = 2): string {
+  const t = Math.abs(v).toFixed(digits);
+  return `${v < 0 && Number(t) !== 0 ? '−' : v >= 0 ? '+' : ''}${t}`;
+}
+
 export function fmtMoney(v: number, digits = 1): string {
-  const sign = v < 0 ? '-' : '';
+  const sign = v < 0 ? '−' : '';
   const a = Math.abs(v);
   if (a >= 1e12) return `${sign}$${(a / 1e12).toFixed(digits)}T`;
   if (a >= 1e9) return `${sign}$${(a / 1e9).toFixed(digits)}B`;
@@ -134,5 +140,29 @@ export function fmtDays(d: number): string {
   if (d >= 14) return `${Math.round(d / 7)} wk`;
   return `${Math.max(0, Math.round(d))} d`;
 }
+
+// ── words ───────────────────────────────────────────────────────────────────────────────────
+/**
+ * A title written mid-sentence: its first word loses its capital, unless it is an acronym or a symbol (HBM line,
+ * D-He3). Later words are left alone: they are lower case already, or names.
+ */
+export function midName(name: string): string {
+  const first = name.split(' ')[0];
+  return (first.match(/[A-Z]/g)?.length ?? 0) >= 2 || /\d/.test(first) ? name : name.charAt(0).toLowerCase() + name.slice(1);
+}
+
+/** "a" or "an" before a word, by its sound: an EUV licence, an AI hub, a HVDC link is "an HVDC link". */
+export function an(phrase: string): string {
+  const w = phrase.trim().split(/[\s-]/)[0] ?? '';
+  const acronym = w.length > 1 && w === w.toUpperCase() && /^[A-Z]/.test(w);
+  const vowel = acronym ? /^[AEFHILMNORSX]/.test(w) : /^[aeiou]/i.test(w) && !/^(uni|use|usa|eu[^v]|one)/i.test(w);
+  return `${vowel ? 'an' : 'a'} ${phrase}`;
+}
+
+/** "1 month", "3 months". */
+export const count = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+/** A name's possessive: Lattice Labs’, Europe’s. */
+export const poss = (name: string) => `${name}’${/s$/i.test(name) ? '' : 's'}`;
 
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));

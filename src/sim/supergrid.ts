@@ -118,6 +118,6 @@ export function tickSupergrid(s: GameState): void {
     if (rand(s) >= chance) continue;
     p.downUntil = s.day + randInt(s, 15, 50);
     const r = SUPERGRID_BY_ID[p.where];
-    if (r) news(s, `⚡ A fault takes the ${r.name} down for a few weeks — ${REGIONS[r.from].short} and ${REGIONS[r.to].short} fall back on local power.`, 'bad');
+    if (r) news(s, `⚡ A fault takes the ${r.name} down for a few weeks — ${REGIONS[r.from].name} and ${REGIONS[r.to].name} fall back on local power.`, 'bad');
   }
 }

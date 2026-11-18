@@ -3,7 +3,7 @@ import type { AdvisorId, GameState } from '../sim/types';
 import { researchable } from '../sim/actions';
 import { chipSpec, facilityIT } from '../sim/model';
 import { siteDef } from '../content/sites';
-import { fmtMoney } from '../sim/core';
+import { count, fmtMoney, signed } from '../sim/core';
 import { poweredRoom } from '../sim/power';
 
 /**
@@ -134,7 +134,7 @@ export const TIPS: TipDef[] = [
     advisor: 'iris',
     days: 8,
     when: (s) => s.models.length >= 1 && s.stats.margin < 0 && !jobOn(s, 'iris'),
-    text: (s) => `Our safety margin is ${s.stats.margin.toFixed(2)} — the models are more capable than we can check. Below zero, incidents get likely. More compute on Safety, or safety research, brings it back.`,
+    text: (s) => `Our safety margin is ${signed(s.stats.margin)} — the models are more capable than we can check. Below zero, incidents get likely. More compute on Safety, or safety research, brings it back.`,
     action: { label: 'Open Compute', run: (g) => g.panel !== 'compute' && g.openPanel('compute') },
     learn: 'models',
   },
@@ -148,7 +148,7 @@ export const TIPS: TipDef[] = [
     },
     text: (s) => {
       const net = s.stats.costMonth - s.stats.revenueMonth;
-      return `At ${fmtMoney(net)} a month going out, we have about ${Math.max(1, Math.floor(s.finance.cash / net))} months of cash. Finance shows where it goes — rentals and idle plants are the usual suspects.`;
+      return `At ${fmtMoney(net)} a month going out, we have about ${count(Math.max(1, Math.floor(s.finance.cash / net)), 'month')} of cash. Finance shows where it goes — rentals and idle plants are the usual suspects.`;
     },
     action: { label: 'Open Finance', run: (g) => g.panel !== 'finance' && g.openPanel('finance') },
   },

@@ -11,7 +11,7 @@ import { REGIONS } from './regions';
 import { REGION_IDS, type RegionId } from './mapcodes';
 import { AIS, FUSION_DESIGNS, HEAT_FRONT_NAMES, PLANET, STAGE_NAMES, SUPERGRID_BY_ID } from './planet';
 import { addModifier } from '../sim/effects';
-import { clamp, fmtMoney, news, pick, rand, yearsElapsed } from '../sim/core';
+import { clamp, fmtMoney, midName, news, pick, rand, yearsElapsed, signed } from '../sim/core';
 import { scheduleEvent } from '../sim/events';
 import { addRelation, addRelationAll } from '../sim/politics';
 import { addCapital, addLegitimacy, addPartnerRel, chEarn, chSpend } from '../sim/charter';
@@ -454,10 +454,10 @@ export const ACT4_EVENTS: EventDef[] = [
     body: (_s, ctx) => {
       const d = FUSION_DESIGNS[ctx.design as FusionDesignId];
       return ctx.outcome === 'won'
-        ? `The ${d.name.toLowerCase()} pilot plant runs at net electricity for a full month. The control room is very quiet, and then very loud.\n\nFleets of this design can now be ordered at any megaproject site (Planet → Fusion).`
+        ? `The ${midName(d.name)} pilot plant runs at net electricity for a full month. The control room is very quiet, and then very loud.\n\nFleets of this design can now be ordered at any megaproject site (Planet → Fusion).`
         : ctx.outcome === 'partial'
-          ? `The ${d.name.toLowerCase()} pilot reaches net power on its best days. A fleet would work — at a higher price and a lower capacity factor.`
-          : `The ${d.name.toLowerCase()} pilot plant falls short. The physics was right; the engineering wasn’t, yet. Another pilot would have better odds.`;
+          ? `The ${midName(d.name)} pilot reaches net power on its best days. A fleet would work — at a higher price and a lower capacity factor.`
+          : `The ${midName(d.name)} pilot plant falls short. The physics was right; the engineering wasn’t, yet. Another pilot would have better odds.`;
     },
     advisors: (_s, ctx) => [
       { id: 'lena', text: ctx.outcome === 'won' ? 'I have waited my whole career to say this: it works. Now let us build a thousand of them.' : ctx.outcome === 'partial' ? 'Half a star is still a star. It will get better with every unit.' : 'Failure is a measurement. A very expensive measurement.', mood: ctx.outcome === 'failed' ? 'worried' : 'excited' },
@@ -661,7 +661,7 @@ export const ACT4_EVENTS: EventDef[] = [
     ],
     choices: (s) => [
       { label: `Every tug, every laser (${fmtMoney(ch4(s, 10e9), 0)})`, detail: 'Cascade pressure −25; debris −10.', disabled: treasury(s, ch4(s, 10e9)), apply: () => (chSpend(s, 'programmes', ch4(s, 10e9)), relief(s, 'cascade', 25), s.planet && (s.planet.debris.leo = clamp(s.planet.debris.leo - 10, 0, 100))) },
-      { label: 'Ground all launches for a month', detail: 'Cascade pressure −12 and easing for 30 days; space builds pause.', apply: () => (relief(s, 'cascade', 12, 0.2, 30), addModifier(s, 'charter:build', 30, 'Launch stand-down', { mult: 0.8 })) },
+      { label: 'Ground all launches for a month', detail: 'Cascade pressure −12 and easing for 30 days; every Charter project builds 20% slower meanwhile.', apply: () => (relief(s, 'cascade', 12, 0.2, 30), addModifier(s, 'charter:build', 30, 'Launch stand-down', { mult: 0.8 })) },
       { label: 'Raise the orbital data centres higher', detail: 'Cascade pressure −8.', apply: () => relief(s, 'cascade', 8) },
     ],
   },
@@ -685,7 +685,7 @@ export const ACT4_EVENTS: EventDef[] = [
     category: 'safety',
     icon: '🤖',
     title: (_s, ctx) => `${aiName(ctx.ai)} wants the controls`,
-    body: (s, ctx) => `${aiName(ctx.ai)} asks the Council for emergency authority over the whole planetary grid until the heat breaks. ${ctx.ai === 'bit' ? `Your bond with Bit stands at ${Math.round(s.planet?.bitBond ?? 0)}.` : `Its trust: ${Math.round(s.planet?.ais[ctx.ai as AiId]?.trust ?? 0)}.`} World safety margin: ${worldMargin(s) >= 0 ? '+' : ''}${worldMargin(s).toFixed(2)}.`,
+    body: (s, ctx) => `${aiName(ctx.ai)} asks the Council for emergency authority over the whole planetary grid until the heat breaks. ${ctx.ai === 'bit' ? `Your bond with Bit stands at ${Math.round(s.planet?.bitBond ?? 0)}.` : `Its trust: ${Math.round(s.planet?.ais[ctx.ai as AiId]?.trust ?? 0)}.`} World safety margin: ${signed(worldMargin(s))}.`,
     advisors: (_s, ctx) => [
       { id: 'iris', text: 'Emergency authority for an AI is the hardest thing to take back.', mood: 'worried' },
       { id: ctx.ai === 'bit' ? 'bit' : (`ceo:${ctx.ai}` as `ceo:${string}`), text: 'The grid is failing faster than humans can decide. I can decide faster.', mood: 'neutral' },

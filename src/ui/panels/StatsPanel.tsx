@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks';
 import { Panel, useGame } from '../components';
 import { Tile, Tiles } from '../kit';
 import type { ChartPoint } from '../../sim/types';
-import { fmtDate, fmtMoney, fmtMonth, fmtMW, fmtNum as fmtTimes } from '../../sim/core';
+import { fmtDate, fmtMoney, fmtMonth, fmtMW, fmtNum as fmtTimes, signed } from '../../sim/core';
 import { warming } from '../../sim/climate';
 
 type Range = 'act' | '5y' | 'all';
@@ -62,7 +62,7 @@ const CHARTS: ChartDef[] = [
       { label: 'Frontier', color: 'var(--muted)', get: (p) => p.frontier },
     ],
   },
-  { id: 'margin', title: 'Safety margin', fmt: (v) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}`, zero: true, series: [{ label: 'Margin', color: 'var(--blue)', get: (p) => p.margin }] },
+  { id: 'margin', title: 'Safety margin', fmt: (v) => `${signed(v)}`, zero: true, series: [{ label: 'Margin', color: 'var(--blue)', get: (p) => p.margin }] },
   { id: 'k', title: 'Kardashev scale', fmt: (v) => `K ${v.toFixed(4)}`, series: [{ label: 'K', color: 'var(--cyan)', get: (p) => p.k }] },
   { id: 'charter', title: 'Charter treasury', fmt: (v) => fmtMoney(v), optional: true, series: [{ label: 'Treasury', color: 'var(--gold)', get: (p) => p.charter ?? NaN }] },
   { id: 'warm', title: 'Warming', fmt: (v) => `${v.toFixed(2)} °C`, optional: true, series: [{ label: 'Warming', color: 'var(--warn)', get: (p) => p.warm ?? NaN }] },

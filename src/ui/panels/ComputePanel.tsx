@@ -2,7 +2,7 @@ import { Icon, KV, Panel, pct, useGame } from '../components';
 import { Card, Cols, Gauge, Meter, SplitBar, Tile, Tiles, type Tone } from '../kit';
 import { OwnLicenceBox } from './Act3Panels';
 import { RENTAL } from '../../content/companies';
-import { fmtDate, fmtDays, fmtMoney, fmtNum, fmtSci } from '../../sim/core';
+import { fmtDate, fmtDays, fmtMoney, fmtNum, fmtSci, signed } from '../../sim/core';
 import { CAPABILITY_TIERS, capabilityOf, algoEff, incidentChance, inferPriceTrend, openBest, rentalMax, rentalPrice, tierOf, MFU } from '../../sim/model';
 import { DIFFICULTIES } from '../../content/difficulty';
 import { modMult } from '../../sim/effects';
@@ -45,7 +45,7 @@ export function ComputePanel() {
         <Tile label="Compute" icon="compute" tone="cyan" value={<>{st.computeEF < 100 ? st.computeEF.toFixed(2) : Math.round(st.computeEF).toLocaleString('en-US')}<small>EF/s</small></>} sub={`${count(st.installedAccel + st.rentedAccel)} chips at work`} tip="Everything your halls and your rented chips can compute, at peak." />
         <Tile label="Best model" icon="brain" tone="violet" value={model ? model.name : 'None yet'} sub={model ? `${st.capability.toFixed(2)} · ${CAPABILITY_TIERS[tierOf(st.capability)]}` : 'Train Bit-1 below'} tip={`The frontier (the best closed model from Meridian or Lattice) stands at ${st.frontier.toFixed(2)}.`} />
         <Tile label="Revenue" icon="cash" tone="gold" value={<>{fmtMoney(st.revenueMonth)}<small>/mo</small></>} sub={`quality ×${st.inferQuality.toFixed(2)} of the frontier`} tip="What customers pay for inference each month. It scales with how good your best model is against the frontier." />
-        <Tile label="Safety margin" icon="shield" tone={marginTone} value={`${st.margin >= 0 ? '+' : ''}${st.margin.toFixed(2)}`} sub={st.capability > 0 ? `${pct(risk, 1)} incident risk a month` : 'no model yet'} tip="Alignment minus capability. Below zero, safety incidents become likely." />
+        <Tile label="Safety margin" icon="shield" tone={marginTone} value={`${signed(st.margin)}`} sub={st.capability > 0 ? `${pct(risk, 1)} incident risk a month` : 'no model yet'} tip="Alignment minus capability. Below zero, safety incidents become likely." />
       </Tiles>
 
       <Card title="Training" icon="train">
@@ -156,7 +156,7 @@ export function ComputePanel() {
         </Card>
         <Card title="Safety" icon="shield">
           <div class="row" style={{ gap: '16px', alignItems: 'center' }}>
-            <Gauge value={st.margin} min={-1} max={1.5} danger={0} text={`${st.margin >= 0 ? '+' : ''}${st.margin.toFixed(2)}`} label="margin" tone={marginTone} />
+            <Gauge value={st.margin} min={-1} max={1.5} danger={0} text={`${signed(st.margin)}`} label="margin" tone={marginTone} />
             <div class="grow">
               <KV
                 rows={[

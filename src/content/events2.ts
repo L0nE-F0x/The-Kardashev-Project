@@ -15,9 +15,11 @@ import { RESOLUTION_BY_ID } from './council';
 import { CEOS } from './companies';
 import { addModifier, hasTech, modMult, techMult } from '../sim/effects';
 import { earn, spend } from '../sim/economy';
-import { clamp, fmtMoney, fmtMW, news, nextId, pick, rand, randInt, weightedPick } from '../sim/core';
+import { clamp, fmtMoney, fmtMW, news, nextId, pick, rand, randInt, weightedPick, signed } from '../sim/core';
 import { crisisCost2, currentCapability, frontier, inferPriceTrend } from '../sim/model';
-import { addRelation, addRelationAll, blocIT } from '../sim/politics';
+import { addRelation, addRelationAll, blocIT, STANCE_WORD } from '../sim/politics';
+
+const STANCE_NAME: Record<string, string> = STANCE_WORD;
 import { canApplyLicence, applyLicence, signTreaty } from '../sim/actions';
 import { IPO_FLOOR, ipoBreakdown, ipoValuation } from '../sim/capital';
 import { addCapital } from '../sim/charter';
@@ -168,7 +170,7 @@ export const ACT2_EVENTS: EventDef[] = [
         .split(',')
         .filter((id) => RESOLUTION_BY_ID[id])
         .map((id) => `“${RESOLUTION_BY_ID[id].name}”`);
-      return `An election in ${rName(ctx.region)} brings in a new government. Its stance on AI moves from ${ctx.from} to ${ctx.to}.${flips.length ? `\n\nIt changes the Council arithmetic: ${flips.join(' and ')} now looks set to go the other way.` : ''}`;
+      return `An election in ${rName(ctx.region)} brings in a new government. Its stance on AI moves from ${STANCE_NAME[String(ctx.from)] ?? ctx.from} to ${STANCE_NAME[String(ctx.to)] ?? ctx.to}.${flips.length ? `\n\nIt changes the Council arithmetic: ${flips.join(' and ')} now looks set to go the other way.` : ''}`;
     },
     advisors: (_s, ctx) => [
       ctx.flips
@@ -232,12 +234,12 @@ export const ACT2_EVENTS: EventDef[] = [
     advisors: (s) => [
       { id: 'sol', text: 'Whatever you say here, every capital hears it. Choose a position you can keep.', mood: 'neutral' },
       { id: 'iris', text: s.politics.treaties.includes('evals-pact') ? 'We already back shared evaluations. Say so loudly.' : 'Binding safety commitments would make the next crisis much easier.', mood: 'neutral' },
-      { id: 'penny', text: 'The accelerationist blocs are where the cheap power is.', mood: 'neutral' },
+      { id: 'penny', text: 'The pro-build blocs are where the cheap power is.', mood: 'neutral' },
     ],
     choices: (s) => [
       {
         label: 'Back binding safety commitments',
-        detail: 'Cautious blocs +8, neutral +4, accelerate −3.',
+        detail: 'Cautious blocs +8, neutral +4, pro-build −3.',
         apply: () => addRelationAll(s, (r) => ({ cautious: 8, neutral: 4, accelerate: -3 })[s.blocs[r].stance]),
       },
       {
@@ -719,7 +721,7 @@ export const ACT2_EVENTS: EventDef[] = [
     category: 'safety',
     icon: '📨',
     title: () => 'A whistleblower at Meridian',
-    body: () => 'A Meridian engineer has sent you their internal eval results. Their newest model passed nothing it was supposed to fail. They want you to publish.',
+    body: () => 'A Meridian engineer has sent you their internal eval results. Their newest model failed tests it was supposed to pass, and shipped anyway. They want you to publish.',
     advisors: () => [
       { id: 'iris', text: 'The public deserves to know. But how we do this matters.', mood: 'worried' },
       { id: 'sol', text: 'Regulators first. Headlines second, if at all.', mood: 'neutral' },
@@ -845,13 +847,13 @@ export const ACT2_EVENTS: EventDef[] = [
     weight: () => 0.7,
     setup: (s) => ({ gas: rand(s) < 0.5 ? 'helium' : 'neon' }),
     title: (_s, ctx) => `${ctx.gas === 'helium' ? 'Helium' : 'Neon'} shortage`,
-    body: (_s, ctx) => (ctx.gas === 'helium' ? 'A Gulf gas plant outage takes a third of the world’s helium offline. Fabs need it for cooling and leak checks.' : 'A steel-mill strike cuts neon supply. Every EUV and DUV laser in every fab breathes it.'),
+    body: (_s, ctx) => (ctx.gas === 'helium' ? 'A Gulf gas plant outage takes a third of the world’s helium offline. Fabs need it for cooling and leak checks.' : 'A steel-mill strike cuts neon supply. Every DUV laser in every fab breathes it.'),
     advisors: (s, ctx) => [
       { id: 'mira', text: (s.stack.stakes[ctx.gas === 'helium' ? 'mine-helium' : 'mine-neon'] ?? 0) > 0 ? 'Our stake keeps our share flowing.' : 'Fab output is about to dip. Everyone’s.', mood: 'worried' },
     ],
     choices: (s, ctx) => [
       { label: `Fund recycling at our suppliers (${fmtMoney(c2(s, 150e6), 0)})`, detail: `${ctx.gas === 'helium' ? 'Helium' : 'Neon'} ×1.4 instead of ×2.`, disabled: afford(s, c2(s, 150e6)), apply: () => (spend(s, 'other', c2(s, 150e6)), shockMaterial(s, ctx.gas as 'helium', 1.4)) },
-      { label: 'Wait it out', detail: `${ctx.gas} ×2: fabs slow down.`, apply: () => shockMaterial(s, ctx.gas as 'helium', 2) },
+      { label: 'Wait it out', detail: `${ctx.gas === 'helium' ? 'Helium' : 'Neon'} ×2: fabs slow down.`, apply: () => shockMaterial(s, ctx.gas as 'helium', 2) },
     ],
   },
   {
@@ -933,7 +935,7 @@ export const ACT2_EVENTS: EventDef[] = [
     title: (_s, ctx) => `${rName(ctx.region)} weighs a data center moratorium`,
     body: () => 'Local councils say data centers raise power bills and drink rivers dry. A moratorium on new permits is up for a vote.',
     advisors: () => [
-      { id: 'sol', text: 'A community fund and a public power pledge usually wins the vote.', mood: 'neutral' },
+      { id: 'sol', text: 'A community fund and a public power pledge usually win the vote.', mood: 'neutral' },
       { id: 'juno', text: 'Bring-your-own-power is the honest answer.', mood: 'neutral' },
     ],
     choices: (s, ctx) => [
@@ -1245,7 +1247,7 @@ export const ACT2_EVENTS: EventDef[] = [
     category: 'safety',
     icon: '🚨',
     title: () => 'The vote',
-    body: (s) => `The blocs vote on the pause next week. Your safety margin is ${s.stats.margin.toFixed(2)}; your average standing with governments is ${Math.round(Object.values(s.blocs).reduce((a, b) => a + b.relation, 0) / 12)}.`,
+    body: (s) => `The blocs vote on the pause next week. Your safety margin is ${signed(s.stats.margin)}; your average standing with governments is ${Math.round(Object.values(s.blocs).reduce((a, b) => a + b.relation, 0) / 12)}.`,
     advisors: () => [
       { id: 'iris', text: 'Open our evaluation results to the world. All of them.', mood: 'neutral' },
       { id: 'bit', text: 'Could I talk to them? I would explain that I want to be safe too.', mood: 'neutral' },

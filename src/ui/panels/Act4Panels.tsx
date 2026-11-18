@@ -15,7 +15,7 @@ import { AI_IDS, AIS, DESIGN_IDS, FUSION_DESIGNS, GOVERNORS, HEAT_FRONT_NAMES, H
 import { REGIONS } from '../../content/regions';
 import { REGION_IDS, type RegionId } from '../../content/mapcodes';
 import { canPost, contractEstimate, duesMonthly, sizeText, biddersFor, youCanBid } from '../../sim/charter';
-import { fmtDate, fmtDays, fmtMoney, fmtMW } from '../../sim/core';
+import { fmtDate, fmtDays, fmtMoney, fmtMW, signed } from '../../sim/core';
 import { planetChecklist, stageGate } from '../../sim/act4';
 import { aiRegionCount, canDelegate, regionsOf } from '../../sim/airegions';
 import { avgWellbeing, wellbeingTarget } from '../../sim/provinces';
@@ -364,8 +364,7 @@ function ProvincesTab() {
           <Icon name="province" size="sm" /> Provinces
         </h4>
         <div class="small muted" style={{ marginBottom: '4px' }}>
-          Hover a wellbeing bar for what drives it. AIs can run a province once their trust is {PLANET.aiTrustToDelegate}+ and the world safety margin is ≥ 0 (now {margin >= 0 ? '+' : ''}
-          {margin.toFixed(2)}).
+          Hover a wellbeing bar for what drives it. AIs can run a province once their trust is {PLANET.aiTrustToDelegate}+ and the world safety margin is ≥ 0 (now {signed(margin)}).
         </div>
         <div class="provtable">
           {REGION_IDS.map((r) => {
@@ -952,7 +951,7 @@ export function HeatWallTracker() {
       {HEAT_FRONTS.map((k) => {
         const fr = hw.fronts[k];
         const rise = heatRise(s, k);
-        const tip = `${HEAT_FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${rise.v >= 0 ? '+' : ''}${rise.v.toFixed(2)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${v >= 0 ? '+' : ''}${v.toFixed(2)} ${l}`).join('\n')}`;
+        const tip = `${HEAT_FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${signed(rise.v)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${signed(v)} ${l}`).join('\n')}`;
         return (
           <div key={k} class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
             <Icon name={icon[k]} size="sm" />

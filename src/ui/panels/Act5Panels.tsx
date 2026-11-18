@@ -15,7 +15,7 @@ import { ASTEROIDS, MAX_FRONT_ITEMS, MAX_FRONT_NAMES, MAX_FRONTS, PRIORITIES5, P
 import { AIS } from '../../content/planet';
 import { REGIONS } from '../../content/regions';
 import { REGION_IDS } from '../../content/mapcodes';
-import { fmtDate, fmtDays, fmtMoney, fmtTW } from '../../sim/core';
+import { fmtDate, fmtDays, fmtMoney, fmtTW, signed } from '../../sim/core';
 import { typeIChecklist } from '../../sim/act5';
 import { bitEraBlocked, defaultEra, typeIEstimate } from '../../sim/eras';
 import { climbPush, doublingMonths, driftChance, feedFactor, foundryMt, placeName, siteEff, verifyCost } from '../../sim/foundries';
@@ -224,7 +224,7 @@ function OverviewTab() {
           icon="longevity"
           tone={sy.escape ? 'good' : 'violet'}
           value={sy.lifeExp.toFixed(1)}
-          sub={`${sy.lifeRate >= 0 ? '+' : ''}${sy.lifeRate.toFixed(2)} a year${sy.escape ? ' · escape velocity' : ''}`}
+          sub={`${signed(sy.lifeRate)} a year${sy.escape ? ' · escape velocity' : ''}`}
           tip={'Healthy life expectancy\nEscape velocity is a rise of more than a year every year. The minds’ research and clinics drive it.'}
         />
       </Tiles>
@@ -905,7 +905,7 @@ export function SolarMaxTracker() {
       {MAX_FRONTS.map((k) => {
         const fr = sm.fronts[k];
         const rise = maxRise(s, k);
-        const tip = `${MAX_FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${rise.v >= 0 ? '+' : ''}${rise.v.toFixed(2)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${v >= 0 ? '+' : ''}${v.toFixed(2)} ${l}`).join('\n')}`;
+        const tip = `${MAX_FRONT_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${signed(rise.v)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${signed(v)} ${l}`).join('\n')}`;
         return (
           <div key={k} class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
             <Icon name={icon[k]} size="sm" />

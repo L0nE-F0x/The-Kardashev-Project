@@ -12,7 +12,7 @@ import { FINANCE } from '../content/capital';
 import { REGIONS } from '../content/regions';
 import type { RegionId } from '../content/mapcodes';
 import type { AdvisorId, FacilityType, GameState, Job, SupplierId } from './types';
-import { clamp, fmtMoney, fmtMW, news, nextId } from './core';
+import { an, clamp, fmtMoney, fmtMW, news, nextId, poss } from './core';
 import { earn, spend } from './economy';
 import { nextModelPlan } from './ai';
 import { addModifier, hasTech, techMult } from './effects';
@@ -290,7 +290,7 @@ export function upgradeFacility(s: GameState, facilityId: string): Result {
   spend(s, 'capex', cost);
   f.upgrade = { to: nt.tier, progress: 0, buildDays: upgradeDays(s, f) };
   s.built[f.type] = (s.built[f.type] ?? 0) + 1;
-  news(s, `🏗 Expanding the ${FACILITIES[f.type].name} at ${siteDef(f.siteId).name} to ${nt.def.label} (${fmtMoney(cost)}).`);
+  news(s, `🏗 Expanding the ${FACILITIES[f.type].name} at ${siteDef(f.siteId).name}: ${nt.def.label} (${fmtMoney(cost)}).`);
   return OK;
 }
 
@@ -461,7 +461,7 @@ export function applyLicence(s: GameState, ruleId: string, region: RegionId): Re
   const r = RULE_BY_ID[ruleId];
   spend(s, 'other', r.licenceCost);
   s.politics.pending.push({ rule: ruleId, region, readyDay: s.day + Math.round(r.licenceDays * techMult(s, 'licenceDays')) });
-  news(s, `📜 Applied for a ${r.name} licence for ${REGIONS[region].name}.`);
+  news(s, `📜 Applied for ${an(r.name)} licence for ${REGIONS[region].name}.`);
   return OK;
 }
 
@@ -501,7 +501,7 @@ export function acceptSovereign(s: GameState, dealId: string): Result {
   if (def.power) addModifier(s, `region:${d.region}:price`, def.days, `${def.title}: cheap power`, { mult: def.power });
   if (def.permit) addModifier(s, `region:${d.region}:permit`, def.days, `${def.title}: fast permits`, { mult: def.permit });
   addRelation(s, d.region, 4);
-  news(s, `🤝 Accepted ${REGIONS[d.region].name}'s ${def.title}: ${fmtMW(d.needMW)} of IT there by the deadline.`, 'good');
+  news(s, `🤝 Accepted ${poss(REGIONS[d.region].name)} ${def.title}: ${fmtMW(d.needMW)} of IT there by the deadline.`, 'good');
   return OK;
 }
 

@@ -7,7 +7,7 @@ import { BUILD_SITES, siteOpen } from '../content/sites';
 import { REGIONS } from '../content/regions';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
 import type { GameState } from './types';
-import { clamp, fmtMW, fmtMoney, news, nextId, pick, rand, randInt, yearsElapsed } from './core';
+import { clamp, fmtMW, fmtMoney, news, nextId, pick, poss, rand, randInt, yearsElapsed } from './core';
 import { gridHeadroomLeft, siteSlots } from './model';
 import { slotsUsed } from './actions';
 import { queueEvent } from './events';
@@ -53,7 +53,7 @@ export function tickRivalBuilds(s: GameState): void {
     if (b.status !== 'building' || s.day < b.readyDay) continue;
     b.status = 'online';
     const r = s.market.rivals.find((x) => x.id === b.owner);
-    news(s, `📣 ${r?.name ?? b.owner}'s ${fmtMW(b.itMW)} campus at ${BUILD_SITES.find((x) => x.id === b.siteId)?.name} is online.`, 'info');
+    news(s, `📣 ${poss(r?.name ?? b.owner)} ${fmtMW(b.itMW)} campus at ${BUILD_SITES.find((x) => x.id === b.siteId)?.name} is online.`, 'info');
   }
 
   // talent: rival labs drain regional pools, your labs too; pools slowly refill

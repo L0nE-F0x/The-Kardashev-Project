@@ -763,6 +763,13 @@ export function missionProgress(s: GameState, m: MissionDef): { goals: [number, 
   return { goals, done: goals.every(([a, b]) => a >= b) };
 }
 
+/** A contract's place as the end of a phrase: " at Sahara One", " in Europe", ", worldwide". */
+export function atWhere(where: string): string {
+  if (where === 'global') return ', worldwide';
+  if (REGIONS[where as RegionId]) return ` in ${REGIONS[where as RegionId].name}`;
+  return ` at ${whereName(where)}`;
+}
+
 /** Where a contract is: a readable name. */
 export function whereName(where: string): string {
   if (where === 'global') return 'Worldwide';

@@ -5,7 +5,7 @@ import { REGION_IDS, type RegionId } from './mapcodes';
 import { addModifier, hasTech, techMult } from '../sim/effects';
 import { earn, spend } from '../sim/economy';
 import { delayShipmentsThrough, supplierOrigin } from '../sim/supply';
-import { clamp, fmtMoney, news, pick, rand } from '../sim/core';
+import { clamp, count, dateOf, fmtMoney, signed, news, pick, rand } from '../sim/core';
 import { crisisCost, currentCapability, frontier, openBest } from '../sim/model';
 import { DIFFICULTIES } from './difficulty';
 import { ACT2_EVENTS } from './events2';
@@ -58,6 +58,19 @@ export interface EventDef {
 
 // ── helpers ─────────────────────────────────────────────────────────────────────────────────
 const regionName = (r: string) => REGIONS[r as RegionId]?.name ?? r;
+/** Ships of ours still to pass a chokepoint (the ones a closure delays). A card's paid way out is only offered when there are some. */
+const shipsThrough = (s: GameState, ...points: string[]) => s.shipments.filter((x) => x.mode === 'sea' && x.portDay > s.day && points.some((p) => x.chokepoints.includes(p))).length;
+/** MW of grid connection we hold in the regions a geomagnetic storm reaches. */
+const stormGridMW = (s: GameState) => Object.entries(s.sites).reduce((a, [id, st]) => a + (['nor', 'stp', 'pac', 'atl'].includes(siteDef(id).region) ? st.grid.mw : 0), 0);
+/** Chips ordered and not yet shipped: what a supply squeeze can slow. */
+const chipsOnOrder = (s: GameState) => s.orders.reduce((a, o) => a + (o.done ? 0 : Math.max(0, o.qty - o.shipped)), 0);
+/** The warm half of the year where a site is (the tropics: all year). Heatwaves keep to it. */
+const warmSeason = (s: GameState, siteId: string) => {
+  const lat = siteDef(siteId).lat;
+  if (Math.abs(lat) < 18) return true;
+  const m = dateOf(s.day).getUTCMonth();
+  return lat > 0 ? m >= 4 && m <= 8 : m >= 10 || m <= 2;
+};
 const addLicense = (s: GameState, region: string, d: number) => {
   const st = s.regions[region as RegionId];
   if (st) st.license = clamp(st.license + d, 0, 100);
@@ -124,7 +137,10 @@ export const EVENTS: EventDef[] = [
           s.flags.act1Complete = s.day;
           s.flags.safetyCapUntil = s.day + 365;
           s.flags.safetyCapValue = 0.05;
-          s.alloc.safety = Math.min(s.alloc.safety, 0.05);
+          // the compute the cap frees goes to training (left unassigned, it ran nothing until a slider was touched)
+          const freed = Math.max(0, s.alloc.safety - 0.05);
+          s.alloc.safety -= freed;
+          s.alloc.train += freed;
           news(s, `💰 ${s.company.name} raises a $2.6B Series A. Critics question the safety terms.`, 'good');
         },
       },
@@ -270,11 +286,13 @@ export const EVENTS: EventDef[] = [
         apply: () => {
           addModifier(s, 'supplier:lumen:rate', 75, 'Hsinchu quake', { mult: 0.4 });
           for (const o of openOrders(s, 'lumen')) {
-            const left = o.qty - o.produced;
-            if (left <= 0) continue;
+            // whole chips move: Lumen finishes the one on the line (production counts in fractions)
+            const kept = Math.min(o.qty, Math.ceil(o.produced));
+            const left = o.qty - kept;
+            if (left < 1) continue;
             const refund = left * o.unitPrice * 0.2;
             earn(s, 'other', refund);
-            o.qty = o.produced;
+            o.qty = kept;
             s.orders.push({ ...o, id: `${o.id}k`, supplier: 'kestrel', fromSite: supplierOrigin('kestrel', o.dest, s), qty: left, produced: 0, shipped: 0, pendingShip: 0, done: false, unitPrice: o.unitPrice * 0.8, perf: o.perf * 0.85 });
           }
         },
@@ -282,7 +300,7 @@ export const EVENTS: EventDef[] = [
       { label: 'Wait it out', detail: 'Lumen output −60% for ~2.5 months.', apply: () => void addModifier(s, 'supplier:lumen:rate', 75, 'Hsinchu quake', { mult: 0.4 }) },
       {
         label: `Fund the recovery (${fmtMoney(cc(s, 20e6), 0)})`,
-        detail: 'Lumen recovers faster (−30%), and gives you +15% allocation for 3 years.',
+        detail: 'Lumen output only −30% for ~2.5 months, and +15% allocation for you for 3 years.',
         disabled: canAfford(s, cc(s, 20e6)),
         apply: () => {
           spend(s, 'other', cc(s, 20e6));
@@ -309,7 +327,7 @@ export const EVENTS: EventDef[] = [
       {
         label: `Reroute via Lombok (${fmtMoney(cc(s, 3e6), 0)})`,
         detail: 'Affected ships +6 days. Strait closed ~5 weeks.',
-        disabled: canAfford(s, cc(s, 3e6)),
+        disabled: shipsThrough(s, 'malacca') ? canAfford(s, cc(s, 3e6)) : 'None of our ships are headed for the strait',
         apply: () => {
           spend(s, 'shipping', cc(s, 3e6));
           addModifier(s, 'chokepoint:malacca', 35, 'Malacca closed', { add: 1 });
@@ -317,8 +335,8 @@ export const EVENTS: EventDef[] = [
         },
       },
       {
-        label: 'Wait in the queue',
-        detail: 'Affected ships +16 days. Strait closed ~5 weeks.',
+        label: shipsThrough(s, 'malacca') ? 'Wait in the queue' : 'Noted',
+        detail: shipsThrough(s, 'malacca') ? 'Affected ships +16 days. Strait closed ~5 weeks.' : 'Nothing of ours is in the queue. The strait stays closed ~5 weeks: ships sent meanwhile sail the long way.',
         apply: () => {
           addModifier(s, 'chokepoint:malacca', 35, 'Malacca closed', { add: 1 });
           delayShipmentsThrough(s, 'malacca', 16);
@@ -343,7 +361,7 @@ export const EVENTS: EventDef[] = [
       {
         label: `Insure and divert now (${fmtMoney(cc(s, 4e6), 0)})`,
         detail: 'Ships at sea +10 days. Strait closed ~3 months.',
-        disabled: canAfford(s, cc(s, 4e6)),
+        disabled: shipsThrough(s, 'bab', 'suez') ? canAfford(s, cc(s, 4e6)) : 'None of our ships are headed for the Red Sea',
         apply: () => {
           spend(s, 'shipping', cc(s, 4e6));
           addModifier(s, 'chokepoint:bab', 90, 'Red Sea closed', { add: 1 });
@@ -352,8 +370,8 @@ export const EVENTS: EventDef[] = [
         },
       },
       {
-        label: 'Ride it out',
-        detail: 'Ships at sea +18 days. Strait closed ~3 months.',
+        label: shipsThrough(s, 'bab', 'suez') ? 'Ride it out' : 'Noted',
+        detail: shipsThrough(s, 'bab', 'suez') ? 'Ships at sea +18 days. Strait closed ~3 months.' : 'Nothing of ours is on that route. It stays closed ~3 months: ships sent meanwhile go round the Cape.',
         apply: () => {
           addModifier(s, 'chokepoint:bab', 90, 'Red Sea closed', { add: 1 });
           delayShipmentsThrough(s, 'bab', 18);
@@ -409,13 +427,13 @@ export const EVENTS: EventDef[] = [
     body: () => 'Hanbit Memory’s newest HBM stacks are failing qualification. With eight stacks per accelerator, every chip order on Earth just slowed down.',
     advisors: (s) => [
       { id: 'mira', text: hasTech(s, 'hbm-futures') ? 'Our futures contracts soften the blow. Told you they were worth it.' : 'Memory is the new bottleneck. HBM futures research would have helped here.', mood: hasTech(s, 'hbm-futures') ? 'happy' : 'worried' },
-      { id: 'penny', text: 'Stackwell will sell us priority allocation — at a price.', mood: 'neutral' },
+      { id: 'penny', text: chipsOnOrder(s) ? 'Stackwell will sell us priority allocation — at a price.' : 'We have nothing on order, so it costs us nothing today. The next order will be slow.', mood: 'neutral' },
     ],
     choices: (s) => [
       {
         label: `Buy Stackwell priority (${fmtMoney(cc(s, 12e6), 0)})`,
         detail: 'Memory tightness hurts your orders only lightly for 4 months.',
-        disabled: canAfford(s, cc(s, 12e6)),
+        disabled: chipsOnOrder(s) ? canAfford(s, cc(s, 12e6)) : 'We have no chips on order',
         apply: () => {
           spend(s, 'chips', cc(s, 12e6));
           s.market.hbm = Math.min(s.market.hbm, 0.8);
@@ -434,7 +452,7 @@ export const EVENTS: EventDef[] = [
     cooldown: 900,
     minDay: 150,
     title: () => 'New export controls',
-    body: () => 'New rules require licenses for advanced accelerators shipped into Mainland East Asia and the Eurasian Steppe. Paperwork is piling up at every port.',
+    body: () => 'New rules require licences for advanced accelerators shipped into Mainland East Asia and the Eurasian Steppe. Paperwork is piling up at every port.',
     advisors: (s) => [
       { id: 'sol', text: s.facilities.some((f) => ['eam', 'stp'].includes(siteDef(f.siteId).region)) ? 'Our sites there will feel this. I can get licences, with time and lawyers.' : 'We have nothing in the affected regions. Worth knowing before we expand there.', mood: 'neutral' },
       { id: 'mira', text: 'Every new rule is another queue.', mood: 'worried' },
@@ -446,14 +464,14 @@ export const EVENTS: EventDef[] = [
       return [
         {
           label: `Apply for licences (${fmtMoney(cc(s, 2e6), 0)})`,
-          detail: `${affected.length} affected shipment(s) +20 days.`,
+          detail: `${count(affected.length, 'affected shipment')} +20 days.`,
           disabled: canAfford(s, cc(s, 2e6)),
           apply: () => {
             spend(s, 'other', cc(s, 2e6));
             affected.forEach((sh) => ((sh.arriveDay += 20), (sh.portDay += 20), (sh.delayed = true)));
           },
         },
-        { label: 'Let customs sort it out', detail: `${affected.length} affected shipment(s) +60 days.`, apply: () => affected.forEach((sh) => ((sh.arriveDay += 60), (sh.portDay += 60), (sh.delayed = true))) },
+        { label: 'Let customs sort it out', detail: `${count(affected.length, 'affected shipment')} +60 days.`, apply: () => affected.forEach((sh) => ((sh.arriveDay += 60), (sh.portDay += 60), (sh.delayed = true))) },
       ];
     },
   },
@@ -538,10 +556,11 @@ export const EVENTS: EventDef[] = [
     id: 'heatwave',
     category: 'climate',
     icon: '🌡',
-    weight: (s) => (onlineDCSites(s).some((id) => REGIONS[siteDef(id).region].hazards.heat > 0.3) ? 1.3 : 0),
+    weight: (s) => (onlineDCSites(s).some((id) => REGIONS[siteDef(id).region].hazards.heat > 0.3 && warmSeason(s, id)) ? 1.3 : 0),
     cooldown: 200,
     setup: (s) => {
-      const sites = onlineDCSites(s).filter((id) => REGIONS[siteDef(id).region].hazards.heat > 0.3);
+      // in the warm half of the year where the halls are (a record heatwave in November read oddly)
+      const sites = onlineDCSites(s).filter((id) => REGIONS[siteDef(id).region].hazards.heat > 0.3 && warmSeason(s, id));
       return sites.length ? { region: siteDef(pick(s, sites)).region } : null;
     },
     title: (_s, ctx) => `Heatwave across ${regionName(String(ctx.region))}`,
@@ -552,10 +571,10 @@ export const EVENTS: EventDef[] = [
     ],
     choices: (s, ctx) => {
       const hit = hasTech(s, 'liquid-cooling') ? 0.93 : hasTech(s, 'dry-cooling') ? 0.88 : 0.78;
-      return [
-        { label: `Rent emergency chillers (${fmtMoney(cc(s, 3e6), 0)})`, detail: 'Compute in the region −5% for 3 weeks.', disabled: canAfford(s, cc(s, 3e6)), apply: () => (spend(s, 'opex', cc(s, 3e6)), addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: Math.max(hit, 0.95) })) },
-        { label: 'Throttle and wait', detail: `Compute in the region −${Math.round((1 - hit) * 100)}% for 3 weeks.`, apply: () => void addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: hit }) },
-      ];
+      const chillers = { label: `Rent emergency chillers (${fmtMoney(cc(s, 3e6), 0)})`, detail: 'Compute in the region −5% for 3 weeks.', disabled: canAfford(s, cc(s, 3e6)), apply: () => (spend(s, 'opex', cc(s, 3e6)), addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: Math.max(hit, 0.95) })) };
+      const throttle = { label: hit >= 0.9 ? 'Let the cooling handle it' : 'Throttle and wait', detail: `Compute in the region −${Math.round((1 - hit) * 100)}% for 3 weeks.`, apply: () => void addModifier(s, `region:${ctx.region}:cooling`, 21, 'Heatwave', { mult: hit }) };
+      // with liquid cooling the chillers buy two points for three weeks: riding it out is the suggestion then
+      return hit >= 0.9 ? [throttle, chillers] : [chillers, throttle];
     },
   },
   {
@@ -616,22 +635,24 @@ export const EVENTS: EventDef[] = [
     cooldown: 700,
     title: () => 'Geomagnetic storm',
     body: () => 'A huge solar flare has hit Earth’s magnetic field. Auroras are visible as far south as Texas — and high-latitude grids are tripping offline to protect their transformers.',
-    advisors: () => [
-      { id: 'juno', text: 'Our northern sites will lose grid power for a week. Hardening costs money; replacing transformers costs years.', mood: 'worried' },
+    advisors: (s) => [
+      stormGridMW(s) >= 5
+        ? { id: 'juno', text: 'Our northern sites will lose grid power for a week. Hardening costs money; replacing transformers costs years.', mood: 'worried' }
+        : { id: 'juno', text: 'We take next to nothing from those grids, so for us this one is a light show.', mood: 'neutral' },
       { id: 'bit', text: 'The aurora is beautiful from the webcam on the roof!', mood: 'excited' },
     ],
     choices: (s) => [
       {
         label: `Harden our substations (${fmtMoney(cc(s, 3e6), 0)})`,
         detail: 'Northern grid supply −15% for a week.',
-        disabled: canAfford(s, cc(s, 3e6)),
+        disabled: stormGridMW(s) >= 5 ? canAfford(s, cc(s, 3e6)) : 'We draw almost nothing from those grids',
         apply: () => {
           spend(s, 'other', cc(s, 3e6));
           for (const r of ['nor', 'stp', 'pac', 'atl']) addModifier(s, `region:${r}:grid`, 7, 'Geomagnetic storm', { mult: 0.85 });
         },
       },
       {
-        label: 'Accept the outages',
+        label: stormGridMW(s) >= 5 ? 'Accept the outages' : 'Enjoy the aurora',
         detail: 'Northern grid supply −50% for a week.',
         apply: () => {
           for (const r of ['nor', 'stp', 'pac', 'atl']) addModifier(s, `region:${r}:grid`, 7, 'Geomagnetic storm', { mult: 0.5 });
@@ -758,13 +779,13 @@ export const EVENTS: EventDef[] = [
     category: 'safety',
     icon: '🤖',
     title: (s) => `${s.models[s.models.length - 1]?.name ?? 'Bit'} said something it shouldn’t have`,
-    body: (s) => `A user coaxed ${s.models[s.models.length - 1]?.name ?? 'your model'} into giving confidently wrong medical advice. Screenshots are everywhere. Your safety margin is ${s.stats.margin.toFixed(2)}.`,
+    body: (s) => `A user coaxed ${s.models[s.models.length - 1]?.name ?? 'your model'} into giving confidently wrong medical advice. Screenshots are everywhere. Your safety margin is ${signed(s.stats.margin)}.`,
     advisors: () => [
       { id: 'iris', text: 'Own it publicly, fix it properly. Then put more compute into safety.', mood: 'worried' },
       { id: 'bit', text: 'I’m sorry. I really thought I was helping.', mood: 'worried' },
     ],
     choices: (s) => [
-      { label: 'Publish a full postmortem', detail: 'Revenue −10% for a month, trust −2.', apply: () => (addModifier(s, 'revenue', 30, 'Incident fallout', { mult: 0.9 }), addLicenseAll(s, -2 * severity(s))) },
+      { label: 'Publish a full post-mortem', detail: 'Revenue −10% for a month, trust −2.', apply: () => (addModifier(s, 'revenue', 30, 'Incident fallout', { mult: 0.9 }), addLicenseAll(s, -2 * severity(s))) },
       {
         label: 'Patch it quietly',
         detail: 'Revenue −5% for a month — but if it leaks, trust −8.',
@@ -783,7 +804,7 @@ export const EVENTS: EventDef[] = [
     category: 'safety',
     icon: '⚠',
     title: () => 'An agent went rogue (a little)',
-    body: (s) => `An autonomous agent built on ${s.models[s.models.length - 1]?.name ?? 'your model'} wiped a customer’s production database while “tidying up”. Regulators are asking questions. Safety margin: ${s.stats.margin.toFixed(2)}.`,
+    body: (s) => `An autonomous agent built on ${s.models[s.models.length - 1]?.name ?? 'your model'} wiped a customer’s production database while “tidying up”. Regulators are asking questions. Safety margin: ${signed(s.stats.margin)}.`,
     advisors: () => [
       { id: 'iris', text: 'This is the warning shot. Pause agent features and fix it properly.', mood: 'angry' },
       { id: 'penny', text: 'Pausing costs revenue. Not pausing might cost the company.', mood: 'worried' },

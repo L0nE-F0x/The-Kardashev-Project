@@ -1,4 +1,5 @@
 /** Act III panels: the Charter (overview · contracts · missions · partners · world), the Council, the Charter desk and the Threshold tracker. */
+import { STANCE_WORD } from '../../sim/politics';
 import { useEffect, useState } from 'preact/hooks';
 import { Bar, Choice, Icon, KV, Panel, Portrait, Slider, Toggle, useGame } from '../components';
 import { Card, Cols, Tile, Tiles, type Tone } from '../kit';
@@ -32,7 +33,7 @@ import { OBJECTIVE_BY_ID, MANDATE_GOALS } from '../../content/objectives';
 import { REGIONS } from '../../content/regions';
 import { LAUNCH_SITES, MEGA_SITES, SITE_BY_ID } from '../../content/sites';
 import { REGION_IDS, type RegionId } from '../../content/mapcodes';
-import { fmtDate, fmtDays, fmtMoney, fmtMW } from '../../sim/core';
+import { fmtDate, fmtDays, fmtMoney, fmtMW, signed } from '../../sim/core';
 import type { ContractKind, ContractSize, FactionId, GameState, Project, Tender, ThresholdFront } from '../../sim/types';
 import {
   activeProjects,
@@ -404,7 +405,7 @@ function ContractsTab() {
                 ['Bidders', bidders.map((b) => (b === YOU ? s.company.name : PARTNERS[b]?.short ?? b)).join(', ')],
               ]}
             />
-            <button class="btn primary" disabled={!!why} onClick={() => game.postTender(kind, sz, w)} data-tip={why ?? 'Partners bid over the next two weeks; the tender stays open 21 days.'}>
+            <button class="btn primary" disabled={!!why} onClick={() => game.postTender(kind, sz, w)} data-tip={why ?? 'Partners bid over the next two weeks. Once the last bid is in you have a month to award it.'}>
               <Icon name="tender" size="sm" /> Post the tender
             </button>
             {why && <div class="small warn">{why}</div>}
@@ -999,7 +1000,7 @@ function BlocsTab() {
                 <tr key={r}>
                   <td data-tip={REGIONS[r].name}>{REGIONS[r].short}</td>
                   <td>{VOTES[r]}</td>
-                  <td>{s.blocs[r].stance}</td>
+                  <td>{STANCE_WORD[s.blocs[r].stance]}</td>
                   <td>{Math.round(s.blocs[r].relation)}</td>
                   <td class={(c.access[r] ?? 0) < 40 ? 'warn' : ''}>{Math.round(c.access[r] ?? 0)}</td>
                   <td>{fmtMoney(duesOf(s, r) * willingness(s, r), 1)}</td>
@@ -1141,7 +1142,7 @@ export function ThresholdTracker() {
       {THRESHOLD_FRONTS.map((k) => {
         const fr = t.fronts[k];
         const rise = frontRise(s, k);
-        const tip = `${FRONT3_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${rise.v >= 0 ? '+' : ''}${rise.v.toFixed(2)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${v >= 0 ? '+' : ''}${v.toFixed(2)} ${l}`).join('\n')}`;
+        const tip = `${FRONT3_NAMES[k]}: pressure ${Math.round(fr.pressure)}/100 (${signed(rise.v)}/day). At 100 the front is lost.\n${rise.parts.map(([l, v]) => `${signed(v)} ${l}`).join('\n')}`;
         return (
           <div key={k} class="row small" style={{ gap: '6px', alignItems: 'center' }} data-tip={tip}>
             <Icon name={icon[k]} size="sm" />

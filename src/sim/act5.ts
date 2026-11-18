@@ -9,7 +9,7 @@ import { PARTNERS } from '../content/charter';
 import { SYSTEM, STAGE5_NAMES } from '../content/system';
 import { REGION_IDS } from '../content/mapcodes';
 import type { GameState } from './types';
-import { fmtTW, news } from './core';
+import { fmtTW, news, signed } from './core';
 import { queueEvent, scheduleEvent } from './events';
 import { createSystem } from './systemInit';
 import { segmentsLit } from './systemView';
@@ -49,7 +49,7 @@ export function openEraPlan(s: GameState): void {
   const sy = s.system!;
   if (sy.planOpen) return;
   sy.planOpen = true;
-  news(s, `🗓 ${STAGE5_NAMES[sy.stage]} is done. The next era plan is waiting (System → Plan).`, 'event');
+  news(s, `🗓 Stage ${sy.stage} (${STAGE5_NAMES[sy.stage]}) is done. The next era plan is waiting (System → Plan).`, 'event');
   queueEvent(s, 'era-ready');
 }
 
@@ -75,7 +75,7 @@ export function typeIChecklist(s: GameState): GoalCheck5[] {
     { id: 'warming', label: `Warming under ${SYSTEM.goalWarming.toFixed(1)} °C`, done: w < SYSTEM.goalWarming, note: `${w.toFixed(2)} °C` },
     { id: 'escape', label: 'Longevity escape velocity', done: !!sy?.escape, note: sy ? `+${(sy.lifeRate).toFixed(2)} years a year · ${sy.lifeExp.toFixed(0)} healthy years` : '' },
     { id: 'minds', label: 'The minds at peace (a seat settled, mood ≥ 50)', done: !!sy?.seat && sy.mindsMood >= 50, note: sy ? `mood ${Math.round(sy.mindsMood)}` : '' },
-    { id: 'margin', label: 'World safety margin ≥ 0', done: m >= 0, note: `${m >= 0 ? '+' : ''}${m.toFixed(2)}` },
+    { id: 'margin', label: 'World safety margin ≥ 0', done: m >= 0, note: `${signed(m)}` },
     { id: 'mercury', label: 'Mercury surveyed', done: (sy?.mercury ?? 0) >= 2, note: ['not yet', 'probe on its way', 'surveyed'][sy?.mercury ?? 0] },
   ];
 }
