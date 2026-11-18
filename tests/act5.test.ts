@@ -47,6 +47,8 @@ describe('Act V · Type I', () => {
     const s = newAct5Game({ name: 'Old Save', homeSite: 'bay-area', seed: 6 }, ctx);
     const raw = JSON.parse(JSON.stringify(s));
     delete raw.system;
+    // (as an Act IV save is: the loader refuses an act without its world)
+    raw.act = 4;
     raw.version = 5;
     const m = migrate(raw)!;
     expect(m.version).toBe(SAVE_VERSION);

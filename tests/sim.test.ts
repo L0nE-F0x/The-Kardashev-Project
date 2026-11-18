@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from '../src/sim/state';
-import { tick } from '../src/sim/tick';
+import { refreshStats, tick } from '../src/sim/tick';
+import { newAct3Game } from '../src/sim/act3';
+import { act5PreviewState } from '../src/sim/systemPreview';
+import { importSave } from '../src/save/save';
 import { setRental, startTraining } from '../src/sim/actions';
 import { simulateOffline } from '../src/sim/offline';
 import type { GameState } from '../src/sim/types';
@@ -60,5 +63,38 @@ describe('simulation', () => {
     tick(s, ctx);
     tick(copy, ctx);
     expect(copy.finance.cash).toBeCloseTo(s.finance.cash, 2);
+  });
+
+  it('a damaged save is refused, or loads and runs: it never breaks the game', () => {
+    const states = [newGame({ name: 'Damaged', homeSite: 'london', seed: 9 }), newAct3Game({ name: 'Damaged', homeSite: 'bay-area', seed: 9 }), act5PreviewState({ stage: 2 })];
+    for (const good of states) {
+      for (let d = 0; d < 20; d++) tick(good, ctx);
+      const json = JSON.stringify(good);
+      // a file cut short, a code pasted in part
+      for (const cut of [0.1, 0.5, 0.9, 0.999]) expect(importSave(json.slice(0, Math.floor(json.length * cut)))).toBeNull();
+      for (const junk of ['', 'null', '[]', '{}', '42', '"save"', '{"day":3}', '{"day":"3","company":{}}']) expect(importSave(junk)).toBeNull();
+      // one part missing, or the wrong kind of thing in its place
+      const refused: string[] = [];
+      for (const key of Object.keys(good)) {
+        // (missing, emptied, or the wrong kind of thing: a list where a record was, a number where a list was)
+        const was = (good as unknown as Record<string, unknown>)[key];
+        for (const bad of [undefined, null, 7, 'x', Array.isArray(was) ? {} : []] as unknown[]) {
+          const raw = JSON.parse(json);
+          if (bad === undefined) delete raw[key];
+          else raw[key] = bad;
+          let s: GameState | null = null;
+          expect(() => (s = importSave(JSON.stringify(raw))), `${key} = ${JSON.stringify(bad)}`).not.toThrow();
+          if (!s) {
+            refused.push(key);
+            continue;
+          }
+          expect(() => {
+            refreshStats(s!);
+            for (let d = 0; d < 5; d++) tick(s!, ctx);
+          }, `a save with ${key} = ${JSON.stringify(bad)} loaded, then broke`).not.toThrow();
+        }
+      }
+      expect(refused).toContain('company');
+    }
   });
 });

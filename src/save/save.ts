@@ -1,5 +1,7 @@
+import { DIFFICULTIES, EVENT_RATES, FOUNDERS, RIVAL_PACES } from '../content/difficulty';
+import { SITE_BY_ID } from '../content/sites';
 import type { GameState } from '../sim/types';
-import { ensureAct2State, SAVE_VERSION } from '../sim/state';
+import { ensureAct2State, newGame, SAVE_VERSION } from '../sim/state';
 import { dateOf } from '../sim/core';
 import { EVENT_BY_ID } from '../content/events';
 import { saveTextFile, type Saved } from '../platform/platform';
@@ -47,9 +49,47 @@ function storage(): Storage | null {
 }
 
 /** Bring older saves up to the current schema. */
+/** A new company, kept as the pattern a save is held against (made on the first load). */
+let shape: GameState | null = null;
+/** Parts of the state that came with later versions: an older save without one is filled in, not refused. */
+const ADDED_LATER = new Set(['meta', 'act', 'phase', 'network', 'stack', 'politics', 'capital', 'rivalBuilds', 'startups', 'jobs', 'finale', 'charter', 'planet', 'system', 'talent', 'blocs', 'savedAt']);
+
 export function migrate(raw: GameState): GameState | null {
   if (!raw || typeof raw !== 'object' || typeof raw.day !== 'number') return null;
   if (raw.version > SAVE_VERSION) return null;
+  // A save has the shape of a game: every part a new company has, each the kind of thing it is there (a list, a
+  // record, a number). Anything else is not a save: a file cut short, a code pasted in part, something edited by
+  // hand. Those used to be let in: the map then threw on every frame, and the broken company took a slot.
+  const kind = (v: unknown) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v);
+  const ref = (shape ??= newGame({ name: 'shape', homeSite: 'bay-area', seed: 1 })) as unknown as Record<string, unknown>;
+  const got = raw as unknown as Record<string, unknown>;
+  if (!Number.isFinite(raw.day) || raw.day < 0) return null;
+  for (const key of Object.keys(ref)) {
+    const want = kind(ref[key]);
+    const have = kind(got[key]);
+    if (have === 'undefined') {
+      // parts added since the first saves are filled in below; the first save's own must be there
+      if (!ADDED_LATER.has(key)) return null;
+    } else if (want === 'null' || have === 'null') {
+      // empty until the game gets there (a training run, the finale, the Charter, the planet, the system)
+      if (!(want === 'null' && (have === 'null' || have === 'object'))) return null;
+    } else if (have !== want) return null;
+  }
+  if (typeof raw.company.homeSite !== 'string' || !SITE_BY_ID[raw.company.homeSite] || typeof raw.company.name !== 'string') return null;
+  if (!Number.isFinite(raw.finance.cash) || !Array.isArray(raw.research.done)) return null;
+  if (Object.keys(ref.regions as object).some((r) => !raw.regions[r as keyof typeof raw.regions])) return null;
+  // an act needs its world: the Charter from Act III, the planet from Act IV, the system from Act V
+  const act = Number(raw.act ?? 1);
+  if ((act >= 3 && !raw.charter) || (act >= 4 && !raw.planet) || (act >= 5 && !raw.system)) return null;
+  // settings the save carries: an unknown one falls back to the default
+  if (raw.meta) {
+    if (!DIFFICULTIES[raw.meta.difficulty]) raw.meta.difficulty = 'standard';
+    if (!FOUNDERS[raw.meta.founder]) raw.meta.founder = 'classic';
+    if (!EVENT_RATES[raw.meta.eventRate]) raw.meta.eventRate = 'normal';
+    if (!RIVAL_PACES[raw.meta.rivalPace]) raw.meta.rivalPace = 'normal';
+    if (!Number.isFinite(raw.meta.tutorialStep)) raw.meta.tutorialStep = -1;
+    if (!Number.isFinite(raw.meta.playtime)) raw.meta.playtime = 0;
+  }
   raw.research.pool ??= 0;
   raw.meta ??= {
     difficulty: 'standard',
