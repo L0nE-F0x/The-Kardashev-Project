@@ -12,6 +12,7 @@ import { fmtDays, fmtMoney } from '../../sim/core';
 import { quoteOrder } from '../../sim/actions';
 import { chipSpec, supplierDailyRate } from '../../sim/model';
 import { hallSpace } from '../../sim/supply';
+import { poweredRoom } from '../../sim/power';
 
 export function OrdersPanel() {
   const game = useGame();
@@ -30,14 +31,27 @@ export function OrdersPanel() {
     const free = hallSpace(s, site, chipSpec(s, sup).kw).free;
     return free >= 500 ? Math.min(maxQty, Math.floor(free / 500) * 500) : 500;
   };
+  // what the panel opens on: the hall's room, held to what the power planned there will carry (chips beyond it run
+  // throttled: the tutorial's own recipe, one solar farm and one battery, carries about three quarters of a hall)
+  // and to what the cash buys
+  const startQty = (site: string | undefined, sup: SupplierId) => {
+    let n = fitQty(site, sup);
+    if (!site) return n;
+    const powered = poweredRoom(s, site, chipSpec(s, sup).kw);
+    if (powered !== null && powered >= 500) n = Math.min(n, Math.floor(powered / 500) * 500);
+    const total = quoteOrder(s, game.ctx, sup, n, site, 'sea').total;
+    if (total > s.finance.cash) n = Math.max(500, Math.floor((s.finance.cash / (total / n)) / 500) * 500);
+    return n;
+  };
   const [supplier, setSupplier] = useState<SupplierId>('lumen');
   const [dest, setDest] = useState<string>(destOptions[0] ?? '');
-  const [qty, setQty] = useState(() => fitQty(destOptions[0], 'lumen'));
+  const [qty, setQty] = useState(() => startQty(destOptions[0], 'lumen'));
   const [mode, setMode] = useState<'sea' | 'air'>('sea');
   const destId = destOptions.includes(dest) ? dest : destOptions[0];
   const quote = destId ? quoteOrder(s, game.ctx, supplier, qty, destId, mode) : null;
   const space = destId ? hallSpace(s, destId, chipSpec(s, supplier).kw) : null;
   const blocked = destId ? orderBlockedBy(s, supplier, siteDef(destId).region) : null;
+  const powered = destId ? poweredRoom(s, destId, chipSpec(s, supplier).kw) : null;
 
   // the panel's first line: what is being made, what is on the way, when the next lot lands, the memory market
   const openOrders = s.orders.filter((o) => !o.done);
@@ -151,6 +165,14 @@ export function OrdersPanel() {
           {quote && s.finance.cash < quote.total && (
             <div class="small warn section">
               Not enough cash for {qty.toLocaleString()} chips ({fmtMoney(quote.total)}, you have {fmtMoney(s.finance.cash)}): order fewer now and top the hall up later.
+            </div>
+          )}
+          {powered !== null && space && qty <= space.free && qty > powered && (
+            <div class="small warn section" data-tut="order-power">
+              <Icon name="warn" size="sm" />{' '}
+              {powered >= 500
+                ? `The power planned at ${siteDef(destId!).name} carries about ${(Math.floor(powered / 500) * 500).toLocaleString()} more of these chips: the rest would run throttled until you add power there (a battery, a plant or a grid connection).`
+                : `There is no power to spare at ${siteDef(destId!).name} for more chips: they would run throttled until you add some there (a plant, a battery or a grid connection).`}
             </div>
           )}
           {space && qty > space.free && (

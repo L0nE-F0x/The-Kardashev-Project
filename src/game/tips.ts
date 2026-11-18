@@ -1,9 +1,10 @@
 import type { Game } from './game';
 import type { AdvisorId, GameState } from '../sim/types';
 import { researchable } from '../sim/actions';
-import { facilityIT } from '../sim/model';
+import { chipSpec, facilityIT } from '../sim/model';
 import { siteDef } from '../content/sites';
 import { fmtMoney } from '../sim/core';
+import { poweredRoom } from '../sim/power';
 
 /**
  * Advisor tips: one-off, just-in-time nudges after Bit's tutorial ("the lab is idle", "you're crawling at 1× through
@@ -91,6 +92,25 @@ export const TIPS: TipDef[] = [
     },
     action: { label: 'Open Orders', run: (g) => g.panel !== 'orders' && g.openPanel('orders') },
     learn: 'chips',
+  },
+  {
+    // the first order is sized to the power the site had planned (one solar farm and a battery carry about three
+    // quarters of a hall): with money in the bank, the next step is more power, then chips to match
+    id: 'grow-hall',
+    advisor: 'juno',
+    acts: [1],
+    days: 25,
+    when: (s) => !jobOn(s, 'mira') && s.finance.cash > 45e6 && halls(s).some((f) => fill(f) >= 0.5 && fill(f) < 0.9 && !chipsComing(s, f.siteId)),
+    text: (s) => {
+      const f = halls(s).find((h) => fill(h) >= 0.5 && fill(h) < 0.9 && !chipsComing(s, h.siteId))!;
+      const site = siteDef(f.siteId).name;
+      const spare = poweredRoom(s, f.siteId, chipSpec(s, 'lumen').kw) ?? 0;
+      return spare >= 500
+        ? `The hall at ${site} is ${Math.round(fill(f) * 100)}% full, its power can carry more, and we have ${fmtMoney(s.finance.cash, 0)} in the bank. More chips there is the cheapest way to a faster ${s.training?.name ?? 'next model'}: Orders has the number.`
+        : `The hall at ${site} is ${Math.round(fill(f) * 100)}% full: its racks have room, its power doesn’t. With ${fmtMoney(s.finance.cash, 0)} in the bank, add power there (another battery makes the solar farm count at night; a grid request is cheap but slow), then order chips to match. That is the cheapest way to a faster ${s.training?.name ?? 'next model'}.`;
+    },
+    action: { label: 'Show the site', run: (g) => { const f = halls(g.state!).find((h) => fill(h) < 0.9); if (f) g.select({ kind: 'site', id: f.siteId }); } },
+    learn: 'power',
   },
   {
     id: 'rentals',

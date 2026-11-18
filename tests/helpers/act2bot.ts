@@ -41,6 +41,8 @@ export function botDay(s: GameState, careful = false) {
     A.setJob(s, 'bit', { on: true, a: 0.45 });
     A.setJob(s, 'sol', { on: true, a: 30e6 });
   }
+  // Bit only takes the job once the safety margin is positive (a Growth Hackers company starts Act II below it)
+  if (!s.jobs.bit?.on) A.setJob(s, 'bit', { on: true, a: 0.45 });
   if (!s.research.current) {
     const next = TECHS.find((t) => !s.research.done.includes(t.id) && A.techAvailable(s, t.id) && (t.requires ?? []).every((r) => s.research.done.includes(r)));
     if (next) A.setResearch(s, next.id);

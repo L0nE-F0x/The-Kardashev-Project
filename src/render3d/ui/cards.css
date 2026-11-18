@@ -362,3 +362,40 @@ html.edition-3d:not(.ui-classic) {
     }
   }
 }
+
+/* A card with many choices (the renewal vote has four: 349 px of buttons at the foot of a 397 px body at 960×540,
+   the story read through a slot; at 1080 its advisors sat behind them): four or more stand two abreast at any
+   size, three or more in a short window, where they are tighter too. The story keeps most of the card. */
+@media (min-width: 821px) and (min-height: 521px) {
+  html.edition-3d:not(.ui-classic) .modal .body > .choices:has(> .choice:nth-child(4)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+    > .choice:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+  }
+}
+@media (min-width: 821px) and (min-height: 521px) and (max-height: 860px) {
+  html.edition-3d:not(.ui-classic) .modal .body > .choices:has(> .choice:nth-child(3)) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+    align-items: stretch;
+    > .choice {
+      padding: 8px 30px 9px 12px;
+    }
+    > .choice::after {
+      right: 12px;
+    }
+    > .choice .t {
+      font-size: 15px;
+    }
+    > .choice :is(.d, .why) {
+      font-size: 12.5px;
+    }
+    > .choice:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+  }
+}

@@ -47,6 +47,10 @@ body {
 #ui > * {
   pointer-events: none;
 }
+/* the finale trackers stand directly in #ui: their bars have tooltips (what pushes each front up, and what holds it) */
+#ui > .crunch {
+  pointer-events: auto;
+}
 .interactive,
 #ui button,
 #ui input,

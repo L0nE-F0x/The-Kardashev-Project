@@ -822,7 +822,8 @@ export class Game {
         // whatever stopped the clock (a report, a confirm, a card) is gone: play on, as the player had it
         this.autoPaused = false;
         const hold = s.meta.tutorialStep >= 0 && s.meta.tutorialStep <= PLAY_STEP;
-        if (this.speed === 0 && !hold && !s.meta.gameOver) {
+        // (not behind a briefing: one that opens on a card's answer holds the clock itself until it is read)
+        if (this.speed === 0 && !hold && !s.meta.gameOver && !this.briefing) {
           this.speed = this.resumeSpeed || 1;
           this.notify();
         }

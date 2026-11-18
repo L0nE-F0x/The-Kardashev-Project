@@ -161,7 +161,7 @@ export const TUTORIAL: TutorialStep[] = [
     id: 'battery',
     target: () => 'build-battery',
     mood: 'neutral',
-    text: () => 'The sun clocks off at night, and so would our hall. Add Battery Storage here so it runs around the clock.',
+    text: () => 'The sun clocks off at night, and so would our hall. Add Battery Storage here to carry it through the dark.',
     // done once the hall has something that runs at night: a battery, gas, or a grid connection
     done: (g) => {
       const st = s(g);
@@ -172,7 +172,7 @@ export const TUTORIAL: TutorialStep[] = [
   {
     id: 'order',
     target: (g) => (g.panel === 'orders' ? 'order-button' : 'dock-orders'),
-    text: (g) => (g.panel === 'orders' ? 'The order is sized to fill the new hall — a half-empty hall makes Bit-2 take years. Lumen ships sooner; Kestrel is cheaper. Then order!' : 'Chips! Open Orders to buy accelerators that ship to the new site.'),
+    text: (g) => (g.panel === 'orders' ? 'The order is sized to what our new power can run: chips without power just sit there. Lumen ships sooner; Kestrel is cheaper. Then order! (More power later means more chips, and a faster Bit-2.)' : 'Chips! Open Orders to buy accelerators that ship to the new site.'),
     done: (g) => s(g).orders.length > 0 || s(g).shipments.length > 0,
   },
   {

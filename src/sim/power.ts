@@ -52,13 +52,15 @@ function siteLoad(s: GameState, siteId: string): number {
   return mw;
 }
 
-function sitePool(s: GameState, siteId: string): Pool {
+function sitePool(s: GameState, siteId: string, planned = false): Pool {
   const site = siteDef(siteId);
   const p: Pool = { load: siteLoad(s, siteId), solar: 0, wind: 0, firm: 0, gasCap: 0, battMW: 0, battMWh: 0, grid: s.sites[siteId]?.grid.mw ?? 0 };
+  // planned: what is being built counts as built, and every grid request as granted
+  if (planned) p.grid += (s.sites[siteId]?.grid.pending ?? []).reduce((a, g) => a + g.mw, 0);
   const solarCF = site.solarCF * techMult(s, 'solarCF') * modMult(s, `region:${site.region}:solar`);
   const windCF = site.windCF * techMult(s, 'windCF') * modMult(s, `region:${site.region}:wind`);
   for (const f of s.facilities) {
-    if (f.siteId !== siteId || f.status !== 'online') continue;
+    if (f.siteId !== siteId || (f.status !== 'online' && !planned)) continue;
     const def = FACILITIES[f.type];
     const mw = facilityMW(f);
     if (f.type === 'solar') p.solar += mw * solarCF;
@@ -76,6 +78,40 @@ function sitePool(s: GameState, siteId: string): Pool {
   }
   p.grid *= modMult(s, `region:${site.region}:grid`);
   return p;
+}
+
+/** What a pool's sun and wind are worth around the clock: solar only fully counts with batteries to carry it through the night. */
+function usableVariable(P: Pool): number {
+  const covS = P.solar > 0 ? Math.min(1, P.battMWh / (P.solar * 14)) : 0;
+  const usableSolar = P.solar * (0.45 + 0.55 * covS);
+  const leftMWh = Math.max(0, P.battMWh - P.solar * 14);
+  const covW = P.wind > 0 ? Math.min(1, leftMWh / (P.wind * 6)) : 0;
+  return usableSolar + P.wind * (0.7 + 0.3 * covW);
+}
+
+/**
+ * How many more chips of this draw a site's power will carry once everything being built there is running and
+ * every grid request has come through: the Orders panel sizes an order to it (chips beyond it run throttled, which
+ * is how the tutorial's own recipe used to end). Counts the site's own power only: null where a line pools it with
+ * other sites, or where the game has no say (nothing planned at all reads as 0).
+ */
+export function poweredRoom(s: GameState, siteId: string, kw: number): number | null {
+  if (s.links.some((l) => l.a === siteId || l.b === siteId)) return null;
+  const P = sitePool(s, siteId, true);
+  const supply = usableVariable(P) + P.firm + P.gasCap + P.grid;
+  const pue = pueAt(s, siteId);
+  // what already draws, or will: the site's other buildings, and every chip in the halls, the warehouse, at sea or on order
+  let other = 0;
+  let chipsKw = 0;
+  for (const f of s.facilities) {
+    if (f.siteId !== siteId) continue;
+    if (HALLS.includes(f.type)) for (const r of f.racks ?? []) chipsKw += r.qty * r.kw;
+    else other += (FACILITIES[f.type].loadMW ?? 0) * (f.type === 'hq' ? 1 : tierMult(f));
+  }
+  for (const b of s.sites[siteId]?.inventory ?? []) chipsKw += b.qty * b.kw;
+  for (const sh of s.shipments) if (sh.dest === siteId) chipsKw += sh.batch.qty * sh.batch.kw;
+  for (const o of s.orders) if (!o.done && o.dest === siteId) chipsKw += Math.max(0, o.qty - o.shipped) * o.kw;
+  return Math.max(0, Math.floor(((supply - other) * 1000 / pue - chipsKw) / kw));
 }
 
 /**
@@ -121,14 +157,9 @@ export function solvePower(s: GameState): PowerResult {
       P.battMWh += p.battMWh;
       P.grid += p.grid;
     }
-    const covS = P.solar > 0 ? Math.min(1, P.battMWh / (P.solar * 14)) : 0;
-    const usableSolar = P.solar * (0.45 + 0.55 * covS);
-    const leftMWh = Math.max(0, P.battMWh - P.solar * 14);
-    const covW = P.wind > 0 ? Math.min(1, leftMWh / (P.wind * 6)) : 0;
-    const usableWind = P.wind * (0.7 + 0.3 * covW);
     // firm clean power runs flat out as baseload; renewables fill on top of it
     const firmUsed = Math.min(P.load, P.firm);
-    const variable = Math.min(P.load - firmUsed, usableSolar + usableWind);
+    const variable = Math.min(P.load - firmUsed, usableVariable(P));
     let need = P.load - firmUsed - variable;
     const gasUsed = Math.min(P.gasCap, need);
     need -= gasUsed;
@@ -145,7 +176,7 @@ export function solvePower(s: GameState): PowerResult {
     // Act II: sell surplus firm and renewable power back to the grid through your connections
     let soldMW = 0;
     if (act2 && P.grid > 0) {
-      const surplus = Math.max(0, P.firm - firmUsed) + Math.max(0, usableSolar + usableWind - variable);
+      const surplus = Math.max(0, P.firm - firmUsed) + Math.max(0, usableVariable(P) - variable);
       soldMW = Math.min(surplus, Math.max(0, P.grid - gridUsed));
       res.genMW += soldMW;
     }

@@ -16,7 +16,8 @@ export function EventModal() {
   const game = useGame();
   const s = game.state!;
   const active = s.events.active;
-  if (!active || game.awayReport) return null;
+  // the act-complete card comes first: the next act's opening card (queued the same day) waits behind it
+  if (!active || game.awayReport || game.showActComplete) return null;
   if (!game.settings.autoPause && !game.eventOpen) return null;
   const def = EVENT_BY_ID[active.id];
   if (!def) return null;
