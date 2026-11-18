@@ -3051,9 +3051,14 @@ suggested choice, 2088–2092 for one who takes the last, 2082–2091 at random.
 - The release is named for M5's working title.
 
 ### Left
-- **Not run here:** the desktop app itself (this machine has no Rust; CI builds the installers on the tag). The
-  production build was checked in WebKitGTK through its test browser; the packaged app wants a launch on the dev
-  laptop or from CI's draft. Windows and macOS as before: never launched by us.
+- **Shipped the same day** at the user's word. Rust was installed on the desktop machine (rustup, no sudo) and the app
+  built and run there headless, which found one more thing: a Linux system without GStreamer's "good" plugins gives
+  the system's WebKit no audio output, so an AppImage on the stronger card (the system's engine) was silent. The game
+  now says so once at the first click and names the package; 1.0.0 was re-tagged to carry it (the first draft was
+  deleted unpublished). The release AppImage then passed there: it starts, says 1.0.0, plays sound, and the ending
+  clicks through to the end card; its update signature verifies against the app's key (`cargo test --lib fastdl --
+  --ignored`). Installed there in `~/Applications` with a fresh launcher entry and icons. Windows and macOS: never
+  launched by us; the user tests Windows, a friend may test macOS, after Steam's approval.
 - The Steam page's own to-do is in the owner's `steam/STORE_PAGE.md` (written at v0.13.2: its version line, its
   "balance pass still planned" notes and the updater blocker want a re-read). The in-app updater still points at
   GitHub releases: a Steam build must switch it off.
