@@ -695,7 +695,11 @@ development" dropped) were my call and they did not object: check them against t
 post texts in the kit's `POSTS.md` still say the old thing.
 `steam/` is the user's own untracked folder: leave it out of commits unless they say.
 
-**Next:** the user's word on shipping v1.0.0 (above), then their Steam page. Before it: v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
+**Next (2026-11-18, after shipping 1.0.0):** the user plays the whole campaign themselves while Steam reviews the page
+("I'm going to do a full playthrough myself while I wait for steam"). Their notes come back through Settings →
+Gameplay → Playtest notes (J) and Data → Log: read those first in the next session. Windows (the user, dual boot)
+and macOS (a friend) wait for Steam's approval; so does switching off the GitHub updater for the Steam build.
+Then their Steam page. Before it: v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
 sure it's ready to be played by users that are paying"): built and checked, waiting for the user's word to ship. §38
 ends with the low items left. Before it, v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36", then "Keep going, we only
 push when everything is done!"): pushed and tagged when done; publishing the draft is the user's step. Then ask how it
