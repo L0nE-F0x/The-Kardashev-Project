@@ -13,7 +13,14 @@ export interface AchievementStore {
 function load(): AchievementStore {
   try {
     const txt = window.localStorage.getItem(KEY);
-    if (txt) return { got: {}, met: [], places: [], ...(JSON.parse(txt) as Partial<AchievementStore>) };
+    if (txt) {
+      // only what is the right kind of thing is kept (a damaged record crashed the Achievements screen)
+      const raw = JSON.parse(txt) as Partial<AchievementStore> | null;
+      const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+      const got: AchievementStore['got'] = {};
+      if (raw?.got && typeof raw.got === 'object' && !Array.isArray(raw.got)) for (const [k, v] of Object.entries(raw.got)) if (typeof v === 'number' && Number.isFinite(v)) got[k] = v;
+      return { ...(raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}), got, met: list(raw?.met), places: list(raw?.places) } as AchievementStore;
+    }
   } catch {
     /* ignore */
   }

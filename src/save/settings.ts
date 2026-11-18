@@ -115,7 +115,27 @@ export function loadSettings(): Settings {
     // the retro options (the Classic look, the CRT filter, the Chiptune soundtrack, the Pixel text font)
     for (const k of ['zoom', 'clouds', 'edition', 'phoneFullscreen', 'uiStyle', 'crt', 'soundtrack']) delete raw[k];
     if (raw.textFont !== 'system') raw.textFont = 'clean';
-    return { ...base, ...raw };
+    // a stored value is taken when it is the kind of thing its setting is (a damaged file can hold anything: a
+    // word where a volume was, a size of zero), and sizes and volumes stay in their ranges
+    const out = { ...base } as Record<string, unknown>;
+    const defaults = base as unknown as Record<string, unknown>;
+    for (const [k, v] of Object.entries(raw)) {
+      const d = defaults[k];
+      if (d === undefined || d === null) out[k] = v;
+      else if (typeof v === typeof d && (typeof v !== 'number' || Number.isFinite(v))) out[k] = v;
+      else if (k === 'interfaceLook' && (v === 'auto' || (typeof v === 'number' && v >= 1 && v <= 5))) out[k] = v;
+    }
+    const s = out as unknown as Settings;
+    const unit = (v: number, d: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : d);
+    s.uiScale = Math.max(0.75, Math.min(2, s.uiScale || 1));
+    for (const k of ['master', 'music', 'sfx', 'ambience'] as const) if (k in s) (s as unknown as Record<string, number>)[k] = unit((s as unknown as Record<string, number>)[k], (base as unknown as Record<string, number>)[k]);
+    s.autosaveSec = Math.max(5, Math.min(600, s.autosaveSec || base.autosaveSec));
+    if (!['auto', 'high', 'medium', 'low'].includes(s.quality3d)) s.quality3d = base.quality3d;
+    if (!['off', 'deutan', 'tritan'].includes(s.colorblind)) s.colorblind = base.colorblind;
+    if (!['zoom', 'pan'].includes(s.wheel)) s.wheel = base.wheel;
+    s.lookReached = Math.max(1, Math.min(5, Math.round(s.lookReached) || 1));
+    s.lookNow = Math.max(1, Math.min(5, Math.round(s.lookNow) || 1));
+    return s;
   } catch {
     return base;
   }

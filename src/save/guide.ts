@@ -9,7 +9,13 @@ interface GuideStore {
 function load(): GuideStore {
   try {
     const txt = window.localStorage.getItem(KEY);
-    if (txt) return { unlocked: [], seen: [], ...(JSON.parse(txt) as Partial<GuideStore>) };
+    if (txt) {
+      // only what is the right kind of thing is kept: `{"unlocked":null}` on disk stopped the game at its loading
+      // screen ("Failed to start"), for good
+      const raw = JSON.parse(txt) as Partial<GuideStore> | null;
+      const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+      return { unlocked: list(raw?.unlocked), seen: list(raw?.seen) };
+    }
   } catch {
     /* ignore */
   }

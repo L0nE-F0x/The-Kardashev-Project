@@ -141,7 +141,9 @@ function infoOf(id: string, s: GameState): SlotInfo {
 function readIndex(): SlotInfo[] {
   try {
     const txt = storage()?.getItem(INDEX_KEY);
-    return txt ? (JSON.parse(txt) as SlotInfo[]) : [];
+    const raw = txt ? (JSON.parse(txt) as unknown) : [];
+    // a damaged index is read for what is whole in it (anything else was a title screen that threw)
+    return Array.isArray(raw) ? (raw as SlotInfo[]).filter((x) => !!x && typeof x === 'object' && typeof x.id === 'string' && typeof x.name === 'string' && Number.isFinite(x.savedAt) && Number.isFinite(x.day)) : [];
   } catch {
     return [];
   }
@@ -172,7 +174,38 @@ export function migrateLegacySave(): void {
 
 /** Slots, most recently played first. */
 export function listSlots(): SlotInfo[] {
+  adoptOrphans();
   return readIndex().sort((a, b) => b.savedAt - a.savedAt);
+}
+
+let adopted = false;
+/**
+ * Once a session: a company whose save is on disk but not in the list (the list was lost or damaged) is put back
+ * in it, so a player never loses a company to a bad index. Saves that no longer load are left where they are.
+ */
+function adoptOrphans(): void {
+  if (adopted) return;
+  adopted = true;
+  const st = storage();
+  if (!st) return;
+  try {
+    const list = readIndex();
+    const known = new Set(list.map((x) => x.id));
+    let found = false;
+    for (let i = 0; i < st.length; i++) {
+      const key = st.key(i);
+      if (!key?.startsWith(SLOT_PREFIX)) continue;
+      const id = key.slice(SLOT_PREFIX.length);
+      if (known.has(id)) continue;
+      const s = loadSlot(id);
+      if (!s) continue;
+      list.push({ ...infoOf(id, s), savedAt: s.savedAt ?? 0 });
+      found = true;
+    }
+    if (found) writeIndex(list);
+  } catch {
+    /* storage blocked */
+  }
 }
 
 export function newSlotId(): string {
