@@ -62,7 +62,7 @@ export function OrdersPanel() {
   const hbmShort = s.market.hbm < 0.85;
 
   return (
-    <Panel title="Orders · chips & shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel company title="Orders · chips & shipping" icon="orders" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
         <Tile
           label="In production"

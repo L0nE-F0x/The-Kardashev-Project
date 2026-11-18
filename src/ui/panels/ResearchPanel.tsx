@@ -15,7 +15,7 @@ export function ResearchPanel() {
   const open = TECHS.filter((t) => s.research.done.includes(t.id) || techAvailable(s, t.id)).length;
   const nothingLeft = !cur && researchable(s).length === 0;
   return (
-    <Panel title="Research" icon="research" class="wide research" onClose={() => game.openPanel(null)}>
+    <Panel company title="Research" icon="research" class="wide research" onClose={() => game.openPanel(null)}>
       <Tiles class="res-top">
         <Tile label="Research" icon="research" tone="cyan" value={<>{rp.toFixed(1)}<small>a day</small></>} sub={s.research.pool > 0.5 ? `${Math.floor(s.research.pool)} points banked` : 'from labs, talent and compute'} />
         <Tile label="Done" icon="check" tone="good" value={<>{s.research.done.length}<small>of {open}</small></>} sub="open to you so far">

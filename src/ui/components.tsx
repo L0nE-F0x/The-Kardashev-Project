@@ -98,9 +98,11 @@ export function Bar({ value, kind, tall, tip }: { value: number; kind?: 'gold' |
   );
 }
 
-export function Panel({ title, icon, onClose, children, class: cls, extra }: { title: string; icon?: IconName; onClose?: () => void; children: ComponentChildren; class?: string; extra?: ComponentChildren }) {
+export function Panel({ title, icon, onClose, children, class: cls, extra, company }: { title: string; icon?: IconName; onClose?: () => void; children: ComponentChildren; class?: string; extra?: ComponentChildren; /** One of the company's own panels: it says so when the company is not yours to run. */ company?: boolean }) {
+  const game = useGame();
+  const lock = company ? game.companyLock : null;
   return (
-    <div class={`panel frame ${cls ?? ''}`}>
+    <div class={`panel frame ${cls ?? ''} ${lock ? 'company-locked' : ''}`}>
       <div class="head">
         {icon && <Icon name={icon} />}
         <h2>{title}</h2>
@@ -111,6 +113,11 @@ export function Panel({ title, icon, onClose, children, class: cls, extra }: { t
           </button>
         )}
       </div>
+      {lock && (
+        <div class="lockbar" role="note">
+          <Icon name="lock" size="sm" /> {lock}
+        </div>
+      )}
       <div class="body">{children}</div>
     </div>
   );

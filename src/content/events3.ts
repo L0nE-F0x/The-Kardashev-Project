@@ -42,6 +42,9 @@ const seatText = (n: number) => (n >= 3 ? 'a founding seat and the Council’s g
 const SCANDALS = ['subcontractors paid in IOUs and broken promises', 'a regulator who appears to have been very well paid', 'protected wetland quietly drained for a laydown yard', 'safety inspections signed off without anyone visiting'];
 const FAULTS = ['a cooling fault', 'a fire in the valve hall', 'an anchor dragged across the subsea section', 'a lightning strike nobody designed for'];
 
+/** Is a contract of this kind out to tender or being built already? (A desk may have posted it before its card came up.) */
+const underWay = (s: GameState, kind: string) => !!s.charter && (s.charter.tenders.some((t) => t.kind === kind) || s.charter.projects.some((p) => p.kind === kind && p.status !== 'cancelled'));
+
 export const ACT3_EVENTS: EventDef[] = [
   // ═══════════════════════════════════════ THE FOUNDING ═══════════════════════════════════════
   {
@@ -67,7 +70,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'story',
     icon: '🎩',
     title: () => 'Two hats',
-    body: (s) => `The ink is barely dry when the first question comes from the floor: what will the Steward do about ${s.company.name}? Your company will bid on Charter contracts. You will judge those bids.\n\nThe Council wants an answer before the first tender.`,
+    body: (s) => `The ink is barely dry when the first question comes from the floor: what will the Steward do about ${s.company.name}? Your company will bid on Charter contracts. You will judge those bids.\n\nThe Council wants an answer.`,
     advisors: (s) => [
       { id: 'penny', text: 'A blind trust is the clean answer. Our advisors run the company; you never touch it. You also never touch it.', mood: 'neutral' },
       { id: 'iris', text: 'Whatever we choose, we should choose it in public.', mood: 'neutral' },
@@ -109,7 +112,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'story',
     icon: '🏗',
     title: () => 'The Build-Out',
-    body: () => 'The Charter has delivered its first projects and passed its first laws. Now the real work starts: intercontinental HVDC links, the Chip Commons (fabs and memory in every corner of the world), a launch complex for Kip, and a world screen that shows exactly how far there is to go.\n\nThe blocs have started to form camps, too.',
+    body: (s) => `${(s.charter?.projects ?? []).some((p) => p.status === 'done') ? 'The Charter has delivered its first projects and held its first votes' : 'The Charter has its first contracts out and its first votes behind it'}. Now the real work starts: intercontinental HVDC links, the Chip Commons (fabs and memory in every corner of the world), a launch complex for Kip, and a world screen that shows exactly how far there is to go.\n\nThe blocs have started to form camps, too.`,
     advisors: () => [
       { id: 'juno', text: 'Megaprojects, plural. I’ve wanted to say that my whole life.', mood: 'excited' },
       { id: 'mira', text: 'A Chip Commons means no single strait can stop the world again.', mood: 'happy' },
@@ -122,7 +125,7 @@ export const ACT3_EVENTS: EventDef[] = [
     category: 'story',
     icon: '🧠',
     title: () => 'The Frontier',
-    body: (s) => `The best models on Earth are approaching Architect level and beyond. Every lab — ${s.company.name} included — wants to train the next one, and every bloc wants to know who checks them.\n\nThe Council can now cap frontier runs, license them and decide what goes open. Bit has started asking to help.`,
+    body: (s) => `The best models on Earth are approaching Architect level and beyond. Every lab — ${s.company.name} included — wants to train the next one, and every bloc wants to know who checks them.\n\nCapping frontier runs, licensing them, deciding what goes open: all of it is the Council’s to vote on. Bit has started asking to help.`,
     advisors: (s) => [
       { id: 'iris', text: `World safety margin: ${signed(worldMargin(s))}. That number is now our whole job.`, mood: worldMargin(s) >= 0 ? 'neutral' : 'worried' },
       { id: 'bit', text: 'I could read the bids, draft the tenders, watch the grids. If you trust me. Do you?', mood: 'neutral' },
@@ -155,10 +158,14 @@ export const ACT3_EVENTS: EventDef[] = [
       { id: 'kip', text: 'Five hundred kilos of accelerators, one rocket, one very long checklist.', mood: 'excited' },
       { id: 'juno', text: 'Cooling in a vacuum is radiators all the way down. I want to see the thermal model.', mood: 'neutral' },
     ],
-    choices: (s) => [
-      { label: 'Post the orbital compute test', detail: canPost(s, 'orbital', 1, 'global') ?? 'A tender opens right away.', disabled: canPost(s, 'orbital', 1, 'global') ? 'Can’t post it right now' : false, apply: () => void postTender(s, 'orbital', 1, 'global') },
-      { label: 'Not yet', detail: 'Post it from Charter → Contracts when you’re ready.', apply: () => {} },
-    ],
+    choices: (s) =>
+      // Kip's own desk may have posted it the day the pad opened: then there is nothing to decide
+      underWay(s, 'orbital')
+        ? [{ label: 'Good', detail: 'The orbital compute test is already out to tender.', apply: () => {} }]
+        : [
+            { label: 'Post the orbital compute test', detail: canPost(s, 'orbital', 1, 'global') ?? 'A tender opens right away.', disabled: canPost(s, 'orbital', 1, 'global') ? 'Can’t post it right now' : false, apply: () => void postTender(s, 'orbital', 1, 'global') },
+            { label: 'Not yet', detail: 'Post it from Charter → Contracts when you’re ready.', apply: () => {} },
+          ],
   },
   {
     id: 'kip-3',
@@ -171,8 +178,10 @@ export const ACT3_EVENTS: EventDef[] = [
       { id: 'bit', text: 'I ran a copy of myself up there for eleven minutes. The view is very good.', mood: 'happy' },
     ],
     choices: (s) => [
-      { label: 'Post the space-solar demonstrator', detail: canPost(s, 'spacesolar', 1, 'global') ?? 'A tender opens right away.', disabled: canPost(s, 'spacesolar', 1, 'global') ? 'Can’t post it right now' : false, apply: () => (postTender(s, 'spacesolar', 1, 'global'), addLegitimacy(s, 2)) },
-      { label: 'Celebrate, then wait', detail: 'Legitimacy +2.', apply: () => addLegitimacy(s, 2) },
+      ...(underWay(s, 'spacesolar')
+        ? []
+        : [{ label: 'Post the space-solar demonstrator', detail: canPost(s, 'spacesolar', 1, 'global') ?? 'A tender opens right away.', disabled: canPost(s, 'spacesolar', 1, 'global') ? ('Can’t post it right now' as const) : (false as const), apply: () => (postTender(s, 'spacesolar', 1, 'global'), addLegitimacy(s, 2)) }]),
+      { label: underWay(s, 'spacesolar') ? 'Celebrate' : 'Celebrate, then wait', detail: underWay(s, 'spacesolar') ? 'Legitimacy +2. The space-solar demonstrator is already out to tender.' : 'Legitimacy +2.', apply: () => addLegitimacy(s, 2) },
     ],
   },
   // ═══════════════════════════════════════ BIT ═══════════════════════════════════════
@@ -249,13 +258,13 @@ export const ACT3_EVENTS: EventDef[] = [
     title: (_s, ctx) => `Mission complete: ${MISSION_BY_ID[String(ctx.mission)]?.name ?? ''}`,
     body: (_s, ctx) => {
       const m = MISSION_BY_ID[String(ctx.mission)];
-      return `${m?.blurb ?? ''}\n\nDone. ${m?.reward ?? ''}`;
+      return `${m?.blurb ?? ''}\n\nDone. ${m?.reward ?? ''}\n\nEvery finished mission also earns the Charter Legitimacy +6 and political capital +10.`;
     },
     advisors: (_s, ctx) => [
       { id: MISSION_BY_ID[String(ctx.mission)]?.advisor ?? 'sol', text: 'They said it couldn’t be built. They were wrong at a planetary scale.', mood: 'excited' },
       { id: 'bit', text: 'I made us a graph. It goes up.', mood: 'happy' },
     ],
-    choices: () => [{ label: 'Onward', detail: 'Legitimacy +6, political capital +10.', apply: () => {} }],
+    choices: () => [{ label: 'Onward', detail: 'On to the next mission.', apply: () => {} }],
   },
   {
     id: 'council-session',
@@ -592,7 +601,7 @@ export const ACT3_EVENTS: EventDef[] = [
         if (s.charter) for (const f of ['eastern', 'atlantic'] as FactionId[]) s.charter.council.factions[f].tension = clamp(s.charter.council.factions[f].tension - 10, 0, 100);
         addLegitimacy(s, 3);
       } },
-      { label: `Stockpile chips (${fmtMoney(c2(s, 1.5e9), 1)} company cash)`, detail: 'Your company rides it out; the world’s chip supply slows for 3 months.', disabled: afford(s, c2(s, 1.5e9)), apply: () => (spend(s, 'chips', c2(s, 1.5e9)), addModifier(s, 'supplier:*:rate', 90, 'Fab Belt standoff', { mult: 0.85 })) },
+      { label: `Stockpile chips (${fmtMoney(c2(s, 1.5e9), 1)} company cash)`, detail: 'Your company rides it out; the world’s chip supply slows for 3 months.', disabled: !s.charter?.blindTrust && !companyHandedOver(s) ? afford(s, c2(s, 1.5e9)) : 'The company isn’t yours to spend from', apply: () => (spend(s, 'chips', c2(s, 1.5e9)), addModifier(s, 'supplier:*:rate', 90, 'Fab Belt standoff', { mult: 0.85 })) },
       { label: 'Stay out of it', detail: 'Chip supply −30% for 3 months; Eastern tension +8.', apply: () => (addModifier(s, 'supplier:*:rate', 90, 'Fab Belt standoff', { mult: 0.7 }), s.charter && (s.charter.council.factions.eastern.tension = clamp(s.charter.council.factions.eastern.tension + 8, 0, 100))) },
     ],
   },

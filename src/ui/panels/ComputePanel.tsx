@@ -40,7 +40,7 @@ export function ComputePanel() {
   const risk = st.capability > 0 ? incidentChance(st.margin) * DIFFICULTIES[s.meta.difficulty].incident : 0;
   const marginTone: Tone = st.margin >= 0.25 ? 'good' : st.margin >= 0 ? 'blue' : st.margin >= -0.5 ? 'warn' : 'bad';
   return (
-    <Panel title="Compute & models" icon="compute" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel company title="Compute & models" icon="compute" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
         <Tile label="Compute" icon="compute" tone="cyan" value={<>{st.computeEF < 100 ? st.computeEF.toFixed(2) : Math.round(st.computeEF).toLocaleString('en-US')}<small>EF/s</small></>} sub={`${count(st.installedAccel + st.rentedAccel)} chips at work`} tip="Everything your halls and your rented chips can compute, at peak." />
         <Tile label="Best model" icon="brain" tone="violet" value={model ? model.name : 'None yet'} sub={model ? `${st.capability.toFixed(2)} · ${CAPABILITY_TIERS[tierOf(st.capability)]}` : 'Train Bit-1 below'} tip={`The frontier (the best closed model from Meridian or Lattice) stands at ${st.frontier.toFixed(2)}.`} />

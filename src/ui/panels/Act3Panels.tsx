@@ -492,7 +492,7 @@ export function TenderCard({ t }: { t: Tender }) {
             <Face id={b.partner} size={28} />
             <div class="grow">
               <div class="small">
-                <b>{partnerName(s, b.partner)}</b> · <span class="gold">{fmtMoney(b.price)}</span> · {fmtDays(b.days)}
+                <b>{partnerName(s, b.partner)}</b> · <span class="gold">{fmtMoney(b.price)}</span> · {Math.round(b.days / 30.4)} mo
                 {score <= best + 1e-9 && <span class="good"> · best value</span>}
                 {b.partner === YOU && <span class="warn"> · your company: Legitimacy −{conflict}</span>}
               </div>

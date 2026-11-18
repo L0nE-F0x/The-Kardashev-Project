@@ -1,3 +1,4 @@
+import { runsCompany } from '../sim/events';
 import type { Game } from './game';
 import type { AdvisorId, FacilityType, GameState } from '../sim/types';
 import type { ActiveTip } from './tips';
@@ -41,7 +42,9 @@ export function campusMoment(s: GameState, memo: MomentMemo, g: Game): ActiveTip
     if (seen === tier) continue;
     memo.built.set(f.id, tier);
     const adv = BIG[f.type];
-    if (first || !adv || found) continue;
+    // (the company's own buildings are a moment while the player runs it: a trustee's five halls in seven months
+    // were five cards with one sentence)
+    if (first || !adv || found || !runsCompany(s)) continue;
     const site = SITE_BY_ID[f.siteId]?.name ?? f.siteId;
     found = {
       key: f.id,

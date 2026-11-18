@@ -1109,7 +1109,7 @@ export interface GameState {
   regions: Record<RegionId, { license: number }>;
   market: { rivals: Rival[]; hbm: number; gasPrice: number; pkg: number; materials: Materials };
   modifiers: Modifier[];
-  events: { active: ActiveEvent | null; queue: ActiveEvent[]; history: { id: string; day: number; choice: number }[]; last: Record<string, number>; nextRoll: number; scheduled: ScheduledEvent[] };
+  events: { active: ActiveEvent | null; queue: ActiveEvent[]; history: { id: string; day: number; choice: number }[]; last: Record<string, number>; nextRoll: number; scheduled: ScheduledEvent[]; /** How often each card has come up (a card seen often is drawn less: variety over a long campaign). */ shown?: Record<string, number> };
   objectives: { done: string[] };
   flags: Record<string, number | boolean | string>;
   news: NewsItem[];

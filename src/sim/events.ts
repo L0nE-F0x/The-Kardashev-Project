@@ -108,7 +108,9 @@ export function tickEvents(s: GameState): void {
       if (!poolFits(s, def)) continue;
       const last = s.events.last[def.id];
       if (last !== undefined && (def.once || s.day - last < (def.cooldown ?? 365))) continue;
-      const w = def.weight(s);
+      // a card that has come up before is less likely each time: nine years of the Charter drew the same eight
+      // cards eight times each ("The transformer crunch, again")
+      const w = def.weight(s) / (1 + 0.75 * (s.events.shown?.[def.id] ?? 0));
       if (w <= 0) continue;
       const ctx = def.setup ? def.setup(s) : {};
       if (!ctx) continue;
@@ -130,6 +132,7 @@ function surfaceNext(s: GameState): void {
   while (!s.events.active && s.events.queue.length) {
     const next = s.events.queue.shift()!;
     s.events.last[next.id] = s.day;
+    (s.events.shown ??= {})[next.id] = (s.events.shown[next.id] ?? 0) + 1;
     const def = EVENT_BY_ID[next.id];
     if (def && s.charter && companyCard(def) && !runsCompany(s)) {
       const choices = def.choices(s, next.ctx);

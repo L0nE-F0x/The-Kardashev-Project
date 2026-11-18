@@ -890,7 +890,7 @@ export class Game {
     if (s.flags.lastObjective !== this.lastObjectiveSeen) {
       this.lastObjectiveSeen = s.flags.lastObjective;
       const news = s.news.find((n) => n.text.startsWith('✅'));
-      if (news && s.meta.tutorialStep < 0) this.toast(news.text.replace('✅ ', ''), 'good', String(s.flags.lastObjectiveAdvisor ?? 'bit'));
+      if (news && s.meta.tutorialStep < 0) this.toast(`Goal met: ${news.text.replace('✅ ', '')}`, 'good', String(s.flags.lastObjectiveAdvisor ?? 'bit'));
       sfx('objective');
     }
     for (const n of s.news) {
@@ -1356,6 +1356,18 @@ export class Game {
       'penny',
     );
     return true;
+  }
+
+  /** Why the company's own buttons do nothing right now (the blind trust, a sale, the public utility), or null. Its panels say so up front. */
+  get companyLock(): string | null {
+    const s = this.state;
+    if (!s?.charter?.blindTrust) return null;
+    const co = s.planet?.company;
+    return co === 'sell'
+      ? `You sold ${s.company.name}: these are its new owners’ books. You can look, not touch.`
+      : co === 'utility'
+        ? `${s.company.name} is the Charter’s public utility now: its advisors run it. You can look, not touch.`
+        : `${s.company.name} is in a blind trust: your advisors run it and these controls are theirs. Charter → Overview ends the trust.`;
   }
 
   private lockedResult(): A.Result {

@@ -202,7 +202,15 @@ export const BRIEFINGS: Briefing[] = [
     title: 'Launch',
     when: (s) => s.act === 3 && (s.charter?.phase ?? 0) >= 2 && !!s.flags.kipJoined,
     steps: [
-      { text: () => 'Five places on Earth would make a good launch complex. Equatorial pads give rockets a free push; polar pads see the whole planet.', enter: (g) => g.select({ kind: 'site', id: 'launch-guiana' }), target: () => 'site:launch-guiana', mood: 'excited' },
+      { text: () => 'Five places on Earth would make a good launch complex. Equatorial pads give rockets a free push; polar pads see the whole planet.', enter: (g) => {
+          // the panel the last briefing opened is in the way of the globe: close it and turn to the site
+          g.openPanel(null);
+          g.select({ kind: 'site', id: 'launch-guiana' });
+          (g.stage.getScene() as { focusSite?: (id: string) => void } | null)?.focusSite?.('launch-guiana');
+        },
+        target: () => 'site:launch-guiana',
+        mood: 'excited',
+      },
       { text: () => 'Pick one and post the contract. Then a test satellite full of accelerators, then power from space. One careful step at a time. Mostly careful.' },
     ],
   },

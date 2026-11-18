@@ -194,6 +194,11 @@ html.edition-3d:not(.ui-classic)[data-look='3'] {
     color: #8fdcff;
     text-shadow: 0 0 10px rgb(92 192 255 / 0.6);
   }
+  /* a tile's note keeps the two lines the other looks give it ("quality ×0.99 of the fro…" was cut at one) */
+  .tile-s {
+    white-space: normal;
+    text-overflow: clip;
+  }
 
   /* ── the last paper: sticky notes on the hardware ── */
   .objectives,

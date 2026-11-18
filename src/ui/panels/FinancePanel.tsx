@@ -32,7 +32,7 @@ export function FinancePanel() {
   const idle = Math.abs(s.stats.revenueMonth) < 1 && Math.abs(s.stats.costMonth) < 1;
   const costs = COST_KEYS.filter(([k]) => Math.abs(m[k] as number) > 1);
   return (
-    <Panel title="Finance" icon="finance" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel company title="Finance" icon="finance" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
         <Tile label="Cash" icon="cash" tone="gold" value={fmtMoney(f.cash)} sub={f.round === 'seed' ? 'Seed round' : f.round === 'IPO' ? 'Public company' : `Series ${f.round}`} chart={points} tip={'Cash\nWhat is in the bank today, and the round it came from. The line is its history. Everything is paid from here: building, chips, salaries, power.'} />
         <Tile

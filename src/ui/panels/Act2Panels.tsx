@@ -42,7 +42,7 @@ export function TeamPanel() {
   const floor = busy.some((j) => j.advisor === 'penny') ? (s.jobs.penny?.a ?? 0) : null;
   const desksOn = s.charter ? DESKS.filter((d) => s.charter!.phase >= d.cphase && s.charter!.desk[d.advisor]?.on) : [];
   return (
-    <Panel title="Team · advisor jobs" icon="team" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel company title="Team · advisor jobs" icon="team" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
         <Tile
           label="On the job"
@@ -150,7 +150,7 @@ export function DealsPanel() {
   const offerEnds = offers.reduce((a, o) => Math.min(a, o.expires ?? Infinity), Infinity);
   const forSale = s.startups.offers;
   return (
-    <Panel title="Deals" icon="deal" class="wide" onClose={() => game.openPanel(null)}>
+    <Panel company title="Deals" icon="deal" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
         <Tile
           label="Supply deals"
@@ -524,7 +524,7 @@ export function BlocsPanel() {
   const summits = (s.act ?? 1) < 3;
   const licences = REGION_IDS.reduce((a, r) => a + s.blocs[r].licences.length, 0);
   return (
-    <Panel title="Blocs · diplomacy" icon="blocs" class="wide research" onClose={() => game.openPanel(null)}>
+    <Panel company title="Blocs · diplomacy" icon="blocs" class="wide research" onClose={() => game.openPanel(null)}>
       <Tiles>
         <Tile
           label="Best relations"

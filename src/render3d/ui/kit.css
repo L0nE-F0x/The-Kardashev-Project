@@ -544,3 +544,24 @@ html.edition-3d:not(.ui-classic) {
     }
   }
 }
+
+/* A company panel while the company is not the player's to run (the blind trust, a sale, the public utility): it
+   says so under its title, and its controls look like what they are: someone else's. (They looked live: only a
+   click, and a toast, said otherwise.) */
+html.edition-3d:not(.ui-classic) {
+  .panel > .lockbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 13.5px;
+    line-height: 1.35;
+    color: var(--text);
+    background: color-mix(in srgb, var(--warn) 16%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  }
+  .panel.company-locked > .body :is(button.btn:not(.ghost, .tab, .seg > .btn), input[type='range'], select) {
+    filter: saturate(0.25);
+    opacity: 0.62;
+  }
+}

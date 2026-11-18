@@ -403,7 +403,7 @@ function Act3CompleteModal() {
               <div class="small muted">{c.renewal?.yes}–{c.renewal?.no}</div>
             </div>
             <div class="delta">
-              <div class="label">Planetary Mandate</div>
+              <div class="label">The Threshold</div>
               <div class={`v ${held >= 2 ? 'good' : 'warn'}`}>{held} / 3</div>
               <div class="small muted">fronts held</div>
             </div>
