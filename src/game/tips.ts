@@ -1,3 +1,4 @@
+import { runsCompany } from '../sim/events';
 import type { Game } from './game';
 import type { AdvisorId, GameState } from '../sim/types';
 import { researchable } from '../sim/actions';
@@ -183,12 +184,17 @@ export function checkTips(g: Game, s: GameState, days: number, streak: Map<strin
     if (cur.until !== undefined && s.day > cur.until) return null;
     const def = TIP_BY_ID[cur.id];
     if (def && !def.when(s, g)) return null;
+    // ...or once it is no longer the player's to fix: its act is over, or the company went into the blind trust
+    // (a rental tip from the scale-up sat on the screen into the planetary acts)
+    if (def && (!(def.acts ?? [1, 2]).includes(s.act ?? 1) || (!runsCompany(s) && def.id !== 'speed'))) return null;
     return undefined;
   }
   if (!g.settings.tips || s.meta.tutorialStep >= 0 || s.events.active || g.mode !== 'map' && g.mode !== 'diorama') return undefined;
   const act = s.act ?? 1;
   for (const t of TIPS) {
     if (seen.includes(t.id) || !(t.acts ?? [1, 2]).includes(act)) continue;
+    // (all but the clock's are about running the company: none of those while someone else runs it)
+    if (t.id !== 'speed' && !runsCompany(s)) continue;
     if (!t.when(s, g)) {
       streak.delete(t.id);
       continue;

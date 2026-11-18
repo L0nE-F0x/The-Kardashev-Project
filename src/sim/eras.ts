@@ -6,6 +6,8 @@
  * Charter contracts by the priorities and claims asteroids. The last climb is one more jump that stops
  * on the day Kardashev reaches 1.0000. With autopilot on, the planner also runs during normal play.
  */
+import { canLaunch } from './orbit';
+import { LAUNCH_SITES } from '../content/sites';
 import { CONTRACT_KINDS, YOU } from '../content/charter';
 import { PRIORITY5_IDS, SYSTEM, STAGE5_NAMES, ASTEROID_BY_ID } from '../content/system';
 import { REGION_IDS, type RegionId } from '../content/mapcodes';
@@ -336,6 +338,10 @@ function bestSeedPlace(s: GameState, prefer?: 'S' | 'M' | 'C'): string | null {
 function wishes5(s: GameState, pr: string): Wish[] {
   const sy = s.system!;
   const out: Wish[] = [];
+  // Nothing leaves Earth without a pad. A campaign that came this far with no launch complex and no spaceport (a
+  // Steward who never posted one, autopilot off through Act IV) could plant no seed, and the last climb never ended:
+  // the planner lays the pad first.
+  if (!canLaunch(s) && !live(s, 'launch').length && !live(s, 'spaceport').length) out.push({ kind: 'spaceport', size: 1, where: String(s.flags.launchSite ?? LAUNCH_SITES[0].id) });
   const seedsGoing = building(s, 'seed').length + tendering(s, 'seed').length;
   const wantSeeds = sy.foundries.length + seedsGoing < 4 + 3 * sy.stage && seedsGoing < 2;
   const seed = (prefer?: 'S' | 'M' | 'C') => {

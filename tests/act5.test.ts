@@ -1,3 +1,4 @@
+import { canLaunch } from '../src/sim/orbit';
 import { describe, expect, it } from 'vitest';
 import { newAct5Game } from '../src/sim/act5preset';
 import { tick } from '../src/sim/tick';
@@ -54,6 +55,20 @@ describe('Act V · Type I', () => {
     expect(m.version).toBe(SAVE_VERSION);
     expect(m.system).toBeNull();
   });
+
+  it('a campaign that arrives with no launch pad and no foundry still reaches Type I', () => {
+    const s = newAct5Game({ name: 'No Pad', homeSite: 'bay-area', seed: 31 }, ctx);
+    for (const p of s.charter!.projects) if (p.kind === 'launch' || p.kind === 'spaceport') p.status = 'cancelled';
+    s.system!.foundries = [];
+    expect(canLaunch(s)).toBe(false);
+    for (let d = 0; d < 365 * 60 && !s.flags.typeI; d++) {
+      botDay5(s, ctx);
+      tick(s, ctx);
+    }
+    // the era planner lays a pad first (without one no seed could be posted and the last climb never ended)
+    expect(canLaunch(s)).toBe(true);
+    expect(s.flags.typeI).toBeTruthy();
+  }, 240_000);
 
   it('a hands-off Steward reaches Type I without stalling', () => {
     const s = newAct5Game({ name: 'Type I Bot', homeSite: 'bay-area', seed: 31 }, ctx);
