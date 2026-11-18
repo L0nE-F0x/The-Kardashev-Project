@@ -9,7 +9,9 @@ the game is the 3D one, shipped as the desktop app.
 the end card and the site previews are 3D renders or vector drawings (`art3d/INTERFACE.md` is the direction); the
 Classic interface look, the Pixel text font, the CRT filter and the Chiptune soundtrack are gone. Don't add pixel
 art or `image-rendering: pixelated` anywhere.
-Current build: **v0.15.4 "Five Ages"** (a new soundtrack that grows with the civilisation like the interface: garage
+Current build: **v1.0.0 "One Point Oh"** (the final pass: the whole campaign played on one save, in the sim and through the
+interface with real clicks, and what that found fixed: the ending's credits could not be clicked past, the tutorial's own
+recipe ended in a brownout, saves and stored data that could break the game: SPEC §40) on top of **v0.15.4 "Five Ages"** (a new soundtrack that grows with the civilisation like the interface: garage
 funk, city pop, bossa nova, interlocking mallets, a cosmic waltz, on new modelled instruments: SPEC §39) on top of **v0.15.3 "Fine Print"** (the interface combed for 1.0 by three surveyors: no bar down the title
 screen's side in any look and the menu fits any window and interface size, a card's choices pinned at its foot,
 readable colour on paper and on bright fills, a small-window layout under 1200 px, the finale trackers out of the way,
@@ -176,6 +178,15 @@ Measured on the dev laptop's Intel iGPU on battery, ~1.1 MP: scene ~18 ms, full-
   and facilities pushed onto sites with `status: 'online'` and a `tier`, and the campuses are then that company's.
   The tools close their page when done; a script that only disconnects leaves a running game in Chrome (thirty of
   them stopped it answering).
+- **The interface, played** (v1.0, `tools/qa/ui/`): `page.mjs` keeps one game page in the QA Chrome and runs a script
+  from stdin against it (`page`, `ev`, `shot`, `sleep`, `days`, `SCAN`; `PLAYWRIGHT=`, `CDP=`, `BASE=`, `OUT=`);
+  `fullplay.js` plays the whole campaign on one save with real clicks (every card, act card, briefing, plan screen,
+  time-lapse, report, the ending to the end card and back: ~12 minutes; `SIZE=1280x800 DIFF=relaxed TAG=deck`);
+  `survey.js` opens every panel and tab of every act at three sizes; `scan.js` is what both read the screen with (bad
+  figures, emoji, cut text, parts off the window, tooltips nobody can reach, broken pictures). Run `fullplay.js`
+  before a release: it is how the credits that could not be clicked past were found. A `.ts` edit does not reach an
+  open page's modules: `--fresh` after editing. To run it while editing, serve a frozen clone on another port
+  (`git clone --local . <dir>`, link `node_modules`, `npx vite --port 5321`) and point `BASE=` at it.
 - **QA:** headless Chrome on the dev laptop's RTX is far faster than SwiftShader and shows the high preset as players see
   it: `__NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/10_nvidia.json
   google-chrome-stable --headless=new --remote-debugging-port=9222 --use-angle=gl-egl --ignore-gpu-blocklist` and
@@ -201,7 +212,12 @@ BALANCE=1 npx vitest run tests/balance.test.ts   # the balance report: every act
                       # (BALANCE_ACTS=4,5 BALANCE_SEEDS=21,7 BALANCE_DIR=…; Act I searches 24 plans per run)
 npm test              # vitest: sim determinism, Act I bot, Act II bot (preset → IPO), Act III bot (preset → renewal),
                       # Act IV bot (preset → jumps → the Heat Wall), Act V bot (preset → eras → Solar Maximum → Type I),
+                      # the whole campaign on one save (garage → Type I, and a save/load every 97 days changes nothing),
+                      # every random card shown and answered in six states, damaged saves and stored data,
                       # offline, saves, routing, the site planner and the 3D layouts
+CAMPAIGN=1 npx vitest run tests/campaign.test.ts   # the campaign matrix: difficulty × seed, founders, home sites, how
+                      # cards are answered (first / last / random), event rates, rival paces, reloads: 54 campaigns,
+                      # ~15 min; CAMPAIGN_DIR=… for campaign-matrix.md
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
 PLAYWRIGHT=<playwright's index.mjs> npm run gen:assets [-- logo|icons|og]
                       # re-render the 3D logo (public/logo.png; letter outlines in tools/brand/glyphs.json), the app
@@ -434,6 +450,11 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   `npm run gen:assets`. Sizes are plain CSS (`render3d/ui/art-portraits.css`, `art-icons.css`, `art-logo.css`). Check
   new art at 16–20 px (icons) and 40 px (portraits) on the contact-sheet pages. The world: `art3d/DIRECTION.md`,
   `art3d/PIECES.md`.
+- **Who takes the pointer (v1.0):** `:where(#ui) > * { pointer-events: none }` lets the pointer through the
+  interface's layer, and it must weigh nothing: as `#ui > *` it outweighed every class that asked for the pointer, so
+  the ending's "click to continue", the finale trackers' and the goal card's tooltips never worked. A new part that
+  stands directly in `#ui` and wants clicks sets `pointer-events: auto` in its own class (or carries `interactive`);
+  check it with `scan.js` (TIP lines).
 - **Sim/render split:** the sim must stay runnable in Node (tests). UI reads `game.state` (or `game.view`, which is
   the showcase world during the menu tour); mutations go through `game.*` action wrappers (they refresh stats,
   play sounds, toast errors and honour the confirm-spend setting).
@@ -478,6 +499,7 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 - **Act gating:** Act II content carries `act: 2` and/or `phase: n` (facilities, techs, events, objectives, sites, jobs,
   deals). Gate new behaviour on `s.act >= 2`. M5's balance pass retuned Act I on purpose (first hall 10 months,
   Standard $450M / Hard $380M seed): the Act I bot finishes on day 686 (v0.8.0); later changes should still be deliberate.
+  (v1.0 changed which cards the pool draws, not the economy: the bots' exact days moved a little, their ranges hold.)
 - **Act II prices:** Act I events use `cc(s, n)`, which scales up in Act II; Act II events (events2.ts) use `c2(s, n)`,
   written at Act II scale.
 - **Act III gating:** `s.charter` exists only from Act III (null before). Act III phases live in `s.charter.phase`;
@@ -501,7 +523,19 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   `ch5(s, n)` (2068 scale) and voice retired advisors through `desk(s, id)` (their successor). Big decisions go in
   `content/decisions.ts` with `big: true`; the first enabled choice is the autopilot default.
 - **Company vs Charter:** while the blind trust is on, `game.*` company wrappers refuse with a toast (`locked()`); the
-  sim actions stay open so advisors and the trustee can act.
+  sim actions stay open so advisors and the trustee can act. A company panel is `<Panel company …>`: it then says
+  why its controls are someone else's (`game.companyLock`) and greys them. Tips and campus moments about the
+  company stop while the player doesn't run it (`runsCompany`).
+- **Orders and power (v1.0):** `poweredRoom(s, site, kw)` (power.ts) is how many more chips a site's power will
+  carry once what is building is built; the Orders panel opens on the least of the hall's room, that and what the
+  cash buys. The tutorial depends on it: one solar farm and one battery carry about three quarters of a hall.
+- **Cards, since v1.0:** a paid choice is offered only when something of the player's is at stake (ships headed for
+  the strait, chips on order, grid in the storm's reach: else it is disabled with the reason and the free choice
+  reads "Noted"); `events.shown` counts how often each card has come up and the pool divides its weight by
+  (1 + 0.75 n); no random card after Type I. `tests/events.test.ts` shows every card of the random pool in six
+  states and takes every choice: it wants clean text, whole chips and all the compute assigned afterwards.
+  Write names into sentences with `midName`, `an`, `count`, `poss`, `signed` (sim/core.ts) and `atWhere`
+  (content/charter.ts); bloc stances by `STANCE_WORD` / `STANCE_LABEL`, never the raw key.
 - **Event cards (v0.8.0, `sim/events.ts`):** no random card while a finale runs (`finaleRunning`: the Crunch, Charter
   phases 4–5, the Heat Wall, Solar Maximum) or during Bit's Act I tutorial. Company cards are an explicit list
   (`COMPANY_EVENT_IDS` = Act I + Act II defs, never `big`): from Act III they only roll while you run the company
@@ -525,7 +559,12 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
   it in `game.updateSettings` (CSS-level ones in `applyCssSettings`).
 - **Save compatibility:** adding optional fields → default them in `save/save.ts#migrate`. Breaking changes →
-  bump `SAVE_VERSION` in `sim/state.ts` and migrate.
+  bump `SAVE_VERSION` in `sim/state.ts` and migrate. Since v1.0 `migrate` holds a save against a new company's shape
+  (every top-level part present and the kind of thing it is, a home site that exists, an act with its world) and
+  refuses what isn't one: **a new top-level field of GameState that older saves lack goes in `ADDED_LATER`** (and
+  gets its default), or every older save is refused (`tests/sim.test.ts` and the migration tests catch it). The
+  per-device stores (settings, Field Guide, achievements, the slot list) are read for what is whole in them
+  (`tests/stores.test.ts`): nothing on disk may stop the game starting.
 - **Numbers:** real units underneath (MW, FLOP, $), icons/short values up front, detail in `data-tip` tooltips.
 - Run `npm test` after sim changes — the Act I bot test catches balance regressions (Act I should finish in ~2–4 game years).
 
@@ -613,6 +652,30 @@ The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays 
 
 **SPEC §27 = the Steam ideas list** (ten proposals from 2026-11-08, not agreed yet): the reference for Steam planning.
 
+**Handoff (2026-11-18), v1.0.0 "One Point Oh" (SPEC §40):** the user asked for the final pass ("we are going now ... to
+version 1.0.0 ... what is going to be going out to the users when my Steam page is ready ... it has to be perfect. I
+have not been able to do a full playthrough, so I want you to do that for me ... virtually"; not the sound). Built,
+tested and committed on `main` **locally: not pushed, not tagged** (pushing redeploys the website with the 1.0.0
+What's New; the tag makes CI build the draft installers; both wait for the user's word, and the three marketing-kit
+commits below go out with the same push). **The packaged app was not run**: this session was on the desktop machine
+(ApexForgeDesktop, RTX 3050 + AMD iGPU, the repo synced there by VibeForge/Syncthing, no Rust, no updater key, no
+`node_modules` until `npm ci`), so only the production build in WebKitGTK's test browser was checked. Before the
+draft is published: launch CI's AppImage (the dev laptop, or `gh release download` here), start a company, click
+something, and run the ending once (`game.startNew({ act5: true })`, the bots, then the credits by hand).
+What a next session should know:
+- The rig the session used is outside the repo and survives: `~/.cache/kardashev-qa/` on the desktop machine
+  (Playwright in `pw/`, a WebKitGTK rig in `wk/`: `start.sh` runs `cage` headless with MiniBrowser and the inspector on
+  9339, `wk.mjs` talks to it; `lead/` has the session's scripts). `tools/qa/ui/` in the repo is the part worth keeping.
+- **Helpers cost the session:** seven look-only helpers at once used the whole five-hour allowance in twenty
+  minutes and were cut off mid-work. Their notes were worth having; next time one or two at a time, or none.
+- `.claude/worktrees/` holds six old helper worktrees (~85 MB each) that the sync copied without their git metadata:
+  dead folders, the user's to delete.
+- `steam/STORE_PAGE.md` (the user's, untracked) was written at v0.13.2: its version line, "balance pass still
+  planned" and the screenshots' notes are out of date; its updater blocker (the in-app updater must be off in a Steam
+  build) still stands.
+- Ask how the tutorial's new order (sized to the site's power) feels to them: it is the one change a player meets
+  in the first ten minutes.
+
 **Handoff (2026-11-17), the marketing kit made again:** two passes, both asked for by the user and both committed
 on `main` **locally only, not pushed** (the user said a later session pushes; pushing `main` redeploys the website
 only, and neither commit touches a website or game file). (1) 2026-11-16, "the marketing kit's second score": friends
@@ -629,7 +692,7 @@ development" dropped) were my call and they did not object: check them against t
 post texts in the kit's `POSTS.md` still say the old thing.
 `steam/` is the user's own untracked folder: leave it out of commits unless they say.
 
-**Next:** v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
+**Next:** the user's word on shipping v1.0.0 (above), then their Steam page. Before it: v0.15.3 "Fine Print" (SPEC §38), asked for on 2026-11-15 ("fix everything ... comb through the game to make
 sure it's ready to be played by users that are paying"): built and checked, waiting for the user's word to ship. §38
 ends with the low items left. Before it, v0.15.2 "Way In" (SPEC §37), asked for on 2026-11-14 ("time to finish SPEC §36", then "Keep going, we only
 push when everything is done!"): pushed and tagged when done; publishing the draft is the user's step. Then ask how it

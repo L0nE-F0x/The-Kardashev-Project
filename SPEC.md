@@ -2963,3 +2963,102 @@ mostly the drum kits). Now:
 - **Still open:** nobody has listened in the game (only the previews); the Windows (WebView2) and macOS apps untested;
   the instruments' revisions were cut short in the first session (the user's ears decide what gets another pass); the
   marketing score (`tools/trailer/score/`) is still the old one, on the old instruments: the new trailer needs its own.
+
+## 40. v1.0.0 "One Point Oh": the final pass (built 2026-11-18)
+
+The player: "make this pass the final pass ... what is going to be going out to the users when my Steam page is
+ready. So it has to be perfect. I have not been able to do a full playthrough, so I want you to do that for me if
+necessary, virtually. And all of the possible permutations." (Not the sound: that was done in §39.) Done on the
+desktop machine (ApexForgeDesktop: the repo synced there, no Rust), in one long session.
+
+### How it was played
+- **One save, garage to Type I, in the sim** (`tests/campaign.test.ts`, `tests/helpers/campaign.ts`): the five bots
+  chained on a single state, the way a player's own campaign runs (every earlier test starts an act from its
+  preset). It watches for an exception, a number that isn't one anywhere in the state, a card nobody can answer,
+  the longest stretch where nothing moves. `npm test` plays it once and checks that saving and loading every 97
+  days changes nothing; `CAMPAIGN=1` runs the matrix: 3 difficulties × 3 seeds, the 5 other founders × 3
+  difficulties, the 4 home sites, cards answered by their last choice and at random × 3 difficulties × 3 seeds, the
+  event rates, the rival paces, a reload every 1, 30 and 365 days (54 campaigns, ~15 minutes).
+- **The same, through the interface** (`tools/qa/ui/`: `page.mjs` drives a page of the QA Chrome with a script;
+  `fullplay.js` is the playthrough; `scan.js` reads what is wrong on screen; `survey.js` opens every panel and tab
+  of every act at three sizes): New company, then every card, act card, briefing, plan screen, time-lapse, report
+  and the ending answered with real clicks, the bots as the player's hands between them in Acts I–III. 342 cards at
+  1920×1080 on Standard; again at 1280×800 on Relaxed. The tutorial separately, step by step, with real clicks.
+- **Seven look-only helpers** (two on the sim as hostile players, two playing the interface, one on the 3D world,
+  one on menus and saves, one reading every word) were started and ran for twenty minutes before the session's
+  usage limit stopped everything; their notes (about 120 leads) were recovered from their folders and worked
+  through by the lead alone. Lesson for next time: seven at once is the whole five-hour allowance.
+
+### What it found
+**The ending could not be finished.** `#ui > * { pointer-events: none }` (id specificity) outweighed every class
+that asked for the pointer, since the first build. For parts standing directly in `#ui` that meant: the ending's
+"click to continue" did nothing (the cinematic moved on by itself after 16 s; **the credits never ended**: nothing
+but quitting got a player past them to the stats and the end card), the finale trackers' and the goal card's
+tooltips were out of reach (four briefings tell the player to hover those bars), and a click on a card's shade
+picked the site behind it. The rule is `:where(#ui) > *` now: it weighs nothing. Nobody had played to the end
+through the interface; the bots finish Act V in the sim.
+
+**The tutorial's own recipe ended in a brownout.** One solar farm with one battery is worth ~0.72 of its average
+output round the clock (`usableVariable` in power.ts: 14 hours of storage for full cover); a full hall at the
+suggested sites draws 13–15 MW against 10–11. Served 75%, cash $13M, a grid request 19 months out. No economy
+change: `poweredRoom(s, site, kw)` (power.ts) says how many more chips a site's power will carry once what is
+building is built and every grid request has come through, and the Orders panel opens on the least of the hall's
+room, that, and what the cash buys (6,000 rather than 8,000 at Mojave: the same compute, $60M more in hand), with a
+note when an order outruns the power. Juno's tip `grow-hall` and Iris's `research-done` then give the long wait for
+Bit-2 something to decide. The clock stops when Bit starts the set-up steps (it ran on at the player's speed,
+rentals billing, through six bubbles); a step that points into a panel or a site's build menu re-points when the
+player closes it or looks elsewhere; Bit stays on a campus.
+
+**Cards.** The act-complete card had the next act's opening card drawn under it. On paper the suggested choice
+turned white on yellow under the pointer (`.btn.primary:hover` outweighed the card rule). Five Act I cards
+suggested a paid choice that bought nothing (Malacca, the Red Sea, the HBM crunch, the solar storm, the heatwave
+with liquid cooling): each now offers it only when something of the player's is at stake. The growth Series A left
+the capped safety compute unassigned; the fab quake moved fractions of chips. A card that has come up before is
+drawn less (`events.shown`, weight ÷ (1 + 0.75 n)). Four choices or more stand two abreast (three or more in a
+window under 860 px). Past Type I the random pool is quiet.
+
+**The Charter and after.** The clock ran behind a briefing that opened on a card's answer. The company's panels
+gave no sign of the blind trust (`Panel company`, `game.companyLock`). `kip-2`/`kip-3` contradicted a desk that had
+already posted. Moments for a trustee's buildings; a tip that outlived its act. Act V with no launch complex and no
+spaceport could post no seed and never ended (the era planner lays a pad first).
+
+**The world.** `campusLayout` gave a two-plot or four-plot facility one plot when no whole column was free (the sim
+counts plots): the campus is laid out again with the big ones first.
+
+**Saves and storage.** An import without its company loaded, threw on every frame and took a slot: `migrate` now
+holds a save against a new company's shape. `{"unlocked":null}` in the Field Guide's record stopped the game at its
+loading screen for good; the four stores are read for what is whole in them, and a lost slot list is rebuilt from
+the saves on disk (`adoptOrphans`).
+
+**Words.** `midName`, `an`, `count`, `poss`, `signed` in sim/core.ts and the lines that needed them; `atWhere` for
+a contract's place; one set of words for bloc stances (`STANCE_WORD`); a dozen choice details that said something
+other than what `apply` does.
+
+### Numbers (the matrix, before the fixes; the final run is in the session's log)
+Every campaign reaches Type I once the Act II bot retries Bit's job (a Growth Hackers company starts Act II under
+the safety margin the job needs: a bot's blind spot, not the player's). Years per act I / II / III / IV / V on
+Standard: 1.9 / 3.9–4.3 / 8.3–8.7 / 17.5–18.3 / 26.8–27.0; Type I in 2085–2087 for a player who takes the
+suggested choice, 2088–2092 for one who takes the last, 2082–2091 at random. Cards per act about 14 / 45 / 97 / 90
+/ 57. A save is ~200–400 kB.
+
+### Calls I made (change any)
+- The first order is sized to the site's power, not the hall's room: a new player ends the tutorial with a smaller
+  order, a powered hall and money in hand. The economy's numbers are untouched; the balance retune is still
+  deferred (the bots are guard rails).
+- V opens the picked site in every act (in Acts IV–V it still cycles the wide views when nothing is picked).
+- Keys other than Esc (and J, the playtest note) wait while a card or a report is up.
+- A save that isn't shaped like one is refused rather than repaired.
+- The release is named for M5's working title.
+
+### Left
+- **Not run here:** the desktop app itself (this machine has no Rust; CI builds the installers on the tag). The
+  production build was checked in WebKitGTK through its test browser; the packaged app wants a launch on the dev
+  laptop or from CI's draft. Windows and macOS as before: never launched by us.
+- The Steam page's own to-do is in the owner's `steam/STORE_PAGE.md` (written at v0.13.2: its version line, its
+  "balance pass still planned" notes and the updater blocker want a re-read). The in-app updater still points at
+  GitHub releases: a Steam build must switch it off.
+- From the helpers' notes, seen and left (low): three cards can land on one day; a briefing's bubble can cover the
+  goal card; the title of a long site name is cut at 1280 px with a View button beside it; Act III cannot be lost
+  (a caretaker term is the worst outcome: by design since §22); Hard's Act I punishes a plan that buys 8,000 chips
+  on day one (the search finds plans that finish; the tutorial's order now fits the cash).
+- Balance: untouched on purpose, as above. The known numbers (§22, CLAUDE.md) stand.

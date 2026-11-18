@@ -452,6 +452,11 @@
     .continue .go::before {
       border-left-color: #f4fffd;
     }
+    /* the company's name under "Continue": on the drawn key it kept the ink made for looks 3–4's bright fill, dark on
+       dark (it could not be read) */
+    .btn.continue .c2 {
+      color: rgb(var(--holo));
+    }
     .continue .c3 span {
       background: none;
       box-shadow: inset 0 0 0 1px rgb(var(--holo) / 0.4);

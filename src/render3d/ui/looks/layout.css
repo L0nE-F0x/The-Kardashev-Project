@@ -378,3 +378,13 @@
     }
   }
 }
+
+/* The site panel's title in a narrow window: a long name beside the View button takes a second line instead of
+   being cut ("Guiana Space Coa…" at a Steam Deck's 1280). */
+@media (min-width: 821px) and (max-width: 1400px) {
+  html.edition-3d:not(.ui-classic) .side .panel > .head h2 {
+    white-space: normal;
+    line-height: 1.12;
+    text-wrap: balance;
+  }
+}
