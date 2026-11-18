@@ -1,5 +1,5 @@
 import { Bar, Icon, KV, Panel, pct, useGame } from './components';
-import { SITE_BY_ID, siteDef } from '../content/sites';
+import { SITE_BY_ID, siteDef, waterWord } from '../content/sites';
 import { REGIONS, STANCE_LABEL } from '../content/regions';
 import { FACILITIES, BUILDABLE } from '../content/facilities';
 import { CHIP_SUPPLIERS, COMPANIES } from '../content/companies';
@@ -61,7 +61,7 @@ export function Inspector() {
 }
 
 function waterLabel(w: number) {
-  return w >= 0.8 ? 'plenty' : w >= 0.5 ? 'ok' : w >= 0.25 ? 'scarce' : 'parched';
+  return waterWord(w);
 }
 
 function SiteInspector({ id }: { id: string }) {
@@ -587,7 +587,8 @@ function RegionInspector({ id }: { id: RegionId }) {
         {sites.map((x) => (
           <button key={x.id} class="btn small" style={{ width: '100%', marginBottom: '4px', justifyContent: 'space-between' }} onClick={() => game.select({ kind: 'site', id: x.id })}>
             <span>{x.name}</span>
-            <span class="muted">
+            {/* the button's own colour, a little quieter: `.muted` is paper ink in the first two looks, on a dark key */}
+            <span style={{ opacity: 0.78 }}>
               <Icon name="solar" size="sm" /> {pct(x.solarCF)} <Icon name="wind" size="sm" /> {pct(x.windCF)}
             </span>
           </button>

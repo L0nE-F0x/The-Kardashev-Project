@@ -108,7 +108,7 @@ Your compute is split four ways in the Compute panel: **training** (the next mod
     title: 'Reading the screen',
     icon: 'map',
     special: 'screen',
-    body: `**The map** is the world: click a site (a marker) to see it in the **inspector** on the right — its sun, wind, power price and the plots you can build on. Your own sites have a **View** button that opens the campus (or press [V]). Drag to pan, scroll or pinch to zoom.
+    body: `**The map** is the world: click a site (a marker) to see it in the **inspector** on the right — its sun, wind, power price and the plots you can build on. Every site has a **View** button that opens it up close (or press [V], or double-click it). Drag to pan, scroll or pinch to zoom.
 
 **The strip along the bottom** has the latest news at the left (click it for the full News panel) and what is coming at the right. **Toasts** (small pop-ups, bottom right) are your advisors flagging something.
 
@@ -240,7 +240,7 @@ The checklist leads to **Solar Maximum**, then the last climb to Kardashev 1.000
 - **Renting forever.** Cumulus is a bridge. Turn it down once your own chips are in.
 - **Idle research.** A finished project leaves the lab idle until you pick the next one (watch for the badge).
 - **Ignoring safety.** Every model pushes capability up. Keep some compute on safety.
-- **Spending the seed money in week one.** Penny is right: halls take ten months, and you need to pay for chips and power too.
+- **Leaving nothing in the bank.** The first hall, its power and its chips take most of the seed money, and that is right. But rentals and salaries bill every month for the ten months it takes: keep a few months of costs back.
 - **Not reading the inspector.** Sites differ a lot: sun, wind, power price, water, how many plots.`,
   },
   {

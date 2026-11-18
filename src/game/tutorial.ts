@@ -36,6 +36,24 @@ export function suggestedSite(g: Game): string {
 
 const s = (g: Game) => g.state!;
 
+// A step that points into a panel or at a site's build menu follows the player when they close it or look
+// elsewhere: the bubble used to keep its text with nothing lit, and nothing said how to get back.
+/** In the Compute panel: the control; otherwise the dock's Compute button. */
+const inCompute = (g: Game, target: string) => (g.panel === 'compute' ? target : 'dock-compute');
+const backToCompute = (g: Game, text: string) => (g.panel === 'compute' ? text : `${text} (Open the Compute panel again: it’s the first button on the left.)`);
+/** The site this build step is about: where the data center is, or before there is one, the suggested site. */
+const buildSite = (g: Game) => s(g).facilities.find((f) => f.type === 'datacenter')?.siteId ?? suggestedSite(g);
+/** Is the player looking at a site they can follow this step on? (Before the hall exists any build site but the garage will do.) */
+const atBuildSite = (g: Game) => {
+  const sel = g.selection?.kind === 'site' ? g.selection.id : null;
+  if (!sel || SITE_BY_ID[sel]?.kind !== 'build') return false;
+  const hall = s(g).facilities.find((f) => f.type === 'datacenter')?.siteId;
+  return hall ? sel === hall : sel !== s(g).company.homeSite;
+};
+const onSite = (g: Game, target: string) => (atBuildSite(g) ? target : `site:${buildSite(g)}`);
+const backToSite = (g: Game, text: string) =>
+  atBuildSite(g) ? text : `${text} (${g.mode === 'map' ? 'Click' : 'Go back to the world map and click'} ${SITE_BY_ID[buildSite(g)]?.name} to see its build menu again.)`;
+
 export const TUTORIAL: TutorialStep[] = [
   {
     id: 'hello',
@@ -74,17 +92,17 @@ export const TUTORIAL: TutorialStep[] = [
   },
   {
     id: 'rent',
-    target: () => 'rent-plus',
+    target: (g) => inCompute(g, 'rent-plus'),
     enter: (g) => {
       if (g.panel !== 'compute') g.openPanel('compute');
     },
-    text: () => 'Compute is what trains models, and compute comes from chips. Rent 500 accelerators from Cumulus Cloud: instant, but pricey — a bridge until we have our own hall.',
+    text: (g) => backToCompute(g, 'Compute is what trains models, and compute comes from chips. Rent 500 accelerators from Cumulus Cloud: instant, but pricey — a bridge until we have our own hall.'),
     done: (g) => s(g).rental.units >= 500,
   },
   {
     id: 'train',
-    target: () => 'start-train',
-    text: () => 'Now start training Bit-1. That’s me! (The next me.)',
+    target: (g) => inCompute(g, 'start-train'),
+    text: (g) => backToCompute(g, 'Now start training Bit-1. That’s me! (The next me.)'),
     done: (g) => !!s(g).training || s(g).models.length > 0,
   },
   {
@@ -114,12 +132,15 @@ export const TUTORIAL: TutorialStep[] = [
   },
   {
     id: 'safety',
-    target: () => 'alloc-safety',
+    target: (g) => inCompute(g, 'alloc-safety'),
     enter: (g) => {
       if (g.panel !== 'compute') g.openPanel('compute');
+      // the next steps are reading and setting up: the clock waits (it ran on at the player's speed, the rented
+      // chips billing by the day, while a new player read six bubbles), until the "now we wait" step starts it again
+      g.speed = 0;
     },
     mood: 'neutral',
-    text: () => 'I’m live and earning a little! These sliders split our compute: training (the next model), inference (customers = money), research and safety. Every model makes me more capable; safety keeps me checkable. Iris says at least 8% — drag the Safety slider.',
+    text: (g) => backToCompute(g, 'I’m live and earning a little! I’ve stopped the clock while we set things up. These sliders split our compute: training (the next model), inference (customers = money), research and safety. Every model makes me more capable; safety keeps me checkable. Iris says at least 8% — drag the Safety slider.'),
     done: (g) => s(g).alloc.safety >= 0.08,
   },
   {
@@ -141,27 +162,27 @@ export const TUTORIAL: TutorialStep[] = [
       const scene = g.stage.getScene() as { focusSite?: (id: string) => void } | null;
       if (site) scene?.focusSite?.(site.id);
     },
-    text: (g) => `Renting is expensive — we need our own data center. Every site is different: sun, wind, power prices, space. ${SITE_BY_ID[suggestedSite(g)]?.name} looks good: cheap land and sunshine. Click it on the map.`,
+    text: (g) => `Renting is expensive — we need our own data center. Every site is different: sun, wind, power prices, space. ${SITE_BY_ID[suggestedSite(g)]?.name} looks good: cheap land and sunshine. ${g.mode === 'map' ? 'Click it on the map.' : 'Go back to the world map and click it.'}`,
     done: (g) => g.selection?.kind === 'site' && SITE_BY_ID[g.selection.id]?.kind === 'build' && g.selection.id !== s(g).company.homeSite,
   },
   {
     id: 'build-dc',
-    target: () => 'build-datacenter',
-    text: () => 'Build a Data Center here. It takes the best part of a year — so start early!',
+    target: (g) => onSite(g, 'build-datacenter'),
+    text: (g) => backToSite(g, 'Build a Data Center here. It takes the best part of a year — so start early!'),
     done: (g) => s(g).facilities.some((f) => f.type === 'datacenter'),
   },
   {
     id: 'power',
-    target: () => 'build-solar',
+    target: (g) => onSite(g, 'build-solar'),
     mood: 'neutral',
-    text: () => 'It will need power. Solar is the fastest to build; a grid connection is cheaper but the queue is long. Build a Solar Farm (or request grid above).',
+    text: (g) => backToSite(g, 'It will need power. Solar is the fastest to build; a grid connection is cheaper but the queue is long. Build a Solar Farm (or request grid above).'),
     done: (g) => s(g).objectives.done.includes('power') || s(g).facilities.some((f) => f.type === 'solar' || f.type === 'wind' || f.type === 'gas') || Object.values(s(g).sites).some((x) => x.grid.pending.length > 0),
   },
   {
     id: 'battery',
-    target: () => 'build-battery',
+    target: (g) => onSite(g, 'build-battery'),
     mood: 'neutral',
-    text: () => 'The sun clocks off at night, and so would our hall. Add Battery Storage here to carry it through the dark.',
+    text: (g) => backToSite(g, 'The sun clocks off at night, and so would our hall. Add Battery Storage here to carry it through the dark.'),
     // done once the hall has something that runs at night: a battery, gas, or a grid connection
     done: (g) => {
       const st = s(g);
@@ -182,14 +203,14 @@ export const TUTORIAL: TutorialStep[] = [
     enter: (g) => {
       g.panel = null;
     },
-    text: () => 'Now the waiting part: the hall takes the best part of a year. That’s the rhythm of this game — set things in motion, then let time run. Try ▶▶▶ now — or, once I’m done talking, clicking the first thing in Coming up, along the bottom, jumps straight to it. I stop the clock myself whenever a card needs you.',
+    text: () => 'Now the waiting part: the hall takes the best part of a year. That’s the rhythm of this game — set things in motion, then let time run. The clock is still stopped: try ▶▶▶ now — or, once I’m done talking, clicking the first thing in Coming up, along the bottom, jumps straight to it. I stop the clock myself whenever a card needs you.',
     done: (g) => g.speed >= 4,
     next: 'Later',
   },
   {
     id: 'dock',
     target: () => 'dock',
-    text: () => 'Each button on the left is a department: Compute, Orders, Research, Finance, then Goals, the Field Guide and News. A red badge means something in there is waiting for you. Hover (or long-press) a button for its name.',
+    text: () => 'Each button on the left is a department: Compute, Orders, Research, Finance and Stats, then Goals, the Field Guide and News, and the Line tool that joins two sites’ power. A red badge means something in there is waiting for you. Hover (or long-press) a button for its name.',
     next: 'Next',
   },
   {

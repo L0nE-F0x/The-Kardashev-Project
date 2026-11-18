@@ -488,6 +488,11 @@ export class Game {
 
   /** V cycles the views: world map → orbit → solar system (Act V) → world map. */
   cycleView(): void {
+    // V is "view": with a site picked on the map it opens that site (How to Play has always said so; the key only
+    // cycled the wide views, which Acts I–III don't have), and from a site it goes back to the map
+    const picked = this.selection?.kind === 'site' ? SITE_BY_ID[this.selection.id] : null;
+    if (this.mode === 'map' && picked && !(picked.kind === 'moon' && !this.state?.system)) return this.enterDiorama(picked.id);
+    if (this.mode === 'diorama') return this.enterMap();
     if (this.mode === 'orbit') {
       if (this.hasSystemView) this.enterSystem();
       else this.enterMap();

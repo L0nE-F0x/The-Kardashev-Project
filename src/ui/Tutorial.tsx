@@ -115,7 +115,8 @@ export function TutorialOverlay() {
   const s = game.state;
   const stepIndex = s?.meta.tutorialStep ?? -1;
   const step = stepIndex >= 0 ? TUTORIAL[stepIndex] : null;
-  const hidden = !s || !step || !!s.events.active || !!game.awayReport || game.showActComplete || game.mode !== 'map' || !!game.confirm;
+  // (on a campus too: a double click on the suggested site goes there, and Bit used to vanish with the step still running)
+  const hidden = !s || !step || !!s.events.active || !!game.awayReport || game.showActComplete || (game.mode !== 'map' && game.mode !== 'diorama') || !!game.confirm;
   const box = useTarget(hidden, step?.target ? () => step.target!(game) ?? null : null, stepIndex);
   if (hidden || !step) return null;
   return (

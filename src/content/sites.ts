@@ -241,6 +241,9 @@ export function siteOpen(site: SiteDef, act: number, phase: number, cphase = 0):
   if (site.cphase && act >= 3 && cphase < site.cphase) return false;
   return true;
 }
+/** A site's water in a word (the site panel's chip and the map's tooltip say the same). */
+export const waterWord = (w: number) => (w >= 0.8 ? 'plenty' : w >= 0.5 ? 'ok' : w >= 0.25 ? 'scarce' : 'parched');
+
 export const HOME_SITES = SITES.filter((s) => s.home);
 
 export function siteDef(id: string): SiteDef {

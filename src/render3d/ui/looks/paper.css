@@ -637,6 +637,14 @@ html.edition-3d:not(.ui-classic):is([data-look='1'], [data-look='2']) {
     color: var(--cat);
     background: none;
     box-shadow: inset 0 0 0 1.5px var(--cat);
+    /* the typewriter face stands high on its line: the figures rode on the box's top edge */
+    line-height: 1.3;
+    padding: 4px 7px 1px;
+  }
+  /* a tile's chart stays under its figure (the handwriting is tall: the line ran through "$6.1M" like a strike-out) */
+  .tile-chart {
+    height: 30%;
+    opacity: 0.32;
   }
   .tech.done {
     background: none;

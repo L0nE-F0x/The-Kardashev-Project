@@ -194,7 +194,8 @@ export function quoteOrder(s: GameState, ctx: SimContext, supplier: SupplierId, 
   const plan = planShipment(s, ctx, fromSite, dest, mode);
   const transitDays = plan.seaDays + plan.landDays;
   const firstDays = (ahead + Math.min(qty, rate * 7)) / rate + 7 + transitDays;
-  const lastDays = (ahead + qty) / rate + 3 + transitDays;
+  // (never before the first: a small order is one lot)
+  const lastDays = Math.max(firstDays, (ahead + qty) / rate + 3 + transitDays);
   const chips = spec.price * qty;
   const shipping = SHIP_COST[mode] * qty;
   return { unitPrice: spec.price, chips, shipping, total: chips + shipping, fromSite, firstDays, lastDays, transitDays, perf: spec.perf, kw: spec.kw };

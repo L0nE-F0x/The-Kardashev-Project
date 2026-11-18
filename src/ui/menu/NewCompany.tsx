@@ -23,6 +23,7 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
   const [eventRate, setEventRate] = useState<EventRate>('normal');
   const [rivalPace, setRivalPace] = useState<RivalPace>('normal');
   const [seed, setSeed] = useState<number>(randomSeed());
+  const [seedText, setSeedText] = useState<string | null>(null);
   const [start, setStart] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [mode, setMode] = useState<'campaign' | 'sandbox'>('campaign');
   const [sandbox, setSandbox] = useState<SandboxOpts>(SANDBOX_DEFAULT);
@@ -78,7 +79,10 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
         </button>
         <button class={`btn pickcard ${start === 2 ? 'active' : ''}`} onClick={() => setStart(2)} aria-pressed={start === 2} data-tut="start-act2">
           <span class="n">
-            <Icon name="campus" size="sm" /> Act II · The <span style={{ whiteSpace: 'nowrap' }}>Scale-Up</span>
+            <Icon name="campus" size="sm" />{' '}
+            <span>
+              Act II · The <span style={{ whiteSpace: 'nowrap' }}>Scale-Up</span>
+            </span>
           </span>
           <span class="b">Spring 2029. Series A closed, a campus with two data halls, Bit-2 shipping. Straight to gigawatts.</span>
         </button>
@@ -182,6 +186,13 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
             <input type="range" min={250e6} max={2e9} step={50e6} value={cash ?? DIFFICULTIES[difficulty].cash} onInput={(e) => setCash(Number((e.target as HTMLInputElement).value))} aria-label="Seed money" />
             <span class="val">{fmtMoney(cash ?? DIFFICULTIES[difficulty].cash, 0)}</span>
           </label>
+          {cash !== null && (
+            <div class="row" style={{ justifyContent: 'flex-end', marginTop: '-4px' }}>
+              <button class="btn ghost small" onClick={() => setCash(null)}>
+                Back to {DIFFICULTIES[difficulty].name}’s {fmtMoney(DIFFICULTIES[difficulty].cash, 0)}
+              </button>
+            </div>
+          )}
           <Choice<EventRate> label="Random events" value={eventRate} options={(Object.keys(EVENT_RATES) as EventRate[]).map((k) => [k, EVENT_RATES[k].name])} onChange={setEventRate} />
           <Choice<RivalPace> label="Rival labs" hint="How fast Meridian, Lattice and Open Orchard improve." value={rivalPace} options={(Object.keys(RIVAL_PACES) as RivalPace[]).map((k) => [k, RIVAL_PACES[k].name])} onChange={setRivalPace} />
           <div class="setting opt">
@@ -190,8 +201,20 @@ export function NewCompany({ tutorialDefault }: { tutorialDefault?: boolean }) {
               <span class="h">Same seed + same choices = same world. Share it with a friend.</span>
             </span>
             <div class="row" style={{ gap: '4px' }}>
-              <input type="text" inputMode="numeric" value={String(seed)} onInput={(e) => setSeed(Number((e.target as HTMLInputElement).value.replace(/\D/g, '')) || 1)} style={{ width: '110px' }} />
-              <button class="btn small" onClick={() => setSeed(randomSeed())} aria-label="Random seed">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={seedText ?? String(seed)}
+                onInput={(e) => {
+                  // the field holds what was typed: cleared, it used to snap to "1" and the next digits joined it
+                  const digits = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 10);
+                  setSeedText(digits);
+                  setSeed(Math.min(2 ** 31 - 1, Number(digits)) || 1);
+                }}
+                onBlur={() => setSeedText(null)}
+                style={{ width: '110px' }}
+              />
+              <button class="btn small" onClick={() => (setSeedText(null), setSeed(randomSeed()))} aria-label="Random seed">
                 Random
               </button>
             </div>

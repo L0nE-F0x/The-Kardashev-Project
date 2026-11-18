@@ -34,7 +34,7 @@ export function FinancePanel() {
   return (
     <Panel title="Finance" icon="finance" class="wide" onClose={() => game.openPanel(null)}>
       <Tiles>
-        <Tile label="Cash" icon="cash" tone="gold" value={fmtMoney(f.cash)} sub={f.round === 'seed' ? 'Seed round' : f.round === 'IPO' ? 'Public company' : `Series ${f.round}`} chart={points} />
+        <Tile label="Cash" icon="cash" tone="gold" value={fmtMoney(f.cash)} sub={f.round === 'seed' ? 'Seed round' : f.round === 'IPO' ? 'Public company' : `Series ${f.round}`} chart={points} tip={'Cash\nWhat is in the bank today, and the round it came from. The line is its history. Everything is paid from here: building, chips, salaries, power.'} />
         <Tile
           label="Net a month"
           icon="chart"
@@ -49,8 +49,9 @@ export function FinancePanel() {
           tone={runway < 6 ? 'bad' : runway < 14 ? 'warn' : 'plain'}
           value={Number.isFinite(runway) ? `${runway < 10 ? runway.toFixed(1) : Math.round(runway)} mo` : idle ? '—' : 'Growing'}
           sub={Number.isFinite(runway) ? 'until the cash runs out' : idle ? 'nothing coming in or going out yet' : 'in profit every month'}
+          tip={'Runway\nHow many months the cash lasts at this month’s running costs and revenue. One-off spending (a build, a chip order) shortens it at once. When it runs out, Penny brings a bridge loan: expensive money.'}
         />
-        <Tile label="Valuation" icon="finance" value={fmtMoney(f.valuation)} sub={f.bridgeLoans ? `${f.bridgeLoans} bridge loan${f.bridgeLoans > 1 ? 's' : ''} taken` : 'no bridge loans'} />
+        <Tile label="Valuation" icon="finance" value={fmtMoney(f.valuation)} sub={f.bridgeLoans ? `${f.bridgeLoans} bridge loan${f.bridgeLoans > 1 ? 's' : ''} taken` : 'no bridge loans'} tip={'Valuation\nWhat the company was worth at its last funding round. It moves at the next one (the Series A, the Series B, the IPO), where revenue, your models and your record set the price.'} />
       </Tiles>
       <Cols>
         <Card title={points.length === 1 ? 'Cash, this month' : `Cash, last ${points.length} months`} icon="chart">

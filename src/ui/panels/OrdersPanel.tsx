@@ -175,6 +175,11 @@ export function OrdersPanel() {
                 : `There is no power to spare at ${siteDef(destId!).name} for more chips: they would run throttled until you add some there (a plant, a battery or a grid connection).`}
             </div>
           )}
+          {quote && mode === 'air' && destId && quoteOrder(s, game.ctx, supplier, qty, destId, 'sea').transitDays - quote.transitDays < 2 && (
+            <div class="small warn section">
+              <Icon name="warn" size="sm" /> Air freight saves no time here: these chips come overland from {siteDef(quote.fromSite).name} either way.
+            </div>
+          )}
           {space && qty > space.free && (
             <div class="small warn section">
               <Icon name="warn" size="sm" /> Only {space.free.toLocaleString()} more chips fit in the halls at {siteDef(destId!).name}: the other {(qty - space.free).toLocaleString()} would wait in the warehouse until you build or expand a hall.

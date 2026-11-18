@@ -18,7 +18,7 @@ export function SandboxControls({ value, onChange, scenario = true, onScenario }
       <Toggle label="Money never runs out" hint="Your company's cash (and, from Act III, the Charter's treasury) tops itself up." value={value.unlimited} onChange={(v) => set({ unlimited: v })} />
       <Choice<SandboxOpts['research']>
         label="Research"
-        hint="Everything: every technology your act has reached is already known."
+        hint={value.research === 'all' ? 'Every technology your act has reached is already known.' : value.research === 'fast' ? 'Research runs four times as fast.' : 'Research runs at its usual pace.'}
         value={value.research}
         options={[
           ['normal', 'Normal'],

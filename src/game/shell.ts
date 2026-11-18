@@ -124,6 +124,11 @@ function bindKeys(game: Game) {
       if (e.key === 'Escape') back(game);
       return;
     }
+    // a card, a report or a question is up: it is answered first. (C opened Compute under the card, where it could
+    // not be read or closed; Space and the speed keys changed a clock the card was holding.)
+    const st = game.state;
+    const modal = (!!st.events.active && (game.settings.autoPause || game.eventOpen)) || !!game.awayReport || game.showActComplete || !!game.confirm || !!game.jumpReport || !!game.eraReport || !!st.meta.gameOver;
+    if (modal && e.key !== 'Escape' && e.key !== 'j') return;
     const scene = game.stage.getScene();
     const pan = (dx: number, dy: number) => (scene as PanZoom | null)?.pan?.(dx, dy);
     switch (e.key) {

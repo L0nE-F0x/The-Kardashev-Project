@@ -4,7 +4,7 @@ import { Icon, Portrait, pct, useGame } from './components';
 import { rich } from './emoji';
 import { linkMaxKm } from '../sim/model';
 import { ASTEROID_BY_ID } from '../content/system';
-import { SITE_BY_ID } from '../content/sites';
+import { SITE_BY_ID, waterWord } from '../content/sites';
 import { REGIONS, STANCE_LABEL } from '../content/regions';
 import { FACILITIES } from '../content/facilities';
 import { COMPANIES } from '../content/companies';
@@ -65,7 +65,7 @@ export function MapTooltip() {
     if (site.kind === 'build') {
       const facs = s.facilities.filter((f) => f.siteId === h.id);
       const sp = s.stats.sitePower[h.id];
-      body = `${REGIONS[site.region].name}\n:solar: ${pct(site.solarCF)}  :wind: ${pct(site.windCF)}  :hydro: ${site.water >= 0.5 ? 'ok' : 'scarce'}  ${site.climateC}°C`;
+      body = `${REGIONS[site.region].name}\n:solar: ${pct(site.solarCF)}  :wind: ${pct(site.windCF)}  :hydro: ${waterWord(site.water)}  ${site.climateC}°C`;
       if (facs.length) body += `\n${facs.map((f) => `${FACILITIES[f.type].name}${f.status === 'building' ? ' (building)' : ''}`).join(', ')}`;
       if (sp && sp.load > 0) body += `\nPower ${fmtMW(sp.served)} / ${fmtMW(sp.load)}`;
       const rivals = (s.rivalBuilds ?? []).filter((b) => b.siteId === h.id);

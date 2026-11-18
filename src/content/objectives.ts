@@ -78,8 +78,9 @@ const firstHallProgress = (s: GameState): ObjectiveProgress | null => {
   }
   const b = halls.reduce<(typeof halls)[number] | null>((best, f) => (!best || f.progress / f.buildDays > best.progress / best.buildDays ? f : best), null);
   if (!b) return null;
-  const months = Math.max(0, Math.ceil((b.buildDays - b.progress) / 30.4));
-  return prog(b.progress, b.buildDays, `Data Center ${Math.floor((b.progress / b.buildDays) * 100)}% built${months ? ` · ${months} mo to go` : ''}`);
+  // the same figure as the site panel and Coming up (this one rounded up: "12 mo to go" beside their "11 mo")
+  const left = b.buildDays - b.progress;
+  return prog(b.progress, b.buildDays, `Data Center ${Math.floor((b.progress / b.buildDays) * 100)}% built${left > 0 ? ` · ${fmtDays(left)} to go` : ''}`);
 };
 
 export const OBJECTIVES: ObjectiveDef[] = [
