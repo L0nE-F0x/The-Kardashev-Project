@@ -39,7 +39,7 @@ import { applyCssSettings, loadSettings, lookFor, saveSettings, type Settings } 
 import { guideUnseen, unlockGuide } from '../save/guide';
 import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
-import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture } from '../audio/engine';
+import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture, onAudioFailure } from '../audio/engine';
 import { musicUnlocked, playMusic, setMusicMood, type Track } from '../audio/music';
 import { ambienceForScene, restartAmbience, setAmbience } from '../audio/ambience';
 import { installUiSounds } from '../audio/ui';
@@ -209,9 +209,28 @@ export class Game {
     installUiSounds();
     document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
+    // no sound at all is worth one sentence (the game plays on without it). The Linux app opens its audio behind the
+    // loading screen, so a refusal there is said at the player's first click, when there is someone to read it.
+    let gestured = false;
+    let silent: string | null = null;
+    const sayNoSound = () => {
+      const linux = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+      this.toast(
+        `No sound: your computer's audio output refused to start.${linux ? ' On Linux the game plays through GStreamer: installing its "good" plugins fixes it (gst-plugins-good on Arch, gstreamer1.0-plugins-good on Debian and Ubuntu).' : ''}`,
+        'bad',
+        undefined,
+        16000,
+      );
+    };
     unlockOnGesture(() => {
+      gestured = true;
       musicUnlocked();
       restartAmbience();
+      if (silent) sayNoSound();
+    });
+    onAudioFailure((why) => {
+      silent = why;
+      if (gestured) sayNoSound();
     });
     // a new era, a new soundtrack (the menu keeps its theme; the ending keeps its own)
     onEraChange(() => {
@@ -1264,7 +1283,7 @@ export class Game {
     this.notify();
   }
 
-  toast(text: string, kind: Toast['kind'] = 'info', advisor?: string): void {
+  toast(text: string, kind: Toast['kind'] = 'info', advisor?: string, ms = 6000): void {
     // Bit's tutorial points at real buttons, often where the toasts stack (phones): only errors interrupt it;
     // an achievement waits for the end, the rest Bit is already saying
     if ((this.state?.meta.tutorialStep ?? -1) >= 0 && kind !== 'bad') {
@@ -1280,7 +1299,7 @@ export class Game {
     setTimeout(() => {
       this.toasts = this.toasts.filter((x) => x.id !== t.id);
       this.notify();
-    }, 6000);
+    }, ms);
   }
 
   /** A tap on a toast clears it (phones: they sit over the news ticker). */

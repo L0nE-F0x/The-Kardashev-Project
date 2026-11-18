@@ -234,6 +234,27 @@ function build(ctx: AudioContext): Graph {
   return { ctx, master, buses: { sfx: bus(false), music: bus(true), amb: bus(false) }, duck, delays: [dl, dr], echoGates: [delOut, cross, fb] };
 }
 
+/** Why the sound could not start (the audio device refused), once it has failed; and who wants to hear about it. */
+let failure: string | null = null;
+let onFailure: ((why: string) => void) | null = null;
+export function onAudioFailure(fn: (why: string) => void): void {
+  onFailure = fn;
+  if (failure) fn(failure);
+}
+
+/**
+ * Start (or restart) the context. It can be refused: on Linux, WebKit plays through the system's GStreamer, and a
+ * system without its audio output plugins (Omarchy ships without gst-plugins-good) refuses every start with
+ * "Failed to start the audio device". The game runs on silently; the player is told once why (game.ts).
+ */
+function resume(ctx: AudioContext): Promise<void> {
+  return ctx.resume().catch((e: unknown) => {
+    if (failure) return;
+    failure = e instanceof Error ? e.message : String(e);
+    onFailure?.(failure);
+  });
+}
+
 export function audioCtx(): AudioContext | null {
   try {
     if (offline) return g?.ctx ?? null;
@@ -243,7 +264,7 @@ export function audioCtx(): AudioContext | null {
       // make the noise the kits, beds and whooshes will ask for now, a piece at a time, so none of it lands in a busy frame
       (['white', 'pink', 'brown'] as const).forEach((kind, i) => window.setTimeout(() => !offline && noiseBuffer(kind), 150 * (i + 1)));
     }
-    if (live.ctx.state === 'suspended' && !suspendedByApp) void live.ctx.resume();
+    if (live.ctx.state === 'suspended' && !suspendedByApp && !failure) void resume(live.ctx);
     return live.ctx;
   } catch {
     return null;
@@ -259,7 +280,7 @@ export function audioCtx(): AudioContext | null {
 export async function openAudioEarly(waitMs = 1500): Promise<void> {
   const ctx = audioCtx();
   if (!ctx || ctx.state === 'running') return;
-  await Promise.race([ctx.resume().catch(() => {}), new Promise((r) => setTimeout(r, waitMs))]);
+  await Promise.race([resume(ctx), new Promise((r) => setTimeout(r, waitMs))]);
 }
 
 /** True when sound scheduled now will be heard (the context runs, or an offline render is being set up). */
@@ -308,7 +329,7 @@ export function suspendAudio(): void {
 
 export function resumeAudio(): void {
   suspendedByApp = false;
-  void live?.ctx.resume();
+  if (live && !failure) void resume(live.ctx);
 }
 
 /** Browsers only allow audio after a user gesture: unlock on the first one. */
