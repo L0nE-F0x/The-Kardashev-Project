@@ -93,7 +93,8 @@ export function tickEvents(s: GameState): void {
   // the random pool (quiet while a finale runs; the Act V era is half as chatty)
   const rate = EVENT_RATES[s.meta.eventRate].mult;
   if (rate > 0 && s.day >= s.events.nextRoll && finaleRunning(s)) s.events.nextRoll = s.day + 7;
-  else if (rate > 0 && s.day >= s.events.nextRoll) {
+  // past Type I the story is told: the save carries on, without the three leftover cards coming round for ever
+  else if (rate > 0 && s.day >= s.events.nextRoll && !s.system?.typeI) {
     const [lo, hi] = DIFFICULTIES[s.meta.difficulty].eventDays;
     s.events.nextRoll = s.day + Math.round(randInt(s, lo, hi) * rate * (s.system ? 1.5 : 1));
     const candidates: { item: { id: string; ctx: Record<string, string | number> }; weight: number }[] = [];

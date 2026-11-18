@@ -44,12 +44,14 @@ body {
   pointer-events: none;
   z-index: 2;
 }
-#ui > * {
+/* The interface's own layer lets the pointer through to the world, and each part takes it back for itself. This
+   rule must weigh nothing (`:where`): as `#ui > *` it outweighed every class that asked for the pointer, so parts
+   standing directly in #ui never got it. The Type I ending's "click to continue" did nothing: the cinematic moved
+   on by itself after 16 seconds, and THE CREDITS NEVER ENDED (nothing but quitting got a player past them, to the
+   stats and the end card). The same went for the finale trackers' bars and the goal card's rows (tooltips nobody
+   could reach), and the shade behind a card let a click through to the globe. */
+:where(#ui) > * {
   pointer-events: none;
-}
-/* the finale trackers stand directly in #ui: their bars have tooltips (what pushes each front up, and what holds it) */
-#ui > .crunch {
-  pointer-events: auto;
 }
 .interactive,
 #ui button,

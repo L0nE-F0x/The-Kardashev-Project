@@ -11,7 +11,7 @@ import { PALETTE } from './palette';
 import { fmtTW } from '../sim/core';
 import { spaceTW } from '../sim/swarm';
 import { warming } from '../sim/climate';
-import { bitForm } from '../sim/systemView';
+
 
 export const END_W = 1920;
 export const END_H = 1080;
@@ -52,7 +52,8 @@ export function endCardFacts(s: GameState): EndCardFacts {
   ];
   if (sy) stats.push(['Healthy years', sy.lifeExp.toFixed(0)], ['Living in space', sy.spacePop < 0.5 ? 'none' : `${sy.spacePop.toFixed(0)}M`]);
   const difficulty = s.meta.difficulty.charAt(0).toUpperCase() + s.meta.difficulty.slice(1);
-  stats.push(['Models', `${s.models.length} · Bit-${bitForm(s)}`], ['Difficulty', difficulty]);
+  // the last model by its own name, as the stats screen gives it (Bit's form number read as a model that was never trained)
+  stats.push(['Models', `${s.models.length} · ${s.models[s.models.length - 1]?.name ?? 'Bit'}`], ['Difficulty', difficulty]);
   return {
     year: new Date(Date.UTC(2027, 0, 1) + day * 86_400_000).getUTCFullYear(),
     company: s.company.name.slice(0, 28),
