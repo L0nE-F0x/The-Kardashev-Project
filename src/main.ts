@@ -25,8 +25,9 @@ import { loadSettings } from './save/settings';
 import { quality, resolveQuality, setOnStrongGpu, setQuality } from './render3d/quality';
 import { gpuStatus, isDesktopApp } from './platform/platform';
 import { warmPortraits } from './render3d/portraits/portraits';
-import { prewarmMusic } from './audio/music';
-import { openAudioEarly } from './audio/engine';
+import { musicUnlocked, prewarmMusic } from './audio/music';
+import { restartAmbience } from './audio/ambience';
+import { audioRunning, openAudioEarly } from './audio/engine';
 
 /** Everything Act I's campuses use, loaded before the menu so scenes build in one go. */
 const ACT1_MODELS = ['garage', 'lab', 'gasplant', 'substation', 'watertower', 'pickup', 'semitruck', 'sedan', 'hatchback', 'suv', 'van', 'mixer', 'flatbed', ...SCENERY] as const;
@@ -69,9 +70,15 @@ async function boot() {
   render(h(App, { game }), document.getElementById('ui')!);
   // the portrait studio compiles its shaders once (about half a second): pay that while the loading screen is up
   warmPortraits();
-  // the Linux app's engine (WebKitGTK) holds the page about a second while its audio starts, and lets it start
-  // without a click: do that behind the loading screen too (the music still waits for the first click)
-  if (isDesktopApp && /Linux/.test(navigator.userAgent) && !/Chrome\//.test(navigator.userAgent)) await openAudioEarly();
+  // the desktop app runs with autoplay enabled: open the audio behind the loading screen so the title music and
+  // ambience start right as the menu appears, without waiting for a click
+  if (isDesktopApp) {
+    await openAudioEarly();
+    if (audioRunning()) {
+      musicUnlocked();
+      restartAmbience();
+    }
+  }
   status?.remove();
   startShell(game);
 }

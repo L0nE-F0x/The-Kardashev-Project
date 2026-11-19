@@ -4,7 +4,7 @@
  * now and then, each a little different every time: birds, a far car, an owl, thunder, a wave, a voice on the suit
  * radio. Beds cross-fade when the place changes. It has its own bus (Settings → Audio → Ambience).
  */
-import { audioCtx, audioRunning, freeWhenDone, glide, mixBus, noiseBuffer, onPump, voiceFilter } from './engine';
+import { audioCtx, audioRunning, freeWhenDone, glide, mixBus, noiseBuffer, onAudioRebuild, onPump, voiceFilter } from './engine';
 import { seeded } from './score';
 
 export type Ambience = 'none' | 'map' | 'campus' | 'night' | 'rain' | 'coast' | 'lake' | 'moon' | 'space' | 'habitat';
@@ -486,12 +486,22 @@ export function setAmbience(kind: Ambience): void {
   }
 }
 
-/** Re-create the current bed (after a user gesture unlocks audio). */
-export function restartAmbience(): void {
+/** Re-create the current bed (after a user gesture unlocks audio or the output device rebuilds). */
+export function restartAmbience(force = false): void {
+  if (!force && bed && bed.b.ctx === audioCtx() && audioRunning()) return;
   const k = current;
   current = 'none';
   setAmbience(k);
 }
+
+onAudioRebuild(() => {
+  if (bed) {
+    bed.off();
+    bed = null;
+  }
+  waiting = false;
+  restartAmbience(true);
+});
 
 let lastLook = 0;
 

@@ -36,7 +36,7 @@ function screenshotSaver(): Plugin {
 
 /**
  * Two things are built from this repo, each into its own folder:
- *   - the game (`npm run build` → dist/): play/index.html, bundled into the desktop app by Tauri;
+ *   - the game (`npm run build` → dist/): play/index.html, bundled into the desktop app by Electron;
  *   - the website (`npm run build:site` → dist-site/): index.html, what Netlify serves. The game is not on it.
  * Both share public/, so each build drops the files only the other one uses.
  */
@@ -57,7 +57,7 @@ function pruneOutput(): Plugin {
 }
 
 export default defineConfig({
-  // relative base: works at the site root, on Netlify previews and inside the desktop app (tauri://localhost/play/)
+  // relative base: works at the site root, on Netlify previews and inside the desktop app (app://localhost/play/)
   base: './',
   // helper checkouts that share one node_modules (a symlink) keep their own dependency cache
   cacheDir: process.env.VITE_CACHE_DIR || 'node_modules/.vite',
@@ -66,6 +66,8 @@ export default defineConfig({
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
     // the menu's own theme song is optional: without the file the game never asks for it (a 404 on every launch)
     __HAS_THEME__: JSON.stringify(existsSync(new URL('./public/audio/theme.mp3', import.meta.url))),
+    // Steam builds disable the GitHub self-updater completely (SteamPipe updates the game instead)
+    __STEAM_BUILD__: JSON.stringify(process.env.KP_STEAM === '1' || process.env.KP_STEAM === 'true'),
   },
   plugins: [
     preact(),
@@ -80,6 +82,6 @@ export default defineConfig({
       input: SITE ? { main: 'index.html' } : { play: 'play/index.html' },
     },
   },
-  // fixed address: the desktop app's dev mode (tauri.conf.json devUrl) points here
+  // fixed address: the desktop app's dev mode (electron/dev.mjs) points here
   server: { port: 5317, strictPort: true, host: '127.0.0.1' },
 });

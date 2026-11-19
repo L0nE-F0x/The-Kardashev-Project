@@ -1,26 +1,28 @@
 /**
- * What the host can do. The game ships as a desktop app (Windows, macOS, Linux); in development the same page
- * runs in a browser tab. Game code talks to this module only, so the desktop shell (Tauri today, maybe Electron
- * for Steam later) can be swapped without touching the game.
+ * What the host can do. The game ships as an Electron desktop app (Windows, macOS, Linux & Steam);
+ * in development the same page can also run in a browser tab. Game code talks to this module only.
  */
 
-export const isDesktopApp = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+const bridge = typeof window !== 'undefined' ? window.kardashevDesktop : undefined;
+
+export const isDesktopApp = Boolean(bridge);
+
+/** True when built with KP_STEAM=1 or launched by the Steam client (disables the GitHub self-updater). */
+export const isSteamBuild = (typeof __STEAM_BUILD__ !== 'undefined' && __STEAM_BUILD__) || Boolean(bridge?.isSteam);
 
 // ── saving files ────────────────────────────────────────────────────────────────────────────
-// A download link does nothing inside the app's webview, so the app writes the file itself
-// (src-tauri/src/savefile.rs): pictures into Pictures/The Kardashev Project, the rest into
-// Documents/The Kardashev Project, never over an existing file. A browser tab (development) downloads it.
+// Inside the desktop app, `electron/savefile.mjs` writes pictures into Pictures/The Kardashev Project
+// and everything else into Documents/The Kardashev Project, never overwriting an existing file.
+// A browser tab in development falls back to a standard file download.
 
 /** Where a saved file went: its full path in the app, '' for a browser download, null when it failed. */
 export type Saved = string | null;
 
 async function saveFile(name: string, data: Uint8Array, kind: 'picture' | 'document', type: string): Promise<Saved> {
-  if (isDesktopApp) {
+  if (bridge) {
     try {
-      const { invoke } = await import('@tauri-apps/api/core');
-      // header values are plain ASCII; the app cleans the name again on its side
       const safe = name.replace(/[^\w .()-]+/g, '-');
-      return await invoke<string>('save_file', data, { headers: { 'x-name': safe, 'x-kind': kind } });
+      return await bridge.saveFile(safe, data, kind);
     } catch (err) {
       console.warn('[platform] could not save', name, err);
       return null;
@@ -62,8 +64,7 @@ export function savedNote(saved: Saved, failed: string): string {
 }
 
 // ── in-app updates ──────────────────────────────────────────────────────────────────────────
-// The app carries its own copy of the game, so it updates itself from GitHub releases (Tauri's updater: signed,
-// see plugins.updater in src-tauri/tauri.conf.json).
+// Direct GitHub Release installs update themselves via electron-updater; Steam builds disable this completely.
 
 export type AppUpdateStatus =
   | { phase: 'ready' }
@@ -78,33 +79,39 @@ export interface AppUpdate {
   install(onStatus: (s: AppUpdateStatus) => void): void;
 }
 
-/** Is there a newer release of the app? Null in dev, offline, or when up to date. */
+const errText = (err: unknown) => String((err as Error)?.message ?? err);
+
+/** Is there a newer release of the app? Null in dev, on Steam, offline, or when up to date. */
 export async function checkAppUpdate(): Promise<AppUpdate | null> {
-  if (!import.meta.env.PROD || !isDesktopApp) return null;
+  if (!import.meta.env.PROD || !bridge || isSteamBuild) return null;
   try {
-    return await checkDesktopUpdate();
+    const found = await bridge.checkUpdate();
+    if (!found) return null;
+    return {
+      version: found.version,
+      install(onStatus) {
+        const off = bridge.onUpdateStatus((status) => onStatus(status));
+        void bridge.installUpdate().catch((err) => {
+          off();
+          onStatus({ phase: 'failed', reason: errText(err) });
+        });
+      },
+    };
   } catch {
     /* offline, rate-limited or no release yet: try again later */
+    return null;
   }
-  return null;
 }
 
-/**
- * Time limits for each try at the updater's own download (ms; 0 = none). Since v0.9.4 that is only the fallback
- * when the app's own download (`installDesktop`) can't run. Every try opens a new connection, so a stalled one is
- * replaced instead of waited out; the last try has no limit, so a genuinely slow line still gets there.
- */
+/** Time limits for each try at a stream download (ms; 0 = none). Kept as a pure retry helper for updater streams. */
 export const DESKTOP_DOWNLOAD_LIMITS = [180_000, 0];
 
-/** The bit of Tauri's Update that the retry needs (a fake one in tests). */
 export interface Downloadable {
   download(onEvent: (e: DownloadProgress) => void, options?: { timeout?: number }): Promise<void>;
 }
 export type DownloadProgress = { event: 'Started'; data: { contentLength?: number } } | { event: 'Progress'; data: { chunkLength: number } } | { event: 'Finished' };
 
-const errText = (err: unknown) => String((err as Error)?.message ?? err);
-
-/** Download the update, starting over on a fresh connection when a try runs past its limit. */
+/** Download an update stream, starting over on a fresh connection when a try runs past its limit. */
 export async function downloadWithRetry(update: Downloadable, onStatus: (s: AppUpdateStatus) => void, limits = DESKTOP_DOWNLOAD_LIMITS): Promise<void> {
   let lastErr: unknown = null;
   for (let i = 0; i < limits.length; i++) {
@@ -123,43 +130,25 @@ export async function downloadWithRetry(update: Downloadable, onStatus: (s: AppU
       return;
     } catch (err) {
       lastErr = err;
-      // a file that fails its signature won't pass on the next try
       if (/signature/i.test(errText(err))) break;
     }
   }
   throw lastErr;
 }
 
-/** What the app's own download reports (src-tauri/src/fastdl.rs, `UpdateEvent`). */
-type FastEvent = { event: 'progress'; got: number; total: number } | { event: 'installing' };
-
-/**
- * The app's own download (v0.9.4, src-tauri/src/fastdl.rs): the file in pieces over six connections spread across
- * the download host's addresses, a stalled or crawling connection swapped for a fresh one (keeping its bytes), then
- * the updater's own install, which checks the signature first. The updater's download uses one connection and
- * waits it out: the 93 MB AppImage of 0.9.3 crawled at ~30 KB/s for 25+ minutes on a 500 Mbps line, while this
- * fetched it in 5–7 s.
- */
-async function fastInstall(rid: number, onStatus: (s: AppUpdateStatus) => void): Promise<void> {
-  const { Channel, invoke } = await import('@tauri-apps/api/core');
-  const events = new Channel<FastEvent>();
-  events.onmessage = (e) =>
-    onStatus(e.event === 'progress' ? { phase: 'downloading', fraction: e.total ? Math.min(1, e.got / e.total) : null } : { phase: 'installing' });
-  await invoke('update_fast', { rid, onEvent: events });
-}
-
-/** The parts of Tauri's Update the desktop install uses (a fake one in tests). */
 export interface DesktopUpdate extends Downloadable {
   readonly rid: number;
   install(): Promise<void>;
 }
 
-/**
- * Download and install a desktop update: the app's own download first. When that can't run (its errors start with
- * "fast download:": a server without range requests, no network), the updater's own download and install. A bad
- * signature or a failed install is final: downloading again wouldn't change it.
- */
-export async function installDesktop(update: DesktopUpdate, onStatus: (s: AppUpdateStatus) => void, fast = fastInstall): Promise<void> {
+/** Fallback-capable desktop update installer helper (tested in tests/update-retry.test.ts). */
+export async function installDesktop(
+  update: DesktopUpdate,
+  onStatus: (s: AppUpdateStatus) => void,
+  fast: (rid: number, onStatus: (s: AppUpdateStatus) => void) => Promise<void> = async () => {
+    throw new Error('fast download: unavailable');
+  },
+): Promise<void> {
   try {
     await fast(update.rid, onStatus);
     return;
@@ -171,35 +160,13 @@ export async function installDesktop(update: DesktopUpdate, onStatus: (s: AppUpd
   await update.install();
 }
 
-async function checkDesktopUpdate(): Promise<AppUpdate | null> {
-  const { check } = await import('@tauri-apps/plugin-updater');
-  const update = await check();
-  if (!update) return null;
-  return {
-    version: update.version,
-    install(onStatus) {
-      void (async () => {
-        try {
-          await installDesktop(update, onStatus);
-          // Windows has already closed the app to run the installer; elsewhere, restart into it
-          const { relaunch } = await import('@tauri-apps/plugin-process');
-          await relaunch();
-        } catch (err) {
-          onStatus({ phase: 'failed', reason: String((err as Error)?.message ?? err) });
-        }
-      })();
-    },
-  };
-}
-
-// ── which graphics card (laptops with two) ───────────────────────────────────────────────────
-// The webview picks its GPU when it starts, so the choice is kept by the app (src-tauri/src/gpu.rs) and takes
-// effect on a restart. A new choice is on trial until `keepGpu`: a start that finds the last trial unconfirmed
-// goes back to automatic, so a setup that shows a black window undoes itself.
+// ── which graphics card (machines with two) ─────────────────────────────────────────────────
+// Chromium picks its GPU when its GPU process starts, so the choice lives in `<userData>/gpu.json`
+// (electron/gpu.mjs) and takes effect on a restart. A new choice is on trial until `keepGpu`.
 
 export interface GpuStatus {
   os: 'linux' | 'windows' | 'macos' | 'other';
-  /** Graphics cards found (Linux only; null where the app can't count them). */
+  /** Hardware graphics cards found, or null where the host can't count them. */
   gpus: number | null;
   prefer: 'auto' | 'strong';
   /** ok · new (chosen, restart pending) · trying (running on it, not confirmed yet) · failed (a trial was undone). */
@@ -208,12 +175,11 @@ export interface GpuStatus {
   active: boolean;
 }
 
-/** The app's graphics-card choice; null in a browser tab (development) or when the app can't say. */
+/** The app's graphics-card choice; null in a browser tab (development) or when the host can't say. */
 export async function gpuStatus(): Promise<GpuStatus | null> {
-  if (!isDesktopApp) return null;
+  if (!bridge) return null;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<GpuStatus>('gpu_get');
+    return await bridge.gpuGet();
   } catch {
     return null;
   }
@@ -221,9 +187,9 @@ export async function gpuStatus(): Promise<GpuStatus | null> {
 
 /** Choose the card for the next start. False when it couldn't be saved. */
 export async function setGpuPreference(prefer: 'auto' | 'strong'): Promise<boolean> {
+  if (!bridge) return false;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('gpu_set', { prefer });
+    await bridge.gpuSet(prefer);
     return true;
   } catch {
     return false;
@@ -232,9 +198,9 @@ export async function setGpuPreference(prefer: 'auto' | 'strong'): Promise<boole
 
 /** The picture on the stronger card is fine: keep it. */
 export async function keepGpu(): Promise<void> {
+  if (!bridge) return;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('gpu_keep');
+    await bridge.gpuKeep();
   } catch {
     /* the next start undoes the trial, which is the safe side */
   }
@@ -242,38 +208,30 @@ export async function keepGpu(): Promise<void> {
 
 /** Close the app and start it again (after a graphics-card change). */
 export async function restartApp(): Promise<void> {
-  if (!isDesktopApp) return window.location.reload();
-  const { relaunch } = await import('@tauri-apps/plugin-process');
-  await relaunch();
+  if (!bridge) return window.location.reload();
+  await bridge.restart();
 }
 
 export async function quitApp(): Promise<void> {
-  const w = window.__TAURI__?.window?.getCurrentWindow();
-  if (w) await w.close();
+  if (bridge) await bridge.quit();
   else window.close();
 }
 
 /**
  * Open a page outside the game, from a link's click handler. The desktop app hands it to the system browser
- * (tauri-plugin-opener: src-tauri/capabilities/default.json lists the pages it may open) and returns true, so
- * the link must not also navigate the game window. In a browser tab (development) it returns false and the
- * link opens a new tab itself.
+ * and returns true, so the link must not also navigate the game window.
  */
 export function openExternal(url: string): boolean {
-  if (!isDesktopApp) return false;
-  import('@tauri-apps/plugin-opener')
-    .then(({ openUrl }) => openUrl(url))
-    .catch((e) => console.warn('[platform] could not open', url, e));
+  if (!bridge) return false;
+  bridge.openExternal(url).catch((e) => console.warn('[platform] could not open', url, e));
   return true;
 }
 
 export async function toggleFullscreen(): Promise<void> {
-  const w = window.__TAURI__?.window?.getCurrentWindow();
-  if (w) {
-    await w.setFullscreen(!(await w.isFullscreen()));
+  if (bridge) {
+    await bridge.toggleFullscreen();
     return;
   }
-  // a browser tab (development)
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await document.documentElement.requestFullscreen();

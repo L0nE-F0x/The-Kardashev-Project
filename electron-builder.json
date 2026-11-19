@@ -1,0 +1,67 @@
+{
+  "$schema": "./node_modules/app-builder-lib/scheme.json",
+  "appId": "com.lonefox.kardashevproject",
+  "productName": "The Kardashev Project",
+  "copyright": "© 2026 Lone Fox",
+  "directories": {
+    "output": "dist-desktop"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "!electron/dev.mjs"
+  ],
+  "publish": {
+    "provider": "github",
+    "owner": "L0nE-F0x",
+    "repo": "The-Kardashev-Project"
+  },
+  "win": {
+    "target": [
+      "nsis"
+    ],
+    "icon": "electron/icons/icon.ico",
+    "verifyUpdateCodeSignature": false,
+    "artifactName": "The-Kardashev-Project-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "category": "public.app-category.simulation-games",
+    "icon": "electron/icons/icon.icns",
+    "minimumSystemVersion": "11.0",
+    "target": [
+      {
+        "target": "dmg",
+        "arch": [
+          "universal"
+        ]
+      },
+      {
+        "target": "zip",
+        "arch": [
+          "universal"
+        ]
+      }
+    ],
+    "artifactName": "The-Kardashev-Project-${version}-${arch}.${ext}"
+  },
+  "linux": {
+    "category": "Game;Simulation;",
+    "synopsis": "A cozy-but-real 3D sim of the AI boom",
+    "executableName": "kardashev-project",
+    "syncDesktopName": true,
+    "icon": "electron/icons/icon.png",
+    "target": [
+      "AppImage",
+      "deb"
+    ],
+    "artifactName": "The-Kardashev-Project-${version}-${arch}.${ext}"
+  },
+  "deb": {
+    "priority": "optional"
+  }
+}

@@ -1,5 +1,6 @@
-import { useState } from 'preact/hooks';
+import { useRef, useState } from 'preact/hooks';
 import { Choice, Icon, Slider, Toggle, fmtPlaytime, useGame } from '../components';
+import { sfx } from '../../audio/sfx';
 import { ERA_NAMES, type Era } from '../../render/palette';
 import { defaultSettings, saveSettings, LOOK_NAMES, type Settings } from '../../save/settings';
 import { downloadSave, exportSave, importSave, loadSlot, wipeAllData } from '../../save/save';
@@ -154,7 +155,7 @@ function Display() {
       />
       <Toggle label="Weather" hint="Rain, snow and dust storms in campus views." value={st.weather} onChange={(v) => game.updateSettings({ weather: v })} />
       <Toggle label="Day & night" hint="Local time in campus views. Off: always daytime." value={st.dayNight} onChange={(v) => game.updateSettings({ dayNight: v })} />
-      <Toggle label="Battery saver" hint="Draw at ~30 frames a second instead of 60." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
+      <Toggle label="Battery saver" hint="Draw at ~30 frames a second instead of your screen’s full rate." value={st.batterySaver} onChange={(v) => game.updateSettings({ batterySaver: v })} />
       <Choice
         label="3D detail"
         hint="High: soft shadows, ambient occlusion and the full countryside. Low: for older laptops. Auto picks for this machine."
@@ -206,11 +207,33 @@ function Display() {
 function Audio() {
   const game = useGame();
   const st = game.settings;
+  const lastSample = useRef(0);
+  const sampleSfx = (vol: number) => {
+    if (vol <= 0) return;
+    const now = performance.now();
+    if (now - lastSample.current < 140) return;
+    lastSample.current = now;
+    sfx('select');
+  };
   return (
     <>
-      <Slider label="Master volume" value={st.master} onChange={(v) => game.updateSettings({ master: v })} />
+      <Slider
+        label="Master volume"
+        value={st.master}
+        onChange={(v) => {
+          game.updateSettings({ master: v });
+          if (st.music < 0.05) sampleSfx(v);
+        }}
+      />
       <Slider label="Music" hint="A theme on the menu, a piece for each era in game." value={st.music} onChange={(v) => game.updateSettings({ music: v })} />
-      <Slider label="Sound effects" value={st.sfx} onChange={(v) => game.updateSettings({ sfx: v })} />
+      <Slider
+        label="Sound effects"
+        value={st.sfx}
+        onChange={(v) => {
+          game.updateSettings({ sfx: v });
+          sampleSfx(v);
+        }}
+      />
       <Slider label="Ambience" hint="The sound of the place: wind, birds, rain, the halls." value={st.ambience} onChange={(v) => game.updateSettings({ ambience: v })} />
       <Toggle label="Mute in the background" hint="Silence when you switch tabs or apps." value={st.muteInBackground} onChange={(v) => game.updateSettings({ muteInBackground: v })} />
     </>
@@ -264,6 +287,7 @@ export const KEYS: [string, string][] = [
   ['J', 'Playtest note (when turned on in Gameplay)'],
   ['W A S D / arrows', 'Pan the map'],
   ['+ / −', 'Zoom the map'],
+  ['F11', 'Fullscreen'],
   ['M · Esc', 'Back to the map / close'],
 ];
 

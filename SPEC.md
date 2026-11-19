@@ -3051,17 +3051,26 @@ suggested choice, 2088–2092 for one who takes the last, 2082–2091 at random.
 - The release is named for M5's working title.
 
 ### Left
-- **Shipped the same day** at the user's word. Rust was installed on the desktop machine (rustup, no sudo) and the app
-  built and run there headless, which found one more thing: a Linux system without GStreamer's "good" plugins gives
-  the system's WebKit no audio output, so an AppImage on the stronger card (the system's engine) was silent. The game
-  now says so once at the first click and names the package; 1.0.0 was re-tagged to carry it (the first draft was
-  deleted unpublished). The release AppImage then passed there: it starts, says 1.0.0, plays sound, and the ending
-  clicks through to the end card; its update signature verifies against the app's key (`cargo test --lib fastdl --
-  --ignored`). Installed there in `~/Applications` with a fresh launcher entry and icons. Windows and macOS: never
-  launched by us; the user tests Windows, a friend may test macOS, after Steam's approval.
-- The Steam page's own to-do is in the owner's `steam/STORE_PAGE.md` (written at v0.13.2: its version line, its
-  "balance pass still planned" notes and the updater blocker want a re-read). The in-app updater still points at
-  GitHub releases: a Steam build must switch it off.
+- **v1.0.0 desktop shell & portability pass (2026-11-19, still v1.0.0 before public release):** on the owner's desktop
+  (`ApexForgeDesktop`, RTX 3050 + Bluetooth A2DP headphones), Tauri's Linux WebKitGTK/GStreamer stack dropped 100% of
+  WebAudio buffers over Bluetooth A2DP (`gst_audio_base_sink_skew_slaving` clock-skew drops on 128-sample push buffers;
+  WebKit's experimental GStreamer audio mixer produced static) and required fragile `LD_LIBRARY_PATH` system-WebKit
+  re-exec hacks on NVIDIA GPUs. Replaced `src-tauri/` with an **Electron (Chromium)** desktop shell (`electron/`,
+  `electron-builder.json`, `.github/workflows/desktop.yml`) while keeping `version` at `1.0.0`:
+  - Identical Chromium WebGL2 + WebAudio engine across Windows, macOS, Linux and Steam Deck; picks the discrete RTX
+    out of the box, plays title music and ambience on launch without waiting for a click, and streams interleaved
+    `float32le` 48 kHz cleanly to Bluetooth headphones.
+  - Live audio resilience (`audio/engine.ts`, `music.ts`, `ambience.ts`): transient device errors retry instead of
+    permanently locking out audio; `devicechange` + a hardware clock-stall watchdog rebuild `AudioContext` and reattach
+    music/ambience seamlessly if headphones disconnect/reconnect mid-game; volume sliders play a preview chime.
+  - Display & GPU portability (`render3d/quality.ts`, `stage3d.ts`, `game/shell.ts`): non-blocking WebGL2 GPU timer
+    queries (`EXT_disjoint_timer_query_webgl2`) replace synchronous `readPixels` stalls; 1:1 native vsync up to 240 Hz
+    eliminates 3:2 pulldown judder on 90/120/144/165/240 Hz screens (`Battery saver` / `calm` still step down to 30 fps);
+    broad GPU detection covers Apple Silicon, Intel Arc A/B/V, AMD RX / 780M / 890M / 8060S, NVIDIA, and software fallbacks.
+  - Steam readiness: `KP_STEAM=1` (`npm run desktop:build:steam`) and runtime `SteamAppId` / `steam_appid.txt` detection
+    completely disable the GitHub self-updater (`electron-updater`).
+- The Steam page's own to-do is in the owner's `steam/STORE_PAGE.md` (written at v0.13.2: its version line and its
+  "balance pass still planned" notes want a re-read; the updater blocker is now handled via `KP_STEAM=1` / `SteamAppId`).
 - From the helpers' notes, seen and left (low): three cards can land on one day; a briefing's bubble can cover the
   goal card; the title of a long site name is cut at 1280 px with a View button beside it; Act III cannot be lost
   (a caretaker term is the worst outcome: by design since §22); Hard's Act I punishes a plan that buys 8,000 chips

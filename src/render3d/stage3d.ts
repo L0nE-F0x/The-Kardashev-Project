@@ -47,6 +47,9 @@ export class Stage3D implements GameStage {
   private quietUntil = 0;
   private lastStep = 0;
   private readonly px = new Uint8Array(4);
+  private timerExt: { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null | undefined = undefined;
+  private pendingQuery: WebGLQuery | null = null;
+  private pendingQueryAt = 0;
 
   constructor(host: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -96,8 +99,36 @@ export class Stage3D implements GameStage {
     }
   }
 
+  private dropPendingQuery() {
+    if (!this.pendingQuery) return;
+    const gl = this.renderer.getContext();
+    if ('deleteQuery' in gl && !gl.isContextLost()) gl.deleteQuery(this.pendingQuery);
+    this.pendingQuery = null;
+  }
+
+  private pollTimerQuery(gl: WebGL2RenderingContext, now: number) {
+    const q = this.pendingQuery;
+    if (!q || !this.timerExt) return;
+    if (gl.isContextLost()) {
+      this.pendingQuery = null;
+      return;
+    }
+    const ready = gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE);
+    if (!ready) {
+      if (now - this.pendingQueryAt > 2000) this.dropPendingQuery();
+      return;
+    }
+    const disjoint = gl.getParameter(this.timerExt.GPU_DISJOINT_EXT);
+    const ns = Number(gl.getQueryParameter(q, gl.QUERY_RESULT));
+    gl.deleteQuery(q);
+    this.pendingQuery = null;
+    this.nextMeasure = now + 700;
+    if (!disjoint && ns > 0) this.adapt(ns / 1e6, now);
+  }
+
   /** The detail level changed: re-lay out (resolution) and rebuild the post pipeline (AO, MSAA). */
   applyQuality() {
+    this.dropPendingQuery();
     this.dyn = 1;
     this.quietUntil = performance.now() + 2500;
     this.costs = [];
@@ -134,6 +165,7 @@ export class Stage3D implements GameStage {
   }
 
   setScene(scene: GameScene | null, zoomBoost?: number) {
+    this.dropPendingQuery();
     if (this.scene) this.scene.destroy();
     this.post?.dispose();
     this.post = null;
@@ -169,16 +201,36 @@ export class Stage3D implements GameStage {
     s.update(dt, now);
     const look = s.look ?? defaultLook();
     const t = performance.now();
-    const measure = quality.adaptive && !navigator.webdriver && t >= this.nextMeasure && t >= this.quietUntil && document.visibilityState === 'visible';
     const gl = this.renderer.getContext();
-    if (measure) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
+    const gl2 = 'createQuery' in gl ? (gl as WebGL2RenderingContext) : null;
+    if (gl2 && this.timerExt === undefined) {
+      this.timerExt = gl2.getExtension('EXT_disjoint_timer_query_webgl2') as { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number } | null;
+    }
+    if (gl2 && this.pendingQuery) this.pollTimerQuery(gl2, t);
+    const measure = quality.adaptive && !navigator.webdriver && !this.pendingQuery && t >= this.nextMeasure && t >= this.quietUntil && document.visibilityState === 'visible';
+    let startedQuery: WebGLQuery | null = null;
+    if (measure && gl2 && this.timerExt) {
+      // Non-blocking GPU timer query (Chromium/Electron): zero CPU–GPU pipeline stall on 120–240 Hz monitors.
+      gl2.getParameter(this.timerExt.GPU_DISJOINT_EXT);
+      const q = gl2.createQuery();
+      if (q) {
+        gl2.beginQuery(this.timerExt.TIME_ELAPSED_EXT, q);
+        startedQuery = q;
+      }
+    } else if (measure) {
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
+    }
     const t0 = performance.now();
     // the fade waits out the scene's first frames, then always moves on (a slow machine's long frames count as short
     // ones, so it takes a few more of them but never stalls)
     if (this.arriveWait > 0) this.arriveWait--;
     else if (this.arrive > 0) this.arrive = Math.max(0, this.arrive - Math.min(dt, 0.05) / 0.45);
     this.post.render(dt, quality.bloom ? look : { ...look, bloom: 0 }, Math.max(this.fade, this.arrive * this.arrive), getEra());
-    if (measure) {
+    if (startedQuery && gl2 && this.timerExt) {
+      gl2.endQuery(this.timerExt.TIME_ELAPSED_EXT);
+      this.pendingQuery = startedQuery;
+      this.pendingQueryAt = t;
+    } else if (measure) {
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px);
       const t1 = performance.now();
       this.nextMeasure = t1 + 700;

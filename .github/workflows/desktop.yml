@@ -1,9 +1,9 @@
 name: Release builds
 
-# Builds the Windows, macOS and Linux installers and attaches them to a *draft* GitHub release.
-# Run it by pushing a version tag (git tag v0.2.0 && git push origin v0.2.0) or from the
-# Actions tab. Publish the draft when you're happy — the website's Download buttons read the
-# latest published release.
+# Builds the Windows, macOS and Linux Electron installers and attaches them (plus electron-updater
+# manifests) to a *draft* GitHub release.
+# Run it by pushing a version tag (git tag v1.0.0 && git push origin v1.0.0) or from the Actions tab.
+# Publish the draft when you're happy — the website's Download buttons read the latest published release.
 on:
   push:
     tags: ['v*']
@@ -17,131 +17,103 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-release:
+    name: Prepare draft release
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          VER=$(node -p "require('./package.json').version")
+          if [[ "$REF_TYPE" == "tag" && "$REF_NAME" == v* ]]; then
+            TAG="$REF_NAME"
+          else
+            TAG="v${VER}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" -R "$REPO" --draft --title "The Kardashev Project ${TAG}" --notes-file - <<'EOF'
+          Download the installer for your computer below (Windows, macOS or Linux).
+
+          These builds are not code-signed yet, so your computer will ask before opening them:
+          - **Windows:** on the SmartScreen notice, click *More info → Run anyway*.
+          - **macOS:** right-click the app → *Open*, or System Settings → Privacy & Security → *Open Anyway*.
+          - **Linux:** `chmod +x` the AppImage and run it (Arch-based distros may need `fuse2`), or install the `.deb`.
+
+          Already installed? Direct GitHub downloads offer each new version in game: press *Update*.
+
+          What's new: https://thekardashevproject.netlify.app/#news
+          EOF
+          fi
+
   build:
     name: ${{ matrix.name }}
+    needs: prepare-release
     strategy:
       fail-fast: false
       matrix:
         include:
           - name: Linux (AppImage + deb)
             os: ubuntu-24.04
-            args: ''
-          - name: Windows (installer)
+            builder_args: --linux AppImage deb
+          - name: Windows (NSIS installer)
             os: windows-latest
-            args: ''
-          - name: macOS (universal dmg)
+            builder_args: --win nsis
+          - name: macOS (Universal dmg + zip)
             os: macos-latest
-            args: '--target universal-apple-darwin'
+            builder_args: --mac dmg zip --universal
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-
-      - name: Linux build dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev patchelf file
-          # The AppImage carries Ubuntu's GStreamer core, which only looks for plugins in Ubuntu's own folders:
-          # on Arch, Fedora and friends it finds none and WebKit aborts the page when the game's audio starts
-          # (v0.8.0 and older). bundleMediaFramework (tauri.conf.json) copies these plugins into the AppImage.
-          sudo apt-get install -y gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-pulseaudio gstreamer1.0-alsa
 
       - uses: actions/setup-node@v7
         with:
           node-version: 26
           cache: npm
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
       - run: npm ci
 
-      # In-app updates: every installer is signed with the updater key (repo secrets
-      # TAURI_SIGNING_PRIVATE_KEY + TAURI_SIGNING_PRIVATE_KEY_PASSWORD; the key lives in
-      # ~/.config/kardashev-project/tauri/ on the dev machine) and latest.json goes on the release.
-      # Installed apps read releases/latest/download/latest.json, so they only see a release once
-      # the draft is published.
-      - name: Check the updater key
+      - name: Run test suite
+        if: runner.os == 'Linux'
+        run: npm test
+
+      - name: Build game bundle
+        run: npm run build
+
+      - name: Package desktop installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder ${{ matrix.builder_args }} --publish never
+
+      - name: Upload installers to draft release
         shell: bash
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-        run: |
-          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then echo "::error::TAURI_SIGNING_PRIVATE_KEY secret is missing"; exit 1; fi
-
-      - uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          # latest.json is written once by the updater-json job below, after every platform is up
-          includeUpdaterJson: false
-          tagName: v__VERSION__
-          releaseName: The Kardashev Project v__VERSION__
-          releaseBody: |
-            Download the installer for your computer below (Windows, macOS or Linux).
-
-            These builds are not code-signed yet, so your computer will ask before opening them:
-            - **Windows:** on the SmartScreen notice, click *More info → Run anyway*.
-            - **macOS:** right-click the app → *Open*, or System Settings → Privacy & Security → *Open Anyway*.
-            - **Linux:** `chmod +x` the AppImage and run it (Arch-based distros may need `fuse2`), or install the .deb.
-
-            Already installed? The game offers each new version itself: press *Update*.
-
-            What's new: https://thekardashevproject.netlify.app/#news
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
-
-  # The updater manifest the installed desktop apps read: one latest.json for every platform, written
-  # after all the signed installers are on the draft release (the matrix jobs would race to merge it).
-  updater-json:
-    name: Updater manifest (latest.json)
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Write latest.json from the signatures
-        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
         run: |
-          mkdir sigs && cd sigs
-          gh release download "$TAG" -R "$REPO" -p '*.sig'
-          ls -la
-          python3 - "$TAG" "$REPO" <<'PY'
-          import datetime, glob, json, sys
-          tag, repo = sys.argv[1], sys.argv[2]
-          base = f"https://github.com/{repo}/releases/download/{tag}"
-          platforms = {}
-          for keys, suffix in [
-              (["linux-x86_64", "linux-x86_64-appimage"], ".AppImage"),
-              (["linux-x86_64-deb"], ".deb"),
-              (["windows-x86_64", "windows-x86_64-nsis"], "-setup.exe"),
-              (["darwin-aarch64", "darwin-x86_64", "darwin-universal"], ".app.tar.gz"),
-          ]:
-              sig = sorted(glob.glob("*" + suffix + ".sig"))
-              if not sig:
-                  continue
-              entry = {"signature": open(sig[0]).read().strip(), "url": f"{base}/{sig[0][:-4]}"}
-              for k in keys:
-                  platforms[k] = entry
-          for need in ["linux-x86_64", "windows-x86_64", "darwin-aarch64"]:
-              if need not in platforms:
-                  sys.exit(f"no signed updater artifact for {need}")
-          manifest = {
-              "version": tag.lstrip("v"),
-              "notes": "What's new: https://thekardashevproject.netlify.app/#news",
-              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "platforms": platforms,
-          }
-          json.dump(manifest, open("latest.json", "w"), indent=2)
-          print(json.dumps(manifest, indent=2)[:2000])
-          PY
-          gh release upload "$TAG" latest.json -R "$REPO" --clobber
+          shopt -s nullglob
+          files=(
+            dist-desktop/*.exe
+            dist-desktop/*.dmg
+            dist-desktop/*.zip
+            dist-desktop/*.AppImage
+            dist-desktop/*.deb
+            dist-desktop/*.blockmap
+            dist-desktop/latest*.yml
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No installer artifacts found in dist-desktop/"
+            exit 1
+          fi
+          ls -lh "${files[@]}"
+          gh release upload "$TAG" "${files[@]}" -R "$REPO" --clobber

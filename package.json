@@ -3,7 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "description": "A cozy-but-real 3D management sim about the AI boom: guide Earth up the Kardashev scale.",
+  "author": "Lone Fox <contact@ame-apexforge.org>",
+  "homepage": "https://thekardashevproject.netlify.app",
+  "desktopName": "kardashev-project.desktop",
   "type": "module",
+  "main": "electron/main.mjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -13,23 +17,21 @@
     "test": "vitest run",
     "gen:map": "node tools/gen-worldmap.mjs",
     "gen:assets": "tsx tools/gen-assets.ts",
-    "tauri": "tauri",
-    "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "desktop:dev": "node electron/dev.mjs",
+    "desktop:build": "npm run build && electron-builder --publish never",
+    "desktop:build:steam": "KP_STEAM=1 npm run build && KP_STEAM=1 electron-builder --publish never"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.12.4",
-    "@tauri-apps/plugin-opener": "^2.7.2",
-    "@tauri-apps/plugin-process": "^2.4.0",
-    "@tauri-apps/plugin-updater": "^2.14.1",
+    "electron-updater": "^6.8.11",
     "preact": "^10.29.8"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@preact/preset-vite": "^2.10.6",
-    "@tauri-apps/cli": "^2.12.4",
     "@types/node": "^24.19.2",
     "@types/three": "^0.187.0",
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0",
     "three": "^0.187.0",
     "topojson-client": "^3.1.0",
     "tsx": "^4.23.15",

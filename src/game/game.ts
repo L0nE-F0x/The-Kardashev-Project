@@ -39,7 +39,7 @@ import { applyCssSettings, loadSettings, lookFor, saveSettings, type Settings } 
 import { guideUnseen, unlockGuide } from '../save/guide';
 import { unlockedFor, GUIDE_BY_ID } from '../content/fieldGuide';
 import { sfx } from '../audio/sfx';
-import { resumeAudio, setVolumes, suspendAudio, unlockOnGesture, onAudioFailure } from '../audio/engine';
+import { audioRunning, resumeAudio, setVolumes, suspendAudio, unlockOnGesture, onAudioFailure } from '../audio/engine';
 import { musicUnlocked, playMusic, setMusicMood, type Track } from '../audio/music';
 import { ambienceForScene, restartAmbience, setAmbience } from '../audio/ambience';
 import { installUiSounds } from '../audio/ui';
@@ -209,17 +209,18 @@ export class Game {
     installUiSounds();
     document.addEventListener('visibilitychange', () => this.onVisibility());
     window.addEventListener('pagehide', () => this.save());
-    // no sound at all is worth one sentence (the game plays on without it). The Linux app opens its audio behind the
-    // loading screen, so a refusal there is said at the player's first click, when there is someone to read it.
+    // no sound at all is worth one sentence (the game plays on without it)
     let gestured = false;
     let silent: string | null = null;
+    let toldSilent = false;
     const sayNoSound = () => {
-      const linux = /Linux/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+      if (toldSilent || audioRunning()) return;
+      toldSilent = true;
       this.toast(
-        `No sound: your computer's audio output refused to start.${linux ? ' On Linux the game plays through GStreamer: installing its "good" plugins fixes it (gst-plugins-good on Arch, gstreamer1.0-plugins-good on Debian and Ubuntu).' : ''}`,
+        "No sound: your computer's audio output could not be opened. Check that a playback device is connected and enabled.",
         'bad',
         undefined,
-        16000,
+        12000,
       );
     };
     unlockOnGesture(() => {
@@ -543,7 +544,7 @@ export class Game {
   }
 
   /** The installed apps look for a newer release a few seconds after starting, then every six hours. */
-  // ── which graphics card (laptops with two; src-tauri/src/gpu.rs) ────────────────────────────
+  // ── which graphics card (machines with two; electron/gpu.mjs) ────────────────────────────────
   /** How long a new choice waits for "Keep it" before the game goes back by itself (a black window can't click). */
   static readonly GPU_TRIAL_SECONDS = 25;
   /** Under this many frames a second on the title screen, a card is not doing its job. */
@@ -591,7 +592,9 @@ export class Game {
     this.gpu = await gpuStatus();
     if (!this.gpu) return;
     const base = this.gpuBase();
-    const slower = (fps: number) => fps < Game.GPU_SLOW_FPS || (base !== null && fps < base * 0.85);
+    // On high-refresh monitors (120–240 Hz), switching to Stronger also raises Auto 3D detail from Medium to High
+    // (4× MSAA + GTAO + 4K shadows); anything at ~60 fps or above is already smooth, never "slow".
+    const slower = (fps: number) => fps < Game.GPU_SLOW_FPS || (fps < 55 && base !== null && fps < base * 0.85);
     if (this.gpu.state === 'failed') {
       // the last start tried the stronger card and nobody confirmed the picture: the app already went back
       this.gpuNotice = { kind: 'failed' };

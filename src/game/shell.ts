@@ -3,6 +3,7 @@
  * keyboard shortcuts.
  */
 import type { Game } from './game';
+import { toggleFullscreen } from '../platform/platform';
 
 /** What the keyboard can ask of the current scene (map scenes pan and zoom). */
 interface PanZoom {
@@ -14,24 +15,28 @@ interface PanZoom {
 /** Start the frame loop and bind the keys. */
 export function startShell(game: Game) {
   bindKeys(game);
-  // Frame pacing: at most 60 frames a second (30 with the battery saver), and 30 while nothing moves,
-  // so 90–144 Hz screens and idle phones don't draw flat out. dt is real time, so nothing animates
-  // faster or slower than before; any key, wheel or touch wakes the loop at once.
+  // Frame pacing: 1:1 native display vsync on 60–240 Hz monitors while active (no 3:2 pulldown judder on 90/144/165 Hz
+  // panels), dropping gently to ~30 fps when Battery saver is on or nothing on screen is moving (`calm`).
+  // Every scene and simulation step uses real `dt`, so gameplay speed is identical on every refresh rate.
   let lastDraw = performance.now();
   let nextDraw = 0;
   let lastInput = lastDraw;
   const wake = () => {
     lastInput = performance.now();
-    // out of the calm rate at once, but never past the cap (a moving mouse sends events faster than frames)
-    nextDraw = Math.min(nextDraw, lastDraw + 1000 / (game.settings.batterySaver ? 30 : 60));
+    nextDraw = Math.min(nextDraw, lastDraw + (game.settings.batterySaver ? 1000 / 30 : 0));
   };
   for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) window.addEventListener(type, wake, { capture: true, passive: true });
   const loop = (now: number) => {
-    if (now >= nextDraw - 1.5) {
-      const fps = game.settings.batterySaver || calm(game, now - lastInput) ? 30 : 60;
-      const budget = 1000 / fps;
-      // keep to the average rate on screens that aren't a multiple of it, but never catch up in a burst
-      nextDraw = Math.max(nextDraw + budget, now + budget * 0.75);
+    const throttled = game.settings.batterySaver || calm(game, now - lastInput);
+    // When unthrottled, run on every vsync up to ~240 Hz (`3.8 ms` guards only against uncapped >260 Hz modes).
+    const ready = throttled ? now >= nextDraw - 1.5 : now - lastDraw >= 3.8 || nextDraw === 0;
+    if (ready) {
+      if (throttled) {
+        const budget = 1000 / 30;
+        nextDraw = Math.max(nextDraw + budget, now + budget * 0.75);
+      } else {
+        nextDraw = now;
+      }
       // (never negative: a frame's timestamp can come from before the loop started, after a long first build)
       const dt = Math.max(0, Math.min(0.25, (now - lastDraw) / 1000));
       lastDraw = now;
@@ -110,6 +115,12 @@ function bindKeys(game: Game) {
     if (input === 'range' && /^(Arrow|Home|End|Page)/.test(e.key)) return;
     // a held key repeats: panning and zooming want that, opening and closing a panel ten times a second doesn't
     if (e.repeat && !REPEATS.has(e.key)) return;
+    // F11 toggles fullscreen anywhere (title screen, dialogs, or in game)
+    if (e.key === 'F11') {
+      e.preventDefault();
+      void toggleFullscreen();
+      return;
+    }
     if (game.mode === 'title' || !game.state) {
       if (e.key === 'Escape') back(game);
       else if (e.key === '?' || e.key === 'F1') {

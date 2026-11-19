@@ -234,37 +234,129 @@ function build(ctx: AudioContext): Graph {
   return { ctx, master, buses: { sfx: bus(false), music: bus(true), amb: bus(false) }, duck, delays: [dl, dr], echoGates: [delOut, cross, fb] };
 }
 
-/** Why the sound could not start (the audio device refused), once it has failed; and who wants to hear about it. */
+/** Why the sound could not start (the audio device refused), if currently failing; and who wants to hear about it. */
 let failure: string | null = null;
+let failureReported = false;
 let onFailure: ((why: string) => void) | null = null;
 export function onAudioFailure(fn: (why: string) => void): void {
   onFailure = fn;
-  if (failure) fn(failure);
+  if (failure && !failureReported) {
+    failureReported = true;
+    fn(failure);
+  }
+}
+
+const rebuildListeners = new Set<() => void>();
+/** Register a listener invoked when the live AudioContext has to be rebuilt after an output-device fault. */
+export function onAudioRebuild(fn: () => void): () => void {
+  rebuildListeners.add(fn);
+  return () => rebuildListeners.delete(fn);
+}
+
+let lastResumeTry = -1e9;
+let rebuilding = false;
+let lastRebuildAt = -1e9;
+let deviceWatchInstalled = false;
+let deviceChangeTimer: number | null = null;
+
+/** Start (or restart) the context. Transient device errors are retried later rather than locking out sound forever. */
+function resume(ctx: AudioContext): Promise<void> {
+  lastResumeTry = performance.now();
+  return ctx
+    .resume()
+    .then(() => {
+      if (ctx.state === 'running') failure = null;
+    })
+    .catch((e: unknown) => {
+      failure = e instanceof Error ? e.message : String(e);
+      if (!failureReported && onFailure) {
+        failureReported = true;
+        onFailure(failure);
+      }
+    });
 }
 
 /**
- * Start (or restart) the context. It can be refused: on Linux, WebKit plays through the system's GStreamer, and a
- * system without its audio output plugins (Omarchy ships without gst-plugins-good) refuses every start with
- * "Failed to start the audio device". The game runs on silently; the player is told once why (game.ts).
+ * Replace a closed or wedged AudioContext (for example after Bluetooth headphones or a USB DAC disconnect mid-game
+ * and leave the OS audio stream stalled) and notify music/ambience to reattach seamlessly.
  */
-function resume(ctx: AudioContext): Promise<void> {
-  return ctx.resume().catch((e: unknown) => {
-    if (failure) return;
-    failure = e instanceof Error ? e.message : String(e);
-    onFailure?.(failure);
+function rebuildAudio(): void {
+  if (offline || suspendedByApp || rebuilding) return;
+  const now = performance.now();
+  if (now - lastRebuildAt < 2000) return;
+  rebuilding = true;
+  lastRebuildAt = now;
+  const prev = live;
+  live = g = null;
+  if (prev) void prev.ctx.close().catch(() => {});
+  try {
+    live = g = build(new AudioContext());
+    applyVolumes(0);
+    lastPumpCtxTime = -1;
+    lastPumpAdvanceWall = now;
+    void resume(live.ctx).finally(() => {
+      rebuilding = false;
+      for (const fn of [...rebuildListeners]) {
+        try {
+          fn();
+        } catch {
+          /* keep other listeners alive */
+        }
+      }
+    });
+  } catch {
+    rebuilding = false;
+  }
+}
+
+function installDeviceWatch(): void {
+  if (deviceWatchInstalled || typeof navigator === 'undefined' || !navigator.mediaDevices?.addEventListener) return;
+  deviceWatchInstalled = true;
+  navigator.mediaDevices.addEventListener('devicechange', () => {
+    if (deviceChangeTimer !== null) window.clearTimeout(deviceChangeTimer);
+    // Let Bluetooth A2DP / USB audio profile negotiation settle before probing the stream.
+    deviceChangeTimer = window.setTimeout(() => {
+      deviceChangeTimer = null;
+      if (offline || !live || suspendedByApp) return;
+      const ctx = live.ctx;
+      if ((ctx.state as string) === 'closed') {
+        rebuildAudio();
+        return;
+      }
+      if (ctx.state !== 'running') {
+        void resume(ctx).then(() => {
+          if (live?.ctx === ctx && ctx.state !== 'running' && !suspendedByApp) rebuildAudio();
+        });
+        return;
+      }
+      // Verify the hardware audio clock is still advancing after the output switch.
+      const t0 = ctx.currentTime;
+      window.setTimeout(() => {
+        if (offline || suspendedByApp || document.hidden || live?.ctx !== ctx) return;
+        if ((ctx.state as string) === 'closed' || (ctx.state === 'running' && ctx.currentTime <= t0)) {
+          rebuildAudio();
+        }
+      }, 280);
+    }, 350);
   });
 }
 
 export function audioCtx(): AudioContext | null {
   try {
     if (offline) return g?.ctx ?? null;
+    installDeviceWatch();
+    if (live && (live.ctx.state as string) === 'closed' && !suspendedByApp) {
+      rebuildAudio();
+    }
     if (!live) {
       live = g = build(new AudioContext());
       applyVolumes(0);
       // make the noise the kits, beds and whooshes will ask for now, a piece at a time, so none of it lands in a busy frame
-      (['white', 'pink', 'brown'] as const).forEach((kind, i) => window.setTimeout(() => !offline && noiseBuffer(kind), 150 * (i + 1)));
+      (['white', 'pink', 'brown'] as const).forEach((kind, i) => window.setTimeout(() => !offline && g && noiseBuffer(kind), 150 * (i + 1)));
     }
-    if (live.ctx.state === 'suspended' && !suspendedByApp && !failure) void resume(live.ctx);
+    if (live.ctx.state !== 'running' && !suspendedByApp && performance.now() - lastResumeTry > 2500) {
+      void resume(live.ctx);
+    }
     return live.ctx;
   } catch {
     return null;
@@ -272,12 +364,11 @@ export function audioCtx(): AudioContext | null {
 }
 
 /**
- * Open the audio now, before any gesture, where the engine allows it: WebKitGTK (the Linux app) takes about a second
- * to start its audio pipeline and holds the page while it does, which was a freeze at the title screen's first click.
- * Called behind the loading screen; resolves when the audio runs, or after `waitMs` if the engine wants a gesture
- * first (the context then waits for one, as before).
+ * Open the audio before any gesture where the host allows it (the Electron desktop app runs with autoplay enabled).
+ * Called behind the loading screen; resolves as soon as the context runs, or after `waitMs` in a browser tab that
+ * wants a click gesture first.
  */
-export async function openAudioEarly(waitMs = 1500): Promise<void> {
+export async function openAudioEarly(waitMs = 1200): Promise<void> {
   const ctx = audioCtx();
   if (!ctx || ctx.state === 'running') return;
   await Promise.race([resume(ctx), new Promise((r) => setTimeout(r, waitMs))]);
@@ -300,7 +391,7 @@ export function musicBus(): GainNode | null {
   return mixBus('music')?.dry ?? null;
 }
 
-function applyVolumes(tau = 0.06) {
+function applyVolumes(tau = 0.025) {
   if (!g) return;
   const t = g.ctx.currentTime;
   const set = (p: AudioParam, v: number) => (tau ? p.setTargetAtTime(v, t, tau) : p.setValueAtTime(v, t));
@@ -329,7 +420,10 @@ export function suspendAudio(): void {
 
 export function resumeAudio(): void {
   suspendedByApp = false;
-  if (live && !failure) void resume(live.ctx);
+  if (live) {
+    if ((live.ctx.state as string) === 'closed') rebuildAudio();
+    else void resume(live.ctx);
+  }
 }
 
 /** Browsers only allow audio after a user gesture: unlock on the first one. */
@@ -337,7 +431,8 @@ export function unlockOnGesture(onUnlock: () => void): void {
   const go = () => {
     window.removeEventListener('pointerdown', go);
     window.removeEventListener('keydown', go);
-    audioCtx();
+    const ctx = audioCtx();
+    if (ctx && ctx.state !== 'running' && !suspendedByApp) void resume(ctx);
     onUnlock();
   };
   window.addEventListener('pointerdown', go);
@@ -385,10 +480,29 @@ type Pump = (until: number, now: number) => void;
 const pumps = new Set<Pump>();
 let timer: number | null = null;
 let watching = false;
+let lastPumpCtxTime = -1;
+let lastPumpAdvanceWall = 0;
 
 function pumpAll() {
-  if (offline || !live || live.ctx.state !== 'running') return;
+  if (offline || !live) return;
+  const wallNow = performance.now();
+  if ((live.ctx.state as string) === 'closed') {
+    if (!suspendedByApp) rebuildAudio();
+    return;
+  }
+  if (live.ctx.state !== 'running') {
+    if (!suspendedByApp && !document.hidden && wallNow - lastResumeTry > 2500) void resume(live.ctx);
+    return;
+  }
   const now = live.ctx.currentTime;
+  if (now > lastPumpCtxTime) {
+    lastPumpCtxTime = now;
+    lastPumpAdvanceWall = wallNow;
+  } else if (!suspendedByApp && !document.hidden && lastPumpAdvanceWall > 0 && wallNow - lastPumpAdvanceWall > 1800) {
+    // Running AudioContext whose hardware sample clock has stalled for >1.8s (e.g. wedged WASAPI/Bluetooth sink).
+    rebuildAudio();
+    return;
+  }
   // a hidden tab's timers fire once a second: look further ahead there so the music doesn't starve
   const ahead = document.hidden ? 2.2 : 0.3;
   for (const p of [...pumps]) {

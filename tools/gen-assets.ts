@@ -2,7 +2,7 @@
  * Renders the brand pictures in 3D, in headless Chrome:
  *   public/logo.png                          the 3D wordmark (tools/brand/logo.ts)
  *   public/favicon.ico, public/icons/*.png   the app icon: the game's own globe on a space tile (tools/brand/icon.ts)
- *   src-tauri/icons/*                        the desktop app's icons (PNG sizes, icon.ico, icon.icns)
+ *   electron/icons/*                         the desktop app's icons (PNG sizes, icon.ico, icon.icns)
  *   public/og-image.png                      the website's social card (tools/og3d.mjs, which sets the logo on it)
  *
  *   npm run gen:assets                 everything
@@ -21,9 +21,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
-const TAURI_ICONS = path.join(ROOT, 'src-tauri/icons');
+const DESKTOP_ICONS = path.join(ROOT, 'electron/icons');
 fs.mkdirSync(path.join(PUBLIC, 'icons'), { recursive: true });
-fs.mkdirSync(TAURI_ICONS, { recursive: true });
+fs.mkdirSync(DESKTOP_ICONS, { recursive: true });
 
 const want = process.argv.slice(2).filter((a) => ['logo', 'icons', 'og'].includes(a));
 const doing = (what: string) => want.length === 0 || want.includes(what);
@@ -118,17 +118,17 @@ if (doing('logo') || doing('icons')) {
       out(PUBLIC, 'icons/icon-512.png', 'tile512');
       out(PUBLIC, 'icons/icon-maskable-512.png', 'maskable512');
       write(path.join(PUBLIC, 'favicon.ico'), icoOf([[16, p.globe16], [32, p.globe32], [48, p.globe48]]), '16, 32, 48');
-      // the desktop app (Tauri): the bare globe up to 64 px (taskbars, lists), the tile above; macOS gets its own
+      // the desktop app (Electron): the bare globe up to 64 px (taskbars, lists), the tile above; macOS gets its own
       // tile with the standard margin
       console.log('desktop icons');
-      out(TAURI_ICONS, '32x32.png', 'globe32');
-      out(TAURI_ICONS, '64x64.png', 'globe64');
-      out(TAURI_ICONS, '128x128.png', 'tile128');
-      out(TAURI_ICONS, '128x128@2x.png', 'tile256');
-      out(TAURI_ICONS, 'icon.png', 'tile512');
-      write(path.join(TAURI_ICONS, 'icon.ico'), icoOf([[16, p.globe16], [24, p.globe24], [32, p.globe32], [48, p.globe48], [64, p.globe64], [256, p.tile256]]), '16, 24, 32, 48, 64, 256');
+      out(DESKTOP_ICONS, '32x32.png', 'globe32');
+      out(DESKTOP_ICONS, '64x64.png', 'globe64');
+      out(DESKTOP_ICONS, '128x128.png', 'tile128');
+      out(DESKTOP_ICONS, '128x128@2x.png', 'tile256');
+      out(DESKTOP_ICONS, 'icon.png', 'tile512');
+      write(path.join(DESKTOP_ICONS, 'icon.ico'), icoOf([[16, p.globe16], [24, p.globe24], [32, p.globe32], [48, p.globe48], [64, p.globe64], [256, p.tile256]]), '16, 24, 32, 48, 64, 256');
       write(
-        path.join(TAURI_ICONS, 'icon.icns'),
+        path.join(DESKTOP_ICONS, 'icon.icns'),
         icnsOf([
           ['icp4', p.globe16],
           ['ic11', p.globe32],

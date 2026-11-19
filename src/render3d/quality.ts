@@ -36,7 +36,7 @@ const PRESETS: Record<QualityLevel, Omit<Quality, 'adaptive'>> = {
 
 export const quality: Quality = { ...PRESETS.high, adaptive: false };
 
-/** The GPU's name when the browser tells it (Chrome does; WebKit says "Apple GPU" everywhere). */
+/** The GPU's name from WebGL2's debug extension (Chromium/Electron reports the real adapter across OSes). */
 function gpuName(): string {
   try {
     const gl = document.createElement('canvas').getContext('webgl2');
@@ -49,8 +49,19 @@ function gpuName(): string {
   }
 }
 
-/** A discrete or otherwise strong GPU by its name (anything else, or no name, counts as integrated). */
-export const strongGpu = (name: string) => /nvidia|geforce|quadro|rtx|radeon (rx|pro)|radeon\(tm\) rx|arc\(tm\) a|arc a\d|apple m\d (pro|max|ultra)/i.test(name);
+/** CPU/software fallback renderers (missing GPU driver or VM): step straight to Low so the game stays playable. */
+export const softwareGpu = (name: string) => /swiftshader|llvmpipe|softpipe|lavapipe|microsoft basic render/i.test(name);
+
+/**
+ * A discrete or high-tier modern GPU by its WebGL/ANGLE renderer string:
+ * - NVIDIA (RTX, GTX, GeForce, Quadro)
+ * - AMD Radeon RX / Pro / AI PRO / VII / modern RDNA3+ 780M/880M/890M/8050S/8060S
+ * - Intel Arc A/B/C-series and Lunar Lake Arc 130V/140V
+ * - Apple Silicon (M1 Pro/Max/Ultra and all M2/M3/M4+)
+ */
+export const strongGpu = (name: string) =>
+  !softwareGpu(name) &&
+  /nvidia|geforce|quadro|rtx|radeon(\(tm\))?\s*(rx|pro|ai\s*pro|vii|[789]\d0m|80[56]0s)|\barc(\(tm\))?\s+([abce]\d{3}|\d{3}v)|apple\s+m([2-9]|\d\d)|apple\s+m1\s+(pro|max|ultra)/i.test(name);
 
 let onStrongGpu = false;
 /** The app was started on the stronger graphics card (Settings → Display → Graphics card): Auto then means High. */
@@ -59,12 +70,14 @@ export function setOnStrongGpu(v: boolean) {
 }
 
 /**
- * The level for a setting: 'auto' is high with a discrete GPU, medium otherwise (integrated GPUs, or a webview
- * that won't say), and the resolution adapts on top of it.
+ * The level for a setting: 'auto' picks High on discrete / strong modern GPUs, Low on software fallbacks, and Medium
+ * otherwise (older integrated GPUs, Steam Deck handheld APU for battery life), with adaptive resolution on top.
  */
 export function resolveQuality(setting: 'auto' | QualityLevel | undefined): QualityLevel {
   if (setting && setting !== 'auto') return setting;
-  return onStrongGpu || strongGpu(gpuName()) ? 'high' : 'medium';
+  const name = gpuName();
+  if (softwareGpu(name)) return 'low';
+  return onStrongGpu || strongGpu(name) ? 'high' : 'medium';
 }
 
 export function setQuality(level: QualityLevel, adaptive = false) {

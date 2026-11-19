@@ -3,7 +3,7 @@
  * Your own theme song on the menu (public/audio/theme.mp3) wins over the menu's piece. Tracks cross-fade, and the
  * score follows the game's mood: calmer while paused, a little more drive at speed, tension in a finale.
  */
-import { audioCtx, glide, musicBus } from './engine';
+import { audioCtx, glide, musicBus, onAudioRebuild, prewarmNoise } from './engine';
 import { Cinematic, type Mood } from './cinematic';
 import { TRACKS } from './tracks';
 import { LYDIAN, MINOR } from './score';
@@ -12,7 +12,6 @@ import { keepRate } from './voices/offthread';
 import { prewarmPlucked } from './voices/plucked';
 import { prewarmSynths } from './voices/synths';
 import { prewarmWinds } from './voices/winds';
-import { prewarmNoise } from './engine';
 
 export type Track = 'menu' | 'era0' | 'era1' | 'era2' | 'era3' | 'era4' | 'ending' | null;
 
@@ -47,9 +46,8 @@ function prewarmAt(sr: number): void {
  * title screen's music and every act's start without a stutter. Safe to call before any gesture: no audio is opened.
  */
 export function prewarmMusic(): void {
-  // before the first run has told us: Chromium (WebView2, the dev browser) runs at the device's rate, nearly always
-  // 48 kHz; WebKit (the Linux and macOS apps) at 44.1 kHz
-  let sr = /Chrome\//.test(navigator.userAgent) ? 48000 : 44100;
+  // Chromium/Electron opens AudioContext at the output device's hardware rate (almost always 48 kHz)
+  let sr = 48000;
   try {
     sr = Number(localStorage.getItem(RATE_KEY)) || sr;
   } catch {
@@ -57,6 +55,22 @@ export function prewarmMusic(): void {
   }
   prewarmAt(sr);
 }
+
+onAudioRebuild(() => {
+  // MediaElementAudioSourceNode and Cinematic sequencers are tied to the old AudioContext: reattach seamlessly.
+  if (themeEl) {
+    try {
+      themeEl.pause();
+    } catch {
+      /* ignore */
+    }
+  }
+  themeEl = null;
+  themeGain = null;
+  now.player?.stop();
+  now = { track: null, player: null };
+  if (unlocked) musicUnlocked();
+});
 
 export function musicUnlocked(): void {
   unlocked = true;

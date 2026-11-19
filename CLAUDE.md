@@ -221,15 +221,16 @@ CAMPAIGN=1 npx vitest run tests/campaign.test.ts   # the campaign matrix: diffic
 npm run gen:map       # rebuild src/content/generated/worldmap.bin from Natural Earth (tools/raw/)
 PLAYWRIGHT=<playwright's index.mjs> npm run gen:assets [-- logo|icons|og]
                       # re-render the 3D logo (public/logo.png; letter outlines in tools/brand/glyphs.json), the app
-                      # icons (public/icons, favicon, src-tauri/icons incl. ICO/ICNS) and the social card. Needs
+  #icons (public/icons, favicon, electron/icons incl. ICO/ICNS) and the social card. Needs
                       # Playwright + Chrome: it starts its own Vite and a software-rendered Chrome (about a minute);
                       # CDP=http://127.0.0.1:<port> / BASE=<dev server> reuse running ones. The website's still globe:
                       # node tools/og3d.mjs globe
 node tools/thumbs.mjs [type…]   # the build menu's pictures (src/assets/build/*.webp): every facility type shot in
                       # the piece lab. Needs the dev server, the headless Chrome below (CDP= / BASE=) and ImageMagick.
                       # Run it after changing a facility's 3D piece.
-npm run desktop:dev   # Tauri window on top of the dev server
-npm run desktop:build # local desktop build (Linux: add `-- --bundles deb` to skip the AppImage)
+npm run desktop:dev         # Electron desktop window on top of the dev server
+npm run desktop:build       # local Electron desktop build → dist-desktop/
+npm run desktop:build:steam # Steam desktop build (KP_STEAM=1: GitHub self-updater disabled)
 PREVIEW_DIR=/some/dir npx vitest run tests/dock-icons.test.ts   # writes icon-sheet.svg (every icon, dock icon, medal)
                       # Contact sheets in the dev server: /play/icons.html (?group=…&sizes=…&mag=6&bg=hud|gold|light)
                       # and /play/portraits.html?set=advisors|ages|ceos|governors|bit|ais|moods; the piece lab is
@@ -382,16 +383,17 @@ src/
               had it installed (the worker deletes the old caches and unregisters itself): keep both for a good while
   platform/   platform.ts: the desktop shell (quit, fullscreen, in-app updates, opening links, saving files); a plain
               browser tab in dev falls through to downloads and document fullscreen. Files (`saveImage`,
-              `saveTextFile` → a `Saved` path, `savedNote` for the message): a download link does nothing in the
-              app's webview, so the app writes them itself (src-tauri/src/savefile.rs, the `save_file` command:
-              pictures → Pictures/The Kardashev Project, the rest → Documents/The Kardashev Project, no overwrites)
+              `saveTextFile` → a `Saved` path, `savedNote` for the message): the desktop app writes them itself
+              (electron/savefile.mjs, the `kp:save-file` IPC handler: pictures → Pictures/The Kardashev Project,
+              the rest → Documents/The Kardashev Project, no overwrites)
   save/       save.ts (5 slots + index, migrate(), export/import), settings.ts (+ applyCssSettings), guide.ts (Field Guide unlocks),
               achievements.ts (per-device achievement store: unlocked, advisors met, places visited)
   audio/      All synthesised in WebAudio (v0.11: SPEC §29). engine.ts (the mix: sfx / music / ambience buses, each
               with a dry path and two shared sends (a generated hall, a tempo-synced echo), then sub filter → glue
-              compressor → limiter → ceiling; one look-ahead timer for every sequencer; `renderOffline` for
-              measurements), music.ts (which track plays; `setMusicMood`; the menu's theme.mp3 override; `musicKey`
-              hands the stings a minor piece's relative major), the score = score.ts (sequencer, voice-leading) +
+              compressor → limiter → ceiling; one look-ahead timer for every sequencer; devicechange + clock-stall
+              auto-rebuild so Bluetooth/USB output switches recover live; `renderOffline` for measurements),
+              music.ts (which track plays; `setMusicMood`; the menu's theme.mp3 override; `musicKey` hands the stings
+              a minor piece's relative major), the score = score.ts (sequencer, voice-leading) +
               synth.ts (the old instruments and the helpers) + voices/ (since v0.15.4 the modelled instruments:
               keys, mallets, plucked, drums, winds, synths, pads; buffers.ts, fx.ts; offthread.ts + audioWorker.ts =
               the worker that makes their notes off the main thread, warmed while the game loads: `prewarmMusic`;
@@ -402,41 +404,16 @@ src/
               campus, night, rain, coast, lake, Moon, space, habitat; the 3D campus says which through `ambience()`).
               Nobody can listen in QA: measure instead (the harness and rendered WAVs lived in the session's scratchpad;
               `renderOffline` + ffmpeg `ebur128` reproduce it: music −16 LUFS at full sliders, peaks under −1.5 dBFS).
-src-tauri/    Tauri 2 desktop shell (one window loading play/index.html from dist/, the game bundled; capabilities = close, fullscreen,
-              updater, restart, opener scoped to the ApexForge page). The AppImage bundles GStreamer plugins
-              (`bundleMediaFramework`, plugin packages installed in CI): without them Ubuntu's bundled GStreamer finds
-              none on Arch/Fedora and WebKit aborts the page when the game's audio starts (≤ 0.8.0). In-app updates: tauri-plugin-updater reads releases/latest/download/latest.json and
-              only installs builds signed with the updater key (public half in tauri.conf.json plugins.updater).
-              Since v0.9.4 the app downloads the file itself (src/fastdl.rs, the `update_fast` command: 2 MB pieces
-              over 6 connections spread across the host's addresses, a stalled or crawling one swapped for a fresh
-              one, keeping its bytes) and hands it to the updater's `install`, which checks the signature first;
-              errors starting "fast download:" fall back to the updater's own download (`platform.ts#installDesktop`).
-              src/savefile.rs = `save_file` (see platform/). src/gpu.rs = Settings → Display → Graphics card: the
-              choice lives in `<config dir>/<identifier>/gpu.json` and is applied first thing in `run()`, before the
-              webview's processes exist (Linux: PRIME offload; NVIDIA's driver also gets
-              `__NV_DISABLE_EXPLICIT_SYNC=1`, without which WebKitGTK 2.5x on Wayland dies with "Error 71 (Protocol
-              error)"; Windows: `--force_high_performance_gpu` through WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS; macOS:
-              nothing). A new choice restarts the game and is "trying" until `gpu_keep`; a start that finds it still
-              "trying" goes back to automatic, so a black window undoes itself. A restart inherits the old run's
-              environment, hence `KARDASHEV_GPU_SWITCHED` and `unswitch()`. Auto detail = High on the stronger card.
-              **The AppImage's bundled WebKitGTK is slow on an offloaded NVIDIA card** (frames go through the CPU: 3
-              frames/s against 19 on the Intel card, where the system's WebKitGTK 2.54 gives 36), so on the stronger
-              card an AppImage that finds `libwebkit2gtk-4.1.so.0` on the system execs itself again with the system's
-              library folders first and the launcher's GTK/GIO/GStreamer variables removed (`system_engine`;
-              `KARDASHEV_SYSTEM_ENGINE` = the process id, so the new image knows the start was already decided).
-              The game's side (`Game.watchGpu`): every start measures frames really drawn on the title screen
-              (`measureFps`), the automatic card's figure is kept in localStorage (`kardashev.gpuBase`), the trial
-              shows both and calls the stronger card slower under 12 frames/s or under 85% of the automatic one; a
-              kept choice that runs under 12 gets a "go back?" question. `system_engine` strips every AppImage path
-              from every variable: v0.13.1 listed names and missed AppRun.wrapped's plain `GST_PLUGIN_SYSTEM_PATH`,
-              so the system's GStreamer found no plugins and WebKit aborted at the first click (audio start). Test
-              like the app does it: `--appimage-extract` the real AppImage into a scratch dir, drop the new binary
-              into `squashfs-root/usr/bin/`, run `squashfs-root/AppRun` with `APPDIR` set (the runtime's job) and
-              scratch XDG dirs, then press something (a `pointerdown` starts the audio); hooks alone miss
-              AppRun.wrapped's variables
+electron/     Electron (Chromium) desktop shell (`main.mjs`, `preload.cjs`, `savefile.mjs`, `gpu.mjs`, `dev.mjs`,
+              `icons/*`, packaged via `electron-builder.json` into `dist-desktop/`). Serves `dist/` over an isolated
+              `app://localhost` origin with `--autoplay-policy=no-user-gesture-required` (title music plays on launch)
+              and `--ignore-gpu-blocklist`. `gpu.mjs` manages Settings → Display → Graphics card (`<userData>/gpu.json`,
+              25 s trial + auto-revert, real hardware GPU counting across Windows/Linux/macOS). In-app updates use
+              `electron-updater` (`latest.yml` / `latest-mac.yml` / `latest-linux.yml` on GitHub Releases) and are
+              automatically disabled when `KP_STEAM=1` or Steam's runtime (`SteamAppId` / `steam_appid.txt`) is active.
 tools/gen-worldmap.mjs   Natural Earth → region/biome rasters (two LODs, RLE)
 tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file), all drawn natively per size
-.github/workflows/desktop.yml   tag v* → Windows/macOS/Linux installers + latest.json on a draft GitHub release
+.github/workflows/desktop.yml   tag v* → Windows/macOS/Linux Electron installers + updater manifests on a draft GitHub release
 ```
 
 ## Conventions
@@ -554,8 +531,9 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
   the Goals panels show it under the hint. Acts II–III list the phase's headline goals first.
 - **Input & frames:** scenes implement `pointerCancel` (a cancelled press is never a tap) and `busy()` (camera
   moving). Switch scenes with `stage.setScene(scene, zoom)` (zoom 1 for the wide views, 2 for campuses: it only sizes
-  the interface's `--px` hairlines). Frame pacing lives in `game/shell.ts` (60 fps cap, 30 with Battery saver or when
-  calm).
+  the interface's `--px` hairlines). Frame pacing lives in `game/shell.ts` (1:1 native display vsync up to ~240 Hz,
+  30 fps with Battery saver or when calm; `F11` toggles fullscreen). Adaptive resolution in `stage3d.ts` uses
+  non-blocking `EXT_disjoint_timer_query_webgl2` GPU frame timing.
 - **Settings:** add the field + default in `save/settings.ts`, the control in `ui/menu/SettingsScreen.tsx`, and apply
   it in `game.updateSettings` (CSS-level ones in `applyCssSettings`).
 - **Save compatibility:** adding optional fields → default them in `save/save.ts#migrate`. Breaking changes →
@@ -574,14 +552,11 @@ tools/gen-assets.ts      brand assets + desktop icons (ICO/ICNS writers in-file)
    `## x.y.z — Title (date)` section to `CHANGELOG.md` (it feeds What's New in game and on the website).
 2. Commit and push `main` → Netlify deploys the website (`npm run build:site`). The game itself reaches players only
    through a release.
-3. `git tag vx.y.z && git push origin vx.y.z` → GitHub Actions builds the installers into a **draft** release. Publish
+3. `git tag vx.y.z && git push origin vx.y.z` → GitHub Actions builds the Electron installers (`nsis`, universal `dmg` + `zip`, `AppImage` + `deb`) into a **draft** release. Publish
    the draft and the website's download cards pick it up.
-4. Publishing the draft also updates the installed apps: the game offers the new version in a toast (the
-   `updater-json` job's `latest.json`). Updates are signed in CI from the secrets `TAURI_SIGNING_PRIVATE_KEY` and
-   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`; the key lives in `~/.config/kardashev-project/tauri/` (kardashev-updater.key +
-   updater-password.txt). **Never lose or change it**: installed apps only accept updates signed with it.
-   (The Android keystore in `~/.config/kardashev-project/android/` and the `ANDROID_KEYSTORE_*` repo secrets are left
-   over from the retired Android app: unused, leave them alone.)
+4. Publishing the draft also updates direct GitHub installs via `electron-updater` (`latest.yml`, `latest-mac.yml`,
+   `latest-linux.yml`). Steam builds (`npm run desktop:build:steam`, `KP_STEAM=1`, or launched with `SteamAppId`)
+   automatically disable the GitHub updater so SteamPipe handles updates.
 
 The theme song: drop an MP3 at `public/audio/theme.mp3` and the main menu plays it (the game's own menu theme is the fallback).
 
